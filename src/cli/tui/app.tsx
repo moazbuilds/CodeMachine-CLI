@@ -11,7 +11,7 @@ import { UpdateNotifierProvider, useUpdateNotifier } from "@tui/context/update-n
 import { Home } from "@tui/routes/home"
 import { homedir } from "os"
 import { createRequire } from "node:module"
-import { resolvePackageJson } from "../../shared/utils/package-json.js"
+import { resolvePackageJson } from "../../shared/runtime/pkg.js"
 import { initTUILogger, closeTUILogger } from "@tui/utils/tui-logger"
 
 /**

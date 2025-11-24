@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
-import { mkdirSync, rmSync, cpSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, cpSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { platform, arch } from 'node:os';
-import { generateEmbeddedResources } from './generate-embedded-resources.mjs';
 import { $ } from 'bun';
 
 // Simple ANSI colors
@@ -43,8 +42,50 @@ console.log(`\n${bold}${cyan}╭────────────────
 console.log(`${bold}${cyan}│${reset}  Building ${bold}CodeMachine${reset} v${mainVersion}  ${bold}${cyan}│${reset}`);
 console.log(`${bold}${cyan}╰────────────────────────────────────────╯${reset}\n`);
 
-await generateEmbeddedResources({ quiet: true, writeJson: true, writeCache: true });
-console.log(`${green}✓${reset} ${dim}Embedded resources refreshed${reset}`);
+// Collect resource files for embedding and generate a manifest that imports them.
+function collectFiles(dir) {
+  const results = [];
+  const stack = [dir];
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    const absPath = join(repoRoot, current);
+    const entries = readdirSync(absPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const relPath = join(current, entry.name);
+      const absEntry = join(repoRoot, relPath);
+
+      if (entry.isDirectory()) {
+        stack.push(relPath);
+      } else if (entry.isFile()) {
+        results.push(absEntry);
+      }
+    }
+  }
+
+  return results;
+}
+
+const resourceFiles = [
+  ...collectFiles('config'),
+  ...collectFiles('prompts'),
+  ...collectFiles('templates'),
+  join(repoRoot, 'package.json'),
+];
+
+// Generate simple imports file (no exports/mapping needed with --asset-naming)
+const imports = resourceFiles.map((abs) => {
+  // Manifest is at src/shared/runtime/, so need ../../../ to reach repo root
+  const rel = '../../../' + abs.replace(repoRoot + '/', '');
+  return `import "${rel}" with { type: "file" };`;
+});
+
+const manifestContent = `// Auto-generated: tells Bun which files to embed\n${imports.join('\n')}\n`;
+const manifestPath = join(repoRoot, 'src', 'shared', 'runtime', 'resource-manifest.ts');
+writeFileSync(manifestPath, manifestContent);
+
+console.log(`${green}✓${reset} ${dim}Collected ${resourceFiles.length} resource files for embedding${reset}`);
 
 // Auto-sync platform package versions before building
 if (mainPackage.optionalDependencies) {
@@ -170,17 +211,24 @@ try {
       define: {
         __CODEMACHINE_VERSION__: JSON.stringify(mainVersion),
       },
+      naming: {
+        asset: '[dir]/[name].[ext]', // Preserve original filenames (no hashing)
+      },
       compile: {
         target: target,
         outfile: binaryPath,
       },
-      entrypoints: ['./src/runtime/index.ts'],
+      entrypoints: ['./src/runtime/index.ts', manifestPath],
     });
 
     if (!result.success) {
       console.error(`  ${red}✗${reset} Main TUI build failed:`);
+      console.error(`    Logs count: ${result.logs.length}`);
       for (const log of result.logs) {
         console.error(`    ${dim}${log}${reset}`);
+      }
+      if (result.logs.length === 0) {
+        console.error(`    ${dim}No build logs available. Result:${reset}`, result);
       }
       process.exit(1);
     }
@@ -198,11 +246,14 @@ try {
       define: {
         __CODEMACHINE_VERSION__: JSON.stringify(mainVersion),
       },
+      naming: {
+        asset: '[dir]/[name].[ext]', // Preserve original filenames (no hashing)
+      },
       compile: {
         target: target,
         outfile: workflowBinaryPath,
       },
-      entrypoints: ['./src/workflows/runner-process.ts'],
+      entrypoints: ['./src/workflows/runner-process.ts', manifestPath],
     });
 
     if (!workflowResult.success) {
@@ -252,9 +303,12 @@ try {
   console.log(`\n${green}✓${reset} ${bold}Build complete for ${targets.length} target(s)${reset}\n`);
 } catch (error) {
   console.error(`\n${red}✗${reset} ${bold}Build failed${reset}`);
-  console.error(`${dim}${error.message}${reset}`);
+  console.error(`${dim}Error type: ${error?.constructor?.name}${reset}`);
+  console.error(`${dim}Error message: ${error?.message || 'No message'}${reset}`);
+  console.error(`${dim}Full error:${reset}`, error);
   if (error.stack) {
-    console.error(`\n${dim}${error.stack}${reset}`);
+    console.error(`\n${dim}Stack:${reset}`);
+    console.error(`${dim}${error.stack}${reset}`);
   }
   process.exit(1);
 }

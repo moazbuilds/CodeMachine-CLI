@@ -7,7 +7,7 @@ import { resolveAgentsModulePath } from '../config/paths.js';
 import { collectAgentsFromWorkflows } from './steps.js';
 import type { AgentDefinition } from '../config/types.js';
 import { AGENT_MODULE_FILENAMES } from '../config/types.js';
-import { resolvePackageRoot } from '../../utils/package-root.js';
+import { resolvePackageRoot } from '../../runtime/root.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

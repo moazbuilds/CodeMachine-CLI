@@ -17,17 +17,20 @@
  *   bun runner-process.ts <cwd> [specificationPath]
  */
 
-// SET CODEMACHINE_INSTALL_DIR EARLY
-// Use centralized package root resolution
-if (!process.env.CODEMACHINE_INSTALL_DIR) {
-  const { resolvePackageRoot } = await import('../shared/utils/package-root.js');
+// ENSURE EMBEDDED RESOURCES EARLY (BEFORE IMPORTS)
+// This must run before any modules that might resolve the package root
+import { ensure as ensureResources } from '../shared/runtime/embed.js';
 
+const embeddedRoot = await ensureResources();
+
+if (!embeddedRoot && !process.env.CODEMACHINE_INSTALL_DIR) {
+  // Fallback to normal resolution if not embedded
+  const { resolvePackageRoot } = await import('../shared/runtime/root.js');
   try {
     const packageRoot = resolvePackageRoot(import.meta.url, 'workflow runner');
     process.env.CODEMACHINE_INSTALL_DIR = packageRoot;
   } catch {
-    // If resolution fails, continue without setting the variable
-    // The system will attempt resolution again when needed
+    // Continue without setting
   }
 }
 

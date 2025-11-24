@@ -18,6 +18,9 @@ package-lock.json
 # Ignore folders starting with .tmp
 .tmp*
 .vscode
+
+# Generated resource manifest for bundling
+src/shared/runtime/resource-manifest.ts
 .codemachine/logs
 .codemachine/prompts
 .codemachine/agents
@@ -25,4 +28,3 @@ package-lock.json
 
 # MkDocs build output
 site/
-src/shared/resources/embedded-resources.json

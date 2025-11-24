@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { collectAgentsFromWorkflows } from '../../../shared/agents/index.js';
-import { resolvePackageRoot } from '../../../shared/utils/package-root.js';
+import { resolvePackageRoot } from '../../../shared/runtime/root.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

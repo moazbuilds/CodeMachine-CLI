@@ -1,14 +1,17 @@
-// SET CODEMACHINE_INSTALL_DIR EARLY
-// Use centralized package root resolution
-if (!process.env.CODEMACHINE_INSTALL_DIR) {
-  const { resolvePackageRoot } = await import('../shared/utils/package-root.js');
+// ENSURE EMBEDDED RESOURCES EARLY (BEFORE IMPORTS)
+// This must run before any modules that might resolve the package root
+import { ensure as ensureResources } from '../shared/runtime/embed.js';
 
+const embeddedRoot = await ensureResources();
+
+if (!embeddedRoot && !process.env.CODEMACHINE_INSTALL_DIR) {
+  // Fallback to normal resolution if not embedded
+  const { resolvePackageRoot } = await import('../shared/runtime/root.js');
   try {
     const packageRoot = resolvePackageRoot(import.meta.url, 'cli-setup');
     process.env.CODEMACHINE_INSTALL_DIR = packageRoot;
   } catch {
-    // If resolution fails, continue without setting the variable
-    // The system will attempt resolution again when needed
+    // Continue without setting
   }
 }
 
@@ -50,7 +53,7 @@ async function initializeInBackground(cwd: string): Promise<void> {
   if (!existsSync(cmRoot)) {
     // Lazy load bootstrap utilities (only on first run)
     const { bootstrapWorkspace } = await import('./services/workspace/index.js');
-    const { resolvePackageRoot } = await import('../shared/utils/package-json.js');
+    const { resolvePackageRoot } = await import('../shared/runtime/pkg.js');
 
     const packageRoot = resolvePackageRoot(import.meta.url, 'runtime setup');
     const templatesDir = path.resolve(packageRoot, 'templates', 'workflows');

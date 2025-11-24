@@ -1,7 +1,6 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ensureEmbeddedPackageRoot } from '../resources/embedded-loader.js';
 
 /**
  * Cached package root to avoid repeated filesystem operations.
@@ -21,14 +20,22 @@ function validatePackageRoot(candidate: string | undefined): string | undefined 
 
   try {
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
-    if (pkg?.name === 'codemachine') {
-      const templateEntry = join(candidate, 'templates', 'workflows', 'codemachine.workflow.js');
-      if (existsSync(templateEntry)) {
-        return candidate;
-      }
-      // Package exists but is missing templates (e.g., meta package installed globally)
+    if (pkg?.name !== 'codemachine') {
       return undefined;
     }
+
+    // Validate templates directory exists and contains at least one workflow file
+    const templatesDir = join(candidate, 'templates', 'workflows');
+    if (!existsSync(templatesDir)) {
+      return undefined;
+    }
+
+    const hasWorkflowFiles = readdirSync(templatesDir).some((entry) => entry.endsWith('.workflow.js'));
+    if (!hasWorkflowFiles) {
+      return undefined;
+    }
+
+    return candidate;
   } catch {
     // Ignore parse failures
   }
@@ -77,8 +84,6 @@ export function resolvePackageRoot(moduleUrl: string, errorContext: string): str
 
   // 2. Fallback to filesystem traversal
   let currentDir = dirname(fileURLToPath(moduleUrl));
-  const systemRoot = dirname(currentDir);
-
   // Limit traversal to prevent infinite loops
   const maxDepth = 20;
   let depth = 0;
@@ -91,23 +96,12 @@ export function resolvePackageRoot(moduleUrl: string, errorContext: string): str
     }
 
     const parent = dirname(currentDir);
-    if (parent === currentDir || parent === systemRoot) {
+    if (parent === currentDir) {
       break; // Reached filesystem root
     }
 
     currentDir = parent;
     depth++;
-  }
-
-  // 3. Try to provision embedded resources (for standalone binaries)
-  try {
-    const embeddedRoot = ensureEmbeddedPackageRoot();
-    if (embeddedRoot) {
-      cachedPackageRoot = embeddedRoot;
-      return embeddedRoot;
-    }
-  } catch {
-    // Ignore embedded provisioning failures here; fall through to error throw below.
   }
 
   // 3. Not found - throw error
@@ -153,3 +147,6 @@ export function clearPackageRootCache(): void {
 export function setPackageRoot(root: string): void {
   cachedPackageRoot = root;
 }
+
+// Convenience alias for new code
+export { getPackageRoot as getRoot, clearPackageRootCache as clearCache };

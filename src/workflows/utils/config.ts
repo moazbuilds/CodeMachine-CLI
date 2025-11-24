@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 import { createRequire } from 'node:module';
-import { resolvePackageRoot } from '../../shared/utils/package-json.js';
+import { resolvePackageRoot } from '../../shared/runtime/pkg.js';
 
 export const packageRoot = resolvePackageRoot(import.meta.url, 'workflow config');
 
