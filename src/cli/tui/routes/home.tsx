@@ -18,7 +18,12 @@ import { onMount } from "solid-js"
 import * as path from "node:path"
 import type { InitialToast } from "../app"
 
-export function Home(props: { initialToast?: InitialToast }) {
+type HomeProps = {
+  initialToast?: InitialToast
+  onStartWorkflow?: () => void
+}
+
+export function Home(props: HomeProps) {
   const toast = useToast()
   const dialog = useDialog()
   const renderer = useRenderer()
@@ -76,60 +81,15 @@ export function Home(props: { initialToast?: InitialToast }) {
         return // Don't destroy TUI or spawn workflow
       }
 
-      // Validation passed - now destroy TUI and spawn workflow
-
-      // Unmount OpenTUI to release terminal control
-      renderer.destroy()
-
-      // CRITICAL: Restore stdin to normal (cooked) mode before spawning subprocess
-      // OpenTUI puts stdin in raw mode, but Ink (in subprocess) needs to set it itself
-      if (process.stdin.isTTY && process.stdin.setRawMode) {
-        process.stdin.setRawMode(false)
+      if (props.onStartWorkflow) {
+        props.onStartWorkflow()
+        return
       }
 
-      // Clear terminal and restore cursor before spawning subprocess
-      if (process.stdout.isTTY) {
-        process.stdout.write('\x1b[2J\x1b[H\x1b[?25h') // Clear screen, home cursor, show cursor
-      }
-
-      // Small delay to ensure terminal state changes take effect
-      await new Promise(resolve => setTimeout(resolve, 50))
-
-      // Spawn workflow in separate process (WITHOUT SolidJS transform)
-      // This prevents JSX conflicts between OpenTUI (SolidJS) and workflow UI (React/Ink)
-
-      // Determine command based on environment:
-      // - Dev mode: bun runner-process.ts
-      // - Production: codemachine-workflow binary
-      const isDev = import.meta.url.includes('/src/')
-      let command: string
-      let args: string[]
-
-      if (isDev) {
-        // Development mode - use TypeScript source file
-        const runnerPath = fileURLToPath(new URL("../../../workflows/runner-process.ts", import.meta.url))
-        command = "bun"
-        args = [runnerPath, cwd, ""]
-      } else {
-        // Production mode - use compiled workflow binary from same directory
-        const { resolveWorkflowBinary } = await import("../../../shared/utils/resolve-workflow-binary.js")
-        command = resolveWorkflowBinary()
-        args = [cwd, ""]
-      }
-
-      const { spawnProcess } = await import("../../../infra/process/spawn.js")
-      const result = await spawnProcess({
-        command,
-        args,
-        // Pass CODEMACHINE_INSTALL_DIR from parent process to child
-        env: process.env.CODEMACHINE_INSTALL_DIR ? {
-          CODEMACHINE_INSTALL_DIR: process.env.CODEMACHINE_INSTALL_DIR
-        } : undefined,
-        stdioMode: "inherit", // Let workflow process take full terminal control
-      })
-
-      // Workflow completes -> exit with its exit code
-      process.exit(result.exitCode)
+      // TODO: legacy Ink workflow spawn is temporarily disabled during TUI refactor.
+      // Validation passed; workflow execution will be handled by the new OpenTUI flow.
+      // Previously: destroy renderer → reset stdin → clear terminal → spawn runner-process/binary → exit with code.
+      return
     }
 
     if (cmd === "/templates" || cmd === "/template") {

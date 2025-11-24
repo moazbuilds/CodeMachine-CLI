@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/solid */
 import { render, useTerminalDimensions, useKeyboard, useRenderer } from "@opentui/solid"
 import { VignetteEffect, applyScanlines, TextAttributes } from "@opentui/core"
-import { ErrorBoundary, createSignal, Show } from "solid-js"
+import { ErrorBoundary, Match, Show, Switch, createSignal } from "solid-js"
 import { KVProvider } from "@tui/context/kv"
 import { ToastProvider, useToast } from "@tui/context/toast"
 import { ThemeProvider, useTheme } from "@tui/context/theme"
@@ -9,6 +9,7 @@ import { DialogProvider } from "@tui/context/dialog"
 import { SessionProvider, useSession } from "@tui/context/session"
 import { UpdateNotifierProvider, useUpdateNotifier } from "@tui/context/update-notifier"
 import { Home } from "@tui/routes/home"
+import { Workflow } from "@tui/routes/workflow"
 import { homedir } from "os"
 import { createRequire } from "node:module"
 import { resolvePackageJson } from "../../shared/runtime/pkg.js"
@@ -183,6 +184,7 @@ function App(props: { initialToast?: InitialToast }) {
   // Track Ctrl+C presses for confirmation using signals
   const [ctrlCPressed, setCtrlCPressed] = createSignal(false)
   let ctrlCTimeout: NodeJS.Timeout | null = null
+  const [view, setView] = createSignal<"home" | "workflow">("home")
 
   // Global Ctrl+C handler with confirmation
   useKeyboard((evt) => {
@@ -242,7 +244,17 @@ function App(props: { initialToast?: InitialToast }) {
     >
       {/* Main content area */}
       <box flexGrow={1}>
-        <Home initialToast={props.initialToast} />
+        <Switch>
+          <Match when={view() === "home"}>
+            <Home
+              initialToast={props.initialToast}
+              onStartWorkflow={() => setView("workflow")}
+            />
+          </Match>
+          <Match when={view() === "workflow"}>
+            <Workflow />
+          </Match>
+        </Switch>
       </box>
 
       {/* Footer - fixed height */}
