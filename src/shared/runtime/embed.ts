@@ -37,6 +37,9 @@ export async function ensure(): Promise<string | undefined> {
     console.error('[DEBUG] embeddedFiles.length:', embeddedFiles.length);
   }
 
+  // Bun's embedded files are Blobs; cast to include name/text helpers for type safety
+  const files = embeddedFiles as Array<Blob & { name: string; text: () => Promise<string> }>;
+
   // Dev mode: no embedded files, return early (reads repo directly via package root resolver)
   if (embeddedFiles.length === 0) {
     return undefined;
@@ -53,7 +56,7 @@ export async function ensure(): Promise<string | undefined> {
   }
 
   // Get version from embedded package.json (may have ./ prefix)
-  const pkgFile = embeddedFiles.find((f) =>
+  const pkgFile = files.find((f) =>
     f.name === 'package.json' || f.name === './package.json'
   );
   let version = process.env.CODEMACHINE_VERSION;
@@ -79,7 +82,7 @@ export async function ensure(): Promise<string | undefined> {
   }
 
   // First-time install: extract all resources
-  for (const file of embeddedFiles) {
+  for (const file of files) {
     // Remove leading ./ if present
     const cleanName = file.name.startsWith('./') ? file.name.slice(2) : file.name;
     const destPath = join(targetRoot, cleanName);

@@ -4,10 +4,10 @@ import { homedir } from "node:os"
 import { resolvePackageJson } from "../../../shared/runtime/pkg.js"
 import { BrandingHeader } from "@tui/component/layout/branding-header"
 import { useTheme } from "@tui/context/theme"
+import { UIStateProvider, useUIState } from "@tui/context/ui-state"
+import { Show } from "solid-js"
 
 export function Workflow() {
-  const { theme } = useTheme()
-
   const getVersion = () => {
     const require = createRequire(import.meta.url)
     const packageJsonPath = resolvePackageJson(import.meta.url, "workflow route")
@@ -21,18 +21,54 @@ export function Workflow() {
   }
 
   return (
-    <box flexDirection="column" gap={1} paddingLeft={1} paddingRight={1} paddingTop={1}>
-      <BrandingHeader version={getVersion()} currentDir={getCwd()} />
+    <UIStateProvider workflowName="CodeMachine Workflow">
+      <WorkflowShell
+        version={getVersion()}
+        currentDir={getCwd()}
+      />
+    </UIStateProvider>
+  )
+}
 
-      <box
-        border
-        borderColor={theme.border}
-        padding={1}
-        flexDirection="column"
-        backgroundColor={theme.backgroundPanel}
-      >
-        <text fg={theme.text}>Workflow UI (OpenTUI) is initializing...</text>
-        <text fg={theme.textMuted}>Next steps: mount timeline and output panels here.</text>
+function WorkflowShell(props: { version: string; currentDir: string }) {
+  const { theme } = useTheme()
+  const ui = useUIState()
+  const state = ui.state()
+
+  return (
+    <box flexDirection="column" gap={1} paddingLeft={1} paddingRight={1} paddingTop={1}>
+      <BrandingHeader version={props.version} currentDir={props.currentDir} />
+
+      <box flexDirection="row" gap={1}>
+        <box
+          flexDirection="column"
+          padding={1}
+          border
+          borderColor={theme.borderSubtle}
+          backgroundColor={theme.backgroundPanel}
+          width="50%"
+        >
+          <text fg={theme.text} attributes={1}>Timeline</text>
+          <text fg={theme.textMuted}>Agents: {state.agents.length} • Subagents: {Array.from(state.subAgents.values()).reduce((sum, list) => sum + list.length, 0)}</text>
+          <text fg={theme.textMuted}>Status: {state.workflowStatus}</text>
+          <text fg={theme.textMuted}>Scroll offset: {state.scrollOffset}</text>
+          <text fg={theme.textMuted}>Visible rows: {state.visibleItemCount}</text>
+          <Show when={state.loopState?.active}>
+            <text fg={theme.primary}>Loop {state.loopState?.iteration}/{state.loopState?.maxIterations}</text>
+          </Show>
+        </box>
+
+        <box
+          flexDirection="column"
+          padding={1}
+          border
+          borderColor={theme.borderSubtle}
+          backgroundColor={theme.backgroundPanel}
+          width="50%"
+        >
+          <text fg={theme.text} attributes={1}>Output</text>
+          <text fg={theme.textMuted}>Awaiting agent output. Hook log stream here.</text>
+        </box>
       </box>
     </box>
   )
