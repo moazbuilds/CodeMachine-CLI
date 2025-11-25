@@ -1,16 +1,18 @@
 /** @jsxImportSource @opentui/solid */
-import { Show, createContext, useContext, type JSX, type ParentProps, getOwner, runWithOwner } from "solid-js"
-import { createStore } from "solid-js/store"
+import { Show, createContext, useContext, type JSX, type ParentProps, createSignal } from "solid-js"
 import { useRenderer } from "@opentui/solid"
 import { useToast } from "./toast"
 import { useTheme } from "./theme"
 import { DialogWrapper } from "@tui/ui/dialog-wrapper"
 import { startTUI } from "../app"
 
-type DialogContent = (() => JSX.Element) | JSX.Element
+// Store the content factory function, not the rendered element
+// This allows the content to be rendered inside the Show wrapper
+// where all contexts are available, and properly cleaned up when dialog closes
+type DialogContentFactory = () => JSX.Element
 
 type DialogContextValue = {
-  readonly current: DialogContent | null
+  readonly current: DialogContentFactory | null
   show(content: () => JSX.Element): void
   close(): void
   handleInteractiveCommand(
@@ -26,27 +28,29 @@ type DialogContextValue = {
 const DialogContext = createContext<DialogContextValue>()
 
 export function DialogProvider(props: ParentProps) {
-  const [store, setStore] = createStore<{ current: DialogContent | null }>({
-    current: null,
-  })
+  // Use a signal to store the content factory
+  // This avoids solid-js/store's deep tracking which can cause the factory to be called prematurely
+  const [contentFactory, setContentFactory] = createSignal<DialogContentFactory | null>(null)
   const renderer = useRenderer()
   const toast = useToast()
   const themeContext = useTheme()
 
-  // Capture the provider's reactive owner
-  const owner = getOwner()
-
   const value: DialogContextValue = {
     get current() {
-      return store.current
+      return contentFactory()
     },
     show(content) {
-      // Execute content function in provider's owner context
-      const element = owner ? runWithOwner(owner, content) : content()
-      setStore("current", element)
+      // Store the content factory function, not the rendered result
+      // The actual rendering happens inside the Show wrapper below,
+      // where all parent contexts (Theme, Toast, etc.) are accessible
+      // When close() sets current to null, Show unmounts the content,
+      // and SolidJS properly cleans up all reactive subscriptions
+      setContentFactory(() => content)
     },
     close() {
-      setStore("current", null)
+      // Setting to null unmounts the dialog content via Show's conditional rendering
+      // SolidJS automatically disposes all reactive subscriptions when unmounting
+      setContentFactory(null)
     },
     async handleInteractiveCommand(title, command) {
       try {
@@ -103,7 +107,7 @@ export function DialogProvider(props: ParentProps) {
     async handleAuthCommand(title, command) {
       try {
         // Close dialog first
-        setStore("current", null)
+        setContentFactory(null)
 
         // Show launching message
         toast.show({
@@ -173,8 +177,13 @@ export function DialogProvider(props: ParentProps) {
   return (
     <DialogContext.Provider value={value}>
       {props.children}
-      <Show when={store.current}>
-        <DialogWrapper>{store.current as JSX.Element}</DialogWrapper>
+      <Show when={contentFactory()}>
+        {(factory) => (
+          /* Call the content factory to render dialog content
+             This happens inside the Show, so when Show unmounts (contentFactory becomes null),
+             SolidJS properly cleans up all reactive subscriptions from the content */
+          <DialogWrapper>{factory()()}</DialogWrapper>
+        )}
       </Show>
     </DialogContext.Provider>
   )

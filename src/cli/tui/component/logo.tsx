@@ -51,45 +51,49 @@ const SIMPLE_TEXT = [
 ]
 
 // Helper to render a line with two-tone coloring using spans
-function ColoredLine(props: { line: string; blockColor: RGBA; borderColor: RGBA; bold?: boolean }) {
-  const segments: JSX.Element[] = []
-  let currentSegment = ''
-  let currentType: 'block' | 'border' | null = null
+function ColoredLine(props: { line: string; blockColor: () => RGBA; borderColor: () => RGBA; bold?: boolean }) {
+  // Build segments reactively using a function
+  const segments = () => {
+    const result: JSX.Element[] = []
+    let currentSegment = ''
+    let currentType: 'block' | 'border' | null = null
 
-  const finishSegment = () => {
-    if (currentSegment) {
-      const color = currentType === 'block' ? props.blockColor : props.borderColor
-      segments.push(<span style={{ fg: color }}>{currentSegment}</span>)
-      currentSegment = ''
-    }
-  }
-
-  for (const char of props.line) {
-    const isBlock = char === '█'
-    const isBorder = '╔═╗║╚╝╠╣╦╩╬'.includes(char)
-    const charType = isBlock ? 'block' : isBorder ? 'border' : null
-
-    if (charType !== currentType) {
-      finishSegment()
-      currentType = charType
+    const finishSegment = () => {
+      if (currentSegment) {
+        const color = currentType === 'block' ? props.blockColor() : props.borderColor()
+        result.push(<span style={{ fg: color }}>{currentSegment}</span>)
+        currentSegment = ''
+      }
     }
 
-    currentSegment += char
-  }
+    for (const char of props.line) {
+      const isBlock = char === '█'
+      const isBorder = '╔═╗║╚╝╠╣╦╩╬'.includes(char)
+      const charType = isBlock ? 'block' : isBorder ? 'border' : null
 
-  finishSegment()
+      if (charType !== currentType) {
+        finishSegment()
+        currentType = charType
+      }
+
+      currentSegment += char
+    }
+
+    finishSegment()
+    return result
+  }
 
   return (
     <box>
       <text attributes={props.bold ? TextAttributes.BOLD : 0}>
-        {segments}
+        {segments()}
       </text>
     </box>
   )
 }
 
 export function Logo() {
-  const { theme } = useTheme()
+  const themeCtx = useTheme()
   const dimensions = useTerminalDimensions()
 
   // Animation state for arrow movement
@@ -123,7 +127,7 @@ export function Logo() {
             <box flexDirection="column" gap={0} alignItems="center">
               <For each={SIMPLE_TEXT}>
                 {(line) => (
-                  <text fg={theme.primary}>{line}</text>
+                  <text fg={themeCtx.theme.primary}>{line}</text>
                 )}
               </For>
             </box>
@@ -137,9 +141,9 @@ export function Logo() {
               <For each={CODE_TEXT()}>
                 {(codeLine, index) => (
                   <box flexDirection="row" gap={2}>
-                    <ColoredLine line={codeLine} blockColor={theme.primary} borderColor={theme.purple} />
+                    <ColoredLine line={codeLine} blockColor={() => themeCtx.theme.primary} borderColor={() => themeCtx.theme.purple} />
                     {MACHINE_TEXT[index()] && (
-                      <ColoredLine line={MACHINE_TEXT[index()]} blockColor={theme.primary} borderColor={theme.purple} bold />
+                      <ColoredLine line={MACHINE_TEXT[index()]} blockColor={() => themeCtx.theme.primary} borderColor={() => themeCtx.theme.purple} bold />
                     )}
                   </box>
                 )}
@@ -147,18 +151,18 @@ export function Logo() {
               {/* Render the arrow line (7th line of MACHINE_TEXT) */}
               <box flexDirection="row" gap={2}>
                 <box width={CODE_TEXT()[0].length} />
-                <ColoredLine line={MACHINE_TEXT[6]} blockColor={theme.primary} borderColor={theme.purple} bold />
+                <ColoredLine line={MACHINE_TEXT[6]} blockColor={() => themeCtx.theme.primary} borderColor={() => themeCtx.theme.purple} bold />
               </box>
             </>
           }
         >
           {/* Tall terminal: stacked vertically (normal) */}
           <For each={CODE_TEXT()}>
-            {(line) => <ColoredLine line={line} blockColor={theme.primary} borderColor={theme.purple} />}
+            {(line) => <ColoredLine line={line} blockColor={() => themeCtx.theme.primary} borderColor={() => themeCtx.theme.purple} />}
           </For>
           <box height={1} />
           <For each={MACHINE_TEXT}>
-            {(line) => <ColoredLine line={line} blockColor={theme.primary} borderColor={theme.purple} bold />}
+            {(line) => <ColoredLine line={line} blockColor={() => themeCtx.theme.primary} borderColor={() => themeCtx.theme.purple} bold />}
           </For>
         </Show>
         </Show>

@@ -3,7 +3,7 @@ import { For } from "solid-js"
 import { useTheme } from "@tui/context/theme"
 
 export function BrandingHeader(props: { version: string; currentDir: string }) {
-  const { theme } = useTheme()
+  const themeCtx = useTheme()
 
   const lines = () => [
     " _____       _     _____         _   _",
@@ -16,7 +16,7 @@ export function BrandingHeader(props: { version: string; currentDir: string }) {
     <box flexDirection="column" paddingLeft={1} paddingRight={1} paddingBottom={1}>
       <For each={lines()}>
         {(line) => (
-          <text fg={theme.primary}>{line}</text>
+          <text fg={themeCtx.theme.primary}>{line}</text>
         )}
       </For>
     </box>

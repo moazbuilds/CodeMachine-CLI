@@ -16,7 +16,7 @@ const SLASH_COMMANDS: SlashCommand[] = [
 export function Prompt(props: PromptProps) {
   let anchor: BoxRenderable | undefined
 
-  const { theme } = useTheme()
+  const themeCtx = useTheme()
   const dimensions = useTerminalDimensions()
   const [input, setInput] = createSignal("")
   const [showAutocomplete, setShowAutocomplete] = createSignal(false)
@@ -115,10 +115,10 @@ export function Prompt(props: PromptProps) {
           left={anchorPosition().x}
           width={anchorPosition().width}
           zIndex={100}
-          borderColor={theme.border}
+          borderColor={themeCtx.theme.border}
           border={["top", "bottom", "left", "right"]}
           borderStyle="rounded"
-          backgroundColor={theme.background}
+          backgroundColor={themeCtx.theme.background}
         >
           <box flexDirection="column" gap={0} paddingLeft={1} paddingRight={1} paddingTop={1} paddingBottom={1}>
             <For each={filteredCommands()}>
@@ -126,13 +126,13 @@ export function Prompt(props: PromptProps) {
                 const isSelected = () => index() === selectedIndex()
                 return (
                   <box flexDirection="row" gap={1}>
-                    <text fg={isSelected() ? theme.primary : theme.textMuted}>
+                    <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.textMuted}>
                       {isSelected() ? "●" : "○"}
                     </text>
-                    <text fg={isSelected() ? theme.primary : theme.text}>
+                    <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.text}>
                       /{cmd.command}
                     </text>
-                    <text fg={theme.textMuted}>- {cmd.description}</text>
+                    <text fg={themeCtx.theme.textMuted}>- {cmd.description}</text>
                   </box>
                 )
               }}
@@ -144,7 +144,7 @@ export function Prompt(props: PromptProps) {
       {/* Input box - the anchor */}
       <box ref={(r) => (anchor = r)} flexDirection="column" gap={0} width={promptWidth()}>
         <box
-          borderColor={theme.border}
+          borderColor={themeCtx.theme.border}
           border={["top", "bottom", "left", "right"]}
           borderStyle="rounded"
           paddingLeft={1}
@@ -164,7 +164,7 @@ export function Prompt(props: PromptProps) {
 
         <Show when={props.hint}>
           <box marginTop={1}>
-            <text fg={theme.textMuted}>{props.hint}</text>
+            <text fg={themeCtx.theme.textMuted}>{props.hint}</text>
           </box>
         </Show>
       </box>

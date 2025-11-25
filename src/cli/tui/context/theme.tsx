@@ -1,6 +1,6 @@
 /** @jsxImportSource solid-js */
 import { RGBA } from "@opentui/core"
-import { createMemo } from "solid-js"
+import { createMemo, createSignal } from "solid-js"
 import { createSimpleContext } from "./helper"
 import codemachineTheme from "./theme/codemachine.json" with { type: "json" }
 
@@ -58,13 +58,18 @@ function resolveTheme(theme: ThemeJson, mode: "dark" | "light"): Theme {
 export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
   name: "Theme",
   init: (props: { mode: "dark" | "light" }) => {
-    const theme = createMemo(() => resolveTheme(codemachineTheme, props.mode))
+    // Use signal so theme can be changed dynamically
+    const [mode, setMode] = createSignal(props.mode)
+    const theme = createMemo(() => resolveTheme(codemachineTheme, mode()))
 
     return {
       get theme() {
         return theme()
       },
-      mode: props.mode,
+      get mode() {
+        return mode()
+      },
+      setMode,
     }
   },
 })

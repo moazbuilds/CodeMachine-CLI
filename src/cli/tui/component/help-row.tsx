@@ -7,15 +7,15 @@ export interface HelpRowProps {
 }
 
 export function HelpRow(props: HelpRowProps) {
-  const { theme } = useTheme()
+  const themeCtx = useTheme()
 
   return (
     <box flexDirection="row" gap={2}>
       <box width={14}>
-        <text fg={theme.primary}>/{props.command}</text>
+        <text fg={themeCtx.theme.primary}>/{props.command}</text>
       </box>
       <box>
-        <text fg={theme.textMuted}>{props.description}</text>
+        <text fg={themeCtx.theme.textMuted}>{props.description}</text>
       </box>
     </box>
   )

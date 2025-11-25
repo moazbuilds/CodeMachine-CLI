@@ -2,7 +2,7 @@
 import { render, useTerminalDimensions, useKeyboard, useRenderer } from "@opentui/solid"
 import { VignetteEffect, applyScanlines, TextAttributes } from "@opentui/core"
 import { ErrorBoundary, Match, Show, Switch, createSignal } from "solid-js"
-import { KVProvider } from "@tui/context/kv"
+import { KVProvider, useKV } from "@tui/context/kv"
 import { ToastProvider, useToast } from "@tui/context/toast"
 import { ThemeProvider, useTheme } from "@tui/context/theme"
 import { DialogProvider } from "@tui/context/dialog"
@@ -11,6 +11,7 @@ import { UpdateNotifierProvider, useUpdateNotifier } from "@tui/context/update-n
 import { Home } from "@tui/routes/home"
 import { Workflow } from "@tui/routes/workflow"
 import { homedir } from "os"
+import path from "path"
 import { createRequire } from "node:module"
 import { resolvePackageJson } from "../../shared/runtime/pkg.js"
 import { initTUILogger, closeTUILogger } from "@tui/utils/tui-logger"
@@ -90,14 +91,33 @@ export type InitialToast = {
  * Main TUI entry point
  * Detects terminal background and launches OpenTUI renderer
  */
+/**
+ * Read saved theme from KV file (if exists)
+ */
+async function getSavedTheme(): Promise<"dark" | "light" | null> {
+  try {
+    const kvPath = path.join(homedir(), ".codemachine", "state", "kv.json")
+    const file = Bun.file(kvPath)
+    const data = await file.json() as { theme?: string }
+    if (data.theme === "dark" || data.theme === "light") {
+      return data.theme
+    }
+  } catch {
+    // File doesn't exist or invalid
+  }
+  return null
+}
+
 export async function startTUI(
   skipBackgroundDetection: boolean = false,
   knownMode?: "dark" | "light",
   initialToast?: InitialToast
 ): Promise<void> {
-  const mode = skipBackgroundDetection && knownMode
-    ? knownMode
-    : await getTerminalBackgroundColor()
+  // Priority: 1. Saved theme from KV, 2. Known mode, 3. Auto-detect
+  const savedTheme = await getSavedTheme()
+  const mode = savedTheme
+    ?? (skipBackgroundDetection && knownMode ? knownMode : null)
+    ?? await getTerminalBackgroundColor()
 
   // Wait for stdin to settle after background detection
   // This prevents focus/mouse events from leaking through before OpenTUI's filters are active
@@ -175,19 +195,35 @@ function Root(props: { mode: "dark" | "light"; initialToast?: InitialToast; onEx
  */
 function App(props: { initialToast?: InitialToast }) {
   const dimensions = useTerminalDimensions()
-  const { theme } = useTheme()
+  const themeCtx = useTheme()
   const session = useSession()
   const updateNotifier = useUpdateNotifier()
   const renderer = useRenderer()
   const toast = useToast()
+  const kv = useKV()
 
   // Track Ctrl+C presses for confirmation using signals
   const [ctrlCPressed, setCtrlCPressed] = createSignal(false)
   let ctrlCTimeout: NodeJS.Timeout | null = null
   const [view, setView] = createSignal<"home" | "workflow">("home")
 
-  // Global Ctrl+C handler with confirmation
+  // Global keyboard handler
   useKeyboard((evt) => {
+    // Hidden theme toggle: Ctrl+T (Shift+T would be intercepted by terminal)
+    if (evt.ctrl && evt.name.toLowerCase() === "t") {
+      evt.preventDefault()
+      const newMode = themeCtx.mode === "dark" ? "light" : "dark"
+      themeCtx.setMode(newMode)
+      kv.set("theme", newMode)
+      toast.show({
+        variant: "info",
+        message: `Theme: ${newMode}`,
+        duration: 2000,
+      })
+      return
+    }
+
+    // Ctrl+C handler with confirmation
     if (evt.ctrl && evt.name === "c") {
       evt.preventDefault()
 
@@ -239,7 +275,7 @@ function App(props: { initialToast?: InitialToast }) {
     <box
       width={dimensions().width}
       height={dimensions().height}
-      backgroundColor={theme.background}
+      backgroundColor={themeCtx.theme.background}
       flexDirection="column"
     >
       {/* Main content area */}
@@ -258,26 +294,26 @@ function App(props: { initialToast?: InitialToast }) {
       </box>
 
       {/* Footer - fixed height */}
-      <box height={1} flexShrink={0} backgroundColor={theme.backgroundPanel}>
+      <box height={1} flexShrink={0} backgroundColor={themeCtx.theme.backgroundPanel}>
         <box flexDirection="row" justifyContent="space-between" paddingLeft={1} paddingRight={1}>
           {/* Left: Branding + Version + Update + CWD */}
           <box flexDirection="row" gap={1}>
-            <box paddingLeft={1} paddingRight={1} backgroundColor={theme.backgroundElement}>
-              <text fg={theme.text}>
+            <box paddingLeft={1} paddingRight={1} backgroundColor={themeCtx.theme.backgroundElement}>
+              <text fg={themeCtx.theme.text}>
                 Code<span style={{ bold: true }}>Machine</span>
               </text>
             </box>
-            <text fg={theme.textMuted}>v{getVersion()}</text>
+            <text fg={themeCtx.theme.textMuted}>v{getVersion()}</text>
             <Show when={updateNotifier.updateAvailable}>
-              <text fg={theme.warning}>• Update: v{String(updateNotifier.latestVersion)}</text>
+              <text fg={themeCtx.theme.warning}>• Update: v{String(updateNotifier.latestVersion)}</text>
             </Show>
-            <text fg={theme.textMuted}>{cwd()}</text>
+            <text fg={themeCtx.theme.textMuted}>{cwd()}</text>
           </box>
 
           {/* Right: Template badge */}
           <box flexDirection="row">
-            <text fg={theme.textMuted}>Template: </text>
-            <text fg={theme.primary} attributes={TextAttributes.BOLD}>{String(session.templateName).toUpperCase()}</text>
+            <text fg={themeCtx.theme.textMuted}>Template: </text>
+            <text fg={themeCtx.theme.primary} attributes={TextAttributes.BOLD}>{String(session.templateName).toUpperCase()}</text>
           </box>
         </box>
       </box>

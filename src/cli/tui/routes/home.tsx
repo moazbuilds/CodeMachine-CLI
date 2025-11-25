@@ -26,7 +26,7 @@ export function Home(props: HomeProps) {
   const toast = useToast()
   const dialog = useDialog()
   const renderer = useRenderer()
-  const { theme } = useTheme()
+  const themeCtx = useTheme()
   const session = useSession()
 
   // Show initial toast if provided (e.g., after auth restart)
@@ -268,9 +268,9 @@ export function Home(props: HomeProps) {
 
         <box width={60} flexDirection="column" gap={0}>
           <box flexDirection="row" gap={0} marginBottom={1}>
-            <text fg={theme.textMuted}>🥟 </text>
-            <text fg={theme.text} attributes={TextAttributes.BOLD}>Bun Runtime Edition</text>
-            <text fg={theme.textMuted}> • v{getVersion()}</text>
+            <text fg={themeCtx.theme.textMuted}>🥟 </text>
+            <text fg={themeCtx.theme.text} attributes={TextAttributes.BOLD}>Bun Runtime Edition</text>
+            <text fg={themeCtx.theme.textMuted}> • v{getVersion()}</text>
           </box>
           <HelpRow command="start" description="Start workflow with current template" />
           <HelpRow command="templates" description="Select and configure workflow templates" />
@@ -278,8 +278,8 @@ export function Home(props: HomeProps) {
         </box>
 
         <box flexDirection="row" gap={0} marginTop={1} marginBottom={0}>
-          <text fg={theme.textMuted}>Write your specifications in </text>
-          <text fg={theme.primary} attributes={TextAttributes.BOLD}>{getSpecPath()}</text>
+          <text fg={themeCtx.theme.textMuted}>Write your specifications in </text>
+          <text fg={themeCtx.theme.primary} attributes={TextAttributes.BOLD}>{getSpecPath()}</text>
         </box>
 
         <Prompt onSubmit={handleCommand} disabled={isDialogOpen()} />

@@ -6,7 +6,7 @@ import type { SelectMenuProps } from "./types"
 import type { ScrollBoxRenderable } from "@opentui/core"
 
 export function SelectMenu<T = string>(props: SelectMenuProps<T>) {
-  const { theme } = useTheme()
+  const themeCtx = useTheme()
   const dimensions = useTerminalDimensions()
   const [selectedIndex, setSelectedIndex] = createSignal(0)
   const [isActive, setIsActive] = createSignal(true)
@@ -91,7 +91,7 @@ export function SelectMenu<T = string>(props: SelectMenuProps<T>) {
   return (
     <box flexDirection="column" gap={1} flexShrink={1}>
       <box marginBottom={1}>
-        <text fg={theme.primary}>◆ {props.message}</text>
+        <text fg={themeCtx.theme.primary}>◆ {props.message}</text>
       </box>
 
       <scrollbox
@@ -106,16 +106,16 @@ export function SelectMenu<T = string>(props: SelectMenuProps<T>) {
             return (
               <box flexDirection="column" gap={0} marginBottom={isLast() ? 0 : 1}>
                 <box flexDirection="row" gap={1}>
-                  <text fg={isSelected() ? theme.primary : theme.textMuted}>
+                  <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.textMuted}>
                     {isSelected() ? "●" : "○"}
                   </text>
-                  <text fg={isSelected() ? theme.primary : theme.text}>
+                  <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.text}>
                     {choice.title}
                   </text>
                 </box>
                 {choice.description && (
                   <box marginLeft={3}>
-                    <text fg={theme.textMuted}>{choice.description}</text>
+                    <text fg={themeCtx.theme.textMuted}>{choice.description}</text>
                   </box>
                 )}
               </box>
@@ -125,7 +125,7 @@ export function SelectMenu<T = string>(props: SelectMenuProps<T>) {
       </scrollbox>
 
       <box marginTop={1}>
-        <text fg={theme.textMuted}>
+        <text fg={themeCtx.theme.textMuted}>
           ↑/↓ Navigate • Enter to select • Esc to cancel
         </text>
       </box>

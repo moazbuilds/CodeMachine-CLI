@@ -9,7 +9,7 @@ export interface DialogWrapperProps {
 }
 
 export function DialogWrapper(props: DialogWrapperProps) {
-  const { theme } = useTheme()
+  const themeCtx = useTheme()
   const dimensions = useTerminalDimensions()
 
   // Full-screen backdrop with dark semi-transparent overlay (dimming effect)
@@ -41,8 +41,8 @@ export function DialogWrapper(props: DialogWrapperProps) {
       <box
         maxWidth={Math.min(70, Math.max(10, safeWidth() - 4))}
         maxHeight={Math.max(10, safeHeight() - 6)}
-        backgroundColor={theme.background}
-        borderColor={theme.border}
+        backgroundColor={themeCtx.theme.background}
+        borderColor={themeCtx.theme.border}
         border={["top", "bottom", "left", "right"]}
         borderStyle="rounded"
         padding={2}

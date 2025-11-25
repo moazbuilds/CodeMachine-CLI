@@ -31,7 +31,7 @@ export function Workflow() {
 }
 
 function WorkflowShell(props: { version: string; currentDir: string }) {
-  const { theme } = useTheme()
+  const themeCtx = useTheme()
   const ui = useUIState()
   const state = ui.state()
 
@@ -44,17 +44,17 @@ function WorkflowShell(props: { version: string; currentDir: string }) {
           flexDirection="column"
           padding={1}
           border
-          borderColor={theme.borderSubtle}
-          backgroundColor={theme.backgroundPanel}
+          borderColor={themeCtx.theme.borderSubtle}
+          backgroundColor={themeCtx.theme.backgroundPanel}
           width="50%"
         >
-          <text fg={theme.text} attributes={1}>Timeline</text>
-          <text fg={theme.textMuted}>Agents: {state.agents.length} • Subagents: {Array.from(state.subAgents.values()).reduce((sum, list) => sum + list.length, 0)}</text>
-          <text fg={theme.textMuted}>Status: {state.workflowStatus}</text>
-          <text fg={theme.textMuted}>Scroll offset: {state.scrollOffset}</text>
-          <text fg={theme.textMuted}>Visible rows: {state.visibleItemCount}</text>
+          <text fg={themeCtx.theme.text} attributes={1}>Timeline</text>
+          <text fg={themeCtx.theme.textMuted}>Agents: {state.agents.length} • Subagents: {Array.from(state.subAgents.values()).reduce((sum, list) => sum + list.length, 0)}</text>
+          <text fg={themeCtx.theme.textMuted}>Status: {state.workflowStatus}</text>
+          <text fg={themeCtx.theme.textMuted}>Scroll offset: {state.scrollOffset}</text>
+          <text fg={themeCtx.theme.textMuted}>Visible rows: {state.visibleItemCount}</text>
           <Show when={state.loopState?.active}>
-            <text fg={theme.primary}>Loop {state.loopState?.iteration}/{state.loopState?.maxIterations}</text>
+            <text fg={themeCtx.theme.primary}>Loop {state.loopState?.iteration}/{state.loopState?.maxIterations}</text>
           </Show>
         </box>
 
@@ -62,12 +62,12 @@ function WorkflowShell(props: { version: string; currentDir: string }) {
           flexDirection="column"
           padding={1}
           border
-          borderColor={theme.borderSubtle}
-          backgroundColor={theme.backgroundPanel}
+          borderColor={themeCtx.theme.borderSubtle}
+          backgroundColor={themeCtx.theme.backgroundPanel}
           width="50%"
         >
-          <text fg={theme.text} attributes={1}>Output</text>
-          <text fg={theme.textMuted}>Awaiting agent output. Hook log stream here.</text>
+          <text fg={themeCtx.theme.text} attributes={1}>Output</text>
+          <text fg={themeCtx.theme.textMuted}>Awaiting agent output. Hook log stream here.</text>
         </box>
       </box>
     </box>

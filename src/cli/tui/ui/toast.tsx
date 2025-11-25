@@ -12,7 +12,7 @@ const VARIANT_ICONS = {
 
 export function Toast() {
   const toast = useToast()
-  const { theme } = useTheme()
+  const themeCtx = useTheme()
 
   return (
     <Show when={toast.current}>
@@ -25,16 +25,16 @@ export function Toast() {
           paddingRight={2}
           paddingTop={1}
           paddingBottom={1}
-          backgroundColor={theme.backgroundPanel}
-          borderColor={theme[currentToast().variant]}
+          backgroundColor={themeCtx.theme.backgroundPanel}
+          borderColor={themeCtx.theme[currentToast().variant]}
           border={["left", "right"]}
           zIndex={3000}
         >
           <box flexDirection="row" gap={1}>
-            <text fg={theme[currentToast().variant]}>
+            <text fg={themeCtx.theme[currentToast().variant]}>
               {VARIANT_ICONS[currentToast().variant]}
             </text>
-            <text fg={theme.text}>{currentToast().message}</text>
+            <text fg={themeCtx.theme.text}>{currentToast().message}</text>
           </box>
         </box>
       )}
