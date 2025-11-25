@@ -1,15 +1,15 @@
 /** @jsxImportSource @opentui/solid */
 import { For } from "solid-js"
 import { useTheme } from "@tui/shared/context/theme"
+import { SIMPLE_LOGO } from "../logo"
 
 export function BrandingHeader(props: { version: string; currentDir: string }) {
   const themeCtx = useTheme()
 
   const lines = () => [
-    " _____       _     _____         _   _",
-    "|     |___ _| |___|     |___ ___| |_|_|___ ___",
-    `|   --| . | . | -_| | | | .'|  _|   | |   | -_| v${props.version}`,
-    `|_____|___|___|___|_|_|_|__,|___|_|_|_|_|_|___| ${props.currentDir}`,
+    '',
+    ` ${SIMPLE_LOGO[0]}`,
+    ` ${SIMPLE_LOGO[1]}  v${props.version} ${props.currentDir}`,
   ]
 
   return (

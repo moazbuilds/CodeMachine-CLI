@@ -45,7 +45,7 @@ const MACHINE_TEXT = [
   '     >->__                  >>----------------------->    '
 ]
 
-const SIMPLE_TEXT = [
+export const SIMPLE_LOGO = [
   '█▀▀ █▀█ █▀▄ █▀▀ █▀▄▀█ ▄▀█ █▀▀ █ █ █ █▄ █ █▀▀',
   '█▄▄ █▄█ █▄▀ ██▄ █ ▀ █ █▀█ █▄▄ █▀█ █ █ ▀█ ██▄'
 ]
@@ -123,9 +123,9 @@ export function Logo() {
         <Show
           when={!isNarrow() && !isShort()}
           fallback={
-            // Narrow or short terminal: show tiny font (SIMPLE_TEXT)
+            // Narrow or short terminal: show tiny font (SIMPLE_LOGO)
             <box flexDirection="column" gap={0} alignItems="center">
-              <For each={SIMPLE_TEXT}>
+              <For each={SIMPLE_LOGO}>
                 {(line) => (
                   <text fg={themeCtx.theme.primary}>{line}</text>
                 )}
