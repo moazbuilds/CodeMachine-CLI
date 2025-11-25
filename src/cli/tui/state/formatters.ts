@@ -1,3 +1,5 @@
+import type { AgentStatus } from "./types"
+
 export function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
@@ -10,6 +12,31 @@ export function formatDuration(seconds: number): string {
   }
 
   return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+}
+
+/**
+ * Calculate display-friendly duration for an agent based on timestamps/status.
+ * Ported from: src/ui/utils/calculateDuration.ts
+ */
+export interface DurationInput {
+  startTime: number
+  endTime?: number
+  status: AgentStatus
+}
+
+export function calculateDuration(
+  { startTime, endTime, status }: DurationInput,
+  nowProvider: () => number = Date.now
+): string {
+  if (endTime) {
+    return formatDuration((endTime - startTime) / 1000)
+  }
+
+  if (status === "running") {
+    return formatDuration((nowProvider() - startTime) / 1000)
+  }
+
+  return ""
 }
 
 export function formatRuntime(startTime: number, endTime?: number): string {
