@@ -23,7 +23,7 @@ import type {
   WorkflowStatus,
   SubAgentState,
   TriggeredAgentState,
-} from '../../cli/tui/state/types.js';
+} from '../../cli/tui/routes/workflow/state/types.js';
 
 /**
  * WorkflowEventEmitter - Emits workflow events in a UI-manager-like API

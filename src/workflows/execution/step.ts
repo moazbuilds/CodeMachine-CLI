@@ -69,7 +69,7 @@ export async function executeStep(
 
   // Build telemetry callback that updates both UI and emitter
   const onTelemetry = options.uniqueAgentId
-    ? (telemetry: import('../../cli/tui/state/types.js').AgentTelemetry) => {
+    ? (telemetry: import('../../cli/tui/routes/workflow/state/types.js').AgentTelemetry) => {
         options.ui?.updateAgentTelemetry(options.uniqueAgentId!, telemetry);
         options.emitter?.updateAgentTelemetry(options.uniqueAgentId!, telemetry);
       }
