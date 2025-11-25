@@ -11,6 +11,7 @@ import { UpdateNotifierProvider, useUpdateNotifier } from "@tui/context/update-n
 import { Home } from "@tui/routes/home"
 import { Workflow } from "@tui/routes/workflow"
 import { homedir } from "os"
+import { WorkflowEventBus } from "../../workflows/events/index.js"
 import path from "path"
 import { createRequire } from "node:module"
 import { resolvePackageJson } from "../../shared/runtime/pkg.js"
@@ -206,6 +207,45 @@ function App(props: { initialToast?: InitialToast }) {
   const [ctrlCPressed, setCtrlCPressed] = createSignal(false)
   let ctrlCTimeout: NodeJS.Timeout | null = null
   const [view, setView] = createSignal<"home" | "workflow">("home")
+  const [workflowEventBus, setWorkflowEventBus] = createSignal<WorkflowEventBus | null>(null)
+
+  // Store workflow start function to be called when adapter is ready
+  let pendingWorkflowStart: (() => void) | null = null
+
+  // Called by Workflow component when adapter is connected and ready
+  const handleAdapterReady = () => {
+    if (pendingWorkflowStart) {
+      pendingWorkflowStart()
+      pendingWorkflowStart = null
+    }
+  }
+
+  // Start workflow execution when switching to workflow view
+  const handleStartWorkflow = async () => {
+    // Create event bus for this workflow run
+    const eventBus = new WorkflowEventBus()
+    setWorkflowEventBus(eventBus)
+
+    // Export to global for backward compatibility
+    // @ts-expect-error - global export for workflow connection
+    globalThis.__workflowEventBus = eventBus
+
+    // Prepare the workflow start function (will be called when adapter is ready)
+    const cwd = process.env.CODEMACHINE_CWD || process.cwd()
+    const specPath = path.join(cwd, '.codemachine', 'inputs', 'specifications.md')
+
+    pendingWorkflowStart = () => {
+      // Dynamically import to avoid circular dependencies
+      import("../../workflows/execution/queue.js").then(({ runWorkflowQueue }) => {
+        runWorkflowQueue({ cwd, specificationPath: specPath }).catch((error) => {
+          console.error("Workflow failed:", error)
+        })
+      })
+    }
+
+    // Switch to workflow view - adapter will signal when ready via handleAdapterReady
+    setView("workflow")
+  }
 
   // Global keyboard handler
   useKeyboard((evt) => {
@@ -284,11 +324,11 @@ function App(props: { initialToast?: InitialToast }) {
           <Match when={view() === "home"}>
             <Home
               initialToast={props.initialToast}
-              onStartWorkflow={() => setView("workflow")}
+              onStartWorkflow={handleStartWorkflow}
             />
           </Match>
           <Match when={view() === "workflow"}>
-            <Workflow />
+            <Workflow eventBus={workflowEventBus()} onAdapterReady={handleAdapterReady} />
           </Match>
         </Switch>
       </box>

@@ -6,6 +6,7 @@ import {
   type AgentStatus,
   type LoopState,
   type SubAgentState,
+  type TriggeredAgentState,
   type WorkflowStatus,
 } from "@tui/state/types"
 import {
@@ -31,6 +32,7 @@ type UIActions = {
   addSubAgent(parentId: string, subAgent: SubAgentState): void
   batchAddSubAgents(parentId: string, subAgents: SubAgentState[]): void
   updateSubAgentStatus(subAgentId: string, status: AgentStatus): void
+  clearSubAgents(parentId: string): void
   navigateDown(visibleItemCount?: number): void
   navigateUp(visibleItemCount?: number): void
   selectItem(itemId: string, itemType: "main" | "summary" | "sub", visibleItemCount?: number, immediate?: boolean): void
@@ -39,6 +41,11 @@ type UIActions = {
   setScrollOffset(offset: number, visibleItemCount?: number): void
   setWorkflowStatus(status: WorkflowStatus): void
   setCheckpointState(checkpoint: { active: boolean; reason?: string } | null): void
+  registerMonitoringId(uiAgentId: string, monitoringId: number): void
+  addTriggeredAgent(sourceAgentId: string, triggeredAgent: TriggeredAgentState): void
+  resetAgentForLoop(agentId: string, cycleNumber?: number): void
+  addUIElement(element: { id: string; text: string; stepIndex: number }): void
+  logMessage(agentId: string, message: string): void
 }
 
 function createInitialState(workflowName: string, totalSteps = 0): WorkflowState {
@@ -64,6 +71,7 @@ function createInitialState(workflowName: string, totalSteps = 0): WorkflowState
     totalSteps,
     workflowStatus: "running",
     agentIdMapVersion: 0,
+    agentLogs: new Map(),
   }
 }
 
@@ -342,6 +350,102 @@ function createStore(workflowName: string): UIActions {
     }
   }
 
+  function registerMonitoringId(uiAgentId: string, monitoringId: number): void {
+    state = {
+      ...state,
+      agents: state.agents.map((agent) =>
+        agent.id === uiAgentId ? { ...agent, monitoringId } : agent
+      ),
+      agentIdMapVersion: state.agentIdMapVersion + 1,
+    }
+    notify()
+  }
+
+  function addTriggeredAgent(sourceAgentId: string, triggeredAgent: TriggeredAgentState): void {
+    state = {
+      ...state,
+      triggeredAgents: [...state.triggeredAgents, triggeredAgent],
+    }
+    notify()
+  }
+
+  function resetAgentForLoop(agentId: string, cycleNumber?: number): void {
+    // Find the agent to reset
+    const agent = state.agents.find((a) => a.id === agentId)
+    if (!agent) return
+
+    // Save current state to execution history before reset
+    const historyRecord = {
+      id: `${agentId}-cycle-${cycleNumber ?? 0}-${Date.now()}`,
+      agentName: agent.name,
+      agentId: agent.id,
+      cycleNumber,
+      engine: agent.engine,
+      status: agent.status,
+      startTime: agent.startTime,
+      endTime: agent.endTime,
+      duration: agent.endTime ? agent.endTime - agent.startTime : undefined,
+      telemetry: { ...agent.telemetry },
+      toolCount: agent.toolCount,
+      thinkingCount: agent.thinkingCount,
+      error: agent.error,
+    }
+
+    // Reset agent state for new loop iteration
+    state = {
+      ...state,
+      agents: state.agents.map((a) =>
+        a.id === agentId
+          ? {
+              ...a,
+              status: "pending" as AgentStatus,
+              telemetry: { tokensIn: 0, tokensOut: 0 },
+              toolCount: 0,
+              thinkingCount: 0,
+              startTime: Date.now(),
+              endTime: undefined,
+              error: undefined,
+            }
+          : a,
+      ),
+      executionHistory: [...state.executionHistory, historyRecord],
+    }
+
+    // Clear sub-agents for this agent
+    const newSubAgents = new Map(state.subAgents)
+    newSubAgents.delete(agentId)
+    state = { ...state, subAgents: newSubAgents }
+
+    notify()
+  }
+
+  function clearSubAgents(parentId: string): void {
+    const newSubAgents = new Map(state.subAgents)
+    newSubAgents.delete(parentId)
+    state = { ...state, subAgents: newSubAgents }
+    notify()
+  }
+
+  function addUIElement(element: { id: string; text: string; stepIndex: number }): void {
+    // Check if element already exists (by id or stepIndex)
+    const exists = state.uiElements.some((e) => e.id === element.id || e.stepIndex === element.stepIndex)
+    if (exists) return
+
+    state = {
+      ...state,
+      uiElements: [...state.uiElements, element],
+    }
+    notify()
+  }
+
+  function logMessage(agentId: string, message: string): void {
+    const newLogs = new Map(state.agentLogs)
+    const agentMessages = newLogs.get(agentId) || []
+    newLogs.set(agentId, [...agentMessages, message])
+    state = { ...state, agentLogs: newLogs }
+    notify()
+  }
+
   return {
     getState,
     subscribe,
@@ -353,6 +457,7 @@ function createStore(workflowName: string): UIActions {
     addSubAgent,
     batchAddSubAgents,
     updateSubAgentStatus,
+    clearSubAgents,
     navigateDown,
     navigateUp,
     selectItem,
@@ -361,6 +466,11 @@ function createStore(workflowName: string): UIActions {
     setScrollOffset,
     setWorkflowStatus,
     setCheckpointState,
+    registerMonitoringId,
+    addTriggeredAgent,
+    resetAgentForLoop,
+    addUIElement,
+    logMessage,
   }
 }
 

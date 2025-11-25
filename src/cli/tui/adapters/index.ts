@@ -4,17 +4,19 @@
  * Provides different UI implementations for workflow visualization:
  * - HeadlessAdapter: Console/file logging (CI, automation)
  * - MockAdapter: Event recording (testing)
- * - OpenTUIAdapter: Visual TUI (interactive use) [Phase 6]
+ * - OpenTUIAdapter: Visual TUI (interactive use)
  */
 
 export * from './types.js';
 export * from './base.js';
 export * from './headless.js';
 export * from './mock.js';
+export * from './opentui.js';
 
 import type { IWorkflowUI, UIAdapterOptions, AdapterType } from './types.js';
 import { HeadlessAdapter, type HeadlessAdapterOptions } from './headless.js';
 import { MockAdapter } from './mock.js';
+import { OpenTUIAdapter, type UIActions, type OpenTUIAdapterOptions } from './opentui.js';
 
 /**
  * Create a UI adapter by type
@@ -31,13 +33,13 @@ import { MockAdapter } from './mock.js';
  * // Mock for tests
  * const ui = createAdapter('mock');
  *
- * // OpenTUI for interactive (coming in Phase 6)
- * const ui = createAdapter('opentui');
+ * // OpenTUI for interactive
+ * const ui = createAdapter('opentui', { actions: uiActions });
  * ```
  */
 export function createAdapter(
   type: AdapterType,
-  options?: UIAdapterOptions & HeadlessAdapterOptions
+  options?: UIAdapterOptions & HeadlessAdapterOptions & { actions?: UIActions }
 ): IWorkflowUI {
   switch (type) {
     case 'headless':
@@ -47,10 +49,12 @@ export function createAdapter(
       return new MockAdapter(options);
 
     case 'opentui':
-      // TODO: Implement in Phase 6
-      // For now, fall back to headless with a warning
-      console.warn('[createAdapter] OpenTUI adapter not yet implemented, using headless');
-      return new HeadlessAdapter(options);
+      if (!options?.actions) {
+        // Fall back to headless if no UI actions provided
+        console.warn('[createAdapter] OpenTUI requires actions, using headless');
+        return new HeadlessAdapter(options);
+      }
+      return new OpenTUIAdapter({ ...options, actions: options.actions });
 
     default:
       throw new Error(`Unknown adapter type: ${type}`);

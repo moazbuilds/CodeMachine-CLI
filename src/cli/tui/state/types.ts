@@ -105,6 +105,7 @@ export interface WorkflowState {
   totalSteps: number
   workflowStatus: WorkflowStatus
   agentIdMapVersion: number
+  agentLogs: Map<string, string[]>
 }
 
 export type ThemeLike = {
