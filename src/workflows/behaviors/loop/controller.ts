@@ -4,6 +4,7 @@ import { evaluateLoopBehavior } from './evaluator.js';
 import { formatAgentLog } from '../../../shared/logging/index.js';
 import type { ActiveLoop } from '../skip.js';
 import type { WorkflowUIManager } from '../../../ui/index.js';
+import type { WorkflowEventEmitter } from '../../events/emitter.js';
 import { debug } from '../../../shared/logging/logger.js';
 
 export interface LoopDecision {
@@ -20,6 +21,7 @@ export async function handleLoopLogic(
   loopCounters: Map<string, number>,
   cwd: string,
   ui?: WorkflowUIManager,
+  emitter?: WorkflowEventEmitter,
 ): Promise<{ decision: LoopDecision | null; newIndex: number }> {
   // Only module steps can have loop behavior
   if (!isModuleStep(step)) {
@@ -57,7 +59,9 @@ export async function handleLoopLogic(
 
     if (ui) {
       ui.logMessage(step.agentId, message);
-    } else {
+    }
+    emitter?.logMessage(step.agentId, message);
+    if (!ui && !emitter) {
       console.log(formatAgentLog(step.agentId, message));
     }
 
@@ -68,10 +72,13 @@ export async function handleLoopLogic(
   }
 
   if (loopDecision?.reason) {
+    const skipMsg = `${step.agentName} loop skipped: ${loopDecision.reason}.`;
     if (ui) {
-      ui.logMessage(step.agentId, `${step.agentName} loop skipped: ${loopDecision.reason}.`);
-    } else {
-      console.log(formatAgentLog(step.agentId, `${step.agentName} loop skipped: ${loopDecision.reason}.`));
+      ui.logMessage(step.agentId, skipMsg);
+    }
+    emitter?.logMessage(step.agentId, skipMsg);
+    if (!ui && !emitter) {
+      console.log(formatAgentLog(step.agentId, skipMsg));
     }
   }
 

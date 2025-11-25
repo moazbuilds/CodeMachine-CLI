@@ -12,6 +12,7 @@ import type {
   CheckpointState,
   WorkflowStatus,
   SubAgentState,
+  TriggeredAgentState,
 } from '../../cli/tui/state/types.js';
 
 /**
@@ -50,6 +51,9 @@ export type WorkflowEvent =
   | { type: 'subagent:batch'; parentId: string; subAgents: SubAgentState[] }
   | { type: 'subagent:status'; subAgentId: string; status: AgentStatus }
   | { type: 'subagent:clear'; parentId: string }
+
+  // Triggered agent events
+  | { type: 'triggered:added'; sourceAgentId: string; triggeredAgent: TriggeredAgentState }
 
   // Workflow state events
   | { type: 'workflow:status'; status: WorkflowStatus }

@@ -24,6 +24,7 @@ import { executeTriggerAgent } from './trigger.js';
 import { shouldExecuteFallback, executeFallbackStep } from './fallback.js';
 import { WorkflowUIManager } from '../../ui/index.js';
 import { MonitoringCleanup } from '../../agents/monitoring/index.js';
+import { WorkflowEventBus, WorkflowEventEmitter } from '../events/index.js';
 
 /**
  * Cache for engine authentication status with TTL
@@ -135,11 +136,35 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   let activeLoop: ActiveLoop | null = null;
   const workflowStartTime = Date.now();
 
-  // Initialize Workflow UI Manager
+  // Get Event Bus from global (created by app.tsx before workflow starts)
+  // Or create a new one if running standalone (e.g., CLI without TUI)
+  // @ts-expect-error - global export from app.tsx
+  const eventBus: WorkflowEventBus = globalThis.__workflowEventBus ?? new WorkflowEventBus();
+  const emitter = new WorkflowEventEmitter(eventBus);
+
+  // Export event bus globally in case it was created here (standalone mode)
+  // @ts-expect-error - global export for TUI adapter connection
+  if (!globalThis.__workflowEventBus) {
+    // @ts-expect-error - global export
+    globalThis.__workflowEventBus = eventBus;
+  }
+
+  // Initialize Workflow UI Manager (old UI - will be removed after migration)
   const ui = new WorkflowUIManager(template.name);
   if (debugLogPath) {
     ui.setDebugLogPath(debugLogPath);
   }
+
+  // Wrap registerMonitoringId to also emit to event bus for new OpenTUI
+  const originalRegisterMonitoringId = ui.registerMonitoringId.bind(ui);
+  ui.registerMonitoringId = (uiAgentId: string, monitoringAgentId: number) => {
+    originalRegisterMonitoringId(uiAgentId, monitoringAgentId);
+    emitter.registerMonitoringId(uiAgentId, monitoringAgentId);
+  };
+
+  // Emit workflow started event
+  const totalModuleSteps = template.steps.filter(s => s.type === 'module').length;
+  emitter.workflowStarted(template.name, totalModuleSteps);
 
   // Pre-populate timeline with all workflow steps BEFORE starting UI
   // This prevents duplicate renders at startup
@@ -160,7 +185,18 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         initialStatus = 'completed';
       }
 
+      // Old UI (will be removed)
       const agentId = ui.addMainAgent(step.agentName ?? step.agentId, engineName, stepIndex, initialStatus, uniqueAgentId);
+
+      // New event system - emit agent added
+      emitter.addMainAgent(
+        uniqueAgentId,
+        step.agentName ?? step.agentId,
+        engineName,
+        stepIndex,
+        totalModuleSteps,
+        initialStatus
+      );
 
       // Update agent with step information
       const state = ui.getState();
@@ -172,6 +208,8 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     } else if (step.type === 'ui') {
       // Pre-populate UI elements
       ui.addUIElement(step.text, stepIndex);
+      // New event system - emit UI element
+      emitter.addUIElement(step.text, stepIndex);
     }
   });
 
@@ -215,9 +253,10 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     // Create unique agent ID for this step instance (matches UI pre-population)
     const uniqueAgentId = `${step.agentId}-step-${index}`;
 
-    const skipResult = shouldSkipStep(step, index, completedSteps, activeLoop, ui, uniqueAgentId);
+    const skipResult = shouldSkipStep(step, index, completedSteps, activeLoop, ui, uniqueAgentId, emitter);
     if (skipResult.skip) {
       ui.logMessage(uniqueAgentId, skipResult.reason!);
+      emitter.logMessage(uniqueAgentId, skipResult.reason!);
       continue;
     }
 
@@ -225,10 +264,13 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
     // Update UI status to running (this clears the output buffer)
     ui.updateAgentStatus(uniqueAgentId, 'running');
+    emitter.updateAgentStatus(uniqueAgentId, 'running');
 
     // Log start message AFTER clearing buffer
     ui.logMessage(uniqueAgentId, '═'.repeat(80));
     ui.logMessage(uniqueAgentId, `${step.agentName} started to work.`);
+    emitter.logMessage(uniqueAgentId, '═'.repeat(80));
+    emitter.logMessage(uniqueAgentId, `${step.agentName} started to work.`);
 
     // Reset behavior file to default "continue" before each agent run
     const behaviorFile = path.join(cwd, '.codemachine/memory/behavior.json');
@@ -253,10 +295,9 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         : false;
       if (!isOverrideAuthed) {
         const pretty = overrideEngine?.metadata.name ?? engineType;
-        ui.logMessage(
-          uniqueAgentId,
-          `${pretty} override is not authenticated; falling back to first authenticated engine by order. Run 'codemachine auth login' to use ${pretty}.`
-        );
+        const authMsg = `${pretty} override is not authenticated; falling back to first authenticated engine by order. Run 'codemachine auth login' to use ${pretty}.`;
+        ui.logMessage(uniqueAgentId, authMsg);
+        emitter.logMessage(uniqueAgentId, authMsg);
 
         // Find first authenticated engine by order (with caching)
         const engines = registry.getAll();
@@ -279,10 +320,9 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
         if (fallbackEngine) {
           engineType = fallbackEngine.metadata.id;
-          ui.logMessage(
-            uniqueAgentId,
-            `Falling back to ${fallbackEngine.metadata.name} (${engineType})`
-          );
+          const fallbackMsg = `Falling back to ${fallbackEngine.metadata.name} (${engineType})`;
+          ui.logMessage(uniqueAgentId, fallbackMsg);
+          emitter.logMessage(uniqueAgentId, fallbackMsg);
         }
       }
     } else {
@@ -311,7 +351,9 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       }
 
       engineType = foundEngine.metadata.id;
-      ui.logMessage(uniqueAgentId, `No engine specified, using ${foundEngine.metadata.name} (${engineType})`);
+      const engineMsg = `No engine specified, using ${foundEngine.metadata.name} (${engineType})`;
+      ui.logMessage(uniqueAgentId, engineMsg);
+      emitter.logMessage(uniqueAgentId, engineMsg);
     }
 
     // Ensure the selected engine is used during execution
@@ -330,6 +372,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       }
       skipRequested = true;
       ui.logMessage(uniqueAgentId, '⏭️  Skip requested by user...');
+      emitter.logMessage(uniqueAgentId, '⏭️  Skip requested by user...');
       abortController.abort();
     };
     process.once('workflow:skip', skipListener);
@@ -338,11 +381,13 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       // Check if fallback should be executed before the original step
       if (shouldExecuteFallback(step, index, notCompletedSteps)) {
         ui.logMessage(uniqueAgentId, `Detected incomplete step. Running fallback agent first.`);
+        emitter.logMessage(uniqueAgentId, `Detected incomplete step. Running fallback agent first.`);
         try {
-          await executeFallbackStep(step, cwd, workflowStartTime, engineType, ui, uniqueAgentId, abortController.signal);
+          await executeFallbackStep(step, cwd, workflowStartTime, engineType, ui, emitter, uniqueAgentId, abortController.signal);
         } catch (error) {
           // Fallback failed, step remains in notCompletedSteps
           ui.logMessage(uniqueAgentId, `Fallback failed. Skipping original step retry.`);
+          emitter.logMessage(uniqueAgentId, `Fallback failed. Skipping original step retry.`);
           // Don't update status to failed - just let it stay as running or retrying
           throw error;
         }
@@ -352,12 +397,13 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         logger: () => {}, // No-op: UI reads from log files
         stderrLogger: () => {}, // No-op: UI reads from log files
         ui,
+        emitter,
         abortSignal: abortController.signal,
         uniqueAgentId,
       });
 
       // Check for trigger behavior first
-      const triggerResult = await handleTriggerLogic(step, output, cwd, ui);
+      const triggerResult = await handleTriggerLogic(step, output, cwd, ui, emitter);
       if (triggerResult?.shouldTrigger && triggerResult.triggerAgentId) {
         const triggeredAgentId = triggerResult.triggerAgentId; // Capture for use in callbacks
         try {
@@ -369,13 +415,16 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
             stderrLogger: () => {}, // No-op: UI reads from log files
             sourceAgentId: uniqueAgentId,
             ui,
+            emitter,
             abortSignal: abortController.signal,
           });
         } catch (triggerError) {
           // Check if this was a user-requested skip (abort)
           if (triggerError instanceof Error && triggerError.name === 'AbortError') {
             ui.updateAgentStatus(triggeredAgentId, 'skipped');
+            emitter.updateAgentStatus(triggeredAgentId, 'skipped');
             ui.logMessage(triggeredAgentId, `Triggered agent was skipped by user.`);
+            emitter.logMessage(triggeredAgentId, `Triggered agent was skipped by user.`);
           }
           // Continue with workflow even if triggered agent fails or is skipped
         }
@@ -393,13 +442,16 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       // Update UI status to completed
       // This must happen BEFORE loop logic to ensure UI updates even when loops trigger
       ui.updateAgentStatus(uniqueAgentId, 'completed');
+      emitter.updateAgentStatus(uniqueAgentId, 'completed');
 
       // Log completion messages BEFORE loop check (so they're part of current agent's output)
       ui.logMessage(uniqueAgentId, `${step.agentName} has completed their work.`);
       ui.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
+      emitter.logMessage(uniqueAgentId, `${step.agentName} has completed their work.`);
+      emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
 
       // Check for checkpoint behavior first (to pause workflow for manual review)
-      const checkpointResult = await handleCheckpointLogic(step, output, cwd, ui);
+      const checkpointResult = await handleCheckpointLogic(step, output, cwd, ui, emitter);
       if (checkpointResult?.shouldStopWorkflow) {
         // Wait for user action via events (Continue or Quit)
         await new Promise<void>((resolve) => {
@@ -424,16 +476,18 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
         // Clear checkpoint state and resume
         ui.clearCheckpointState();
+        emitter.clearCheckpointState();
 
         if (workflowShouldStop) {
           // User chose to quit from checkpoint - set status to stopped
           ui.setWorkflowStatus('stopped');
+          emitter.setWorkflowStatus('stopped');
           break; // User chose to quit
         }
         // Otherwise continue to next step (current step already marked complete via executeOnce)
       }
 
-      const loopResult = await handleLoopLogic(step, index, output, loopCounters, cwd, ui);
+      const loopResult = await handleLoopLogic(step, index, output, loopCounters, cwd, ui, emitter);
 
       if (loopResult.decision?.shouldRepeat) {
         // Set active loop with skip list
@@ -442,7 +496,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         // Update UI loop state
         const loopKey = `${step.module?.id ?? step.agentId}:${index}`;
         const iteration = (loopCounters.get(loopKey) || 0) + 1;
-        ui.setLoopState({
+        const loopState = {
           active: true,
           sourceAgent: uniqueAgentId,
           backSteps: loopResult.decision.stepsBack,
@@ -450,7 +504,9 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
           maxIterations: step.module?.behavior?.type === 'loop' ? step.module.behavior.maxIterations ?? Infinity : Infinity,
           skipList: loopResult.decision.skipList || [],
           reason: loopResult.decision.reason,
-        });
+        };
+        ui.setLoopState(loopState);
+        emitter.setLoopState(loopState);
 
         // Reset all agents that will be re-executed in the loop
         // Clear their UI data (telemetry, tool counts, subagents) and monitoring registry data
@@ -460,6 +516,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
           if (resetStep && resetStep.type === 'module') {
             const resetUniqueAgentId = `${resetStep.agentId}-step-${resetIndex}`;
             await ui.resetAgentForLoop(resetUniqueAgentId, iteration);
+            emitter.resetAgentForLoop(resetUniqueAgentId, iteration);
           }
         }
 
@@ -474,21 +531,25 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         if (!newActiveLoop) {
           ui.setLoopState(null);
           ui.clearLoopRound(uniqueAgentId);
+          emitter.setLoopState(null);
+          emitter.clearLoopRound(uniqueAgentId);
         }
       }
     } catch (error) {
       // Check if this was a user-requested skip (abort)
       if (error instanceof Error && error.name === 'AbortError') {
         ui.updateAgentStatus(uniqueAgentId, 'skipped');
+        emitter.updateAgentStatus(uniqueAgentId, 'skipped');
         ui.logMessage(uniqueAgentId, `${step.agentName} was skipped by user.`);
         ui.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
+        emitter.logMessage(uniqueAgentId, `${step.agentName} was skipped by user.`);
+        emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
         // Continue to next step - don't throw
       } else {
         // Don't update status to failed - let it stay as running/retrying
-        ui.logMessage(
-          uniqueAgentId,
-          `${step.agentName} failed: ${error instanceof Error ? error.message : String(error)}`
-        );
+        const failMsg = `${step.agentName} failed: ${error instanceof Error ? error.message : String(error)}`;
+        ui.logMessage(uniqueAgentId, failMsg);
+        emitter.logMessage(uniqueAgentId, failMsg);
         throw error;
       }
     } finally {
@@ -522,6 +583,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
   // Set status to completed and keep UI alive
   ui.setWorkflowStatus('completed');
+  emitter.setWorkflowStatus('completed');
   // UI will stay running - user presses Ctrl+C to exit with two-stage behavior
   // Wait indefinitely - the SIGINT handler will call process.exit()
   await new Promise(() => {
@@ -530,6 +592,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   } catch (error) {
     // On workflow error, set status, stop UI, then exit
     ui.setWorkflowStatus('stopped');
+    emitter.setWorkflowStatus('stopped');
 
     // Stop UI to restore console before logging error
     ui.stop();

@@ -6,12 +6,14 @@ import type { EngineType } from '../../infra/engines/index.js';
 import { processPromptString } from '../../shared/prompts/index.js';
 import { executeAgent } from '../../agents/runner/runner.js';
 import type { WorkflowUIManager } from '../../ui/index.js';
+import type { WorkflowEventEmitter } from '../events/emitter.js';
 
 export interface StepExecutorOptions {
   logger: (chunk: string) => void;
   stderrLogger: (chunk: string) => void;
   timeout?: number;
   ui?: WorkflowUIManager;
+  emitter?: WorkflowEventEmitter;
   abortSignal?: AbortSignal;
   /** Parent agent ID for tracking relationships */
   parentId?: number;
@@ -65,6 +67,14 @@ export async function executeStep(
   // Determine engine: step override > default
   const engineType: EngineType | undefined = step.engine;
 
+  // Build telemetry callback that updates both UI and emitter
+  const onTelemetry = options.uniqueAgentId
+    ? (telemetry: import('../../cli/tui/state/types.js').AgentTelemetry) => {
+        options.ui?.updateAgentTelemetry(options.uniqueAgentId!, telemetry);
+        options.emitter?.updateAgentTelemetry(options.uniqueAgentId!, telemetry);
+      }
+    : undefined;
+
   // Execute via the unified execution runner
   // Runner handles: auth, monitoring, engine execution, memory storage
   const result = await executeAgent(step.agentId, prompt, {
@@ -73,9 +83,7 @@ export async function executeStep(
     model: step.model,
     logger: options.logger,
     stderrLogger: options.stderrLogger,
-    onTelemetry: options.ui && options.uniqueAgentId
-      ? (telemetry) => options.ui!.updateAgentTelemetry(options.uniqueAgentId!, telemetry)
-      : undefined,
+    onTelemetry,
     parentId: options.parentId,
     disableMonitoring: options.disableMonitoring,
     abortSignal: options.abortSignal,

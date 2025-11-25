@@ -31,6 +31,7 @@ export interface AgentState {
   loopReason?: string
   stepIndex?: number
   totalSteps?: number
+  monitoringId?: number // Maps to AgentMonitorService registry ID for log file access
 }
 
 export interface SubAgentState extends AgentState {

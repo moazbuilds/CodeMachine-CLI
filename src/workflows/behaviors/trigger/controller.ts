@@ -3,6 +3,7 @@ import { isModuleStep } from '../../templates/types.js';
 import { evaluateTriggerBehavior } from './evaluator.js';
 import { formatAgentLog } from '../../../shared/logging/index.js';
 import type { WorkflowUIManager } from '../../../ui/index.js';
+import type { WorkflowEventEmitter } from '../../events/emitter.js';
 
 export interface TriggerDecision {
   shouldTrigger: boolean;
@@ -15,6 +16,7 @@ export async function handleTriggerLogic(
   output: string,
   cwd: string,
   ui?: WorkflowUIManager,
+  emitter?: WorkflowEventEmitter,
 ): Promise<TriggerDecision | null> {
   // Only module steps can have trigger behavior
   if (!isModuleStep(step)) {
@@ -32,7 +34,9 @@ export async function handleTriggerLogic(
     const debugMsg = `[trigger] step=${step.agentName} behavior=${JSON.stringify(step.module?.behavior)} lastLine=${tail}`;
     if (ui) {
       ui.logMessage(step.agentId, debugMsg);
-    } else {
+    }
+    emitter?.logMessage(step.agentId, debugMsg);
+    if (!ui && !emitter) {
       console.log(formatAgentLog(step.agentId, debugMsg));
     }
   }
@@ -41,7 +45,9 @@ export async function handleTriggerLogic(
     const message = `${step.agentName} is triggering agent '${triggerDecision.triggerAgentId}'${triggerDecision.reason ? ` (${triggerDecision.reason})` : ''}.`;
     if (ui) {
       ui.logMessage(step.agentId, message);
-    } else {
+    }
+    emitter?.logMessage(step.agentId, message);
+    if (!ui && !emitter) {
       console.log(formatAgentLog(step.agentId, message));
     }
 
@@ -53,10 +59,13 @@ export async function handleTriggerLogic(
   }
 
   if (triggerDecision?.reason) {
+    const skipMsg = `${step.agentName} trigger skipped: ${triggerDecision.reason}.`;
     if (ui) {
-      ui.logMessage(step.agentId, `${step.agentName} trigger skipped: ${triggerDecision.reason}.`);
-    } else {
-      console.log(formatAgentLog(step.agentId, `${step.agentName} trigger skipped: ${triggerDecision.reason}.`));
+      ui.logMessage(step.agentId, skipMsg);
+    }
+    emitter?.logMessage(step.agentId, skipMsg);
+    if (!ui && !emitter) {
+      console.log(formatAgentLog(step.agentId, skipMsg));
     }
   }
 

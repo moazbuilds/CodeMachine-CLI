@@ -22,6 +22,7 @@ import type {
   CheckpointState,
   WorkflowStatus,
   SubAgentState,
+  TriggeredAgentState,
 } from '../../cli/tui/state/types.js';
 
 /**
@@ -205,6 +206,22 @@ export class WorkflowEventEmitter {
     this.bus.emit({
       type: 'subagent:clear',
       parentId,
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Triggered Agents
+  // ─────────────────────────────────────────────────────────────────
+
+  /**
+   * Emit triggered agent added event
+   * Mirrors: ui.addTriggeredAgent(sourceAgentId, triggeredAgent)
+   */
+  addTriggeredAgent(sourceAgentId: string, triggeredAgent: TriggeredAgentState): void {
+    this.bus.emit({
+      type: 'triggered:added',
+      sourceAgentId,
+      triggeredAgent,
     });
   }
 

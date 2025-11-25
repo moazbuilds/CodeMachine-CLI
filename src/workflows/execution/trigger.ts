@@ -6,6 +6,7 @@ import { MemoryAdapter } from '../../infra/fs/memory-adapter.js';
 import { MemoryStore } from '../../agents/index.js';
 import { processPromptString } from '../../shared/prompts/index.js';
 import type { WorkflowUIManager } from '../../ui/index.js';
+import type { WorkflowEventEmitter } from '../events/index.js';
 import { AgentMonitorService, AgentLoggerService } from '../../agents/monitoring/index.js';
 
 export interface TriggerExecutionOptions {
@@ -16,6 +17,7 @@ export interface TriggerExecutionOptions {
   stderrLogger: (chunk: string) => void;
   sourceAgentId: string; // The agent that triggered this execution
   ui?: WorkflowUIManager;
+  emitter?: WorkflowEventEmitter;
   abortSignal?: AbortSignal;
   /** Disable monitoring (for special cases) */
   disableMonitoring?: boolean;
@@ -26,7 +28,7 @@ export interface TriggerExecutionOptions {
  * This bypasses the workflow and allows triggering any agent, even outside the workflow
  */
 export async function executeTriggerAgent(options: TriggerExecutionOptions): Promise<void> {
-  const { triggerAgentId, cwd, engineType, logger: _logger, stderrLogger: _stderrLogger, sourceAgentId, ui, abortSignal, disableMonitoring } = options;
+  const { triggerAgentId, cwd, engineType, logger: _logger, stderrLogger: _stderrLogger, sourceAgentId, ui, emitter, abortSignal, disableMonitoring } = options;
 
   // Initialize monitoring (unless explicitly disabled) - declare outside try for catch block access
   const monitor = !disableMonitoring ? AgentMonitorService.getInstance() : null;
@@ -73,28 +75,41 @@ export async function executeTriggerAgent(options: TriggerExecutionOptions): Pro
       if (ui && monitoringAgentId !== undefined) {
         ui.registerMonitoringId(triggerAgentId, monitoringAgentId);
       }
+      if (emitter && monitoringAgentId !== undefined) {
+        emitter.registerMonitoringId(triggerAgentId, monitoringAgentId);
+      }
     }
 
     // Add triggered agent to UI
+    const engineName = engineType; // preserve original engine type, even if unknown
+    const triggeredAgentName = triggeredAgentConfig.name ?? triggerAgentId;
+    const triggeredAgentData = {
+      id: triggerAgentId,
+      name: triggeredAgentName,
+      engine: engineName,
+      status: 'running' as const,
+      triggeredBy: sourceAgentId,
+      startTime: Date.now(),
+      telemetry: { tokensIn: 0, tokensOut: 0 },
+      toolCount: 0,
+      thinkingCount: 0,
+    };
     if (ui) {
-      const engineName = engineType; // preserve original engine type, even if unknown
-      ui.addTriggeredAgent(sourceAgentId, {
-        id: triggerAgentId,
-        name: triggeredAgentConfig.name ?? triggerAgentId,
-        engine: engineName,
-        status: 'running',
-        triggeredBy: sourceAgentId,
-        startTime: Date.now(),
-        telemetry: { tokensIn: 0, tokensOut: 0 },
-        toolCount: 0,
-        thinkingCount: 0,
-      });
+      ui.addTriggeredAgent(sourceAgentId, triggeredAgentData);
+    }
+    if (emitter) {
+      emitter.addTriggeredAgent(sourceAgentId, triggeredAgentData);
     }
 
     if (ui) {
-      ui.logMessage(sourceAgentId, `Executing triggered agent: ${triggeredAgentConfig.name ?? triggerAgentId}`);
+      ui.logMessage(sourceAgentId, `Executing triggered agent: ${triggeredAgentName}`);
       ui.logMessage(triggerAgentId, '═'.repeat(80));
-      ui.logMessage(triggerAgentId, `${triggeredAgentConfig.name ?? triggerAgentId} started to work (triggered).`);
+      ui.logMessage(triggerAgentId, `${triggeredAgentName} started to work (triggered).`);
+    }
+    if (emitter) {
+      emitter.logMessage(sourceAgentId, `Executing triggered agent: ${triggeredAgentName}`);
+      emitter.logMessage(triggerAgentId, '═'.repeat(80));
+      emitter.logMessage(triggerAgentId, `${triggeredAgentName} started to work (triggered).`);
     }
 
     // Build prompt for triggered agent (memory write-only, no read)
@@ -126,6 +141,7 @@ export async function executeTriggerAgent(options: TriggerExecutionOptions): Pro
       },
       onTelemetry: (telemetry) => {
         ui?.updateAgentTelemetry(triggerAgentId, telemetry);
+        emitter?.updateAgentTelemetry(triggerAgentId, telemetry);
 
         // Update telemetry in monitoring (fire and forget - don't block streaming)
         if (monitor && monitoringAgentId !== undefined) {
@@ -152,13 +168,19 @@ export async function executeTriggerAgent(options: TriggerExecutionOptions): Pro
 
     // Update UI status on completion
     if (ui) {
-      // Always mark as completed (no failed status)
       ui.updateAgentStatus(triggerAgentId, 'completed');
+    }
+    if (emitter) {
+      emitter.updateAgentStatus(triggerAgentId, 'completed');
     }
 
     if (ui) {
-      ui.logMessage(triggerAgentId, `${triggeredAgentConfig.name ?? triggerAgentId} (triggered) has completed their work.`);
+      ui.logMessage(triggerAgentId, `${triggeredAgentName} (triggered) has completed their work.`);
       ui.logMessage(triggerAgentId, '═'.repeat(80));
+    }
+    if (emitter) {
+      emitter.logMessage(triggerAgentId, `${triggeredAgentName} (triggered) has completed their work.`);
+      emitter.logMessage(triggerAgentId, '═'.repeat(80));
     }
 
     // Mark agent as completed in monitoring
@@ -176,11 +198,12 @@ export async function executeTriggerAgent(options: TriggerExecutionOptions): Pro
     }
 
     // Don't update status to failed - let it stay as running/retrying
+    const errorMsg = `Triggered agent '${triggerAgentId}' failed: ${triggerError instanceof Error ? triggerError.message : String(triggerError)}`;
     if (ui) {
-      ui.logMessage(
-        sourceAgentId,
-        `Triggered agent '${triggerAgentId}' failed: ${triggerError instanceof Error ? triggerError.message : String(triggerError)}`
-      );
+      ui.logMessage(sourceAgentId, errorMsg);
+    }
+    if (emitter) {
+      emitter.logMessage(sourceAgentId, errorMsg);
     }
     // Continue with workflow even if triggered agent fails
     throw triggerError;

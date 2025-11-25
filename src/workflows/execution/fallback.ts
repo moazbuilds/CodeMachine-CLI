@@ -3,11 +3,13 @@ import { isModuleStep } from '../templates/types.js';
 import { executeStep } from './step.js';
 import { mainAgents } from '../utils/config.js';
 import type { WorkflowUIManager } from '../../ui/index.js';
+import type { WorkflowEventEmitter } from '../events/index.js';
 
 export interface FallbackExecutionOptions {
   logger: (message: string) => void;
   stderrLogger: (message: string) => void;
   ui?: WorkflowUIManager;
+  emitter?: WorkflowEventEmitter;
   abortSignal?: AbortSignal;
 }
 
@@ -33,6 +35,7 @@ export async function executeFallbackStep(
   workflowStartTime: number,
   engineType: string,
   ui?: WorkflowUIManager,
+  emitter?: WorkflowEventEmitter,
   uniqueParentAgentId?: string,
   abortSignal?: AbortSignal,
 ): Promise<void> {
@@ -50,6 +53,9 @@ export async function executeFallbackStep(
 
   if (ui) {
     ui.logMessage(fallbackAgentId, `Fallback agent for ${step.agentName} started to work.`);
+  }
+  if (emitter) {
+    emitter.logMessage(fallbackAgentId, `Fallback agent for ${step.agentName} started to work.`);
   }
 
   // Look up the fallback agent's configuration to get its prompt path
@@ -71,19 +77,23 @@ export async function executeFallbackStep(
   };
 
   // Add fallback agent to UI as sub-agent
+  const engineName = engineType; // preserve original engine type, even if unknown
+  const fallbackAgentData = {
+    id: fallbackAgentId,
+    name: fallbackAgent.name || fallbackAgentId,
+    engine: engineName,
+    status: 'running' as const,
+    parentId: parentAgentId,
+    startTime: Date.now(),
+    telemetry: { tokensIn: 0, tokensOut: 0 },
+    toolCount: 0,
+    thinkingCount: 0,
+  };
   if (ui) {
-    const engineName = engineType; // preserve original engine type, even if unknown
-    ui.addSubAgent(parentAgentId, {
-      id: fallbackAgentId,
-      name: fallbackAgent.name || fallbackAgentId,
-      engine: engineName,
-      status: 'running',
-      parentId: parentAgentId,
-      startTime: Date.now(),
-      telemetry: { tokensIn: 0, tokensOut: 0 },
-      toolCount: 0,
-      thinkingCount: 0,
-    });
+    ui.addSubAgent(parentAgentId, fallbackAgentData);
+  }
+  if (emitter) {
+    emitter.addSubAgent(parentAgentId, fallbackAgentData);
   }
 
   try {
@@ -101,13 +111,19 @@ export async function executeFallbackStep(
       ui.logMessage(fallbackAgentId, `Fallback agent completed successfully.`);
       ui.logMessage(fallbackAgentId, '═'.repeat(80));
     }
+    if (emitter) {
+      emitter.updateAgentStatus(fallbackAgentId, 'completed');
+      emitter.logMessage(fallbackAgentId, `Fallback agent completed successfully.`);
+      emitter.logMessage(fallbackAgentId, '═'.repeat(80));
+    }
   } catch (error) {
     // Don't update status to failed - let it stay as running/retrying
+    const errorMsg = `Fallback agent failed: ${error instanceof Error ? error.message : String(error)}`;
     if (ui) {
-      ui.logMessage(
-        fallbackAgentId,
-        `Fallback agent failed: ${error instanceof Error ? error.message : String(error)}`
-      );
+      ui.logMessage(fallbackAgentId, errorMsg);
+    }
+    if (emitter) {
+      emitter.logMessage(fallbackAgentId, errorMsg);
     }
     throw error; // Re-throw to prevent original step from running
   }

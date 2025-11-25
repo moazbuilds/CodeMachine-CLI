@@ -3,6 +3,7 @@ import { isModuleStep } from '../../templates/types.js';
 import { evaluateCheckpointBehavior } from './evaluator.js';
 import { formatAgentLog } from '../../../shared/logging/index.js';
 import type { WorkflowUIManager } from '../../../ui/index.js';
+import type { WorkflowEventEmitter } from '../../events/emitter.js';
 
 export interface CheckpointDecision {
   shouldStopWorkflow: boolean;
@@ -14,6 +15,7 @@ export async function handleCheckpointLogic(
   output: string,
   cwd: string,
   ui?: WorkflowUIManager,
+  emitter?: WorkflowEventEmitter,
 ): Promise<CheckpointDecision | null> {
   // Only module steps can have checkpoint behavior
   if (!isModuleStep(step)) {
@@ -37,7 +39,14 @@ export async function handleCheckpointLogic(
         active: true,
         reason: checkpointDecision.reason,
       });
-    } else {
+    }
+    // Emit to event bus for new TUI
+    emitter?.logMessage(step.agentId, message);
+    emitter?.setCheckpointState({
+      active: true,
+      reason: checkpointDecision.reason,
+    });
+    if (!ui && !emitter) {
       console.log(formatAgentLog(step.agentId, message));
     }
 
