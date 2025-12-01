@@ -28,7 +28,7 @@
 > **⚠️ Early Development Notice:** This project is in early development and is not yet ready for production use. Features may change, break, or be incomplete.
 
 <p align="center">
-  <a href="https://discord.gg/qYDPwEeW">
+  <a href="https://discord.gg/vS3A5UDNSq">
     <img src="docs/assets/discord-badge.png" alt="Join our Discord" width="200">
   </a>
   &nbsp;&nbsp;
