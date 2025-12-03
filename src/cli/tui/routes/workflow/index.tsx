@@ -12,6 +12,7 @@ import { OutputWindow, TelemetryBar, StatusFooter } from "./components/output"
 import { formatRuntime } from "./state/formatters"
 import { OpenTUIAdapter } from "./adapters/opentui"
 import { useLogStream } from "./hooks/useLogStream"
+import { useSubAgentSync } from "./hooks/useSubAgentSync"
 import type { WorkflowEventBus } from "../../../../workflows/events/index.js"
 
 interface WorkflowProps {
@@ -68,6 +69,9 @@ function WorkflowShell(props: { version: string; currentDir: string; eventBus?: 
       adapter.disconnect()
     }
   })
+
+  // Sync tool-spawned sub-agents from AgentMonitorService
+  useSubAgentSync(() => state(), ui.actions)
 
   // Track runtime with periodic updates
   const [tick, setTick] = createSignal(0)
