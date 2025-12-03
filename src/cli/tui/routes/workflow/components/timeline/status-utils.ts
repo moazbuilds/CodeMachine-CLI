@@ -16,7 +16,7 @@ export function getStatusIcon(status: AgentStatus): string {
     case "pending":
       return "○" // Empty circle
     case "running":
-      return "⠋" // Spinner (will animate)
+      return "◐" // Fallback (animated by Spinner component)
     case "completed":
       return "●" // Green filled circle
     case "skipped":

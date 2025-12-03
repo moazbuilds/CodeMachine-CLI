@@ -8,6 +8,7 @@
 
 import { Show } from "solid-js"
 import { useTheme } from "@tui/shared/context/theme"
+import { Spinner } from "@tui/shared/components/spinner"
 import type { AgentState } from "../../state/types"
 import { calculateDuration, formatTokens } from "../../state/formatters"
 import { getStatusIcon, getStatusColor } from "./status-utils"
@@ -57,7 +58,12 @@ export function MainAgentNode(props: MainAgentNodeProps) {
       {/* Main line */}
       <box flexDirection="row">
         <text fg={themeCtx.theme.text}>{selectionPrefix()}</text>
-        <text fg={color()}>{getStatusIcon(props.agent.status)} </text>
+        <Show when={props.agent.status === "running"} fallback={
+          <text fg={color()}>{getStatusIcon(props.agent.status)} </text>
+        }>
+          <Spinner color={color()} />
+          <text> </text>
+        </Show>
         <text fg={themeCtx.theme.text} attributes={1}>{props.agent.name}</text>
         <text fg={themeCtx.theme.textMuted}> ({props.agent.engine})</text>
         <Show when={duration()}>
