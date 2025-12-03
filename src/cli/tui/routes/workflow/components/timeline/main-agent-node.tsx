@@ -8,9 +8,10 @@
 
 import { Show } from "solid-js"
 import { useTheme } from "@tui/shared/context/theme"
+import { useTick } from "@tui/shared/hooks/tick"
 import { Spinner } from "@tui/shared/components/spinner"
 import type { AgentState } from "../../state/types"
-import { calculateDuration, formatTokens } from "../../state/formatters"
+import { formatDuration, formatTokens } from "../../state/formatters"
 import { getStatusIcon, getStatusColor } from "./status-utils"
 
 export interface MainAgentNodeProps {
@@ -20,15 +21,21 @@ export interface MainAgentNodeProps {
 
 export function MainAgentNode(props: MainAgentNodeProps) {
   const themeCtx = useTheme()
+  const now = useTick()
 
   const color = () => getStatusColor(props.agent.status, themeCtx.theme)
 
-  const duration = () =>
-    calculateDuration({
-      startTime: props.agent.startTime,
-      endTime: props.agent.endTime,
-      status: props.agent.status,
-    })
+  const duration = () => {
+    const { startTime, endTime, status } = props.agent
+    if (endTime) {
+      return formatDuration((endTime - startTime) / 1000)
+    }
+    if (status === "running" && startTime > 0) {
+      const elapsed = Math.max(0, now() - startTime)
+      return formatDuration(elapsed / 1000)
+    }
+    return ""
+  }
 
   // Build telemetry display
   const tokenStr = () => {
