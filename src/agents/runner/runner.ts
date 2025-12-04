@@ -1,14 +1,17 @@
-import * as path from 'node:path';
+import * as path from "node:path";
 
-import type { EngineType } from '../../infra/engines/index.js';
-import { getEngine } from '../../infra/engines/index.js';
-import { MemoryAdapter } from '../../infra/fs/memory-adapter.js';
-import { MemoryStore } from '../index.js';
-import { loadAgentConfig } from './config.js';
-import { AgentMonitorService, AgentLoggerService } from '../monitoring/index.js';
-import type { ParsedTelemetry } from '../../infra/engines/core/types.js';
-import { formatForLogFile } from '../../shared/formatters/logFileFormatter.js';
-import { info, error } from '../../shared/logging/logger.js';
+import type { EngineType } from "../../infra/engines/index.js";
+import { getEngine } from "../../infra/engines/index.js";
+import { MemoryAdapter } from "../../infra/fs/memory-adapter.js";
+import { MemoryStore } from "../index.js";
+import { loadAgentConfig } from "./config.js";
+import {
+	AgentMonitorService,
+	AgentLoggerService,
+} from "../monitoring/index.js";
+import type { ParsedTelemetry } from "../../infra/engines/core/types.js";
+import { formatForLogFile } from "../../shared/formatters/logFileFormatter.js";
+import { info, error } from "../../shared/logging/logger.js";
 
 /**
  * Cache for engine authentication status with TTL (shared across all subagents)
@@ -16,29 +19,33 @@ import { info, error } from '../../shared/logging/logger.js';
  * CRITICAL: This fixes the 5-minute delay bug when spawning multiple subagents
  */
 class EngineAuthCache {
-  private cache: Map<string, { isAuthenticated: boolean; timestamp: number }> = new Map();
-  private ttlMs: number = 5 * 60 * 1000; // 5 minutes TTL
+	private cache: Map<string, { isAuthenticated: boolean; timestamp: number }> =
+		new Map();
+	private ttlMs: number = 5 * 60 * 1000; // 5 minutes TTL
 
-  async isAuthenticated(engineId: string, checkFn: () => Promise<boolean>): Promise<boolean> {
-    const cached = this.cache.get(engineId);
-    const now = Date.now();
+	async isAuthenticated(
+		engineId: string,
+		checkFn: () => Promise<boolean>,
+	): Promise<boolean> {
+		const cached = this.cache.get(engineId);
+		const now = Date.now();
 
-    // Return cached value if still valid
-    if (cached && (now - cached.timestamp) < this.ttlMs) {
-      return cached.isAuthenticated;
-    }
+		// Return cached value if still valid
+		if (cached && now - cached.timestamp < this.ttlMs) {
+			return cached.isAuthenticated;
+		}
 
-    // Cache miss or expired - perform actual check
-    const result = await checkFn();
+		// Cache miss or expired - perform actual check
+		const result = await checkFn();
 
-    // Cache the result
-    this.cache.set(engineId, {
-      isAuthenticated: result,
-      timestamp: now
-    });
+		// Cache the result
+		this.cache.set(engineId, {
+			isAuthenticated: result,
+			timestamp: now,
+		});
 
-    return result;
-  }
+		return result;
+	}
 }
 
 // Global auth cache instance (shared across all subagent executions)
@@ -48,103 +55,108 @@ const authCache = new EngineAuthCache();
  * Minimal UI interface for agent execution
  */
 export interface AgentExecutionUI {
-  registerMonitoringId(uiAgentId: string, monitoringAgentId: number): void;
+	registerMonitoringId(uiAgentId: string, monitoringAgentId: number): void;
 }
 
 export interface ExecuteAgentOptions {
-  /**
-   * Engine to use (overrides agent config)
-   */
-  engine?: EngineType;
+	/**
+	 * Engine to use (overrides agent config)
+	 */
+	engine?: EngineType;
 
-  /**
-   * Model to use (overrides agent config)
-   */
-  model?: string;
+	/**
+	 * Model to use (overrides agent config)
+	 */
+	model?: string;
 
-  /**
-   * Working directory for execution
-   */
-  workingDir: string;
+	/**
+	 * Working directory for execution
+	 */
+	workingDir: string;
 
-  /**
-   * Project root for config lookup (defaults to workingDir)
-   */
-  projectRoot?: string;
+	/**
+	 * Project root for config lookup (defaults to workingDir)
+	 */
+	projectRoot?: string;
 
-  /**
-   * Logger for stdout
-   */
-  logger?: (chunk: string) => void;
+	/**
+	 * Logger for stdout
+	 */
+	logger?: (chunk: string) => void;
 
-  /**
-   * Logger for stderr
-   */
-  stderrLogger?: (chunk: string) => void;
+	/**
+	 * Logger for stderr
+	 */
+	stderrLogger?: (chunk: string) => void;
 
-  /**
-   * Telemetry callback (for UI updates)
-   */
-  onTelemetry?: (telemetry: ParsedTelemetry) => void;
+	/**
+	 * Telemetry callback (for UI updates)
+	 */
+	onTelemetry?: (telemetry: ParsedTelemetry) => void;
 
-  /**
-   * Abort signal
-   */
-  abortSignal?: AbortSignal;
+	/**
+	 * Abort signal
+	 */
+	abortSignal?: AbortSignal;
 
-  /**
-   * Timeout in milliseconds
-   */
-  timeout?: number;
+	/**
+	 * Timeout in milliseconds
+	 */
+	timeout?: number;
 
-  /**
-   * Parent agent ID (for tracking parent-child relationships)
-   */
-  parentId?: number;
+	/**
+	 * Parent agent ID (for tracking parent-child relationships)
+	 */
+	parentId?: number;
 
-  /**
-   * Disable monitoring (for special cases where monitoring is not desired)
-   */
-  disableMonitoring?: boolean;
+	/**
+	 * Disable monitoring (for special cases where monitoring is not desired)
+	 */
+	disableMonitoring?: boolean;
 
-  /**
-   * UI manager (for registering monitoring IDs)
-   */
-  ui?: AgentExecutionUI;
+	/**
+	 * UI manager (for registering monitoring IDs)
+	 */
+	ui?: AgentExecutionUI;
 
-  /**
-   * Unique agent ID for UI (for registering monitoring IDs)
-   */
-  uniqueAgentId?: string;
+	/**
+	 * Unique agent ID for UI (for registering monitoring IDs)
+	 */
+	uniqueAgentId?: string;
 
-  /**
-   * Display prompt (for logging/monitoring - shows user's actual request)
-   * If not provided, uses the full execution prompt
-   */
-  displayPrompt?: string;
+	/**
+	 * Display prompt (for logging/monitoring - shows user's actual request)
+	 * If not provided, uses the full execution prompt
+	 */
+	displayPrompt?: string;
+
+	/**
+	 * Agent name for engines that support agent selection (e.g., OpenCode --agent flag)
+	 */
+	agent?: string;
 }
 
 /**
  * Ensures the engine is authenticated
  */
 async function ensureEngineAuth(engineType: EngineType): Promise<void> {
-  const { registry } = await import('../../infra/engines/index.js');
-  const engine = registry.get(engineType);
+	const { registry } = await import("../../infra/engines/index.js");
+	const engine = registry.get(engineType);
 
-  if (!engine) {
-    const availableEngines = registry.getAllIds().join(', ');
-    throw new Error(
-      `Unknown engine type: ${engineType}. Available engines: ${availableEngines}`
-    );
-  }
+	if (!engine) {
+		const availableEngines = registry.getAllIds().join(", ");
+		throw new Error(
+			`Unknown engine type: ${engineType}. Available engines: ${availableEngines}`,
+		);
+	}
 
-  const isAuthed = await engine.auth.isAuthenticated();
-  if (!isAuthed) {
-    console.error(`\n${engine.metadata.name} authentication required`);
-    console.error(`\nRun the following command to authenticate:\n`);
-    console.error(`  codemachine auth login\n`);
-    throw new Error(`${engine.metadata.name} authentication required`);
-  }
+	const isAuthed = await engine.auth.isAuthenticated();
+	if (!isAuthed) {
+		console.error(`\n${engine.metadata.name} authentication required`);
+		console.error(`\nRun the following command to authenticate:\n`);
+		console.error(`  codemachine auth login\n`);
+		throw new Error(`${engine.metadata.name} authentication required`);
+	}
 }
 
 /**
@@ -172,204 +184,233 @@ async function ensureEngineAuth(engineType: EngineType): Promise<void> {
  * - CLI commands (via orchestration)
  */
 export interface AgentExecutionOutput {
-  output: string;
-  agentId?: number;
+	output: string;
+	agentId?: number;
 }
 
 export async function executeAgent(
-  agentId: string,
-  prompt: string,
-  options: ExecuteAgentOptions,
+	agentId: string,
+	prompt: string,
+	options: ExecuteAgentOptions,
 ): Promise<AgentExecutionOutput> {
-  const { workingDir, projectRoot, engine: engineOverride, model: modelOverride, logger, stderrLogger, onTelemetry, abortSignal, timeout, parentId, disableMonitoring, ui, uniqueAgentId, displayPrompt } = options;
+	const {
+		workingDir,
+		projectRoot,
+		engine: engineOverride,
+		model: modelOverride,
+		logger,
+		stderrLogger,
+		onTelemetry,
+		abortSignal,
+		timeout,
+		parentId,
+		disableMonitoring,
+		ui,
+		uniqueAgentId,
+		displayPrompt,
+	} = options;
 
-  // Load agent config to determine engine and model
-  const agentConfig = await loadAgentConfig(agentId, projectRoot ?? workingDir);
+	// Load agent config to determine engine and model
+	const agentConfig = await loadAgentConfig(agentId, projectRoot ?? workingDir);
 
-  // Determine engine: CLI override > agent config > first authenticated engine
-  const { registry } = await import('../../infra/engines/index.js');
-  let engineType: EngineType;
+	// Determine engine: CLI override > agent config > first authenticated engine
+	const { registry } = await import("../../infra/engines/index.js");
+	let engineType: EngineType;
 
-  if (engineOverride) {
-    engineType = engineOverride;
-  } else if (agentConfig.engine) {
-    engineType = agentConfig.engine;
-  } else {
-    // Fallback: find first authenticated engine by order (WITH CACHING - critical for subagents)
-    const engines = registry.getAll();
-    let foundEngine = null;
+	if (engineOverride) {
+		engineType = engineOverride;
+	} else if (agentConfig.engine) {
+		engineType = agentConfig.engine;
+	} else {
+		// Fallback: find first authenticated engine by order (WITH CACHING - critical for subagents)
+		const engines = registry.getAll();
+		let foundEngine = null;
 
-    for (const engine of engines) {
-      // Use cached auth check to avoid 10-30 second delays per subagent
-      const isAuth = await authCache.isAuthenticated(
-        engine.metadata.id,
-        () => engine.auth.isAuthenticated()
-      );
-      if (isAuth) {
-        foundEngine = engine;
-        break;
-      }
-    }
+		for (const engine of engines) {
+			// Use cached auth check to avoid 10-30 second delays per subagent
+			const isAuth = await authCache.isAuthenticated(engine.metadata.id, () =>
+				engine.auth.isAuthenticated(),
+			);
+			if (isAuth) {
+				foundEngine = engine;
+				break;
+			}
+		}
 
-    if (!foundEngine) {
-      // If no authenticated engine, use default (first by order)
-      foundEngine = registry.getDefault();
-    }
+		if (!foundEngine) {
+			// If no authenticated engine, use default (first by order)
+			foundEngine = registry.getDefault();
+		}
 
-    if (!foundEngine) {
-      throw new Error('No engines registered. Please install at least one engine.');
-    }
+		if (!foundEngine) {
+			throw new Error(
+				"No engines registered. Please install at least one engine.",
+			);
+		}
 
-    engineType = foundEngine.metadata.id;
-    info(`No engine specified for agent '${agentId}', using ${foundEngine.metadata.name} (${engineType})`);
-  }
+		engineType = foundEngine.metadata.id;
+		info(
+			`No engine specified for agent '${agentId}', using ${foundEngine.metadata.name} (${engineType})`,
+		);
+	}
 
-  // Ensure authentication
-  await ensureEngineAuth(engineType);
+	// Ensure authentication
+	await ensureEngineAuth(engineType);
 
-  // Get engine module for defaults
-  const engineModule = registry.get(engineType);
-  if (!engineModule) {
-    throw new Error(`Engine not found: ${engineType}`);
-  }
+	// Get engine module for defaults
+	const engineModule = registry.get(engineType);
+	if (!engineModule) {
+		throw new Error(`Engine not found: ${engineType}`);
+	}
 
-  // Model resolution: CLI override > agent config (legacy) > engine default
-  const model = modelOverride ?? (agentConfig.model as string | undefined) ?? engineModule.metadata.defaultModel;
-  const modelReasoningEffort = (agentConfig.modelReasoningEffort as 'low' | 'medium' | 'high' | undefined) ?? engineModule.metadata.defaultModelReasoningEffort;
+	// Model resolution: CLI override > agent config (legacy) > engine default
+	const model =
+		modelOverride ??
+		(agentConfig.model as string | undefined) ??
+		engineModule.metadata.defaultModel;
+	const modelReasoningEffort =
+		(agentConfig.modelReasoningEffort as
+			| "low"
+			| "medium"
+			| "high"
+			| undefined) ?? engineModule.metadata.defaultModelReasoningEffort;
 
-  // Initialize monitoring with engine/model info (unless explicitly disabled)
-  const monitor = !disableMonitoring ? AgentMonitorService.getInstance() : null;
-  const loggerService = !disableMonitoring ? AgentLoggerService.getInstance() : null;
-  let monitoringAgentId: number | undefined;
+	// Initialize monitoring with engine/model info (unless explicitly disabled)
+	const monitor = !disableMonitoring ? AgentMonitorService.getInstance() : null;
+	const loggerService = !disableMonitoring
+		? AgentLoggerService.getInstance()
+		: null;
+	let monitoringAgentId: number | undefined;
 
-  if (monitor && loggerService) {
-    // For registration: use displayPrompt (short user request) if provided, otherwise full prompt
-    const promptForDisplay = displayPrompt || prompt;
-    monitoringAgentId = await monitor.register({
-      name: agentId,
-      prompt: promptForDisplay, // This gets truncated in monitor for memory efficiency
-      parentId,
-      engine: engineType,
-      engineProvider: engineType,
-      modelName: model,
-    });
+	if (monitor && loggerService) {
+		// For registration: use displayPrompt (short user request) if provided, otherwise full prompt
+		const promptForDisplay = displayPrompt || prompt;
+		monitoringAgentId = await monitor.register({
+			name: agentId,
+			prompt: promptForDisplay, // This gets truncated in monitor for memory efficiency
+			parentId,
+			engine: engineType,
+			engineProvider: engineType,
+			modelName: model,
+		});
 
-    // Store FULL prompt for debug mode logging (not the display prompt)
-    // In debug mode, we want to see the complete composite prompt with template + input files
-    loggerService.storeFullPrompt(monitoringAgentId, prompt);
+		// Store FULL prompt for debug mode logging (not the display prompt)
+		// In debug mode, we want to see the complete composite prompt with template + input files
+		loggerService.storeFullPrompt(monitoringAgentId, prompt);
 
-    // Register monitoring ID with UI immediately so it can load logs
-    if (ui && uniqueAgentId && monitoringAgentId !== undefined) {
-      ui.registerMonitoringId(uniqueAgentId, monitoringAgentId);
-    }
-  }
+		// Register monitoring ID with UI immediately so it can load logs
+		if (ui && uniqueAgentId && monitoringAgentId !== undefined) {
+			ui.registerMonitoringId(uniqueAgentId, monitoringAgentId);
+		}
+	}
 
-  // Set up memory
-  const memoryDir = path.resolve(workingDir, '.codemachine', 'memory');
-  const adapter = new MemoryAdapter(memoryDir);
-  const store = new MemoryStore(adapter);
+	// Set up memory
+	const memoryDir = path.resolve(workingDir, ".codemachine", "memory");
+	const adapter = new MemoryAdapter(memoryDir);
+	const store = new MemoryStore(adapter);
 
-  // Get engine and execute
-  // NOTE: Prompt is already complete - no template loading or building here
-  const engine = getEngine(engineType);
+	// Get engine and execute
+	// NOTE: Prompt is already complete - no template loading or building here
+	const engine = getEngine(engineType);
 
-  let totalStdout = '';
+	let totalStdout = "";
 
-  try {
-    const result = await engine.run({
-      prompt, // Already complete and ready to use
-      workingDir,
-      model,
-      modelReasoningEffort,
-      env: {
-        ...process.env,
-        // Pass parent agent ID to child processes (for orchestration context)
-        ...(monitoringAgentId !== undefined && {
-          CODEMACHINE_PARENT_AGENT_ID: monitoringAgentId.toString()
-        })
-      },
-      onData: (chunk) => {
-        totalStdout += chunk;
+	try {
+		const result = await engine.run({
+			prompt, // Already complete and ready to use
+			workingDir,
+			model,
+			modelReasoningEffort,
+			agent: options.agent, // Pass agent name for engines that support it (e.g., OpenCode --agent)
+			env: {
+				...process.env,
+				// Pass parent agent ID to child processes (for orchestration context)
+				...(monitoringAgentId !== undefined && {
+					CODEMACHINE_PARENT_AGENT_ID: monitoringAgentId.toString(),
+				}),
+			},
+			onData: (chunk) => {
+				totalStdout += chunk;
 
-        // Dual-stream: write to log file (with status text) AND original logger (with colors)
-        if (loggerService && monitoringAgentId !== undefined) {
-          // Transform color markers to status text for log file readability
-          const logChunk = formatForLogFile(chunk);
-          loggerService.write(monitoringAgentId, logChunk);
-        }
+				// Dual-stream: write to log file (with status text) AND original logger (with colors)
+				if (loggerService && monitoringAgentId !== undefined) {
+					// Transform color markers to status text for log file readability
+					const logChunk = formatForLogFile(chunk);
+					loggerService.write(monitoringAgentId, logChunk);
+				}
 
-        // Keep original format with color markers for UI display
-        if (logger) {
-          logger(chunk);
-        } else {
-          try {
-            process.stdout.write(chunk);
-          } catch {
-            // ignore streaming failures
-          }
-        }
-      },
-      onErrorData: (chunk) => {
-        // Also log stderr to file (with status text transformation)
-        if (loggerService && monitoringAgentId !== undefined) {
-          const logChunk = formatForLogFile(chunk);
-          loggerService.write(monitoringAgentId, `[STDERR] ${logChunk}`);
-        }
+				// Keep original format with color markers for UI display
+				if (logger) {
+					logger(chunk);
+				} else {
+					try {
+						process.stdout.write(chunk);
+					} catch {
+						// ignore streaming failures
+					}
+				}
+			},
+			onErrorData: (chunk) => {
+				// Also log stderr to file (with status text transformation)
+				if (loggerService && monitoringAgentId !== undefined) {
+					const logChunk = formatForLogFile(chunk);
+					loggerService.write(monitoringAgentId, `[STDERR] ${logChunk}`);
+				}
 
-        if (stderrLogger) {
-          stderrLogger(chunk);
-        } else {
-          try {
-            process.stderr.write(chunk);
-          } catch {
-            // ignore streaming failures
-          }
-        }
-      },
-      onTelemetry: (telemetry) => {
-        // Update telemetry in monitoring (fire and forget - don't block streaming)
-        if (monitor && monitoringAgentId !== undefined) {
-          monitor.updateTelemetry(monitoringAgentId, telemetry).catch(err =>
-            error(`Failed to update telemetry: ${err}`)
-          );
-        }
+				if (stderrLogger) {
+					stderrLogger(chunk);
+				} else {
+					try {
+						process.stderr.write(chunk);
+					} catch {
+						// ignore streaming failures
+					}
+				}
+			},
+			onTelemetry: (telemetry) => {
+				// Update telemetry in monitoring (fire and forget - don't block streaming)
+				if (monitor && monitoringAgentId !== undefined) {
+					monitor
+						.updateTelemetry(monitoringAgentId, telemetry)
+						.catch((err) => error(`Failed to update telemetry: ${err}`));
+				}
 
-        // Forward to caller's telemetry callback (for UI updates)
-        if (onTelemetry) {
-          onTelemetry(telemetry);
-        }
-      },
-      abortSignal,
-      timeout,
-    });
+				// Forward to caller's telemetry callback (for UI updates)
+				if (onTelemetry) {
+					onTelemetry(telemetry);
+				}
+			},
+			abortSignal,
+			timeout,
+		});
 
-    // Store output in memory
-    const stdout = result.stdout || totalStdout;
-    const slice = stdout.slice(-2000);
-    await store.append({
-      agentId,
-      content: slice,
-      timestamp: new Date().toISOString(),
-    });
+		// Store output in memory
+		const stdout = result.stdout || totalStdout;
+		const slice = stdout.slice(-2000);
+		await store.append({
+			agentId,
+			content: slice,
+			timestamp: new Date().toISOString(),
+		});
 
-    // Mark agent as completed
-    if (monitor && monitoringAgentId !== undefined) {
-      await monitor.complete(monitoringAgentId);
-      // Note: Don't close stream here - workflow may write more messages
-      // Streams will be closed by cleanup handlers or monitoring service shutdown
-    }
+		// Mark agent as completed
+		if (monitor && monitoringAgentId !== undefined) {
+			await monitor.complete(monitoringAgentId);
+			// Note: Don't close stream here - workflow may write more messages
+			// Streams will be closed by cleanup handlers or monitoring service shutdown
+		}
 
-    return {
-      output: stdout,
-      agentId: monitoringAgentId
-    };
-  } catch (error) {
-    // Mark agent as failed
-    if (monitor && monitoringAgentId !== undefined) {
-      await monitor.fail(monitoringAgentId, error as Error);
-      // Note: Don't close stream here - workflow may write more messages
-      // Streams will be closed by cleanup handlers or monitoring service shutdown
-    }
-    throw error;
-  }
+		return {
+			output: stdout,
+			agentId: monitoringAgentId,
+		};
+	} catch (error) {
+		// Mark agent as failed
+		if (monitor && monitoringAgentId !== undefined) {
+			await monitor.fail(monitoringAgentId, error as Error);
+			// Note: Don't close stream here - workflow may write more messages
+			// Streams will be closed by cleanup handlers or monitoring service shutdown
+		}
+		throw error;
+	}
 }
