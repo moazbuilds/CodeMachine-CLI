@@ -9,36 +9,46 @@
 export type EngineType = string;
 
 export interface ParsedTelemetry {
-  tokensIn: number;
-  tokensOut: number;
-  cached?: number;
-  cost?: number;
-  duration?: number;
-  cacheCreationTokens?: number;
-  cacheReadTokens?: number;
+	tokensIn: number;
+	tokensOut: number;
+	cached?: number;
+	cost?: number;
+	duration?: number;
+	cacheCreationTokens?: number;
+	cacheReadTokens?: number;
 }
 
 export interface EngineRunOptions {
-  prompt: string;
-  workingDir: string;
-  model?: string;
-  modelReasoningEffort?: 'low' | 'medium' | 'high';
-  env?: NodeJS.ProcessEnv;
-  onData?: (chunk: string) => void;
-  onErrorData?: (chunk: string) => void;
-  onTelemetry?: (telemetry: ParsedTelemetry) => void;
-  abortSignal?: AbortSignal;
-  timeout?: number;
+	prompt: string;
+	workingDir: string;
+	model?: string;
+	modelReasoningEffort?: "low" | "medium" | "high";
+	/**
+	 * Agent name for engines that support agent selection (e.g., OpenCode --agent flag)
+	 */
+	agent?: string;
+	/**
+	 * URL of running server to attach to (e.g., http://localhost:4096)
+	 * For OpenCode, uses --attach flag to connect to existing server.
+	 * This avoids MCP server cold boot times on every run.
+	 */
+	attach?: string;
+	env?: NodeJS.ProcessEnv;
+	onData?: (chunk: string) => void;
+	onErrorData?: (chunk: string) => void;
+	onTelemetry?: (telemetry: ParsedTelemetry) => void;
+	abortSignal?: AbortSignal;
+	timeout?: number;
 }
 
 export interface EngineRunResult {
-  stdout: string;
-  stderr: string;
+	stdout: string;
+	stderr: string;
 }
 
 export interface Engine {
-  type: EngineType;
-  run(options: EngineRunOptions): Promise<EngineRunResult>;
+	type: EngineType;
+	run(options: EngineRunOptions): Promise<EngineRunResult>;
 }
 
 /**
@@ -46,7 +56,7 @@ export interface Engine {
  * Basic validation - registry-specific validation should be done at runtime
  */
 export function isValidEngineType(type: string): boolean {
-  return typeof type === 'string' && type.length > 0;
+	return typeof type === "string" && type.length > 0;
 }
 
 /**
@@ -54,8 +64,10 @@ export function isValidEngineType(type: string): boolean {
  * Note: This basic validation can be enhanced when registry access is needed
  */
 export function normalizeEngineType(type: string): string {
-  if (isValidEngineType(type)) {
-    return type;
-  }
-  throw new Error(`Invalid engine type "${type}". Engine type must be a non-empty string.`);
+	if (isValidEngineType(type)) {
+		return type;
+	}
+	throw new Error(
+		`Invalid engine type "${type}". Engine type must be a non-empty string.`,
+	);
 }
