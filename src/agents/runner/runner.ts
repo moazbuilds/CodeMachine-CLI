@@ -392,14 +392,16 @@ export async function executeAgent(
 			timeout,
 		});
 
-		// Store output in memory
+		// Store output in memory (skip if empty to avoid validation error)
 		const stdout = result.stdout || totalStdout;
-		const slice = stdout.slice(-2000);
-		await store.append({
-			agentId,
-			content: slice,
-			timestamp: new Date().toISOString(),
-		});
+		const slice = stdout.slice(-2000).trim();
+		if (slice) {
+			await store.append({
+				agentId,
+				content: slice,
+				timestamp: new Date().toISOString(),
+			});
+		}
 
 		// Mark agent as completed
 		if (monitor && monitoringAgentId !== undefined) {

@@ -34,7 +34,10 @@ export interface ModuleStep {
 	type: "module";
 	agentId: string;
 	agentName: string;
-	promptPath: string;
+	/** Path to prompt file (either promptPath or prompt is required) */
+	promptPath?: string;
+	/** Inline prompt string (either promptPath or prompt is required) */
+	prompt?: string;
 	model?: string;
 	modelReasoningEffort?: "low" | "medium" | "high";
 	engine?: string; // Dynamic engine type from registry

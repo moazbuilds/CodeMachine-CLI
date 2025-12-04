@@ -49,10 +49,23 @@ export async function executeStep(
 	}
 
 	// Load and process the prompt template
-	const promptPath = path.isAbsolute(step.promptPath)
-		? step.promptPath
-		: path.resolve(cwd, step.promptPath);
-	const rawPrompt = await readFile(promptPath, "utf8");
+	// Support either promptPath (file reference) or prompt (inline string)
+	let rawPrompt: string;
+	const stepWithPrompt = step as typeof step & { prompt?: string };
+	if (stepWithPrompt.prompt) {
+		// Use inline prompt directly
+		rawPrompt = stepWithPrompt.prompt;
+	} else if (step.promptPath) {
+		// Load from file
+		const promptPath = path.isAbsolute(step.promptPath)
+			? step.promptPath
+			: path.resolve(cwd, step.promptPath);
+		rawPrompt = await readFile(promptPath, "utf8");
+	} else {
+		throw new Error(
+			`Step ${step.agentId} must have either promptPath or prompt`,
+		);
+	}
 	const prompt = await processPromptString(rawPrompt, cwd);
 
 	// Use environment variable or default to 30 minutes (1800000ms)
