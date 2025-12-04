@@ -12,6 +12,7 @@ import { Home } from "@tui/routes/home"
 import { Workflow } from "@tui/routes/workflow"
 import { homedir } from "os"
 import { WorkflowEventBus } from "../../workflows/events/index.js"
+import { MonitoringCleanup } from "../../agents/monitoring/index.js"
 import path from "path"
 import { createRequire } from "node:module"
 import { resolvePackageJson } from "../../shared/runtime/pkg.js"
@@ -266,6 +267,14 @@ function App(props: { initialToast?: InitialToast }) {
     // Ctrl+C handler with confirmation
     if (evt.ctrl && evt.name === "c") {
       evt.preventDefault()
+
+      // In workflow view, delegate to MonitoringCleanup for two-stage abort flow
+      if (view() === "workflow") {
+        // Let MonitoringCleanup handle the two-stage Ctrl+C flow
+        // This updates workflow status to "stopping" on first press, then exits on second
+        void MonitoringCleanup.triggerCtrlCFromUI()
+        return
+      }
 
       if (ctrlCPressed()) {
         // Second Ctrl+C within timeout - actually exit

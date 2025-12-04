@@ -169,9 +169,8 @@ function createStore(workflowName: string): UIActions {
     }
     if (status === "running") {
       selectItem(agentId, "main", undefined, true)
-      return
     }
-    notify()
+    notifyImmediate()
   }
 
   function updateAgentTelemetry(
@@ -348,6 +347,7 @@ function createStore(workflowName: string): UIActions {
     } else {
       setWorkflowStatus("running")
     }
+    notify()  // Ensure checkpoint state change is propagated
   }
 
   function registerMonitoringId(uiAgentId: string, monitoringId: number): void {

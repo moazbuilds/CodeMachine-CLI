@@ -40,6 +40,7 @@ export interface AgentState {
   loopReason?: string; // Reason for the current loop iteration
   stepIndex?: number;  // Current step index (0-based)
   totalSteps?: number; // Total number of steps in workflow
+  monitoringId?: number; // Maps to AgentMonitorService registry ID for log file access
 }
 
 /**

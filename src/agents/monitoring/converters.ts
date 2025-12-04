@@ -21,6 +21,8 @@ export function agentRecordToSubAgentState(
 
   return {
     id: agent.id.toString(),
+    // Include monitoringId for log streaming - maps to registry for log access
+    monitoringId: agent.id,
     // Use override UI parent ID if provided (for flattening nested hierarchies)
     // Otherwise use the monitoring parentId
     parentId: uiParentId ?? agent.parentId.toString(),

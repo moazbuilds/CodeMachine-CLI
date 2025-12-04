@@ -73,6 +73,9 @@ export function MainAgentNode(props: MainAgentNodeProps) {
         </Show>
         <text fg={themeCtx.theme.text} attributes={1}>{props.agent.name}</text>
         <text fg={themeCtx.theme.textMuted}> ({props.agent.engine})</text>
+        <Show when={props.agent.status === "skipped"}>
+          <text fg={themeCtx.theme.textMuted}> • Skipped</text>
+        </Show>
         <Show when={duration()}>
           <text fg={themeCtx.theme.text}> • {duration()}</text>
         </Show>

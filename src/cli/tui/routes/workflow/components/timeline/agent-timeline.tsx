@@ -13,6 +13,7 @@ import type { AgentState, SubAgentState, UIElement, WorkflowState } from "../../
 import { getTimelineLayout, type TimelineLayoutEntry } from "../../state/navigation"
 import { MainAgentNode } from "./main-agent-node"
 import { SubAgentSummary } from "./sub-agent-summary"
+import { SubAgentNode } from "./sub-agent-node"
 import { UIElementNode } from "./ui-element-node"
 
 export interface AgentTimelineProps {
@@ -139,11 +140,7 @@ export function AgentTimeline(props: AgentTimelineProps) {
 
               // Sub-agent (expanded)
               if (item.type === "sub") {
-                return (
-                  <box paddingLeft={2}>
-                    <MainAgentNode agent={item.agent} isSelected={isSubSelected(item.id)} />
-                  </box>
-                )
+                return <SubAgentNode agent={item.agent} isSelected={isSubSelected(item.id)} />
               }
 
               return null

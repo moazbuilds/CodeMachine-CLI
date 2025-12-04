@@ -8,8 +8,10 @@
  */
 
 import { Show, For, createMemo } from "solid-js"
+import { useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
 import { ShimmerText } from "./shimmer-text"
+import { LogLine } from "../shared/log-line"
 import type { AgentState, SubAgentState } from "../../state/types"
 
 // Rotating messages shown while connecting to agent
@@ -37,8 +39,15 @@ export interface OutputWindowProps {
  */
 export function OutputWindow(props: OutputWindowProps) {
   const themeCtx = useTheme()
+  const dimensions = useTerminalDimensions()
 
   const effectiveMaxLines = () => props.maxLines ?? 20
+
+  // Calculate available width for log text (panel is 50% of terminal, minus borders/padding)
+  const availableWidth = () => {
+    const termWidth = dimensions()?.width ?? 80
+    return Math.floor(termWidth / 2) - 6
+  }
 
   // Determine agent type
   const agentType = () => {
@@ -111,44 +120,11 @@ export function OutputWindow(props: OutputWindowProps) {
 
           <Show when={!props.isLoading && !props.isConnecting && !props.error && props.lines.length > 0}>
             <box flexDirection="column">
-              <For each={displayLines()}>{(line) => <OutputLine line={line} />}</For>
+              <For each={displayLines()}>{(line) => <LogLine line={line} maxWidth={availableWidth()} />}</For>
             </box>
           </Show>
         </box>
       </Show>
     </box>
   )
-}
-
-/**
- * Single output line with basic syntax highlighting
- */
-function OutputLine(props: { line: string }) {
-  const themeCtx = useTheme()
-
-  // Basic color detection from markers
-  const lineColor = createMemo(() => {
-    const line = props.line
-    if (line.startsWith("\x1b[32m") || line.includes("✓") || line.includes("success")) {
-      return themeCtx.theme.success
-    }
-    if (line.startsWith("\x1b[31m") || line.includes("✗") || line.includes("error") || line.includes("Error")) {
-      return themeCtx.theme.error
-    }
-    if (line.startsWith("\x1b[33m") || line.includes("warning") || line.includes("Warning")) {
-      return themeCtx.theme.warning
-    }
-    if (line.startsWith("\x1b[90m") || line.startsWith("●")) {
-      return themeCtx.theme.textMuted
-    }
-    return themeCtx.theme.text
-  })
-
-  // Strip ANSI codes for display
-  const cleanLine = createMemo(() => {
-    // eslint-disable-next-line no-control-regex
-    return props.line.replace(/\x1b\[[0-9;]*m/g, "")
-  })
-
-  return <text fg={lineColor()}>{cleanLine()}</text>
 }

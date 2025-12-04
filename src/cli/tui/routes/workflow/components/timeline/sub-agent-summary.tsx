@@ -67,7 +67,7 @@ export function SubAgentSummary(props: SubAgentSummaryProps) {
 
   return (
     <Show when={hasSubAgents()}>
-      <box paddingLeft={1} paddingRight={1}>
+      <box flexDirection="row" paddingLeft={1} paddingRight={1}>
         <text fg={themeCtx.theme.text}>{selectionPrefix()}</text>
         <text fg={themeCtx.theme.textMuted}>
           {arrow()} Sub-agents: {statusStr()}

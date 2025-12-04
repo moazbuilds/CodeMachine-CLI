@@ -1,18 +1,20 @@
 /** @jsxImportSource @opentui/solid */
 import { createRequire } from "node:module"
 import { homedir } from "node:os"
-import { createMemo, createSignal, onMount, onCleanup } from "solid-js"
-import { useKeyboard } from "@opentui/solid"
+import { createMemo, createSignal, createEffect, onMount, onCleanup, Show } from "solid-js"
+import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import { resolvePackageJson } from "../../../../shared/runtime/pkg.js"
 import { BrandingHeader } from "@tui/shared/components/layout/branding-header"
 import { useTheme } from "@tui/shared/context/theme"
 import { UIStateProvider, useUIState } from "./context/ui-state"
 import { AgentTimeline } from "./components/timeline"
 import { OutputWindow, TelemetryBar, StatusFooter } from "./components/output"
+import { CheckpointModal, LogViewer, HistoryView } from "./components/modals"
 import { formatRuntime } from "./state/formatters"
 import { OpenTUIAdapter } from "./adapters/opentui"
 import { useLogStream } from "./hooks/useLogStream"
 import { useSubAgentSync } from "./hooks/useSubAgentSync"
+import { MonitoringCleanup } from "../../../../agents/monitoring/index.js"
 import type { WorkflowEventBus } from "../../../../workflows/events/index.js"
 
 interface WorkflowProps {
@@ -40,13 +42,51 @@ export function Workflow(props: WorkflowProps) {
   )
 }
 
+// Fixed heights for header, footer, borders, etc.
+const HEADER_HEIGHT = 3  // Branding header
+const FOOTER_HEIGHT = 2  // Telemetry bar + status footer
+const PANEL_BORDER = 2   // Top and bottom border of panel
+const TIMELINE_HEADER = 2  // "Workflow Pipeline" header
+
 function WorkflowShell(props: { version: string; currentDir: string; eventBus?: WorkflowEventBus | null; onAdapterReady?: () => void }) {
   const themeCtx = useTheme()
   const ui = useUIState()
   const state = () => ui.state()
+  const dimensions = useTerminalDimensions()
+
+  // Calculate available height for timeline items
+  const calculateVisibleItems = () => {
+    const termHeight = dimensions()?.height ?? 30
+    // Subtract fixed UI elements to get actual viewport for timeline items
+    const available = termHeight - HEADER_HEIGHT - FOOTER_HEIGHT - PANEL_BORDER - TIMELINE_HEADER
+    return Math.max(5, available)
+  }
+
+  // Update visible item count when terminal dimensions change
+  createEffect(() => {
+    const count = calculateVisibleItems()
+    ui.actions.setVisibleItemCount(count)
+  })
+
+  // Track checkpoint freeze time to pause the timer (defined early for Ctrl+C handler)
+  const [checkpointFreezeTime, setCheckpointFreezeTime] = createSignal<number | undefined>(undefined)
 
   // Connect to the event bus from workflow execution
   let adapter: OpenTUIAdapter | null = null
+
+  // Register Ctrl+C handlers immediately (not in onMount) to ensure they're
+  // available before any Ctrl+C can be pressed
+  MonitoringCleanup.registerWorkflowHandlers({
+    onStop: () => {
+      // First Ctrl+C - freeze timer and update status to 'stopping'
+      setCheckpointFreezeTime(Date.now())
+      ui.actions.setWorkflowStatus("stopping")
+    },
+    onExit: () => {
+      // Second Ctrl+C - update status to 'stopped' (UI will show "Stopped by user")
+      ui.actions.setWorkflowStatus("stopped")
+    },
+  })
 
   onMount(() => {
     // Use event bus passed from props
@@ -68,18 +108,44 @@ function WorkflowShell(props: { version: string; currentDir: string; eventBus?: 
       adapter.stop()
       adapter.disconnect()
     }
+    // Clear workflow handlers to prevent memory leaks
+    MonitoringCleanup.clearWorkflowHandlers()
   })
 
   // Sync tool-spawned sub-agents from AgentMonitorService
   useSubAgentSync(() => state(), ui.actions)
 
+  // Track log viewer state
+  const [logViewerAgentId, setLogViewerAgentId] = createSignal<string | null>(null)
+
+  // Track history view state
+  const [showHistory, setShowHistory] = createSignal(false)
+
+  // Track history log viewer (opened from history view)
+  const [historyLogViewerMonitoringId, setHistoryLogViewerMonitoringId] = createSignal<number | null>(null)
+
+  // Track when checkpoint becomes active/inactive and freeze/unfreeze timer
+  createEffect(() => {
+    const checkpointState = state().checkpointState
+    if (checkpointState?.active && !checkpointFreezeTime()) {
+      // Checkpoint just became active - freeze the timer at current time
+      setCheckpointFreezeTime(Date.now())
+    } else if (!checkpointState?.active && checkpointFreezeTime()) {
+      // Checkpoint just closed - unfreeze timer
+      setCheckpointFreezeTime(undefined)
+    }
+  })
+
   // Track runtime with periodic updates
   const [tick, setTick] = createSignal(0)
-  setInterval(() => setTick((t) => t + 1), 1000)
+  const tickInterval = setInterval(() => setTick((t) => t + 1), 1000)
+  onCleanup(() => clearInterval(tickInterval))
 
   const runtime = createMemo(() => {
     tick() // Re-evaluate on tick
-    return formatRuntime(state().startTime, state().endTime)
+    // Use checkpoint freeze time if active, otherwise use workflow endTime
+    const effectiveEndTime = checkpointFreezeTime() ?? state().endTime
+    return formatRuntime(state().startTime, effectiveEndTime)
   })
 
   // Get current agent for output window
@@ -135,24 +201,107 @@ function WorkflowShell(props: { version: string; currentDir: string; eventBus?: 
     ui.actions.toggleExpand(agentId)
   }
 
-  // Keyboard navigation for workflow view
+  // Check if checkpoint modal is active
+  const isCheckpointActive = () => state().checkpointState?.active ?? false
+
+  // Handle checkpoint continue
+  const handleCheckpointContinue = () => {
+    // Clear checkpoint state first
+    ui.actions.setCheckpointState(null)
+    // Reset workflow status to running
+    ui.actions.setWorkflowStatus("running")
+    // Unfreeze the timer
+    setCheckpointFreezeTime(undefined)
+    // Emit event to continue workflow
+    ;(process as NodeJS.EventEmitter).emit("checkpoint:continue")
+  }
+
+  // Handle checkpoint quit
+  const handleCheckpointQuit = () => {
+    // Clear checkpoint state
+    ui.actions.setCheckpointState(null)
+    // Set status to stopped
+    ui.actions.setWorkflowStatus("stopped")
+    // Emit event to quit workflow
+    ;(process as NodeJS.EventEmitter).emit("checkpoint:quit")
+  }
+
+  // Check if log viewer is active
+  const isLogViewerActive = () => logViewerAgentId() !== null
+
+  // Check if history view is active
+  const isHistoryActive = () => showHistory()
+
+  // Check if history log viewer is active
+  const isHistoryLogViewerActive = () => historyLogViewerMonitoringId() !== null
+
+  // Helper function to get monitoring ID from UI agent ID
+  const getMonitoringId = (uiAgentId: string): number | undefined => {
+    const s = state()
+    // Check main agents
+    const mainAgent = s.agents.find((a) => a.id === uiAgentId)
+    if (mainAgent?.monitoringId !== undefined) {
+      return mainAgent.monitoringId
+    }
+    // Check sub-agents
+    for (const subAgents of s.subAgents.values()) {
+      const subAgent = subAgents.find((sa) => sa.id === uiAgentId)
+      if (subAgent?.monitoringId !== undefined) {
+        return subAgent.monitoringId
+      }
+    }
+    return undefined
+  }
+
+  // Keyboard navigation for workflow view (disabled when modals are active)
   useKeyboard((evt) => {
+    // Disable navigation when modals are active
+    if (isCheckpointActive() || isLogViewerActive() || isHistoryActive() || isHistoryLogViewerActive()) {
+      return
+    }
+
+    // H key - toggle history view
+    if (evt.name === "h") {
+      evt.preventDefault()
+      setShowHistory(true)
+      return
+    }
+
     // Arrow up - navigate to previous item
     if (evt.name === "up") {
       evt.preventDefault()
-      ui.actions.navigateUp()
+      ui.actions.navigateUp(calculateVisibleItems())
       return
     }
 
     // Arrow down - navigate to next item
     if (evt.name === "down") {
       evt.preventDefault()
-      ui.actions.navigateDown()
+      ui.actions.navigateDown(calculateVisibleItems())
       return
     }
 
-    // Enter or Space - toggle expand on selected agent
-    if (evt.name === "return" || evt.name === "space") {
+    // Enter key has dual functionality:
+    // 1. If summary row selected -> toggle expand/collapse
+    // 2. If main agent or subagent selected -> open log viewer
+    if (evt.name === "return") {
+      evt.preventDefault()
+      const s = state()
+      if (s.selectedItemType === "summary" && s.selectedAgentId) {
+        // Toggle expand/collapse for summary
+        ui.actions.toggleExpand(s.selectedAgentId)
+      } else {
+        // Open log viewer for main agent or subagent
+        const agentId = s.selectedSubAgentId || s.selectedAgentId
+        if (agentId) {
+          setLogViewerAgentId(agentId)
+        }
+      }
+      return
+    }
+
+    // Space - toggle expand on selected agent
+    if (evt.name === "space") {
       evt.preventDefault()
       const s = state()
       if (s.selectedAgentId && (s.selectedItemType === "main" || s.selectedItemType === "summary")) {
@@ -218,6 +367,53 @@ function WorkflowShell(props: { version: string; currentDir: string; eventBus?: 
         total={totalTelemetry()}
       />
       <StatusFooter />
+
+      {/* Checkpoint Modal Overlay */}
+      <Show when={isCheckpointActive()}>
+        <CheckpointModal
+          reason={state().checkpointState?.reason}
+          onContinue={handleCheckpointContinue}
+          onQuit={handleCheckpointQuit}
+        />
+      </Show>
+
+      {/* Log Viewer Full Screen */}
+      <Show when={isLogViewerActive()}>
+        <box position="absolute" left={0} top={0} width="100%" height="100%" zIndex={1000} backgroundColor={themeCtx.theme.background}>
+          <LogViewer
+            agentId={logViewerAgentId()!}
+            getMonitoringId={getMonitoringId}
+            onClose={() => setLogViewerAgentId(null)}
+          />
+        </box>
+      </Show>
+
+      {/* History View Full Screen */}
+      <Show when={isHistoryActive()}>
+        <box position="absolute" left={0} top={0} width="100%" height="100%" zIndex={1000} backgroundColor={themeCtx.theme.background}>
+          <HistoryView
+            onClose={() => setShowHistory(false)}
+            onOpenLogViewer={(monitoringId) => {
+              setHistoryLogViewerMonitoringId(monitoringId)
+              setShowHistory(false)
+            }}
+          />
+        </box>
+      </Show>
+
+      {/* History Log Viewer Full Screen (opened from history view) */}
+      <Show when={isHistoryLogViewerActive()}>
+        <box position="absolute" left={0} top={0} width="100%" height="100%" zIndex={1000} backgroundColor={themeCtx.theme.background}>
+          <LogViewer
+            agentId={String(historyLogViewerMonitoringId())}
+            getMonitoringId={() => historyLogViewerMonitoringId() ?? undefined}
+            onClose={() => {
+              setHistoryLogViewerMonitoringId(null)
+              setShowHistory(true) // Return to history view
+            }}
+          />
+        </box>
+      </Show>
     </box>
   )
 }

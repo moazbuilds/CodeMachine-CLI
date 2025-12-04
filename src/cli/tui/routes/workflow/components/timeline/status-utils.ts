@@ -19,6 +19,8 @@ export function getStatusIcon(status: AgentStatus): string {
       return "◐" // Fallback (animated by Spinner component)
     case "completed":
       return "●" // Green filled circle
+    case "failed":
+      return "✗" // Red X for failed
     case "skipped":
       return "●" // Filled circle
     case "retrying":
@@ -38,6 +40,10 @@ export function getStatusColor(status: AgentStatus, theme: Theme): RGBA {
       return theme.success // green
     case "running":
       return theme.primary // blue
+    case "failed":
+      return theme.error // red for failed
+    case "skipped":
+      return theme.textMuted // gray/muted for skipped
     default:
       return theme.text // white
   }
