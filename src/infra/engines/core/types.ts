@@ -27,6 +27,12 @@ export interface EngineRunOptions {
 	 * Agent name for engines that support agent selection (e.g., OpenCode --agent flag)
 	 */
 	agent?: string;
+	/**
+	 * URL of running server to attach to (e.g., http://localhost:4096)
+	 * For OpenCode, uses --attach flag to connect to existing server.
+	 * This avoids MCP server cold boot times on every run.
+	 */
+	attach?: string;
 	env?: NodeJS.ProcessEnv;
 	onData?: (chunk: string) => void;
 	onErrorData?: (chunk: string) => void;

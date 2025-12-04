@@ -72,6 +72,7 @@ export async function executeStep(
 		engine: engineType,
 		model: step.model,
 		agent: step.agent, // Pass OpenCode agent name for --agent flag
+		attach: step.attach, // Pass server URL for --attach flag (consolidated server mode)
 		logger: options.logger,
 		stderrLogger: options.stderrLogger,
 		onTelemetry:

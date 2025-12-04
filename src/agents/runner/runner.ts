@@ -134,6 +134,13 @@ export interface ExecuteAgentOptions {
 	 * Agent name for engines that support agent selection (e.g., OpenCode --agent flag)
 	 */
 	agent?: string;
+
+	/**
+	 * URL of running server to attach to (e.g., http://localhost:4096)
+	 * For OpenCode, uses --attach flag to connect to existing server.
+	 * This avoids MCP server cold boot times on every run.
+	 */
+	attach?: string;
 }
 
 /**
@@ -322,6 +329,7 @@ export async function executeAgent(
 			model,
 			modelReasoningEffort,
 			agent: options.agent, // Pass agent name for engines that support it (e.g., OpenCode --agent)
+			attach: options.attach, // Pass server URL for engines that support it (e.g., OpenCode --attach)
 			env: {
 				...process.env,
 				// Pass parent agent ID to child processes (for orchestration context)
