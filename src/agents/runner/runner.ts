@@ -8,7 +8,7 @@ import { loadAgentConfig } from './config.js';
 import { AgentMonitorService, AgentLoggerService } from '../monitoring/index.js';
 import type { ParsedTelemetry } from '../../infra/engines/core/types.js';
 import { formatForLogFile } from '../../shared/formatters/logFileFormatter.js';
-import { info, error } from '../../shared/logging/logger.js';
+import { info, error, debug } from '../../shared/logging/logger.js';
 
 /**
  * Cache for engine authentication status with TTL (shared across all subagents)
@@ -337,6 +337,15 @@ export async function executeAgent(
         // Forward to caller's telemetry callback (for UI updates)
         if (onTelemetry) {
           onTelemetry(telemetry);
+        }
+      },
+      onSessionId: (sessionId) => {
+        // Store session ID for resume capability
+        debug(`[onSessionId callback] sessionId=${sessionId}, monitor=${!!monitor}, monitoringAgentId=${monitoringAgentId}`);
+        if (monitor && monitoringAgentId !== undefined) {
+          monitor.setSessionId(monitoringAgentId, sessionId).catch(err =>
+            error(`Failed to set session ID: ${err}`)
+          );
         }
       },
       abortSignal,

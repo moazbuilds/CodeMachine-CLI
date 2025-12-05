@@ -57,6 +57,9 @@ export interface AgentRecord {
 
   /** Model name (e.g., 'claude-sonnet-4', 'gpt-4-turbo') */
   modelName?: string;
+
+  /** Session/thread ID for resume capability (engine-specific) */
+  sessionId?: string;
 }
 
 /**

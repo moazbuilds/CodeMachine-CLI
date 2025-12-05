@@ -122,6 +122,14 @@ export class AgentMonitorService {
   }
 
   /**
+   * Set session ID for resume capability
+   */
+  async setSessionId(id: number, sessionId: string): Promise<void> {
+    this.repository.update(id, { sessionId });
+    logger.debug(`Set session ID for agent ${id}: ${sessionId}`);
+  }
+
+  /**
    * Get agent by ID
    */
   getAgent(id: number): AgentRecord | undefined {

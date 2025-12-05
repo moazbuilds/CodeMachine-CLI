@@ -15,6 +15,7 @@ type AgentRow = {
   error: string | null;
   engine_provider: string | null;
   model_name: string | null;
+  session_id: string | null;
   tokens_in: number | null;
   tokens_out: number | null;
   cached_tokens: number | null;
@@ -109,6 +110,10 @@ export class AgentRepository {
       fields.push('log_path = ?');
       values.push(updates.logPath);
     }
+    if (updates.sessionId) {
+      fields.push('session_id = ?');
+      values.push(updates.sessionId);
+    }
 
     if (fields.length > 0) {
       fields.push('updated_at = CURRENT_TIMESTAMP');
@@ -195,6 +200,7 @@ export class AgentRepository {
       error: row.error ?? undefined,
       engineProvider: row.engine_provider ?? undefined,
       modelName: row.model_name ?? undefined,
+      sessionId: row.session_id ?? undefined,
       children,
       telemetry: row.tokens_in !== null && row.tokens_out !== null
         ? {

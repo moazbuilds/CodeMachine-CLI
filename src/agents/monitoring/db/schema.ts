@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS agents (
   error TEXT,
   engine_provider TEXT,
   model_name TEXT,
+  session_id TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );

@@ -27,6 +27,7 @@ export interface EngineRunOptions {
   onData?: (chunk: string) => void;
   onErrorData?: (chunk: string) => void;
   onTelemetry?: (telemetry: ParsedTelemetry) => void;
+  onSessionId?: (sessionId: string) => void;
   abortSignal?: AbortSignal;
   timeout?: number;
 }
