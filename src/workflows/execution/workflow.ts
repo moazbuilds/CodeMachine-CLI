@@ -231,12 +231,73 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   };
   process.on('workflow:stop', stopListener);
 
+  // Workflow pause handling - consolidated state
+  const pauseState = {
+    paused: false,
+    requested: false,
+    stepIndex: null as number | null,
+    monitoringId: undefined as number | undefined,
+    resolver: null as (() => void) | null,
+  };
+  let currentAbortController: AbortController | null = null; // Separate - different lifecycle
+
+  const pauseListener = () => {
+    if (!pauseState.paused) {
+      pauseState.paused = true;
+      pauseState.requested = true;
+
+      // Abort the current step using its abort controller
+      if (currentAbortController) {
+        debug(`[PAUSE] Aborting current step via AbortController`);
+        currentAbortController.abort();
+      }
+
+      emitter.setWorkflowStatus('paused');
+    }
+  };
+
+  const resumeListener = (data?: { monitoringId?: number }) => {
+    if (pauseState.paused) {
+      // Store monitoringId - runner will look up sessionId from monitor
+      pauseState.monitoringId = data?.monitoringId;
+
+      pauseState.paused = false;
+      emitter.setWorkflowStatus('running');
+      if (pauseState.resolver) {
+        pauseState.resolver();
+        pauseState.resolver = null;
+      }
+    }
+  };
+
+  process.on('workflow:pause', pauseListener);
+  process.on('workflow:resume', resumeListener);
+
   try {
     for (let index = startIndex; index < template.steps.length; index += 1) {
     // Check if workflow should stop (Ctrl+C pressed)
     if (workflowShouldStop) {
       console.log(formatAgentLog('workflow', 'Workflow stopped by user.'));
       break;
+    }
+
+    // Check if workflow is paused - wait until resumed
+    if (pauseState.paused) {
+      pauseState.stepIndex = index;
+      await new Promise<void>((resolve) => {
+        pauseState.resolver = resolve;
+      });
+    }
+
+    // Determine if this step should resume (we have monitoringId from the hook)
+    const shouldResumeStep = pauseState.stepIndex === index && pauseState.monitoringId !== undefined;
+    const stepResumeMonitoringId = shouldResumeStep ? pauseState.monitoringId : undefined;
+
+    // Reset pause state after using it
+    if (shouldResumeStep) {
+      pauseState.stepIndex = null;
+      pauseState.monitoringId = undefined;
+      pauseState.requested = false;
     }
 
     const step = template.steps[index];
@@ -363,6 +424,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
     // Set up skip listener and abort controller for this step (covers fallback + main + triggers)
     const abortController = new AbortController();
+    currentAbortController = abortController; // Track for pause functionality
     let skipRequested = false; // Prevent duplicate skip requests during async abort handling
     const skipListener = () => {
       if (skipRequested) {
@@ -393,6 +455,12 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         }
       }
 
+      // Log if resuming
+      if (stepResumeMonitoringId) {
+        ui.logMessage(uniqueAgentId, `Resuming from paused session...`);
+        emitter.logMessage(uniqueAgentId, `Resuming from paused session...`);
+      }
+
       const output = await executeStep(step, cwd, {
         logger: () => {}, // No-op: UI reads from log files
         stderrLogger: () => {}, // No-op: UI reads from log files
@@ -400,6 +468,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         emitter,
         abortSignal: abortController.signal,
         uniqueAgentId,
+        resumeMonitoringId: stepResumeMonitoringId,
       });
 
       // Check for trigger behavior first
@@ -536,8 +605,23 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         }
       }
     } catch (error) {
-      // Check if this was a user-requested skip (abort)
-      if (error instanceof Error && error.name === 'AbortError') {
+      // Check if this was a pause request (process killed)
+      if (pauseState.requested) {
+        ui.logMessage(uniqueAgentId, `${step.agentName} paused.`);
+        emitter.logMessage(uniqueAgentId, `${step.agentName} paused.`);
+
+        // Store step index for resume - loop will re-run this step
+        pauseState.stepIndex = index;
+
+        // Wait for resume
+        await new Promise<void>((resolve) => {
+          pauseState.resolver = resolve;
+        });
+
+        // Re-run this step by not incrementing index (continue skips the for-loop increment)
+        index -= 1;
+      } else if (error instanceof Error && error.name === 'AbortError') {
+        // Check if this was a user-requested skip (abort)
         ui.updateAgentStatus(uniqueAgentId, 'skipped');
         emitter.updateAgentStatus(uniqueAgentId, 'skipped');
         ui.logMessage(uniqueAgentId, `${step.agentName} was skipped by user.`);
@@ -600,7 +684,9 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     // Re-throw error to be handled by caller (will now print after UI is stopped)
     throw error;
   } finally {
-    // Clean up workflow stop listener
+    // Clean up workflow listeners
     process.removeListener('workflow:stop', stopListener);
+    process.removeListener('workflow:pause', pauseListener);
+    process.removeListener('workflow:resume', resumeListener);
   }
 }
