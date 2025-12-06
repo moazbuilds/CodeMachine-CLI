@@ -122,6 +122,11 @@ export interface ExecuteAgentOptions {
    * If not provided, uses the full execution prompt
    */
   displayPrompt?: string;
+
+  /**
+   * Monitoring ID for resuming (skip new registration, use existing log)
+   */
+  resumeMonitoringId?: number;
 }
 
 /**
@@ -181,7 +186,18 @@ export async function executeAgent(
   prompt: string,
   options: ExecuteAgentOptions,
 ): Promise<AgentExecutionOutput> {
-  const { workingDir, projectRoot, engine: engineOverride, model: modelOverride, logger, stderrLogger, onTelemetry, abortSignal, timeout, parentId, disableMonitoring, ui, uniqueAgentId, displayPrompt } = options;
+  const { workingDir, projectRoot, engine: engineOverride, model: modelOverride, logger, stderrLogger, onTelemetry, abortSignal, timeout, parentId, disableMonitoring, ui, uniqueAgentId, displayPrompt, resumeMonitoringId } = options;
+
+  // If resuming, look up session info from monitor
+  let resumeSessionId: string | undefined;
+  if (resumeMonitoringId !== undefined) {
+    const monitor = AgentMonitorService.getInstance();
+    const resumeAgent = monitor.getAgent(resumeMonitoringId);
+    if (resumeAgent?.sessionId) {
+      resumeSessionId = resumeAgent.sessionId;
+      debug(`[RESUME] Using sessionId ${resumeSessionId} from monitoringId ${resumeMonitoringId}`);
+    }
+  }
 
   // Load agent config to determine engine and model
   const agentConfig = await loadAgentConfig(agentId, projectRoot ?? workingDir);
@@ -243,24 +259,33 @@ export async function executeAgent(
   let monitoringAgentId: number | undefined;
 
   if (monitor && loggerService) {
-    // For registration: use displayPrompt (short user request) if provided, otherwise full prompt
-    const promptForDisplay = displayPrompt || prompt;
-    monitoringAgentId = await monitor.register({
-      name: agentId,
-      prompt: promptForDisplay, // This gets truncated in monitor for memory efficiency
-      parentId,
-      engine: engineType,
-      engineProvider: engineType,
-      modelName: model,
-    });
+    if (resumeMonitoringId !== undefined) {
+      // RESUME: Use existing monitoring entry (skip registration, use existing log file)
+      monitoringAgentId = resumeMonitoringId;
+      debug(`[RESUME] Using existing monitoringId ${monitoringAgentId}, skipping registration`);
 
-    // Store FULL prompt for debug mode logging (not the display prompt)
-    // In debug mode, we want to see the complete composite prompt with template + input files
-    loggerService.storeFullPrompt(monitoringAgentId, prompt);
+      // Mark as running again (was paused)
+      await monitor.markRunning(monitoringAgentId);
+    } else {
+      // NEW EXECUTION: Register new monitoring entry
+      const promptForDisplay = displayPrompt || prompt;
+      monitoringAgentId = await monitor.register({
+        name: agentId,
+        prompt: promptForDisplay, // This gets truncated in monitor for memory efficiency
+        parentId,
+        engine: engineType,
+        engineProvider: engineType,
+        modelName: model,
+      });
 
-    // Register monitoring ID with UI immediately so it can load logs
-    if (ui && uniqueAgentId && monitoringAgentId !== undefined) {
-      ui.registerMonitoringId(uniqueAgentId, monitoringAgentId);
+      // Store FULL prompt for debug mode logging (not the display prompt)
+      // In debug mode, we want to see the complete composite prompt with template + input files
+      loggerService.storeFullPrompt(monitoringAgentId, prompt);
+
+      // Register monitoring ID with UI immediately so it can load logs
+      if (ui && uniqueAgentId && monitoringAgentId !== undefined) {
+        ui.registerMonitoringId(uniqueAgentId, monitoringAgentId);
+      }
     }
   }
 
@@ -279,6 +304,7 @@ export async function executeAgent(
     const result = await engine.run({
       prompt, // Already complete and ready to use
       workingDir,
+      resumeSessionId,
       model,
       modelReasoningEffort,
       env: {
@@ -373,9 +399,12 @@ export async function executeAgent(
       agentId: monitoringAgentId
     };
   } catch (error) {
-    // Mark agent as failed
+    // Mark agent as failed (unless already paused - that means intentional abort)
     if (monitor && monitoringAgentId !== undefined) {
-      await monitor.fail(monitoringAgentId, error as Error);
+      const agent = monitor.getAgent(monitoringAgentId);
+      if (agent?.status !== 'paused') {
+        await monitor.fail(monitoringAgentId, error as Error);
+      }
       // Note: Don't close stream here - workflow may write more messages
       // Streams will be closed by cleanup handlers or monitoring service shutdown
     }

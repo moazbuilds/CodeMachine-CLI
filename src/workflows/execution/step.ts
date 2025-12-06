@@ -21,6 +21,8 @@ export interface StepExecutorOptions {
   disableMonitoring?: boolean;
   /** Unique agent ID for UI updates (includes step index) */
   uniqueAgentId?: string;
+  /** Monitoring ID for resuming (skip new registration, use existing log) */
+  resumeMonitoringId?: number;
 }
 
 async function ensureProjectScaffold(cwd: string): Promise<void> {
@@ -90,6 +92,7 @@ export async function executeStep(
     timeout,
     ui: options.ui,
     uniqueAgentId: options.uniqueAgentId,
+    resumeMonitoringId: options.resumeMonitoringId,
   });
 
   // Run special post-execution steps
