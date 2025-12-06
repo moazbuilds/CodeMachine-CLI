@@ -44,7 +44,7 @@ export class AgentRepository {
       input.engine ?? null,
       startTime,
       logPath,
-      input.pid ?? process.pid,
+      input.pid ?? null, // null = no PID tracking (in-process agents share parent PID)
       input.engineProvider ?? null,
       input.modelName ?? null
     ) as { id: number };

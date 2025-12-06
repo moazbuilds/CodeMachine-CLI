@@ -75,6 +75,34 @@ export class AgentMonitorService {
   }
 
   /**
+   * Mark agent as running (for resume)
+   */
+  async markRunning(id: number): Promise<void> {
+    const agent = this.repository.get(id);
+    if (!agent) {
+      logger.warn(`Attempted to mark non-existent agent ${id} as running`);
+      return;
+    }
+
+    this.repository.update(id, { status: 'running' });
+    logger.debug(`Agent ${id} (${agent.name}) marked as running (resumed)`);
+  }
+
+  /**
+   * Mark agent as paused (for pause/resume)
+   */
+  async markPaused(id: number): Promise<void> {
+    const agent = this.repository.get(id);
+    if (!agent) {
+      logger.warn(`Attempted to mark non-existent agent ${id} as paused`);
+      return;
+    }
+
+    this.repository.update(id, { status: 'paused' });
+    logger.debug(`Agent ${id} (${agent.name}) marked as paused`);
+  }
+
+  /**
    * Mark agent as failed
    */
   async fail(id: number, error: Error | string): Promise<void> {
@@ -239,6 +267,7 @@ export class AgentMonitorService {
    * Validate agent status using PID and auto-mark as failed if process exited
    */
   private validateAndCleanupAgent(agent: AgentRecord): AgentRecord {
+    // Skip if not running (includes paused, completed, failed) or no PID
     if (agent.status !== 'running' || !agent.pid) {
       return agent;
     }
