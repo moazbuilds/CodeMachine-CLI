@@ -14,6 +14,7 @@ import { formatRuntime } from "./state/formatters"
 import { OpenTUIAdapter } from "./adapters/opentui"
 import { useLogStream } from "./hooks/useLogStream"
 import { useSubAgentSync } from "./hooks/useSubAgentSync"
+import { usePause } from "./hooks/usePause"
 import { MonitoringCleanup } from "../../../../agents/monitoring/index.js"
 import type { WorkflowEventBus } from "../../../../workflows/events/index.js"
 
@@ -114,6 +115,9 @@ function WorkflowShell(props: { version: string; currentDir: string; eventBus?: 
 
   // Sync tool-spawned sub-agents from AgentMonitorService
   useSubAgentSync(() => state(), ui.actions)
+
+  // Pause/resume control
+  const pauseControl = usePause()
 
   // Track log viewer state
   const [logViewerAgentId, setLogViewerAgentId] = createSignal<string | null>(null)
@@ -264,6 +268,13 @@ function WorkflowShell(props: { version: string; currentDir: string; eventBus?: 
     if (evt.name === "h") {
       evt.preventDefault()
       setShowHistory(true)
+      return
+    }
+
+    // P key - toggle pause/resume
+    if (evt.name === "p") {
+      evt.preventDefault()
+      pauseControl.togglePause()
       return
     }
 

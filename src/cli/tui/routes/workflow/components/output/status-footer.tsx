@@ -17,7 +17,7 @@ export function StatusFooter() {
   return (
     <box paddingLeft={1} paddingRight={1}>
       <text fg={themeCtx.theme.textMuted}>
-        [↑↓] Navigate  [ENTER] Expand/View Logs  [H] History  [Ctrl+S] Skip  [Ctrl+C] Exit
+        [↑↓] Navigate  [ENTER] Expand/View Logs  [H] History  [P] Pause  [Ctrl+S] Skip  [Ctrl+C] Exit
       </text>
     </box>
   )

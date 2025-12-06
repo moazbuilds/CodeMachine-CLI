@@ -68,6 +68,9 @@ export function TelemetryBar(props: TelemetryBarProps) {
           <Match when={props.status === "checkpoint"}>
             <text fg={themeCtx.theme.warning}>⏸ Checkpoint - Review Required</text>
           </Match>
+          <Match when={props.status === "paused"}>
+            <text fg={themeCtx.theme.warning}>⏸ Paused - Press [P] to resume</text>
+          </Match>
         </Switch>
       </box>
 
