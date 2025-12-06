@@ -23,6 +23,8 @@ export interface StepExecutorOptions {
   uniqueAgentId?: string;
   /** Monitoring ID for resuming (skip new registration, use existing log) */
   resumeMonitoringId?: number;
+  /** Custom prompt for resume (instead of "Continue from where you left off") */
+  resumePrompt?: string;
 }
 
 async function ensureProjectScaffold(cwd: string): Promise<void> {
@@ -93,6 +95,7 @@ export async function executeStep(
     ui: options.ui,
     uniqueAgentId: options.uniqueAgentId,
     resumeMonitoringId: options.resumeMonitoringId,
+    resumePrompt: options.resumePrompt,
   });
 
   // Run special post-execution steps

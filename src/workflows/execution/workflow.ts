@@ -237,6 +237,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     requested: false,
     stepIndex: null as number | null,
     monitoringId: undefined as number | undefined,
+    resumePrompt: undefined as string | undefined,
     resolver: null as (() => void) | null,
   };
   let currentAbortController: AbortController | null = null; // Separate - different lifecycle
@@ -256,10 +257,14 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     }
   };
 
-  const resumeListener = (data?: { monitoringId?: number }) => {
+  const resumeListener = (data?: { monitoringId?: number; resumePrompt?: string }) => {
     if (pauseState.paused) {
-      // Store monitoringId - runner will look up sessionId from monitor
+      // Store monitoringId and resumePrompt - runner will use these for resume
       pauseState.monitoringId = data?.monitoringId;
+      pauseState.resumePrompt = data?.resumePrompt;
+
+      // DEBUG
+      debug(`[DEBUG workflow] resumeListener received: monitoringId=${data?.monitoringId}, resumePrompt="${data?.resumePrompt}"`);
 
       pauseState.paused = false;
       emitter.setWorkflowStatus('running');
@@ -292,11 +297,16 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     // Determine if this step should resume (we have monitoringId from the hook)
     const shouldResumeStep = pauseState.stepIndex === index && pauseState.monitoringId !== undefined;
     const stepResumeMonitoringId = shouldResumeStep ? pauseState.monitoringId : undefined;
+    const stepResumePrompt = shouldResumeStep ? pauseState.resumePrompt : undefined;
+
+    // DEBUG
+    debug(`[DEBUG workflow] shouldResumeStep=${shouldResumeStep}, stepResumePrompt="${stepResumePrompt}", pauseState.resumePrompt="${pauseState.resumePrompt}"`);
 
     // Reset pause state after using it
     if (shouldResumeStep) {
       pauseState.stepIndex = null;
       pauseState.monitoringId = undefined;
+      pauseState.resumePrompt = undefined;
       pauseState.requested = false;
     }
 
@@ -469,6 +479,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         abortSignal: abortController.signal,
         uniqueAgentId,
         resumeMonitoringId: stepResumeMonitoringId,
+        resumePrompt: stepResumePrompt,
       });
 
       // Check for trigger behavior first

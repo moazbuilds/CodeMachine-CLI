@@ -9,7 +9,7 @@ import { useTheme } from "@tui/shared/context/theme"
 import { UIStateProvider, useUIState } from "./context/ui-state"
 import { AgentTimeline } from "./components/timeline"
 import { OutputWindow, TelemetryBar, StatusFooter } from "./components/output"
-import { CheckpointModal, LogViewer, HistoryView } from "./components/modals"
+import { CheckpointModal, LogViewer, HistoryView, PauseModal } from "./components/modals"
 import { formatRuntime } from "./state/formatters"
 import { OpenTUIAdapter } from "./adapters/opentui"
 import { useLogStream } from "./hooks/useLogStream"
@@ -259,8 +259,8 @@ function WorkflowShell(props: { version: string; currentDir: string; eventBus?: 
 
   // Keyboard navigation for workflow view (disabled when modals are active)
   useKeyboard((evt) => {
-    // Disable navigation when modals are active
-    if (isCheckpointActive() || isLogViewerActive() || isHistoryActive() || isHistoryLogViewerActive()) {
+    // Disable navigation when modals are active (including pause modal)
+    if (isCheckpointActive() || isLogViewerActive() || isHistoryActive() || isHistoryLogViewerActive() || pauseControl.isPaused()) {
       return
     }
 
@@ -271,10 +271,10 @@ function WorkflowShell(props: { version: string; currentDir: string; eventBus?: 
       return
     }
 
-    // P key - toggle pause/resume
+    // P key - pause workflow (modal will handle resume)
     if (evt.name === "p") {
       evt.preventDefault()
-      pauseControl.togglePause()
+      pauseControl.pause()
       return
     }
 
@@ -385,6 +385,14 @@ function WorkflowShell(props: { version: string; currentDir: string; eventBus?: 
           reason={state().checkpointState?.reason}
           onContinue={handleCheckpointContinue}
           onQuit={handleCheckpointQuit}
+        />
+      </Show>
+
+      {/* Pause Modal Overlay */}
+      <Show when={pauseControl.isPaused()}>
+        <PauseModal
+          onResume={(prompt) => pauseControl.resumeWithPrompt(prompt)}
+          onCancel={() => pauseControl.resumeWithPrompt()}
         />
       </Show>
 

@@ -127,6 +127,11 @@ export interface ExecuteAgentOptions {
    * Monitoring ID for resuming (skip new registration, use existing log)
    */
   resumeMonitoringId?: number;
+
+  /**
+   * Custom prompt for resume (instead of "Continue from where you left off")
+   */
+  resumePrompt?: string;
 }
 
 /**
@@ -186,7 +191,7 @@ export async function executeAgent(
   prompt: string,
   options: ExecuteAgentOptions,
 ): Promise<AgentExecutionOutput> {
-  const { workingDir, projectRoot, engine: engineOverride, model: modelOverride, logger, stderrLogger, onTelemetry, abortSignal, timeout, parentId, disableMonitoring, ui, uniqueAgentId, displayPrompt, resumeMonitoringId } = options;
+  const { workingDir, projectRoot, engine: engineOverride, model: modelOverride, logger, stderrLogger, onTelemetry, abortSignal, timeout, parentId, disableMonitoring, ui, uniqueAgentId, displayPrompt, resumeMonitoringId, resumePrompt } = options;
 
   // If resuming, look up session info from monitor
   let resumeSessionId: string | undefined;
@@ -305,6 +310,7 @@ export async function executeAgent(
       prompt, // Already complete and ready to use
       workingDir,
       resumeSessionId,
+      resumePrompt,
       model,
       modelReasoningEffort,
       env: {

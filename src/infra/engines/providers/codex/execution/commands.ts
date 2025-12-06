@@ -1,6 +1,7 @@
 export interface CodexCommandOptions {
   workingDir: string;
   resumeSessionId?: string;
+  resumePrompt?: string;
   model?: string;
   modelReasoningEffort?: 'low' | 'medium' | 'high';
 }
@@ -10,25 +11,24 @@ export interface CodexCommand {
   args: string[];
 }
 
-export function buildCodexCommand(options: CodexCommandOptions): CodexCommand {
-  const { workingDir, resumeSessionId, model, modelReasoningEffort } = options;
+/**
+ * Build the final resume prompt combining steering instruction with user message
+ */
+function buildResumePrompt(userPrompt?: string): string {
+  const defaultPrompt = 'Continue from where you left off.';
 
-  // Resume command has different flags than exec
-  if (resumeSessionId) {
-    const args = ['exec', 'resume', resumeSessionId];
-
-    // Only -c/--config is valid for resume
-    if (modelReasoningEffort) {
-      args.push('--config', `model_reasoning_effort="${modelReasoningEffort}"`);
-    }
-
-    // Add continuation prompt
-    args.push('Continue from where you left off.');
-
-    return { command: 'codex', args };
+  if (!userPrompt) {
+    return defaultPrompt;
   }
 
-  // Normal exec command
+  // Combine steering instruction with user's message
+  return `[USER STEERING] The user paused this session to give you new direction. Continue from where you left off, but prioritize the user's request: "${userPrompt}"`;
+}
+
+export function buildCodexCommand(options: CodexCommandOptions): CodexCommand {
+  const { workingDir, resumeSessionId, resumePrompt, model, modelReasoningEffort } = options;
+
+  // Base args shared by both normal exec and resume
   const args = [
     'exec',
     '--json',
@@ -40,8 +40,8 @@ export function buildCodexCommand(options: CodexCommandOptions): CodexCommand {
     workingDir,
   ];
 
-  // Add model if specified
-  if (model) {
+  // Add model if specified (only for new exec, not resume)
+  if (model && !resumeSessionId) {
     args.push('--model', model);
   }
 
@@ -50,8 +50,14 @@ export function buildCodexCommand(options: CodexCommandOptions): CodexCommand {
     args.push('--config', `model_reasoning_effort="${modelReasoningEffort}"`);
   }
 
-  // Read prompt from stdin
-  args.push('-');
+  if (resumeSessionId) {
+    // Resume: add resume subcommand with session ID and combined prompt
+    const finalPrompt = buildResumePrompt(resumePrompt);
+    args.push('resume', resumeSessionId, finalPrompt);
+  } else {
+    // Normal exec: read prompt from stdin
+    args.push('-');
+  }
 
   return { command: 'codex', args };
 }

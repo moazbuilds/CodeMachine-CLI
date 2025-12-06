@@ -14,6 +14,7 @@ export interface RunCodexOptions {
   prompt: string;
   workingDir: string;
   resumeSessionId?: string;
+  resumePrompt?: string;
   model?: string;
   modelReasoningEffort?: 'low' | 'medium' | 'high';
   env?: NodeJS.ProcessEnv;
@@ -95,7 +96,10 @@ function formatCodexStreamJsonLine(line: string): string | null {
 }
 
 export async function runCodex(options: RunCodexOptions): Promise<RunCodexResult> {
-  const { prompt, workingDir, resumeSessionId, model, modelReasoningEffort, env, onData, onErrorData, onTelemetry, onSessionId, abortSignal, timeout = 1800000 } = options;
+  const { prompt, workingDir, resumeSessionId, resumePrompt, model, modelReasoningEffort, env, onData, onErrorData, onTelemetry, onSessionId, abortSignal, timeout = 1800000 } = options;
+
+  // DEBUG: Log resume parameters
+  debug(`[DEBUG codex runner.ts] runCodex called with resumeSessionId=${resumeSessionId}, resumePrompt="${resumePrompt}"`);
 
   if (!prompt) {
     throw new Error('runCodex requires a prompt.');
@@ -145,7 +149,7 @@ export async function runCodex(options: RunCodexOptions): Promise<RunCodexResult
     return result;
   };
 
-  const { command, args } = buildCodexCommand({ workingDir, resumeSessionId, model, modelReasoningEffort });
+  const { command, args } = buildCodexCommand({ workingDir, resumeSessionId, resumePrompt, model, modelReasoningEffort });
 
   // Debug logging
   debug(`Codex runner - prompt length: ${prompt.length}, lines: ${prompt.split('\n').length}`);

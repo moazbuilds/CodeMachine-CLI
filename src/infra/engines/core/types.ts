@@ -22,6 +22,7 @@ export interface EngineRunOptions {
   prompt: string;
   workingDir: string;
   resumeSessionId?: string;
+  resumePrompt?: string;
   model?: string;
   modelReasoningEffort?: 'low' | 'medium' | 'high';
   env?: NodeJS.ProcessEnv;
