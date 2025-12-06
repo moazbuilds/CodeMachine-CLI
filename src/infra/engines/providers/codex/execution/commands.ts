@@ -1,6 +1,6 @@
 export interface CodexCommandOptions {
   workingDir: string;
-  prompt: string;
+  resumeSessionId?: string;
   model?: string;
   modelReasoningEffort?: 'low' | 'medium' | 'high';
 }
@@ -10,9 +10,25 @@ export interface CodexCommand {
   args: string[];
 }
 
-export function buildCodexExecCommand(options: CodexCommandOptions): CodexCommand {
-  const { workingDir, model, modelReasoningEffort } = options;
+export function buildCodexCommand(options: CodexCommandOptions): CodexCommand {
+  const { workingDir, resumeSessionId, model, modelReasoningEffort } = options;
 
+  // Resume command has different flags than exec
+  if (resumeSessionId) {
+    const args = ['exec', 'resume', resumeSessionId];
+
+    // Only -c/--config is valid for resume
+    if (modelReasoningEffort) {
+      args.push('--config', `model_reasoning_effort="${modelReasoningEffort}"`);
+    }
+
+    // Add continuation prompt
+    args.push('Continue from where you left off.');
+
+    return { command: 'codex', args };
+  }
+
+  // Normal exec command
   const args = [
     'exec',
     '--json',
@@ -34,11 +50,8 @@ export function buildCodexExecCommand(options: CodexCommandOptions): CodexComman
     args.push('--config', `model_reasoning_effort="${modelReasoningEffort}"`);
   }
 
-  args.push('-'); // Explicitly signal stdin prompt
-  // Prompt is now passed via stdin instead of as an argument
+  // Read prompt from stdin
+  args.push('-');
 
-  return {
-    command: 'codex',
-    args,
-  };
+  return { command: 'codex', args };
 }

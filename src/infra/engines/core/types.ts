@@ -21,6 +21,7 @@ export interface ParsedTelemetry {
 export interface EngineRunOptions {
   prompt: string;
   workingDir: string;
+  resumeSessionId?: string;
   model?: string;
   modelReasoningEffort?: 'low' | 'medium' | 'high';
   env?: NodeJS.ProcessEnv;

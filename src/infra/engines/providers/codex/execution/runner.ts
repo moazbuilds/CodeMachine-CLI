@@ -2,7 +2,7 @@ import * as path from 'node:path';
 import { homedir } from 'node:os';
 
 import { spawnProcess } from '../../../../process/spawn.js';
-import { buildCodexExecCommand } from './commands.js';
+import { buildCodexCommand } from './commands.js';
 import { metadata } from '../metadata.js';
 import { expandHomeDir } from '../../../../../shared/utils/index.js';
 import { createTelemetryCapture } from '../../../../../shared/telemetry/index.js';
@@ -13,12 +13,14 @@ import { debug } from '../../../../../shared/logging/logger.js';
 export interface RunCodexOptions {
   prompt: string;
   workingDir: string;
+  resumeSessionId?: string;
   model?: string;
   modelReasoningEffort?: 'low' | 'medium' | 'high';
   env?: NodeJS.ProcessEnv;
   onData?: (chunk: string) => void;
   onErrorData?: (chunk: string) => void;
   onTelemetry?: (telemetry: ParsedTelemetry) => void;
+  onSessionId?: (sessionId: string) => void;
   abortSignal?: AbortSignal;
   timeout?: number; // Timeout in milliseconds (default: 1800000ms = 30 minutes)
 }
@@ -93,7 +95,7 @@ function formatCodexStreamJsonLine(line: string): string | null {
 }
 
 export async function runCodex(options: RunCodexOptions): Promise<RunCodexResult> {
-  const { prompt, workingDir, model, modelReasoningEffort, env, onData, onErrorData, onTelemetry, abortSignal, timeout = 1800000 } = options;
+  const { prompt, workingDir, resumeSessionId, model, modelReasoningEffort, env, onData, onErrorData, onTelemetry, onSessionId, abortSignal, timeout = 1800000 } = options;
 
   if (!prompt) {
     throw new Error('runCodex requires a prompt.');
@@ -143,7 +145,7 @@ export async function runCodex(options: RunCodexOptions): Promise<RunCodexResult
     return result;
   };
 
-  const { command, args } = buildCodexExecCommand({ workingDir, prompt, model, modelReasoningEffort });
+  const { command, args } = buildCodexCommand({ workingDir, resumeSessionId, model, modelReasoningEffort });
 
   // Debug logging
   debug(`Codex runner - prompt length: ${prompt.length}, lines: ${prompt.split('\n').length}`);
@@ -162,7 +164,7 @@ export async function runCodex(options: RunCodexOptions): Promise<RunCodexResult
       args,
       cwd: workingDir,
       env: mergedEnv,
-      stdinInput: prompt, // Pass prompt via stdin instead of command-line argument
+      stdinInput: resumeSessionId ? undefined : prompt, // Skip stdin for resume
     onStdout: inheritTTY
       ? undefined
       : (chunk) => {
@@ -175,6 +177,19 @@ export async function runCodex(options: RunCodexOptions): Promise<RunCodexResult
 
             // Capture telemetry data
             telemetryCapture.captureFromStreamJson(line);
+
+            // Capture session_id from thread.started event
+            try {
+              const json = JSON.parse(line);
+              if (json.type === 'thread.started' && json.thread_id) {
+                debug(`[SESSION_ID CAPTURED] ${json.thread_id}`);
+                if (onSessionId) {
+                  onSessionId(json.thread_id);
+                }
+              }
+            } catch {
+              // Ignore parse errors
+            }
 
             // Emit telemetry event if captured and callback provided
             if (onTelemetry) {
