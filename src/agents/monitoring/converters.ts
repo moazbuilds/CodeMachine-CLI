@@ -66,7 +66,7 @@ export function convertChildrenToSubAgents(
 /**
  * Convert monitoring agent status to UI agent status
  */
-function convertStatus(monitoringStatus: 'running' | 'completed' | 'failed'): UIAgentStatus {
+function convertStatus(monitoringStatus: 'running' | 'completed' | 'failed' | 'paused'): UIAgentStatus {
   switch (monitoringStatus) {
     case 'running':
       return 'running';
@@ -76,6 +76,9 @@ function convertStatus(monitoringStatus: 'running' | 'completed' | 'failed'): UI
       // In UI, failed agents are shown as 'retrying' if active, or 'completed' if done
       // For now, map to 'completed' (caller can adjust based on context)
       return 'completed';
+    case 'paused':
+      // Old UI doesn't have paused, map to pending
+      return 'pending';
     default:
       return 'pending';
   }

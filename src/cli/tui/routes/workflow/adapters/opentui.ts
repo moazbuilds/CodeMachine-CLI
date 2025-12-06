@@ -38,7 +38,7 @@ export interface UIActions {
   batchAddSubAgents(parentId: string, subAgents: SubAgentState[]): void
   updateSubAgentStatus(subAgentId: string, status: AgentStatus): void
   clearSubAgents(parentId: string): void
-  setWorkflowStatus(status: "running" | "stopping" | "completed" | "stopped" | "checkpoint"): void
+  setWorkflowStatus(status: "running" | "stopping" | "completed" | "stopped" | "checkpoint" | "paused"): void
   setCheckpointState(checkpoint: { active: boolean; reason?: string } | null): void
   registerMonitoringId(uiAgentId: string, monitoringId: number): void
   addTriggeredAgent(sourceAgentId: string, triggeredAgent: TriggeredAgentState): void

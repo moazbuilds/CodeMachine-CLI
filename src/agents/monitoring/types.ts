@@ -4,7 +4,7 @@ import type { EngineType } from '../../infra/engines/core/types.js';
 /**
  * Agent execution status
  */
-export type AgentStatus = 'running' | 'completed' | 'failed';
+export type AgentStatus = 'running' | 'completed' | 'failed' | 'paused';
 
 /**
  * Complete agent record stored in registry

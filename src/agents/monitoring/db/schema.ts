@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS agents (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   engine TEXT,
-  status TEXT NOT NULL CHECK(status IN ('running', 'completed', 'failed')),
+  status TEXT NOT NULL CHECK(status IN ('running', 'completed', 'failed', 'paused')),
   parent_id INTEGER REFERENCES agents(id) ON DELETE CASCADE,
   pid INTEGER,
   start_time TEXT NOT NULL,

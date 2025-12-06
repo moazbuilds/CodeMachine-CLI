@@ -7,6 +7,7 @@ export type AgentStatus =
   | "failed"
   | "skipped"
   | "retrying"
+  | "paused"
 
 export interface AgentTelemetry {
   tokensIn: number
@@ -53,7 +54,7 @@ export interface LoopState {
   reason?: string
 }
 
-export type WorkflowStatus = "running" | "stopping" | "completed" | "stopped" | "checkpoint"
+export type WorkflowStatus = "running" | "stopping" | "completed" | "stopped" | "checkpoint" | "paused"
 
 export interface CheckpointState {
   active: boolean
