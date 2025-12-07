@@ -57,6 +57,9 @@ export function PauseModal(props: PauseModalProps) {
 
   const termWidth = () => dimensions()?.width ?? 80
 
+  // Calculate inner width (modal width minus border and padding)
+  const innerWidth = () => modalWidth() - 6
+
   return (
     <box
       position="absolute"
@@ -76,51 +79,49 @@ export function PauseModal(props: PauseModalProps) {
         borderColor={themeCtx.theme.primary}
         border={["top", "bottom", "left", "right"]}
         borderStyle="rounded"
-        padding={2}
-        maxWidth={Math.min(modalWidth(), termWidth() - 4)}
+        paddingLeft={2}
+        paddingRight={2}
+        paddingTop={1}
+        paddingBottom={1}
+        width={modalWidth()}
       >
         {/* Title */}
-        <box>
-          <text fg={themeCtx.theme.warning} attributes={1}>{"#  "}</text>
-          <text fg={themeCtx.theme.primary} attributes={1}>PAUSED - Steer Agent</text>
+        <box flexDirection="row">
+          <text fg={themeCtx.theme.warning} attributes={1}>⏸  </text>
+          <text fg={themeCtx.theme.primary} attributes={1}>PAUSED - Enter Resume Prompt</text>
         </box>
 
         {/* Info */}
         <box paddingTop={1}>
-          <text fg={themeCtx.theme.text}>
-            Enter a message to guide the agent, or press Enter for default.
+          <text fg={themeCtx.theme.textMuted}>
+            Type a message to guide the agent, or press Enter for default.
           </text>
         </box>
 
         {/* Input field */}
         <box
-          paddingTop={1}
-          borderColor={themeCtx.theme.border}
-          border={["top", "bottom", "left", "right"]}
-          borderStyle="rounded"
+          marginTop={1}
+          backgroundColor={themeCtx.theme.backgroundElement}
           paddingLeft={1}
           paddingRight={1}
+          height={1}
         >
           <input
             value={input()}
-            placeholder="Continue from where you left off..."
+            placeholder="Continue where you left off..."
             onInput={setInput}
             onKeyDown={handleKeyDown}
             focused={true}
-            backgroundColor="transparent"
-            focusedBackgroundColor="transparent"
+            fg={themeCtx.theme.text}
+            backgroundColor={themeCtx.theme.backgroundElement}
+            focusedBackgroundColor={themeCtx.theme.backgroundElement}
           />
         </box>
 
-        {/* Separator */}
-        <box paddingTop={1}>
-          <text fg={themeCtx.theme.textMuted}>{"-".repeat(modalWidth() - 4)}</text>
-        </box>
-
         {/* Instructions */}
-        <box paddingTop={1}>
+        <box paddingTop={1} flexDirection="row" justifyContent="center">
           <text fg={themeCtx.theme.textMuted}>
-            [ENTER] Resume  [ESC] Cancel
+            [Enter] Resume  •  [Esc] Cancel
           </text>
         </box>
       </box>

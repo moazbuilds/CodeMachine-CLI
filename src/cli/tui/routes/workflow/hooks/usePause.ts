@@ -17,15 +17,16 @@ export function usePause() {
 
   /**
    * Pause the workflow and current agent
+   * Returns true if pause was initiated, false if no active agent
    */
-  const pause = async () => {
+  const pause = async (): Promise<boolean> => {
     // Get currently running agent
     const monitor = AgentMonitorService.getInstance()
     const activeAgents = monitor.getActiveAgents()
 
     if (activeAgents.length === 0) {
       // No active agent to pause
-      return
+      return false
     }
 
     // Get the most recent running agent (last in list)
@@ -35,15 +36,24 @@ export function usePause() {
     setPausedAgentId(currentAgent.id)
     setIsPaused(true)
 
-    // Mark agent as paused BEFORE aborting
-    await monitor.markPaused(currentAgent.id)
+    // Mark agent as paused BEFORE aborting (non-critical)
+    try {
+      await monitor.markPaused(currentAgent.id)
+    } catch {
+      // Non-critical - continue with pause
+    }
 
-    // Write pause message to log file
-    const logger = AgentLoggerService.getInstance()
-    logger.write(currentAgent.id, "\n⏸️  Session paused by user. Press [P] to resume.\n")
+    // Write pause message to log file (non-critical)
+    try {
+      const logger = AgentLoggerService.getInstance()
+      logger.write(currentAgent.id, "\n[PAUSED] Session paused by user. Press [P] to resume.\n")
+    } catch {
+      // Non-critical - continue with pause
+    }
 
     // Emit pause event (workflow will abort via AbortController)
     ;(process as NodeJS.EventEmitter).emit("workflow:pause")
+    return true
   }
 
   /**
@@ -55,11 +65,8 @@ export function usePause() {
 
     // Write resume message to log file
     const logger = AgentLoggerService.getInstance()
-    const promptPreview = resumePrompt ? resumePrompt.slice(0, 50) + (resumePrompt.length > 50 ? '...' : '') : 'default'
-    logger.write(monitoringId, `\n▶️  Resuming session with: ${promptPreview}\n`)
-
-    // DEBUG
-    console.error(`[DEBUG usePause] resumeWithPrompt called with: "${resumePrompt}"`)
+    const promptDisplay = resumePrompt || '(default prompt)'
+    logger.write(monitoringId, `\n[RESUMED] Resuming session with: ${promptDisplay}\n`)
 
     setIsPaused(false)
     setPausedAgentId(null)

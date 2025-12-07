@@ -108,18 +108,13 @@ export class MonitoringCleanup {
    */
   private static async handleCtrlCPress(source: 'signal' | 'ui'): Promise<void> {
     if (!this.firstCtrlCPressed) {
-      // First Ctrl+C: Abort current step and stop workflow gracefully
+      // First Ctrl+C: Just show warning, workflow continues running
       this.firstCtrlCPressed = true;
       this.firstCtrlCTime = Date.now();
-      logger.debug(`[${source}] First Ctrl+C detected - aborting current step and stopping workflow gracefully`);
+      logger.debug(`[${source}] First Ctrl+C detected - showing warning (workflow continues)`);
 
-      // Emit workflow:skip to abort the currently running step (triggers AbortController)
-      (process as NodeJS.EventEmitter).emit('workflow:skip');
-
-      // Call UI callback to update status
+      // Only update UI to show warning - don't stop anything yet
       this.workflowHandlers.onStop?.();
-
-      await this.stopActiveAgents();
 
       // Don't exit - wait for second Ctrl+C
       return;
@@ -134,8 +129,14 @@ export class MonitoringCleanup {
       return;
     }
 
-    // Second Ctrl+C (after debounce): Run cleanup and exit
-    logger.debug(`[${source}] Second Ctrl+C detected after ${timeSinceFirst}ms - cleaning up and exiting`);
+    // Second Ctrl+C (after debounce): Stop workflow and exit
+    logger.debug(`[${source}] Second Ctrl+C detected after ${timeSinceFirst}ms - stopping workflow and exiting`);
+
+    // Emit workflow:skip to abort the currently running step
+    (process as NodeJS.EventEmitter).emit('workflow:skip');
+
+    // Stop active agents
+    await this.stopActiveAgents();
 
     // Call UI callback to update status before exit
     this.workflowHandlers.onExit?.();
@@ -157,6 +158,14 @@ export class MonitoringCleanup {
     killAllActiveProcesses();
 
     await this.cleanup('aborted', new Error(message));
+
+    // Clean terminal before exit to prevent Kitty protocol escape sequence leak
+    if (process.stdout.isTTY) {
+      process.stdout.write('\x1b[?2004l');  // Disable bracketed paste
+      process.stdout.write('\x1b[<u');      // Pop Kitty keyboard mode
+      process.stdout.write('\x1b[2J\x1b[H\x1b[?25h'); // Clear screen, home cursor, show cursor
+    }
+
     process.exit(130); // Standard exit code for Ctrl+C
   }
 

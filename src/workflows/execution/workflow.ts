@@ -624,6 +624,9 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         // Store step index for resume - loop will re-run this step
         pauseState.stepIndex = index;
 
+        // Reset the requested flag now that we've handled it
+        pauseState.requested = false;
+
         // Wait for resume
         await new Promise<void>((resolve) => {
           pauseState.resolver = resolve;
@@ -674,7 +677,8 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   }
 
   // Workflow completed successfully
-  MonitoringCleanup.clearWorkflowHandlers();
+  // Note: Don't clear workflow handlers - they need to stay registered
+  // for the two-stage Ctrl+C behavior to work after completion
 
   // Set status to completed and keep UI alive
   ui.setWorkflowStatus('completed');

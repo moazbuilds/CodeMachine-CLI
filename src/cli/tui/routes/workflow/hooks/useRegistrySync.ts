@@ -5,7 +5,7 @@
  * Syncs with agent registry in real-time to get agent tree structure
  */
 
-import { createSignal, createEffect, onCleanup } from "solid-js"
+import { createSignal, createEffect, onCleanup, type Accessor } from "solid-js"
 import { AgentMonitorService, type AgentTreeNode } from "../../../../../agents/monitoring/index.js"
 
 /**
@@ -25,8 +25,8 @@ function getTreeSignature(tree: AgentTreeNode[]): string {
 }
 
 export interface RegistrySyncResult {
-  tree: AgentTreeNode[]
-  isLoading: boolean
+  tree: Accessor<AgentTreeNode[]>
+  isLoading: Accessor<boolean>
 }
 
 /**
@@ -71,12 +71,6 @@ export function useRegistrySync(): RegistrySyncResult {
     onCleanup(() => clearInterval(interval))
   })
 
-  return {
-    get tree() {
-      return tree()
-    },
-    get isLoading() {
-      return isLoading()
-    },
-  }
+  // Return signals directly for proper SolidJS reactivity
+  return { tree, isLoading }
 }

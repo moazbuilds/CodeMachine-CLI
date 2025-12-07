@@ -12,7 +12,6 @@ import { parseMarker } from "../../../../../../shared/formatters/outputMarkers.j
 
 export interface LogLineProps {
   line: string
-  maxWidth?: number
 }
 
 /**
@@ -38,7 +37,7 @@ export function LogLine(props: LogLineProps) {
   // Check for bold marker (===)
   const isBold = () => parsed().text.startsWith("===")
 
-  // Strip ANSI codes and truncate to fit container
+  // Strip ANSI codes (no truncation - let container handle overflow)
   const displayText = createMemo(() => {
     let text = parsed().text
     // Strip bold marker
@@ -46,9 +45,7 @@ export function LogLine(props: LogLineProps) {
     // Strip any remaining ANSI codes
     // eslint-disable-next-line no-control-regex
     text = text.replace(/\x1b\[[0-9;]*m/g, "")
-    // Truncate if needed
-    const max = props.maxWidth ?? 80
-    return text.length > max ? text.slice(0, max - 3) + "..." : text
+    return text
   })
 
   return <text fg={lineColor()} attributes={isBold() ? 1 : undefined}>{displayText()}</text>

@@ -9,13 +9,12 @@ import { useTheme } from "@tui/shared/context/theme"
 import { UIStateProvider, useUIState } from "./context/ui-state"
 import { AgentTimeline } from "./components/timeline"
 import { OutputWindow, TelemetryBar, StatusFooter } from "./components/output"
-import { CheckpointModal, LogViewer, HistoryView, PauseModal } from "./components/modals"
 import { formatRuntime } from "./state/formatters"
+import { CheckpointModal, LogViewer, HistoryView, PauseModal } from "./components/modals"
 import { OpenTUIAdapter } from "./adapters/opentui"
 import { useLogStream } from "./hooks/useLogStream"
 import { useSubAgentSync } from "./hooks/useSubAgentSync"
 import { usePause } from "./hooks/usePause"
-import { MonitoringCleanup } from "../../../../agents/monitoring/index.js"
 import type { WorkflowEventBus } from "../../../../workflows/events/index.js"
 
 interface WorkflowProps {
@@ -75,21 +74,16 @@ function WorkflowShell(props: { version: string; currentDir: string; eventBus?: 
   // Connect to the event bus from workflow execution
   let adapter: OpenTUIAdapter | null = null
 
-  // Register Ctrl+C handlers immediately (not in onMount) to ensure they're
-  // available before any Ctrl+C can be pressed
-  MonitoringCleanup.registerWorkflowHandlers({
-    onStop: () => {
-      // First Ctrl+C - freeze timer and update status to 'stopping'
-      setCheckpointFreezeTime(Date.now())
-      ui.actions.setWorkflowStatus("stopping")
-    },
-    onExit: () => {
-      // Second Ctrl+C - update status to 'stopped' (UI will show "Stopped by user")
-      ui.actions.setWorkflowStatus("stopped")
-    },
-  })
+  // Handle workflow:stopping event (emitted by App on first Ctrl+C)
+  const handleStopping = () => {
+    setCheckpointFreezeTime(Date.now())
+    ui.actions.setWorkflowStatus("stopping")
+  }
 
   onMount(() => {
+    // Listen for stopping event from App's Ctrl+C handler
+    ;(process as NodeJS.EventEmitter).on('workflow:stopping', handleStopping)
+
     // Use event bus passed from props
     const eventBus = props.eventBus
 
@@ -105,12 +99,13 @@ function WorkflowShell(props: { version: string; currentDir: string; eventBus?: 
   })
 
   onCleanup(() => {
+    // Remove event listener
+    ;(process as NodeJS.EventEmitter).off('workflow:stopping', handleStopping)
+
     if (adapter) {
       adapter.stop()
       adapter.disconnect()
     }
-    // Clear workflow handlers to prevent memory leaks
-    MonitoringCleanup.clearWorkflowHandlers()
   })
 
   // Sync tool-spawned sub-agents from AgentMonitorService
@@ -125,6 +120,9 @@ function WorkflowShell(props: { version: string; currentDir: string; eventBus?: 
   // Track history view state
   const [showHistory, setShowHistory] = createSignal(false)
 
+  // Track history selection index (preserved across log viewer open/close)
+  const [historySelectedIndex, setHistorySelectedIndex] = createSignal(0)
+
   // Track history log viewer (opened from history view)
   const [historyLogViewerMonitoringId, setHistoryLogViewerMonitoringId] = createSignal<number | null>(null)
 
@@ -134,8 +132,19 @@ function WorkflowShell(props: { version: string; currentDir: string; eventBus?: 
     if (checkpointState?.active && !checkpointFreezeTime()) {
       // Checkpoint just became active - freeze the timer at current time
       setCheckpointFreezeTime(Date.now())
-    } else if (!checkpointState?.active && checkpointFreezeTime()) {
-      // Checkpoint just closed - unfreeze timer
+    } else if (!checkpointState?.active && checkpointFreezeTime() && !pauseControl.isPaused()) {
+      // Checkpoint just closed and not paused - unfreeze timer
+      setCheckpointFreezeTime(undefined)
+    }
+  })
+
+  // Track when pause becomes active/inactive and freeze/unfreeze timer
+  createEffect(() => {
+    if (pauseControl.isPaused() && !checkpointFreezeTime()) {
+      // Pause just became active - freeze the timer at current time
+      setCheckpointFreezeTime(Date.now())
+    } else if (!pauseControl.isPaused() && checkpointFreezeTime() && !state().checkpointState?.active) {
+      // Pause just ended and checkpoint not active - unfreeze timer
       setCheckpointFreezeTime(undefined)
     }
   })
@@ -144,13 +153,6 @@ function WorkflowShell(props: { version: string; currentDir: string; eventBus?: 
   const [tick, setTick] = createSignal(0)
   const tickInterval = setInterval(() => setTick((t) => t + 1), 1000)
   onCleanup(() => clearInterval(tickInterval))
-
-  const runtime = createMemo(() => {
-    tick() // Re-evaluate on tick
-    // Use checkpoint freeze time if active, otherwise use workflow endTime
-    const effectiveEndTime = checkpointFreezeTime() ?? state().endTime
-    return formatRuntime(state().startTime, effectiveEndTime)
-  })
 
   // Get current agent for output window
   const currentAgent = createMemo(() => {
@@ -175,6 +177,14 @@ function WorkflowShell(props: { version: string; currentDir: string; eventBus?: 
 
   // Stream logs for current agent
   const logStream = useLogStream(currentMonitoringId)
+
+  // Calculate runtime display
+  const runtime = createMemo(() => {
+    tick() // Re-evaluate on tick
+    // Use checkpoint freeze time if active, otherwise use workflow endTime
+    const effectiveEndTime = checkpointFreezeTime() ?? state().endTime
+    return formatRuntime(state().startTime, effectiveEndTime)
+  })
 
   // Calculate total telemetry
   const totalTelemetry = createMemo(() => {
@@ -331,8 +341,10 @@ function WorkflowShell(props: { version: string; currentDir: string; eventBus?: 
 
   return (
     <box flexDirection="column" height="100%">
-      {/* Header */}
-      <BrandingHeader version={props.version} currentDir={props.currentDir} />
+      {/* Header - fixed height, no shrinking */}
+      <box flexShrink={0}>
+        <BrandingHeader version={props.version} currentDir={props.currentDir} />
+      </box>
 
       {/* Main content area - Timeline and Output side by side */}
       <box flexDirection="row" flexGrow={1} gap={1}>
@@ -370,14 +382,16 @@ function WorkflowShell(props: { version: string; currentDir: string; eventBus?: 
         </box>
       </box>
 
-      {/* Footer */}
-      <TelemetryBar
-        workflowName={state().workflowName}
-        runtime={runtime()}
-        status={state().workflowStatus}
-        total={totalTelemetry()}
-      />
-      <StatusFooter />
+      {/* Footer - fixed, no shrinking */}
+      <box flexShrink={0} flexDirection="column">
+        <TelemetryBar
+          workflowName={state().workflowName}
+          runtime={runtime()}
+          status={state().workflowStatus}
+          total={totalTelemetry()}
+        />
+        <StatusFooter />
+      </box>
 
       {/* Checkpoint Modal Overlay */}
       <Show when={isCheckpointActive()}>
@@ -416,6 +430,9 @@ function WorkflowShell(props: { version: string; currentDir: string; eventBus?: 
               setHistoryLogViewerMonitoringId(monitoringId)
               setShowHistory(false)
             }}
+            disabled={isCheckpointActive()}
+            initialSelectedIndex={historySelectedIndex()}
+            onSelectedIndexChange={setHistorySelectedIndex}
           />
         </box>
       </Show>

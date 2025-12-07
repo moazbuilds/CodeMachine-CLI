@@ -23,7 +23,7 @@ export function MainAgentNode(props: MainAgentNodeProps) {
   const themeCtx = useTheme()
   const now = useTick()
 
-  const color = () => getStatusColor(props.agent.status, themeCtx.theme)
+  const color = () => props.agent.error ? themeCtx.theme.error : getStatusColor(props.agent.status, themeCtx.theme)
 
   const duration = () => {
     const { startTime, endTime, status } = props.agent
@@ -86,7 +86,7 @@ export function MainAgentNode(props: MainAgentNodeProps) {
           <text fg={themeCtx.theme.textMuted}>{activityStr()}</text>
         </Show>
         <Show when={props.agent.error}>
-          <text fg={themeCtx.theme.error}> • Error: {props.agent.error}</text>
+          <text fg={themeCtx.theme.error}> • Failed</text>
         </Show>
       </box>
 

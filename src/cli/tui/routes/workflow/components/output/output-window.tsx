@@ -8,7 +8,6 @@
  */
 
 import { Show, For, createMemo } from "solid-js"
-import { useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
 import { ShimmerText } from "./shimmer-text"
 import { LogLine } from "../shared/log-line"
@@ -39,15 +38,9 @@ export interface OutputWindowProps {
  */
 export function OutputWindow(props: OutputWindowProps) {
   const themeCtx = useTheme()
-  const dimensions = useTerminalDimensions()
 
   const effectiveMaxLines = () => props.maxLines ?? 20
 
-  // Calculate available width for log text (panel is 50% of terminal, minus borders/padding)
-  const availableWidth = () => {
-    const termWidth = dimensions()?.width ?? 80
-    return Math.floor(termWidth / 2) - 6
-  }
 
   // Determine agent type
   const agentType = () => {
@@ -88,13 +81,17 @@ export function OutputWindow(props: OutputWindowProps) {
           </box>
         }
       >
-        <box paddingLeft={1} paddingRight={1} paddingBottom={1} justifyContent="space-between">
+        <box paddingLeft={1} paddingRight={1} paddingBottom={1} flexDirection="row" justifyContent="space-between">
           <text fg={themeCtx.theme.text} attributes={1 | 4}>
             Output: {props.currentAgent!.name}
           </text>
-          <text fg={themeCtx.theme.textMuted}>
-            [{agentType()}] [{props.currentAgent!.engine}] [{props.currentAgent!.status}]
-          </text>
+          <box flexDirection="row" gap={1}>
+            <text fg={themeCtx.theme.textMuted}>{agentType()}</text>
+            <text fg={themeCtx.theme.info}>{props.currentAgent!.engine}</text>
+            <text fg={props.currentAgent!.status === "completed" ? themeCtx.theme.success : props.currentAgent!.status === "failed" ? themeCtx.theme.error : themeCtx.theme.warning}>
+              {props.currentAgent!.status}
+            </text>
+          </box>
         </box>
 
         {/* Output area */}
@@ -120,7 +117,7 @@ export function OutputWindow(props: OutputWindowProps) {
 
           <Show when={!props.isLoading && !props.isConnecting && !props.error && props.lines.length > 0}>
             <box flexDirection="column">
-              <For each={displayLines()}>{(line) => <LogLine line={line} maxWidth={availableWidth()} />}</For>
+              <For each={displayLines()}>{(line) => <LogLine line={line} />}</For>
             </box>
           </Show>
         </box>

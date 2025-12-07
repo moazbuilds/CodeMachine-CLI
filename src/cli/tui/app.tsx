@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/solid */
 import { render, useTerminalDimensions, useKeyboard, useRenderer } from "@opentui/solid"
 import { VignetteEffect, applyScanlines, TextAttributes } from "@opentui/core"
-import { ErrorBoundary, Match, Show, Switch, createSignal } from "solid-js"
+import { ErrorBoundary, Match, Show, Switch, createSignal, createEffect } from "solid-js"
 import { KVProvider, useKV } from "@tui/shared/context/kv"
 import { ToastProvider, useToast } from "@tui/shared/context/toast"
 import { ThemeProvider, useTheme } from "@tui/shared/context/theme"
@@ -17,6 +17,10 @@ import path from "path"
 import { createRequire } from "node:module"
 import { resolvePackageJson } from "../../shared/runtime/pkg.js"
 import { initTUILogger, closeTUILogger } from "@tui/shared/utils/tui-logger"
+
+// Module-level view state for post-processing effects
+// Effects are disabled in workflow view for cleaner display
+let currentView: "home" | "workflow" = "home"
 
 /**
  * Detects terminal background color by querying with OSC 11 escape sequence
@@ -154,10 +158,16 @@ export async function startTUI(
         useKittyKeyboard: true,
         useMouse: false, // Disable mouse tracking to prevent escape sequences
         postProcessFns: [
-          // Apply vignette for professional focus on center
-          (buffer) => vignetteEffect.apply(buffer),
-          // Apply subtle scanlines for refined CRT aesthetic
-          (buffer) => applyScanlines(buffer, 0.92, 2), // Very subtle (8% darkening) every 2nd line
+          // Apply vignette for professional focus on center (skip in workflow view)
+          (buffer) => {
+            if (currentView === "workflow") return buffer
+            return vignetteEffect.apply(buffer)
+          },
+          // Apply subtle scanlines for refined CRT aesthetic (skip in workflow view)
+          (buffer) => {
+            if (currentView === "workflow") return buffer
+            return applyScanlines(buffer, 0.92, 2) // Very subtle (8% darkening) every 2nd line
+          },
         ],
       }
     )
@@ -245,8 +255,25 @@ function App(props: { initialToast?: InitialToast }) {
     }
 
     // Switch to workflow view - adapter will signal when ready via handleAdapterReady
+    currentView = "workflow"
     setView("workflow")
   }
+
+  // Register workflow handlers when in workflow view (needs renderer access for cleanup)
+  createEffect(() => {
+    if (view() === "workflow") {
+      MonitoringCleanup.registerWorkflowHandlers({
+        onStop: () => {
+          // First Ctrl+C - emit event for workflow UI to show warning
+          ;(process as NodeJS.EventEmitter).emit('workflow:stopping')
+        },
+        onExit: () => {
+          // Second Ctrl+C - destroy renderer before exit to clean up Kitty protocol
+          renderer.destroy()
+        },
+      })
+    }
+  })
 
   // Global keyboard handler
   useKeyboard((evt) => {
@@ -342,30 +369,32 @@ function App(props: { initialToast?: InitialToast }) {
         </Switch>
       </box>
 
-      {/* Footer - fixed height */}
-      <box height={1} flexShrink={0} backgroundColor={themeCtx.theme.backgroundPanel}>
-        <box flexDirection="row" justifyContent="space-between" paddingLeft={1} paddingRight={1}>
-          {/* Left: Branding + Version + Update + CWD */}
-          <box flexDirection="row" gap={1}>
-            <box paddingLeft={1} paddingRight={1} backgroundColor={themeCtx.theme.backgroundElement}>
-              <text fg={themeCtx.theme.text}>
-                Code<span style={{ bold: true }}>Machine</span>
-              </text>
+      {/* Footer - fixed height (hidden in workflow view which has its own footer) */}
+      <Show when={view() !== "workflow"}>
+        <box height={1} flexShrink={0} backgroundColor={themeCtx.theme.backgroundPanel}>
+          <box flexDirection="row" justifyContent="space-between" paddingLeft={1} paddingRight={1}>
+            {/* Left: Branding + Version + Update + CWD */}
+            <box flexDirection="row" gap={1}>
+              <box paddingLeft={1} paddingRight={1} backgroundColor={themeCtx.theme.backgroundElement}>
+                <text fg={themeCtx.theme.text}>
+                  Code<span style={{ bold: true }}>Machine</span>
+                </text>
+              </box>
+              <text fg={themeCtx.theme.textMuted}>v{getVersion()}</text>
+              <Show when={updateNotifier.updateAvailable}>
+                <text fg={themeCtx.theme.warning}>• Update: v{String(updateNotifier.latestVersion)}</text>
+              </Show>
+              <text fg={themeCtx.theme.textMuted}>{cwd()}</text>
             </box>
-            <text fg={themeCtx.theme.textMuted}>v{getVersion()}</text>
-            <Show when={updateNotifier.updateAvailable}>
-              <text fg={themeCtx.theme.warning}>• Update: v{String(updateNotifier.latestVersion)}</text>
-            </Show>
-            <text fg={themeCtx.theme.textMuted}>{cwd()}</text>
-          </box>
 
-          {/* Right: Template badge */}
-          <box flexDirection="row">
-            <text fg={themeCtx.theme.textMuted}>Template: </text>
-            <text fg={themeCtx.theme.primary} attributes={TextAttributes.BOLD}>{String(session.templateName).toUpperCase()}</text>
+            {/* Right: Template badge */}
+            <box flexDirection="row">
+              <text fg={themeCtx.theme.textMuted}>Template: </text>
+              <text fg={themeCtx.theme.primary} attributes={TextAttributes.BOLD}>{String(session.templateName).toUpperCase()}</text>
+            </box>
           </box>
         </box>
-      </box>
+      </Show>
     </box>
   )
 }

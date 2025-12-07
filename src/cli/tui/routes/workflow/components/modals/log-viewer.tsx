@@ -45,11 +45,6 @@ export function LogViewer(props: LogViewerProps) {
     return Math.max(5, height - 9)
   })
 
-  // Calculate available width for log text (full width minus borders/padding)
-  const availableWidth = () => {
-    const termWidth = dimensions()?.width ?? 80
-    return termWidth - 4  // Account for padding
-  }
 
   // Auto-scroll to bottom for running agents when new content arrives
   createEffect(() => {
@@ -188,7 +183,7 @@ export function LogViewer(props: LogViewerProps) {
           >
             <box flexDirection="column" height={visibleLines()}>
               <For each={displayLines()}>
-                {(line) => <LogLine line={line || " "} maxWidth={availableWidth()} />}
+                {(line) => <LogLine line={line || " "} />}
               </For>
             </box>
           </Show>

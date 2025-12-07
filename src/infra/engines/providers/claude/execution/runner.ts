@@ -159,12 +159,10 @@ export async function runClaude(options: RunClaudeOptions): Promise<RunClaudeRes
 
   const { command, args } = buildClaudeExecCommand({ workingDir, prompt, model });
 
-  // Debug logging - always log basic info
-  console.error(`[DEBUG] Claude runner - prompt length: ${prompt.length}, lines: ${prompt.split('\n').length}`);
-  console.error(`[DEBUG] Claude runner - args: ${args.join(' ')}, model: ${model ?? 'default'}`);
-
-  // Additional detailed logging when LOG_LEVEL=debug
+  // Debug logging when LOG_LEVEL=debug
   if (process.env.LOG_LEVEL === 'debug') {
+    console.error(`[DEBUG] Claude runner - prompt length: ${prompt.length}, lines: ${prompt.split('\n').length}`);
+    console.error(`[DEBUG] Claude runner - args: ${args.join(' ')}, model: ${model ?? 'default'}`);
     console.error(`[DEBUG] Claude runner - command: ${command} ${args.join(' ')}`);
     console.error(`[DEBUG] Claude runner - working dir: ${workingDir}`);
     console.error(`[DEBUG] Claude runner - prompt preview: ${prompt.substring(0, 200)}...`);

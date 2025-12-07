@@ -37,4 +37,15 @@ CREATE TABLE IF NOT EXISTS telemetry (
 
 export function initSchema(db: Database): void {
   db.exec(SCHEMA);
+
+  // Migration: Add session_id column if it doesn't exist (for existing databases)
+  try {
+    const tableInfo = db.prepare('PRAGMA table_info(agents)').all() as { name: string }[];
+    const hasSessionId = tableInfo.some(col => col.name === 'session_id');
+    if (!hasSessionId) {
+      db.exec('ALTER TABLE agents ADD COLUMN session_id TEXT');
+    }
+  } catch {
+    // Ignore errors - table might not exist yet (will be created by SCHEMA)
+  }
 }

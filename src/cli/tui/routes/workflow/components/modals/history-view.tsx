@@ -18,6 +18,9 @@ import { formatTokens } from "../../state/formatters"
 export interface HistoryViewProps {
   onClose: () => void
   onOpenLogViewer: (monitoringId: number) => void
+  disabled?: boolean
+  initialSelectedIndex?: number
+  onSelectedIndexChange?: (index: number) => void
 }
 
 /**
@@ -75,15 +78,24 @@ export function HistoryView(props: HistoryViewProps) {
   const dimensions = useTerminalDimensions()
   const { tree: liveTree, isLoading } = useRegistrySync()
 
-  const [selectedIndex, setSelectedIndex] = createSignal(0)
+  const [selectedIndex, setSelectedIndexRaw] = createSignal(props.initialSelectedIndex ?? 0)
   const [scrollOffset, setScrollOffset] = createSignal(0)
+
+  // Wrapper to notify parent of selection changes
+  const setSelectedIndex = (valueOrFn: number | ((prev: number) => number)) => {
+    setSelectedIndexRaw((prev) => {
+      const newValue = typeof valueOrFn === "function" ? valueOrFn(prev) : valueOrFn
+      props.onSelectedIndexChange?.(newValue)
+      return newValue
+    })
+  }
   const [pauseUpdates, setPauseUpdates] = createSignal(false)
   const [frozenTree, setFrozenTree] = createSignal<AgentTreeNode[]>([])
 
   let lastInteractionTime = Date.now()
 
   // Use frozen tree when paused, live tree when not paused
-  const displayTree = () => (pauseUpdates() ? frozenTree() : liveTree)
+  const displayTree = () => (pauseUpdates() ? frozenTree() : liveTree())
 
   // Flatten tree for navigation
   const flattenedAgents = createMemo(() => flattenTree(displayTree()))
@@ -97,7 +109,7 @@ export function HistoryView(props: HistoryViewProps) {
   // Update frozen tree when live tree changes and not paused
   createEffect(() => {
     if (!pauseUpdates()) {
-      setFrozenTree(liveTree)
+      setFrozenTree(liveTree())
     }
   })
 
@@ -146,13 +158,16 @@ export function HistoryView(props: HistoryViewProps) {
   const handleInteraction = () => {
     lastInteractionTime = Date.now()
     if (!pauseUpdates()) {
-      setFrozenTree(liveTree)
+      setFrozenTree(liveTree())
       setPauseUpdates(true)
     }
   }
 
   // Keyboard handling
   useKeyboard((evt) => {
+    // Disable keyboard when modal overlay is active
+    if (props.disabled) return
+
     // H or Escape to close
     if (evt.name === "h" || evt.name === "escape") {
       evt.preventDefault()
@@ -223,7 +238,7 @@ export function HistoryView(props: HistoryViewProps) {
   // Use Show for reactive conditional rendering
   return (
     <Show
-      when={!isLoading}
+      when={!isLoading()}
       fallback={
         <box flexDirection="column" paddingLeft={1} paddingRight={1}>
           <box justifyContent="center" alignItems="center" paddingTop={2} paddingBottom={2}>
@@ -246,36 +261,41 @@ export function HistoryView(props: HistoryViewProps) {
         }
       >
         <box flexDirection="column" paddingLeft={1} paddingRight={1}>
+          {/* Title Header */}
+          <box paddingTop={1} paddingBottom={1}>
+            <text fg={themeCtx.theme.text} attributes={1}>Execution History</text>
+          </box>
+
           {/* Column Headers */}
-          <box paddingTop={1}>
+          <box flexDirection="row">
             <box width={6}>
-              <text fg={themeCtx.theme.text} attributes={1}>ID</text>
+              <text fg={themeCtx.theme.textMuted} attributes={1}>ID</text>
             </box>
             <box width={30}>
-              <text fg={themeCtx.theme.text} attributes={1}>Agent</text>
+              <text fg={themeCtx.theme.textMuted} attributes={1}>Agent</text>
             </box>
             <box width={28}>
-              <text fg={themeCtx.theme.text} attributes={1}>Engine/Model</text>
+              <text fg={themeCtx.theme.textMuted} attributes={1}>Engine/Model</text>
             </box>
             <box width={12}>
-              <text fg={themeCtx.theme.text} attributes={1}>Status</text>
+              <text fg={themeCtx.theme.textMuted} attributes={1}>Status</text>
             </box>
             <box width={12}>
-              <text fg={themeCtx.theme.text} attributes={1}>Duration</text>
+              <text fg={themeCtx.theme.textMuted} attributes={1}>Duration</text>
             </box>
             <box width={22}>
-              <text fg={themeCtx.theme.text} attributes={1}>Tokens</text>
+              <text fg={themeCtx.theme.textMuted} attributes={1}>Tokens</text>
             </box>
           </box>
 
           {/* Agent Rows */}
           <For each={visibleAgents()}>
             {(item, index) => {
-              const absoluteIndex = () => scrollOffset() + index()
+              const isSelected = () => scrollOffset() + index() === selectedIndex()
               return (
                 <AgentRow
                   item={item}
-                  isSelected={absoluteIndex() === selectedIndex()}
+                  isSelected={isSelected()}
                 />
               )
             }}
@@ -283,15 +303,12 @@ export function HistoryView(props: HistoryViewProps) {
 
           {/* Footer */}
           <Show when={flattenedAgents().length > 0}>
-            <box paddingTop={1}>
+            <box paddingTop={1} flexDirection="row">
               <text fg={themeCtx.theme.textMuted}>
                 Showing {scrollOffset() + 1}-{Math.min(scrollOffset() + visibleLines(), flattenedAgents().length)} of {flattenedAgents().length}
               </text>
               <Show when={!pauseUpdates()}>
-                <text fg={themeCtx.theme.success}> {" "} Live</text>
-              </Show>
-              <Show when={pauseUpdates()}>
-                <text fg={themeCtx.theme.warning}> {" "} Paused</text>
+                <text fg={themeCtx.theme.success}> ●</text>
               </Show>
             </box>
           </Show>
@@ -320,9 +337,9 @@ function AgentRow(props: { item: FlattenedAgent; isSelected: boolean }) {
     let result = ""
     for (let i = 0; i < depth; i++) {
       if (i === depth - 1) {
-        result += isLast ? "-- " : "+- "
+        result += isLast ? "└─ " : "├─ "
       } else {
-        result += parentIsLast[i] ? "   " : "|  "
+        result += parentIsLast[i] ? "   " : "│  "
       }
     }
     return result
@@ -330,14 +347,16 @@ function AgentRow(props: { item: FlattenedAgent; isSelected: boolean }) {
 
   // Status indicator
   const statusChar = () => {
-    if (agent.status === "completed") return "*"
-    if (agent.status === "failed") return "x"
-    return "o"
+    if (agent.status === "completed") return "●"
+    if (agent.status === "failed") return "●"
+    if (agent.status === "skipped") return "○"
+    return "○"
   }
 
   const statusColor = () => {
     if (agent.status === "completed") return themeCtx.theme.success
     if (agent.status === "failed") return themeCtx.theme.error
+    if (agent.status === "skipped") return themeCtx.theme.textMuted
     return themeCtx.theme.warning
   }
 
@@ -376,28 +395,31 @@ function AgentRow(props: { item: FlattenedAgent; isSelected: boolean }) {
   }
 
   const bgColor = () => props.isSelected ? themeCtx.theme.primary : undefined
+  const textColor = () => props.isSelected ? themeCtx.theme.background : themeCtx.theme.text
+  const mutedColor = () => props.isSelected ? themeCtx.theme.background : themeCtx.theme.textMuted
+  const idColor = () => props.isSelected ? themeCtx.theme.background : themeCtx.theme.info
 
   return (
-    <box backgroundColor={bgColor()}>
+    <box flexDirection="row" backgroundColor={bgColor()}>
       <box width={6}>
-        <text fg={themeCtx.theme.primary}>{agent.id}</text>
+        <text fg={idColor()}>{agent.id}</text>
       </box>
       <box width={30}>
-        <text fg={themeCtx.theme.text}>{truncatedName()}</text>
+        <text fg={textColor()}>{truncatedName()}</text>
       </box>
       <box width={28}>
-        <text fg={themeCtx.theme.textMuted}>
+        <text fg={mutedColor()}>
           {engineModel().length > 26 ? engineModel().slice(0, 23) + "..." : engineModel()}
         </text>
       </box>
       <box width={12}>
-        <text fg={statusColor()}>{statusChar()} {agent.status}</text>
+        <text fg={props.isSelected ? themeCtx.theme.background : statusColor()}>{statusChar()} {agent.status}</text>
       </box>
       <box width={12}>
-        <text fg={themeCtx.theme.text}>{duration()}</text>
+        <text fg={textColor()}>{duration()}</text>
       </box>
       <box width={22}>
-        <text fg={themeCtx.theme.textMuted}>{tokens()}</text>
+        <text fg={mutedColor()}>{tokens()}</text>
       </box>
     </box>
   )
