@@ -40,6 +40,10 @@ export function WorkflowShell(props: WorkflowShellProps) {
 
   const getVisibleItems = () => calculateVisibleItems(dimensions()?.height ?? 30)
 
+  // Responsive: hide output panel on narrow terminals
+  const MIN_WIDTH_FOR_SPLIT_VIEW = 100
+  const showOutputPanel = () => (dimensions()?.width ?? 80) >= MIN_WIDTH_FOR_SPLIT_VIEW
+
   // Update visible item count when terminal dimensions change
   createEffect(() => {
     ui.actions.setVisibleItemCount(getVisibleItems())
@@ -187,12 +191,14 @@ export function WorkflowShell(props: WorkflowShellProps) {
       </box>
 
       <box flexDirection="row" flexGrow={1} gap={1}>
-        <box flexDirection="column" width="50%" border borderColor={themeCtx.theme.borderSubtle} backgroundColor={themeCtx.theme.backgroundPanel}>
+        <box flexDirection="column" width={showOutputPanel() ? "50%" : "100%"} border borderColor={themeCtx.theme.borderSubtle} backgroundColor={themeCtx.theme.backgroundPanel}>
           <AgentTimeline state={state()} onToggleExpand={(id) => ui.actions.toggleExpand(id)} availableHeight={state().visibleItemCount} isPaused={pauseControl.isPaused()} />
         </box>
-        <box flexDirection="column" width="50%" border borderColor={themeCtx.theme.borderSubtle} backgroundColor={themeCtx.theme.backgroundPanel}>
-          <OutputWindow currentAgent={currentAgent()} lines={logStream.lines} isLoading={logStream.isLoading} isConnecting={logStream.isConnecting} error={logStream.error} maxLines={state().visibleItemCount} />
-        </box>
+        <Show when={showOutputPanel()}>
+          <box flexDirection="column" width="50%" border borderColor={themeCtx.theme.borderSubtle} backgroundColor={themeCtx.theme.backgroundPanel}>
+            <OutputWindow currentAgent={currentAgent()} lines={logStream.lines} isLoading={logStream.isLoading} isConnecting={logStream.isConnecting} error={logStream.error} maxLines={state().visibleItemCount} />
+          </box>
+        </Show>
       </box>
 
       <box flexShrink={0} flexDirection="column">
