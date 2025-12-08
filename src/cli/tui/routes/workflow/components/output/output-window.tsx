@@ -4,7 +4,7 @@
  * Ported from: src/ui/components/OutputWindow.tsx
  *
  * Display current agent's output with syntax highlighting
- * Shows last N lines with auto-scroll for running agents
+ * Shows last N lines with auto-scroll for running agents using OpenTUI scrollbox
  */
 
 import { Show, For, createMemo } from "solid-js"
@@ -34,29 +34,23 @@ export interface OutputWindowProps {
 
 /**
  * Output window showing current agent's output
- * Displays last N lines with syntax highlighting
+ * Displays last N lines with syntax highlighting using scrollbox
  */
+const OUTPUT_HEADER_HEIGHT = 2  // Header line + padding
+
 export function OutputWindow(props: OutputWindowProps) {
   const themeCtx = useTheme()
 
   const effectiveMaxLines = () => props.maxLines ?? 20
 
+  // Scrollbox height accounts for the output header
+  const scrollboxHeight = () => Math.max(3, effectiveMaxLines() - OUTPUT_HEADER_HEIGHT)
 
   // Determine agent type
   const agentType = () => {
     if (!props.currentAgent) return ""
     return "parentId" in props.currentAgent ? "sub-agent" : "main"
   }
-
-  // Get display lines (last N lines)
-  const displayLines = createMemo(() => {
-    const lines = props.lines
-    const max = effectiveMaxLines()
-    if (lines.length > max) {
-      return lines.slice(lines.length - max)
-    }
-    return lines
-  })
 
   // Get connecting message
   const connectingMessage = () => {
@@ -73,7 +67,7 @@ export function OutputWindow(props: OutputWindowProps) {
           <box
             flexDirection="column"
             flexGrow={1}
-            height={effectiveMaxLines()}
+            height={scrollboxHeight()}
             justifyContent="center"
             alignItems="center"
           >
@@ -102,7 +96,7 @@ export function OutputWindow(props: OutputWindowProps) {
 
           <Show when={props.isConnecting && !props.isLoading}>
             <box flexDirection="row">
-              <text fg={themeCtx.theme.text}>⠋ </text>
+              <text fg={themeCtx.theme.text}>* </text>
               <ShimmerText text={connectingMessage()} />
             </box>
           </Show>
@@ -116,9 +110,16 @@ export function OutputWindow(props: OutputWindowProps) {
           </Show>
 
           <Show when={!props.isLoading && !props.isConnecting && !props.error && props.lines.length > 0}>
-            <box flexDirection="column">
-              <For each={displayLines()}>{(line) => <LogLine line={line} />}</For>
-            </box>
+            <scrollbox
+              height={scrollboxHeight()}
+              stickyScroll={true}
+              stickyStart="bottom"
+              scrollbarOptions={{ visible: false }}
+              viewportCulling={true}
+              focused={true}
+            >
+              <For each={props.lines}>{(line) => <LogLine line={line} />}</For>
+            </scrollbox>
           </Show>
         </box>
       </Show>

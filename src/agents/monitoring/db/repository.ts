@@ -149,6 +149,13 @@ export class AgentRepository {
     this.db.prepare('DELETE FROM agents WHERE id = ?').run(id);
   }
 
+  clearAll(): number {
+    // Delete telemetry first due to foreign key
+    this.db.prepare('DELETE FROM telemetry').run();
+    const result = this.db.prepare('DELETE FROM agents').run();
+    return result.changes;
+  }
+
   getFullSubtree(agentId: number): AgentRecord[] {
     const agent = this.get(agentId);
     if (!agent) return [];

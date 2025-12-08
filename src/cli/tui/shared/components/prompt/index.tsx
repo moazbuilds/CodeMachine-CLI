@@ -15,6 +15,8 @@ const SLASH_COMMANDS: SlashCommand[] = [
 
 export function Prompt(props: PromptProps) {
   let anchor: BoxRenderable | undefined
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let inputRef: any
 
   const themeCtx = useTheme()
   const dimensions = useTerminalDimensions()
@@ -66,8 +68,11 @@ export function Prompt(props: PromptProps) {
       } else if (evt.name === "tab") {
         const selected = filteredCommands()[selectedIndex()]
         if (selected) {
-          setInput(`/${selected.command}`)
+          const newValue = `/${selected.command}`
+          setInput(newValue)
           setShowAutocomplete(false)
+          // Move cursor to end of completed text
+          inputRef?.setCursorByOffset?.(newValue.length)
           return
         }
       } else if (evt.name === "return") {
@@ -152,6 +157,7 @@ export function Prompt(props: PromptProps) {
           paddingBottom={1}
         >
           <input
+            ref={(r) => (inputRef = r)}
             value={input()}
             placeholder={props.disabled ? "Dialog open..." : (props.placeholder || "Type /start to see the magic")}
             onInput={handleInput}

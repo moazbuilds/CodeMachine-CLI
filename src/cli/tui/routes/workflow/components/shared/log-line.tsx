@@ -7,6 +7,7 @@
  */
 
 import { createMemo } from "solid-js"
+import { useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
 import { parseMarker } from "../../../../../../shared/formatters/outputMarkers.js"
 
@@ -19,6 +20,14 @@ export interface LogLineProps {
  */
 export function LogLine(props: LogLineProps) {
   const themeCtx = useTheme()
+  const dimensions = useTerminalDimensions()
+
+  // Calculate max width for a log line (50% panel width minus padding/borders)
+  const maxWidth = createMemo(() => {
+    const termWidth = dimensions()?.width ?? 120
+    // Output panel is 50% width, -10 for safety margin (border: 2, padding: 4, gap: 1, buffer: 3)
+    return Math.floor(termWidth * 0.5) - 10
+  })
 
   // Parse color markers from log line
   const parsed = createMemo(() => parseMarker(props.line))
@@ -37,7 +46,7 @@ export function LogLine(props: LogLineProps) {
   // Check for bold marker (===)
   const isBold = () => parsed().text.startsWith("===")
 
-  // Strip ANSI codes (no truncation - let container handle overflow)
+  // Strip ANSI codes and truncate if needed
   const displayText = createMemo(() => {
     let text = parsed().text
     // Strip bold marker
@@ -45,6 +54,11 @@ export function LogLine(props: LogLineProps) {
     // Strip any remaining ANSI codes
     // eslint-disable-next-line no-control-regex
     text = text.replace(/\x1b\[[0-9;]*m/g, "")
+    // Truncate if exceeds max width
+    const max = maxWidth()
+    if (text.length > max) {
+      text = text.substring(0, max - 3) + "..."
+    }
     return text
   })
 

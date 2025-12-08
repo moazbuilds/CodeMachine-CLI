@@ -248,6 +248,15 @@ export class AgentMonitorService {
   }
 
   /**
+   * Clear all agents from history
+   */
+  async clearAll(): Promise<number> {
+    const count = this.repository.clearAll();
+    logger.info(`Cleared all ${count} agents from history`);
+    return count;
+  }
+
+  /**
    * Group all agents by their root parent (top-level parent)
    * Returns a map of root agent ID -> array of all descendants
    */

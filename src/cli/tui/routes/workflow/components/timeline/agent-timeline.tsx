@@ -4,7 +4,7 @@
  * Ported from: src/ui/components/AgentTimeline.tsx
  *
  * Container for all agent displays (main, sub, triggered)
- * Displays main agents in a timeline with expandable sub-agents with smooth scrolling
+ * Displays main agents in a timeline with expandable sub-agents using OpenTUI scrollbox
  */
 
 import { For, Show, createMemo } from "solid-js"
@@ -20,6 +20,7 @@ export interface AgentTimelineProps {
   state: WorkflowState
   onToggleExpand: (agentId: string) => void
   availableHeight?: number
+  isPaused?: boolean
 }
 
 const TIMELINE_HEADER_HEIGHT = 2 // Header text + padding
@@ -38,43 +39,11 @@ export function AgentTimeline(props: AgentTimelineProps) {
 
   const totalItems = () => layout().length
 
-  const clampedOffset = () => {
-    const totalLines =
-      layout().length === 0 ? 0 : layout()[layout().length - 1].offset + layout()[layout().length - 1].height
-    const maxOffset = Math.max(0, totalLines - viewportHeight())
-    return Math.max(0, Math.min(props.state.scrollOffset, maxOffset))
-  }
-
-  // Get visible entries based on scroll offset
-  const visibleEntries = createMemo<TimelineLayoutEntry[]>(() => {
-    const layoutData = layout()
-    if (layoutData.length === 0) return []
-
-    const entries: TimelineLayoutEntry[] = []
-    const viewportEnd = clampedOffset() + viewportHeight()
-    const startIndex = layoutData.findIndex((entry) => entry.offset + entry.height > clampedOffset())
-
-    if (startIndex === -1) return []
-
-    for (let i = startIndex; i < layoutData.length; i++) {
-      const entry = layoutData[i]
-      if (entry.offset >= viewportEnd) break
-      entries.push(entry)
-    }
-
-    return entries
-  })
-
-  // Header with range info
+  // Header with total count
   const headerSuffix = () => {
     const total = totalItems()
-    const viewport = viewportHeight()
-    const offset = clampedOffset()
-
-    if (total > 0 && (total > viewport || offset > 0)) {
-      const rangeStart = offset + 1
-      const rangeEnd = Math.min(offset + viewport, total)
-      return ` (${rangeStart}-${rangeEnd} of ${total})`
+    if (total > 0) {
+      return ` (${total} items)`
     }
     return ""
   }
@@ -98,23 +67,28 @@ export function AgentTimeline(props: AgentTimelineProps) {
         </text>
       </box>
 
-      {/* Timeline content */}
-      <box flexDirection="column">
-        <Show
-          when={visibleEntries().length > 0}
-          fallback={
-            <box paddingLeft={1}>
-              <text fg={themeCtx.theme.textMuted}>No agents to display yet.</text>
-            </box>
-          }
+      {/* Timeline content with scrollbox */}
+      <Show
+        when={layout().length > 0}
+        fallback={
+          <box paddingLeft={1}>
+            <text fg={themeCtx.theme.textMuted}>No agents to display yet.</text>
+          </box>
+        }
+      >
+        <scrollbox
+          height={viewportHeight()}
+          scrollbarOptions={{ visible: false }}
+          viewportCulling={true}
+          focused={true}
         >
-          <For each={visibleEntries()}>
+          <For each={layout()}>
             {(entry) => {
               const { item } = entry
 
               // Main agent
               if (item.type === "main") {
-                return <MainAgentNode agent={item.agent} isSelected={isMainSelected(item.id)} />
+                return <MainAgentNode agent={item.agent} isSelected={isMainSelected(item.id)} isPaused={props.isPaused} />
               }
 
               // Sub-agent summary (collapsed)
@@ -140,14 +114,14 @@ export function AgentTimeline(props: AgentTimelineProps) {
 
               // Sub-agent (expanded)
               if (item.type === "sub") {
-                return <SubAgentNode agent={item.agent} isSelected={isSubSelected(item.id)} />
+                return <SubAgentNode agent={item.agent} isSelected={isSubSelected(item.id)} isPaused={props.isPaused} />
               }
 
               return null
             }}
           </For>
-        </Show>
-      </box>
+        </scrollbox>
+      </Show>
     </box>
   )
 }
