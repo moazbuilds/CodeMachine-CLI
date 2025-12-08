@@ -39,6 +39,7 @@ export interface ModuleStep {
   executeOnce?: boolean;
   notCompletedFallback?: string; // Agent ID to run if step is in notCompletedSteps
   tracks?: string[]; // Track names this step belongs to (e.g., ['bmad', 'enterprise'])
+  conditions?: string[]; // Conditions required for this step (e.g., ['has_ui', 'has_api'])
 }
 
 export interface UIStep {
@@ -60,11 +61,17 @@ export interface TrackConfig {
   description?: string;
 }
 
+export interface ConditionConfig {
+  label: string;
+  description?: string;
+}
+
 export interface WorkflowTemplate {
   name: string;
   steps: WorkflowStep[];
   subAgentIds?: string[];
   tracks?: Record<string, TrackConfig>;
+  conditions?: Record<string, ConditionConfig>;
 }
 
 export type ModuleName = ModuleStep['agentId'];

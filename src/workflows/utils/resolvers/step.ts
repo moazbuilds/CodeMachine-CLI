@@ -26,5 +26,6 @@ export function resolveStep(id: string, overrides: StepOverrides = {}): Workflow
     executeOnce: overrides.executeOnce,
     notCompletedFallback: overrides.notCompletedFallback,
     tracks: overrides.tracks,
+    conditions: overrides.conditions,
   };
 }

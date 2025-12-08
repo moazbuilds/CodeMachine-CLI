@@ -22,10 +22,10 @@ import { MonitoringCleanup } from "../../agents/monitoring/index.js"
 import path from "path"
 import { createRequire } from "node:module"
 import { resolvePackageJson } from "../../shared/runtime/pkg.js"
-import { getSelectedTrack, setSelectedTrack } from "../../shared/workflows/index.js"
+import { getSelectedTrack, setSelectedTrack, hasSelectedConditions, setSelectedConditions } from "../../shared/workflows/index.js"
 import { loadTemplate } from "../../workflows/templates/loader.js"
 import { getTemplatePathFromTracking } from "../../shared/workflows/template.js"
-import type { TrackConfig } from "../../workflows/templates/types"
+import type { TrackConfig, ConditionConfig } from "../../workflows/templates/types"
 import type { InitialToast } from "./app"
 
 // Module-level view state for post-processing effects
@@ -45,6 +45,7 @@ export function App(props: { initialToast?: InitialToast }) {
   const [view, setView] = createSignal<"home" | "onboard" | "workflow">("home")
   const [workflowEventBus, setWorkflowEventBus] = createSignal<WorkflowEventBus | null>(null)
   const [templateTracks, setTemplateTracks] = createSignal<Record<string, TrackConfig> | null>(null)
+  const [templateConditions, setTemplateConditions] = createSignal<Record<string, ConditionConfig> | null>(null)
 
   let pendingWorkflowStart: (() => void) | null = null
 
@@ -59,25 +60,32 @@ export function App(props: { initialToast?: InitialToast }) {
     const cwd = process.env.CODEMACHINE_CWD || process.cwd()
     const cmRoot = path.join(cwd, '.codemachine')
 
-    // Check if tracks exist and no selection yet
+    // Check if tracks/conditions exist and no selection yet
     try {
       const templatePath = await getTemplatePathFromTracking(cmRoot)
       const template = await loadTemplate(cwd, templatePath)
       const selectedTrack = await getSelectedTrack(cmRoot)
+      const conditionsSelected = await hasSelectedConditions(cmRoot)
 
-      // If tracks exist and none selected, show onboard view
-      if (template.tracks && Object.keys(template.tracks).length > 0 && !selectedTrack) {
-        setTemplateTracks(template.tracks)
+      const hasTracks = template.tracks && Object.keys(template.tracks).length > 0
+      const hasConditions = template.conditions && Object.keys(template.conditions).length > 0
+      const needsTrackSelection = hasTracks && !selectedTrack
+      const needsConditionsSelection = hasConditions && !conditionsSelected
+
+      // If tracks or conditions exist and none selected, show onboard view
+      if (needsTrackSelection || needsConditionsSelection) {
+        if (hasTracks) setTemplateTracks(template.tracks!)
+        if (hasConditions) setTemplateConditions(template.conditions!)
         currentView = "onboard"
         setView("onboard")
         return
       }
     } catch (error) {
       // If template loading fails, proceed to workflow anyway
-      console.error("Failed to check tracks:", error)
+      console.error("Failed to check tracks/conditions:", error)
     }
 
-    // No tracks or already selected - start workflow directly
+    // No tracks/conditions or already selected - start workflow directly
     startWorkflowExecution()
   }
 
@@ -102,12 +110,19 @@ export function App(props: { initialToast?: InitialToast }) {
     setView("workflow")
   }
 
-  const handleOnboardComplete = async (trackId: string) => {
+  const handleOnboardComplete = async (result: { trackId?: string; conditions?: string[] }) => {
     const cwd = process.env.CODEMACHINE_CWD || process.cwd()
     const cmRoot = path.join(cwd, '.codemachine')
 
-    // Save selected track
-    await setSelectedTrack(cmRoot, trackId)
+    // Save selected track if provided
+    if (result.trackId) {
+      await setSelectedTrack(cmRoot, result.trackId)
+    }
+
+    // Always save selected conditions (even if empty array)
+    if (result.conditions !== undefined) {
+      await setSelectedConditions(cmRoot, result.conditions)
+    }
 
     // Start workflow
     startWorkflowExecution()
@@ -186,7 +201,8 @@ export function App(props: { initialToast?: InitialToast }) {
           </Match>
           <Match when={view() === "onboard"}>
             <Onboard
-              tracks={templateTracks() ?? {}}
+              tracks={templateTracks() ?? undefined}
+              conditions={templateConditions() ?? undefined}
               onComplete={handleOnboardComplete}
               onCancel={handleOnboardCancel}
             />

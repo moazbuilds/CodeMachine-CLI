@@ -14,6 +14,7 @@ import {
   removeFromNotCompleted,
   getResumeStartIndex,
   getSelectedTrack,
+  getSelectedConditions,
 } from '../../shared/workflows/index.js';
 import { registry } from '../../infra/engines/index.js';
 import { shouldSkipStep, logSkipDebug, type ActiveLoop } from '../behaviors/skip.js';
@@ -136,6 +137,9 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   // Load selected track for track-based filtering
   const selectedTrack = await getSelectedTrack(cmRoot);
 
+  // Load selected conditions for condition-based filtering
+  const selectedConditions = await getSelectedConditions(cmRoot);
+
   const loopCounters = new Map<string, number>();
   let activeLoop: ActiveLoop | null = null;
   const workflowStartTime = Date.now();
@@ -167,18 +171,23 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   };
 
   // Emit workflow started event
-  // Count only module steps that match the selected track
+  // Count only module steps that match the selected track and conditions
   const totalModuleSteps = template.steps.filter(s => {
     if (s.type !== 'module') return false;
     // Include step if: no tracks defined OR selectedTrack is in tracks list
     if (s.tracks?.length && selectedTrack && !s.tracks.includes(selectedTrack)) {
       return false;
     }
+    // Include step if: no conditions defined OR all conditions are met
+    if (s.conditions?.length) {
+      const missingConditions = s.conditions.filter(c => !selectedConditions.includes(c));
+      if (missingConditions.length > 0) return false;
+    }
     return true;
   }).length;
   emitter.workflowStarted(template.name, totalModuleSteps);
 
-  // Pre-populate timeline with workflow steps that match selected track
+  // Pre-populate timeline with workflow steps that match selected track and conditions
   // This prevents duplicate renders at startup
   // Set initial status based on completion tracking
   template.steps.forEach((step, stepIndex) => {
@@ -186,6 +195,11 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       // Track filtering: skip steps not in selected track
       if (step.tracks?.length && selectedTrack && !step.tracks.includes(selectedTrack)) {
         return; // Don't add to UI
+      }
+      // Condition filtering: skip steps with unmet conditions
+      if (step.conditions?.length) {
+        const missingConditions = step.conditions.filter(c => !selectedConditions.includes(c));
+        if (missingConditions.length > 0) return; // Don't add to UI
       }
 
       const defaultEngine = registry.getDefault();
@@ -341,7 +355,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     // Create unique agent ID for this step instance (matches UI pre-population)
     const uniqueAgentId = `${step.agentId}-step-${index}`;
 
-    const skipResult = shouldSkipStep(step, index, completedSteps, activeLoop, ui, uniqueAgentId, emitter, selectedTrack);
+    const skipResult = shouldSkipStep(step, index, completedSteps, activeLoop, ui, uniqueAgentId, emitter, selectedTrack, selectedConditions);
     if (skipResult.skip) {
       ui.logMessage(uniqueAgentId, skipResult.reason!);
       emitter.logMessage(uniqueAgentId, skipResult.reason!);

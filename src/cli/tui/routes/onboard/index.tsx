@@ -2,19 +2,22 @@
 /**
  * Onboard View
  *
- * Pre-workflow onboarding flow: track selection, spec writing with PO, etc.
+ * Pre-workflow onboarding flow: track selection, conditions selection, etc.
  */
 
-import { createSignal, For, onMount } from "solid-js"
+import { createSignal, For, onMount, Show, createEffect } from "solid-js"
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
-import type { TrackConfig } from "../../../../workflows/templates/types"
+import type { TrackConfig, ConditionConfig } from "../../../../workflows/templates/types"
 
 export interface OnboardProps {
-  tracks: Record<string, TrackConfig>
-  onComplete: (trackId: string) => void
+  tracks?: Record<string, TrackConfig>
+  conditions?: Record<string, ConditionConfig>
+  onComplete: (result: { trackId?: string; conditions?: string[] }) => void
   onCancel?: () => void
 }
+
+type OnboardStep = 'tracks' | 'conditions'
 
 export function Onboard(props: OnboardProps) {
   const themeCtx = useTheme()
@@ -23,11 +26,38 @@ export function Onboard(props: OnboardProps) {
   const [typedText, setTypedText] = createSignal("")
   const [typingDone, setTypingDone] = createSignal(false)
 
-  const question = "What is your project size?"
-  const trackEntries = () => Object.entries(props.tracks)
+  // Multi-step state
+  const [currentStep, setCurrentStep] = createSignal<OnboardStep>('tracks')
+  const [selectedTrackId, setSelectedTrackId] = createSignal<string | undefined>()
+  const [selectedConditions, setSelectedConditions] = createSignal<Set<string>>(new Set())
 
-  // Typing effect
+  const hasTracks = () => props.tracks && Object.keys(props.tracks).length > 0
+  const hasConditions = () => props.conditions && Object.keys(props.conditions).length > 0
+
+  // Determine initial step
   onMount(() => {
+    if (!hasTracks() && hasConditions()) {
+      setCurrentStep('conditions')
+    }
+  })
+
+  const trackQuestion = "What is your project size?"
+  const conditionsQuestion = "What features does your project have?"
+
+  const trackEntries = () => props.tracks ? Object.entries(props.tracks) : []
+  const conditionEntries = () => props.conditions ? Object.entries(props.conditions) : []
+
+  const currentQuestion = () => currentStep() === 'tracks' ? trackQuestion : conditionsQuestion
+  const currentEntries = () => currentStep() === 'tracks' ? trackEntries() : conditionEntries()
+
+  // Typing effect - reset when step changes
+  createEffect(() => {
+    const step = currentStep()
+    const question = step === 'tracks' ? trackQuestion : conditionsQuestion
+    setTypedText("")
+    setTypingDone(false)
+    setSelectedIndex(0)
+
     let i = 0
     const interval = setInterval(() => {
       if (i <= question.length) {
@@ -38,28 +68,74 @@ export function Onboard(props: OnboardProps) {
         clearInterval(interval)
       }
     }, 50)
+
+    return () => clearInterval(interval)
   })
 
+  const handleTrackSelect = (trackId: string) => {
+    setSelectedTrackId(trackId)
+    if (hasConditions()) {
+      setCurrentStep('conditions')
+    } else {
+      props.onComplete({ trackId })
+    }
+  }
+
+  const handleConditionsComplete = () => {
+    props.onComplete({
+      trackId: selectedTrackId(),
+      conditions: Array.from(selectedConditions())
+    })
+  }
+
+  const toggleCondition = (conditionId: string) => {
+    setSelectedConditions((prev) => {
+      const next = new Set(prev)
+      if (next.has(conditionId)) {
+        next.delete(conditionId)
+      } else {
+        next.add(conditionId)
+      }
+      return next
+    })
+  }
+
   useKeyboard((evt) => {
+    const entries = currentEntries()
+
     if (evt.name === "up") {
       evt.preventDefault()
       setSelectedIndex((prev) => Math.max(0, prev - 1))
     } else if (evt.name === "down") {
       evt.preventDefault()
-      setSelectedIndex((prev) => Math.min(trackEntries().length - 1, prev + 1))
+      setSelectedIndex((prev) => Math.min(entries.length - 1, prev + 1))
     } else if (evt.name === "return") {
       evt.preventDefault()
-      const [trackId] = trackEntries()[selectedIndex()]
-      props.onComplete(trackId)
+      if (currentStep() === 'tracks') {
+        const [trackId] = entries[selectedIndex()]
+        handleTrackSelect(trackId)
+      } else {
+        // In conditions step, Enter toggles the checkbox
+        const [conditionId] = entries[selectedIndex()]
+        toggleCondition(conditionId)
+      }
+    } else if (evt.name === "tab" && currentStep() === 'conditions') {
+      evt.preventDefault()
+      handleConditionsComplete()
     } else if (evt.name === "escape") {
       evt.preventDefault()
       props.onCancel?.()
     } else if (evt.name && /^[1-9]$/.test(evt.name)) {
       const num = parseInt(evt.name, 10)
-      if (num >= 1 && num <= trackEntries().length) {
+      if (num >= 1 && num <= entries.length) {
         evt.preventDefault()
-        const [trackId] = trackEntries()[num - 1]
-        props.onComplete(trackId)
+        if (currentStep() === 'tracks') {
+          const [trackId] = entries[num - 1]
+          handleTrackSelect(trackId)
+        } else {
+          const [conditionId] = entries[num - 1]
+          toggleCondition(conditionId)
+        }
       }
     }
   })
@@ -108,40 +184,78 @@ export function Onboard(props: OnboardProps) {
           </text>
         </box>
 
-        {/* Track options */}
+        {/* Options */}
         <box flexDirection="column" gap={1} marginTop={1}>
-          <For each={trackEntries()}>
-            {([trackId, config], index) => {
-              const isSelected = () => index() === selectedIndex()
-              return (
-                <box flexDirection="column">
-                  <box flexDirection="row" gap={1}>
-                    <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.textMuted}>
-                      {isSelected() ? ">" : " "}
-                    </text>
-                    <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.textMuted}>
-                      {isSelected() ? "[x]" : "[ ]"}
-                    </text>
-                    <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.text}>
-                      {config.label}
-                    </text>
-                  </box>
-                  {config.description && (
-                    <box marginLeft={6}>
-                      <text fg={themeCtx.theme.textMuted}>{config.description}</text>
+          <Show when={currentStep() === 'tracks'}>
+            <For each={trackEntries()}>
+              {([trackId, config], index) => {
+                const isSelected = () => index() === selectedIndex()
+                return (
+                  <box flexDirection="column">
+                    <box flexDirection="row" gap={1}>
+                      <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.textMuted}>
+                        {isSelected() ? ">" : " "}
+                      </text>
+                      <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.textMuted}>
+                        {isSelected() ? "(*)" : "( )"}
+                      </text>
+                      <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.text}>
+                        {config.label}
+                      </text>
                     </box>
-                  )}
-                </box>
-              )
-            }}
-          </For>
+                    {config.description && (
+                      <box marginLeft={6}>
+                        <text fg={themeCtx.theme.textMuted}>{config.description}</text>
+                      </box>
+                    )}
+                  </box>
+                )
+              }}
+            </For>
+          </Show>
+
+          <Show when={currentStep() === 'conditions'}>
+            <For each={conditionEntries()}>
+              {([conditionId, config], index) => {
+                const isSelected = () => index() === selectedIndex()
+                const isChecked = () => selectedConditions().has(conditionId)
+                return (
+                  <box flexDirection="column">
+                    <box flexDirection="row" gap={1}>
+                      <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.textMuted}>
+                        {isSelected() ? ">" : " "}
+                      </text>
+                      <text fg={isChecked() ? themeCtx.theme.primary : themeCtx.theme.textMuted}>
+                        {isChecked() ? "[x]" : "[ ]"}
+                      </text>
+                      <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.text}>
+                        {config.label}
+                      </text>
+                    </box>
+                    {config.description && (
+                      <box marginLeft={6}>
+                        <text fg={themeCtx.theme.textMuted}>{config.description}</text>
+                      </box>
+                    )}
+                  </box>
+                )
+              }}
+            </For>
+          </Show>
         </box>
 
         {/* Footer */}
         <box marginTop={2}>
-          <text fg={themeCtx.theme.textMuted}>
-            [Up/Down] Navigate  [Enter] Select  [Esc] Cancel
-          </text>
+          <Show when={currentStep() === 'tracks'}>
+            <text fg={themeCtx.theme.textMuted}>
+              [Up/Down] Navigate  [Enter] Select  [Esc] Cancel
+            </text>
+          </Show>
+          <Show when={currentStep() === 'conditions'}>
+            <text fg={themeCtx.theme.textMuted}>
+              [Up/Down] Navigate  [Enter] Toggle  [Tab] Confirm  [Esc] Cancel
+            </text>
+          </Show>
         </box>
       </box>
     </box>

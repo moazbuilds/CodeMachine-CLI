@@ -7,6 +7,7 @@ export interface StepOverrides {
   executeOnce?: boolean;
   notCompletedFallback?: string;
   tracks?: string[]; // Track names this step belongs to (e.g., ['bmad', 'enterprise'])
+  conditions?: string[]; // Conditions required for this step (e.g., ['has_ui', 'has_api'])
 }
 
 export interface WorkflowStep {
@@ -21,6 +22,7 @@ export interface WorkflowStep {
   executeOnce?: boolean;
   notCompletedFallback?: string;
   tracks?: string[]; // Track names this step belongs to (e.g., ['bmad', 'enterprise'])
+  conditions?: string[]; // Conditions required for this step (e.g., ['has_ui', 'has_api'])
 }
 
 export interface LoopBehaviorConfig {

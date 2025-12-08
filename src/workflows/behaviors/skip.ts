@@ -17,6 +17,7 @@ export function shouldSkipStep(
   uniqueAgentId?: string,
   emitter?: WorkflowEventEmitter,
   selectedTrack?: string | null,
+  selectedConditions?: string[],
 ): { skip: boolean; reason?: string } {
   // UI steps can't be skipped
   if (!isModuleStep(step)) {
@@ -31,6 +32,17 @@ export function shouldSkipStep(
     ui?.updateAgentStatus(agentId, 'skipped');
     emitter?.updateAgentStatus(agentId, 'skipped');
     return { skip: true, reason: `${step.agentName} skipped (not in "${selectedTrack}" track).` };
+  }
+
+  // Condition-based filtering: skip if step has conditions and not ALL are met
+  if (step.conditions?.length) {
+    const userConditions = selectedConditions ?? [];
+    const missingConditions = step.conditions.filter(c => !userConditions.includes(c));
+    if (missingConditions.length > 0) {
+      ui?.updateAgentStatus(agentId, 'skipped');
+      emitter?.updateAgentStatus(agentId, 'skipped');
+      return { skip: true, reason: `${step.agentName} skipped (missing conditions: ${missingConditions.join(', ')}).` };
+    }
   }
 
   // Skip step if executeOnce is true and it's already completed

@@ -21,6 +21,7 @@ interface TemplateTracking {
   notCompletedSteps?: number[];
   resumeFromLastStep?: boolean;
   selectedTrack?: string; // Selected workflow track (e.g., 'bmad', 'quick', 'enterprise')
+  selectedConditions?: string[]; // Selected conditions (e.g., ['has_ui', 'has_api'])
 }
 
 /**
@@ -146,6 +147,83 @@ export async function setSelectedTrack(cmRoot: string, track: string): Promise<v
   }
 
   data.selectedTrack = track;
+  data.lastUpdated = new Date().toISOString();
+
+  await writeFile(trackingPath, JSON.stringify(data, null, 2), 'utf8');
+}
+
+/**
+ * Gets the selected conditions from the tracking file.
+ */
+export async function getSelectedConditions(cmRoot: string): Promise<string[]> {
+  const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
+
+  if (!existsSync(trackingPath)) {
+    return [];
+  }
+
+  try {
+    const content = await readFile(trackingPath, 'utf8');
+    const data = JSON.parse(content) as TemplateTracking;
+    return data.selectedConditions ?? [];
+  } catch (error) {
+    console.warn(`Failed to read selected conditions: ${error instanceof Error ? error.message : String(error)}`);
+    return [];
+  }
+}
+
+/**
+ * Checks if conditions have been selected (key exists in template.json).
+ * Returns true if user has gone through onboard and made a selection (even if empty).
+ */
+export async function hasSelectedConditions(cmRoot: string): Promise<boolean> {
+  const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
+
+  if (!existsSync(trackingPath)) {
+    return false;
+  }
+
+  try {
+    const content = await readFile(trackingPath, 'utf8');
+    const data = JSON.parse(content) as TemplateTracking;
+    return data.selectedConditions !== undefined;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Sets the selected conditions in the tracking file.
+ */
+export async function setSelectedConditions(cmRoot: string, conditions: string[]): Promise<void> {
+  const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
+
+  let data: TemplateTracking;
+
+  if (existsSync(trackingPath)) {
+    try {
+      const content = await readFile(trackingPath, 'utf8');
+      data = JSON.parse(content) as TemplateTracking;
+    } catch {
+      data = {
+        activeTemplate: '',
+        lastUpdated: new Date().toISOString(),
+        completedSteps: [],
+        notCompletedSteps: [],
+        resumeFromLastStep: true,
+      };
+    }
+  } else {
+    data = {
+      activeTemplate: '',
+      lastUpdated: new Date().toISOString(),
+      completedSteps: [],
+      notCompletedSteps: [],
+      resumeFromLastStep: true,
+    };
+  }
+
+  data.selectedConditions = conditions;
   data.lastUpdated = new Date().toISOString();
 
   await writeFile(trackingPath, JSON.stringify(data, null, 2), 'utf8');

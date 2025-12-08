@@ -6,6 +6,9 @@ export {
   getTemplatePathFromTracking,
   getSelectedTrack,
   setSelectedTrack,
+  getSelectedConditions,
+  hasSelectedConditions,
+  setSelectedConditions,
 } from './template.js';
 
 // Step tracking functions
