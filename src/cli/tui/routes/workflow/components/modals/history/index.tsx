@@ -63,7 +63,7 @@ export function HistoryView(props: HistoryViewProps) {
     onOpenLogViewer: props.onOpenLogViewer,
     onClearHistory: handleClearHistory,
     onScrollToIndex: handleScrollToIndex,
-    disabled: props.disabled,
+    disabled: () => props.disabled ?? false,
   })
 
   // Sync selection when user scrolls manually with mouse

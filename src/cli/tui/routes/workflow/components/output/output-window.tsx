@@ -112,9 +112,16 @@ export function OutputWindow(props: OutputWindowProps) {
           <Show when={!props.isLoading && !props.isConnecting && !props.error && props.lines.length > 0}>
             <scrollbox
               height={scrollboxHeight()}
+              width="100%"
               stickyScroll={true}
               stickyStart="bottom"
-              scrollbarOptions={{ visible: false }}
+              scrollbarOptions={{
+                showArrows: true,
+                trackOptions: {
+                  foregroundColor: themeCtx.theme.info,
+                  backgroundColor: themeCtx.theme.borderSubtle,
+                },
+              }}
               viewportCulling={true}
               focused={true}
             >

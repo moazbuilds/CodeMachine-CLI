@@ -177,6 +177,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
     openLogViewer: modals.setLogViewerAgentId,
     openHistory: () => modals.setShowHistory(true),
     pauseWorkflow: () => pauseControl.pause(),
+    getCurrentAgentId: () => currentAgent()?.id ?? null,
   })
 
   return (

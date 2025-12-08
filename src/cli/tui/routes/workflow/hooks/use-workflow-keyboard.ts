@@ -26,6 +26,8 @@ export interface UseWorkflowKeyboardOptions {
   openHistory: () => void
   /** Pause workflow */
   pauseWorkflow: () => void
+  /** Get current agent ID shown in output window (fallback for Enter key) */
+  getCurrentAgentId?: () => string | null
 }
 
 /**
@@ -70,7 +72,8 @@ export function useWorkflowKeyboard(options: UseWorkflowKeyboardOptions) {
       if (s.selectedItemType === "summary" && s.selectedAgentId) {
         options.actions.toggleExpand(s.selectedAgentId)
       } else {
-        const agentId = s.selectedSubAgentId || s.selectedAgentId
+        // Use selected agent, or fall back to current agent in output window
+        const agentId = s.selectedSubAgentId || s.selectedAgentId || options.getCurrentAgentId?.()
         if (agentId) {
           options.openLogViewer(agentId)
         }

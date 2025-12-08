@@ -52,9 +52,16 @@ export function LogContent(props: LogContentProps) {
         >
           <scrollbox
             height={props.visibleHeight}
+            width="100%"
             stickyScroll={props.isRunning ?? true}
             stickyStart="bottom"
-            scrollbarOptions={{ visible: false }}
+            scrollbarOptions={{
+              showArrows: true,
+              trackOptions: {
+                foregroundColor: themeCtx.theme.info,
+                backgroundColor: themeCtx.theme.borderSubtle,
+              },
+            }}
             viewportCulling={true}
             focused={true}
           >
