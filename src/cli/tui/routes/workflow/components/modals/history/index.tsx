@@ -6,6 +6,7 @@
  */
 
 import { createMemo, For, Show } from "solid-js"
+import type { ScrollBoxRenderable } from "@opentui/core"
 import { useTheme } from "@tui/shared/context/theme"
 import { useRegistrySync } from "../../../hooks/useRegistrySync"
 import { flattenTree } from "./history-tree"
@@ -24,6 +25,7 @@ export interface HistoryViewProps {
 export function HistoryView(props: HistoryViewProps) {
   const themeCtx = useTheme()
   const { tree: liveTree, isLoading } = useRegistrySync()
+  let scrollRef: ScrollBoxRenderable | undefined
 
   // Use liveTree directly for real-time updates
   const flattenedAgents = createMemo(() => flattenTree(liveTree()))
@@ -33,6 +35,15 @@ export function HistoryView(props: HistoryViewProps) {
     await monitor.clearAll()
   }
 
+  // Scroll to keep selected item visible
+  const handleScrollToIndex = (index: number) => {
+    if (!scrollRef) return
+    // Each row is 1 line high
+    const rowHeight = 1
+    const targetScroll = index * rowHeight
+    scrollRef.scrollTop = targetScroll
+  }
+
   const nav = useHistoryNavigation({
     flattenedAgents,
     initialSelectedIndex: props.initialSelectedIndex,
@@ -40,6 +51,7 @@ export function HistoryView(props: HistoryViewProps) {
     onClose: props.onClose,
     onOpenLogViewer: props.onOpenLogViewer,
     onClearHistory: handleClearHistory,
+    onScrollToIndex: handleScrollToIndex,
     disabled: props.disabled,
   })
 
@@ -82,17 +94,32 @@ export function HistoryView(props: HistoryViewProps) {
             <box width={22}><text fg={themeCtx.theme.textMuted} attributes={1}>Tokens</text></box>
           </box>
 
-          {/* Agent Rows - using hook's visible slice for proper scrolling */}
-          <box flexDirection="column" height={nav.visibleLines()}>
-            <For each={nav.visibleAgents()}>
+          {/* Agent Rows - using scrollbox for native scrolling */}
+          <scrollbox
+            ref={(r: ScrollBoxRenderable) => { scrollRef = r }}
+            style={{
+              width: "100%",
+              height: nav.visibleLines(),
+              flexGrow: 1,
+              scrollbarOptions: {
+                showArrows: true,
+                trackOptions: {
+                  foregroundColor: themeCtx.theme.info,
+                  backgroundColor: themeCtx.theme.borderSubtle,
+                },
+              },
+            }}
+            focused
+          >
+            <For each={flattenedAgents()}>
               {(item, index) => (
                 <HistoryRow
                   item={item}
-                  isSelected={nav.scrollOffset() + index() === nav.selectedIndex()}
+                  isSelected={index() === nav.selectedIndex()}
                 />
               )}
             </For>
-          </box>
+          </scrollbox>
 
           {/* Footer */}
           <Show when={flattenedAgents().length > 0}>

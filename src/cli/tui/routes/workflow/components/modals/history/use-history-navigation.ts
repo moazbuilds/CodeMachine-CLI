@@ -15,19 +15,20 @@ export interface UseHistoryNavigationOptions {
   onClose: () => void
   onOpenLogViewer: (monitoringId: number) => void
   onClearHistory?: () => void
+  onScrollToIndex?: (index: number) => void
   disabled?: boolean
 }
 
 export function useHistoryNavigation(options: UseHistoryNavigationOptions) {
   const dimensions = useTerminalDimensions()
   const [selectedIndex, setSelectedIndexRaw] = createSignal(options.initialSelectedIndex ?? 0)
-  const [scrollOffset, setScrollOffset] = createSignal(0)
   const [pauseUpdates, setPauseUpdates] = createSignal(false)
 
   const setSelectedIndex = (valueOrFn: number | ((prev: number) => number)) => {
     setSelectedIndexRaw((prev) => {
       const newValue = typeof valueOrFn === "function" ? valueOrFn(prev) : valueOrFn
       options.onSelectedIndexChange?.(newValue)
+      options.onScrollToIndex?.(newValue)
       return newValue
     })
   }
@@ -37,24 +38,12 @@ export function useHistoryNavigation(options: UseHistoryNavigationOptions) {
     return Math.max(5, height - 8)
   })
 
-  // Clamp selected index
+  // Clamp selected index when list shrinks
   createEffect(() => {
     const agents = options.flattenedAgents()
     const idx = selectedIndex()
     if (idx >= agents.length && agents.length > 0) {
       setSelectedIndex(agents.length - 1)
-    }
-  })
-
-  // Auto-scroll to keep selected item visible
-  createEffect(() => {
-    const idx = selectedIndex()
-    const offset = scrollOffset()
-    const visible = visibleLines()
-    if (idx < offset) {
-      setScrollOffset(idx)
-    } else if (idx >= offset + visible) {
-      setScrollOffset(idx - visible + 1)
     }
   })
 
@@ -69,11 +58,6 @@ export function useHistoryNavigation(options: UseHistoryNavigationOptions) {
   const handleInteraction = () => {
     if (!pauseUpdates()) setPauseUpdates(true)
   }
-
-  const visibleAgents = createMemo(() => {
-    const agents = options.flattenedAgents()
-    return agents.slice(scrollOffset(), scrollOffset() + visibleLines())
-  })
 
   useKeyboard((evt) => {
     if (options.disabled) return
@@ -146,9 +130,7 @@ export function useHistoryNavigation(options: UseHistoryNavigationOptions) {
 
   return {
     selectedIndex,
-    scrollOffset,
     visibleLines,
-    visibleAgents,
     pauseUpdates,
   }
 }
