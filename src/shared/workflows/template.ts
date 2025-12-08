@@ -20,6 +20,7 @@ interface TemplateTracking {
   completedSteps?: number[];
   notCompletedSteps?: number[];
   resumeFromLastStep?: boolean;
+  selectedTrack?: string; // Selected workflow track (e.g., 'bmad', 'quick', 'enterprise')
 }
 
 /**
@@ -91,4 +92,61 @@ export async function getTemplatePathFromTracking(cmRoot: string): Promise<strin
 
   // Return full path from template name
   return path.join(templatesDir, activeTemplate);
+}
+
+/**
+ * Gets the selected track from the tracking file.
+ */
+export async function getSelectedTrack(cmRoot: string): Promise<string | null> {
+  const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
+
+  if (!existsSync(trackingPath)) {
+    return null;
+  }
+
+  try {
+    const content = await readFile(trackingPath, 'utf8');
+    const data = JSON.parse(content) as TemplateTracking;
+    return data.selectedTrack ?? null;
+  } catch (error) {
+    console.warn(`Failed to read selected track: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
+
+/**
+ * Sets the selected track in the tracking file.
+ */
+export async function setSelectedTrack(cmRoot: string, track: string): Promise<void> {
+  const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
+
+  let data: TemplateTracking;
+
+  if (existsSync(trackingPath)) {
+    try {
+      const content = await readFile(trackingPath, 'utf8');
+      data = JSON.parse(content) as TemplateTracking;
+    } catch {
+      data = {
+        activeTemplate: '',
+        lastUpdated: new Date().toISOString(),
+        completedSteps: [],
+        notCompletedSteps: [],
+        resumeFromLastStep: true,
+      };
+    }
+  } else {
+    data = {
+      activeTemplate: '',
+      lastUpdated: new Date().toISOString(),
+      completedSteps: [],
+      notCompletedSteps: [],
+      resumeFromLastStep: true,
+    };
+  }
+
+  data.selectedTrack = track;
+  data.lastUpdated = new Date().toISOString();
+
+  await writeFile(trackingPath, JSON.stringify(data, null, 2), 'utf8');
 }

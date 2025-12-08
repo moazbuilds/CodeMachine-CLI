@@ -6,6 +6,7 @@ export interface StepOverrides {
   engine?: string; // Dynamic engine type from registry
   executeOnce?: boolean;
   notCompletedFallback?: string;
+  tracks?: string[]; // Track names this step belongs to (e.g., ['bmad', 'enterprise'])
 }
 
 export interface WorkflowStep {
@@ -19,6 +20,7 @@ export interface WorkflowStep {
   module?: ModuleMetadata;
   executeOnce?: boolean;
   notCompletedFallback?: string;
+  tracks?: string[]; // Track names this step belongs to (e.g., ['bmad', 'enterprise'])
 }
 
 export interface LoopBehaviorConfig {

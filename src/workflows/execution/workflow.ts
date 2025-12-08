@@ -13,6 +13,7 @@ import {
   markStepStarted,
   removeFromNotCompleted,
   getResumeStartIndex,
+  getSelectedTrack,
 } from '../../shared/workflows/index.js';
 import { registry } from '../../infra/engines/index.js';
 import { shouldSkipStep, logSkipDebug, type ActiveLoop } from '../behaviors/skip.js';
@@ -132,6 +133,9 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   // Load not completed steps for fallback tracking
   const notCompletedSteps = await getNotCompletedSteps(cmRoot);
 
+  // Load selected track for track-based filtering
+  const selectedTrack = await getSelectedTrack(cmRoot);
+
   const loopCounters = new Map<string, number>();
   let activeLoop: ActiveLoop | null = null;
   const workflowStartTime = Date.now();
@@ -163,14 +167,27 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   };
 
   // Emit workflow started event
-  const totalModuleSteps = template.steps.filter(s => s.type === 'module').length;
+  // Count only module steps that match the selected track
+  const totalModuleSteps = template.steps.filter(s => {
+    if (s.type !== 'module') return false;
+    // Include step if: no tracks defined OR selectedTrack is in tracks list
+    if (s.tracks?.length && selectedTrack && !s.tracks.includes(selectedTrack)) {
+      return false;
+    }
+    return true;
+  }).length;
   emitter.workflowStarted(template.name, totalModuleSteps);
 
-  // Pre-populate timeline with all workflow steps BEFORE starting UI
+  // Pre-populate timeline with workflow steps that match selected track
   // This prevents duplicate renders at startup
   // Set initial status based on completion tracking
   template.steps.forEach((step, stepIndex) => {
     if (step.type === 'module') {
+      // Track filtering: skip steps not in selected track
+      if (step.tracks?.length && selectedTrack && !step.tracks.includes(selectedTrack)) {
+        return; // Don't add to UI
+      }
+
       const defaultEngine = registry.getDefault();
       const engineType = step.engine ?? defaultEngine?.metadata.id ?? 'unknown';
       const engineName = engineType; // preserve original engine type, even if unknown
@@ -203,7 +220,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       const agent = state.agents.find(a => a.id === agentId);
       if (agent) {
         agent.stepIndex = stepIndex;
-        agent.totalSteps = template.steps.filter(s => s.type === 'module').length;
+        agent.totalSteps = totalModuleSteps;
       }
     } else if (step.type === 'ui') {
       // Pre-populate UI elements
@@ -324,7 +341,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     // Create unique agent ID for this step instance (matches UI pre-population)
     const uniqueAgentId = `${step.agentId}-step-${index}`;
 
-    const skipResult = shouldSkipStep(step, index, completedSteps, activeLoop, ui, uniqueAgentId, emitter);
+    const skipResult = shouldSkipStep(step, index, completedSteps, activeLoop, ui, uniqueAgentId, emitter, selectedTrack);
     if (skipResult.skip) {
       ui.logMessage(uniqueAgentId, skipResult.reason!);
       emitter.logMessage(uniqueAgentId, skipResult.reason!);

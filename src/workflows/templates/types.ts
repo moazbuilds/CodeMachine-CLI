@@ -38,6 +38,7 @@ export interface ModuleStep {
   module?: ModuleMetadata;
   executeOnce?: boolean;
   notCompletedFallback?: string; // Agent ID to run if step is in notCompletedSteps
+  tracks?: string[]; // Track names this step belongs to (e.g., ['bmad', 'enterprise'])
 }
 
 export interface UIStep {

@@ -16,6 +16,7 @@ export function shouldSkipStep(
   ui?: WorkflowUIManager,
   uniqueAgentId?: string,
   emitter?: WorkflowEventEmitter,
+  selectedTrack?: string | null,
 ): { skip: boolean; reason?: string } {
   // UI steps can't be skipped
   if (!isModuleStep(step)) {
@@ -24,6 +25,13 @@ export function shouldSkipStep(
 
   // Use provided unique agent ID or fall back to step.agentId
   const agentId = uniqueAgentId ?? step.agentId;
+
+  // Track-based filtering: skip if step has tracks and selectedTrack not in list
+  if (step.tracks?.length && selectedTrack && !step.tracks.includes(selectedTrack)) {
+    ui?.updateAgentStatus(agentId, 'skipped');
+    emitter?.updateAgentStatus(agentId, 'skipped');
+    return { skip: true, reason: `${step.agentName} skipped (not in "${selectedTrack}" track).` };
+  }
 
   // Skip step if executeOnce is true and it's already completed
   if (step.executeOnce && completedSteps.includes(index)) {

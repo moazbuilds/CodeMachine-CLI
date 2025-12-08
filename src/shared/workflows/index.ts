@@ -4,6 +4,8 @@ export {
   setActiveTemplate,
   hasTemplateChanged,
   getTemplatePathFromTracking,
+  getSelectedTrack,
+  setSelectedTrack,
 } from './template.js';
 
 // Step tracking functions
