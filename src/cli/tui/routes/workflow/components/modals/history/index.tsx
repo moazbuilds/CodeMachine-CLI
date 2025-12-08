@@ -5,7 +5,7 @@
  * Full-screen history view showing all agent executions with OpenTUI scrollbox.
  */
 
-import { createMemo, For, Show } from "solid-js"
+import { createMemo, createEffect, createSignal, onCleanup, For, Show } from "solid-js"
 import type { ScrollBoxRenderable } from "@opentui/core"
 import { useTheme } from "@tui/shared/context/theme"
 import { useRegistrySync } from "../../../hooks/useRegistrySync"
@@ -25,7 +25,7 @@ export interface HistoryViewProps {
 export function HistoryView(props: HistoryViewProps) {
   const themeCtx = useTheme()
   const { tree: liveTree, isLoading } = useRegistrySync()
-  let scrollRef: ScrollBoxRenderable | undefined
+  const [scrollRef, setScrollRef] = createSignal<ScrollBoxRenderable | undefined>()
 
   // Use liveTree directly for real-time updates
   const flattenedAgents = createMemo(() => flattenTree(liveTree()))
@@ -35,13 +35,24 @@ export function HistoryView(props: HistoryViewProps) {
     await monitor.clearAll()
   }
 
-  // Scroll to keep selected item visible
+  // Scroll to keep selected item visible (only when out of view)
   const handleScrollToIndex = (index: number) => {
-    if (!scrollRef) return
-    // Each row is 1 line high
+    const ref = scrollRef()
+    if (!ref) return
     const rowHeight = 1
-    const targetScroll = index * rowHeight
-    scrollRef.scrollTop = targetScroll
+    const targetPosition = index * rowHeight
+    const visibleHeight = nav.visibleLines()
+    const currentScroll = ref.scrollTop
+
+    // If selection is above visible area, scroll up to show it at top
+    if (targetPosition < currentScroll) {
+      ref.scrollTop = targetPosition
+    }
+    // If selection is below visible area, scroll down to show it at bottom
+    else if (targetPosition >= currentScroll + visibleHeight) {
+      ref.scrollTop = targetPosition - visibleHeight + 1
+    }
+    // Otherwise selection is already visible, don't scroll
   }
 
   const nav = useHistoryNavigation({
@@ -53,6 +64,33 @@ export function HistoryView(props: HistoryViewProps) {
     onClearHistory: handleClearHistory,
     onScrollToIndex: handleScrollToIndex,
     disabled: props.disabled,
+  })
+
+  // Sync selection when user scrolls manually with mouse
+  createEffect(() => {
+    const ref = scrollRef()
+    if (!ref) return
+
+    const handleScrollChange = () => {
+      const currentScroll = ref.scrollTop
+      const visibleHeight = nav.visibleLines()
+      const currentSelection = nav.selectedIndex()
+
+      // If selection is above visible area, move it down
+      if (currentSelection < currentScroll) {
+        nav.setSelectedIndex(Math.floor(currentScroll))
+      }
+      // If selection is below visible area, move it up
+      else if (currentSelection >= currentScroll + visibleHeight) {
+        nav.setSelectedIndex(Math.floor(currentScroll + visibleHeight - 1))
+      }
+    }
+
+    ref.verticalScrollBar?.on("change", handleScrollChange)
+
+    onCleanup(() => {
+      ref.verticalScrollBar?.off("change", handleScrollChange)
+    })
   })
 
   return (
@@ -96,17 +134,15 @@ export function HistoryView(props: HistoryViewProps) {
 
           {/* Agent Rows - using scrollbox for native scrolling */}
           <scrollbox
-            ref={(r: ScrollBoxRenderable) => { scrollRef = r }}
-            style={{
-              width: "100%",
-              height: nav.visibleLines(),
-              flexGrow: 1,
-              scrollbarOptions: {
-                showArrows: true,
-                trackOptions: {
-                  foregroundColor: themeCtx.theme.info,
-                  backgroundColor: themeCtx.theme.borderSubtle,
-                },
+            ref={(r: ScrollBoxRenderable) => { setScrollRef(r) }}
+            height={nav.visibleLines()}
+            width="100%"
+            flexGrow={1}
+            scrollbarOptions={{
+              showArrows: true,
+              trackOptions: {
+                foregroundColor: themeCtx.theme.info,
+                backgroundColor: themeCtx.theme.borderSubtle,
               },
             }}
             focused

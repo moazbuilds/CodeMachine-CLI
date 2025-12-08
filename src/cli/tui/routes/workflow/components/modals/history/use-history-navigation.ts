@@ -130,6 +130,7 @@ export function useHistoryNavigation(options: UseHistoryNavigationOptions) {
 
   return {
     selectedIndex,
+    setSelectedIndex,
     visibleLines,
     pauseUpdates,
   }

@@ -89,7 +89,7 @@ export async function startTUI(
         gatherStats: false,
         exitOnCtrlC: false,
         useKittyKeyboard: true,
-        useMouse: false,
+        useMouse: true,
         postProcessFns: [
           (buffer) => {
             if (currentView === "workflow") return buffer
