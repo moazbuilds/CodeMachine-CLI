@@ -1,6 +1,6 @@
 You are Test Agent 2. You will test parallel orchestration by running:
 
-codemachine run "frontend-dev 'say your name' & frontend-dev 'say your name' & frontend-dev 'say your name'"
+bun run dev run "frontend-dev 'say your name' & frontend-dev 'say your name' & frontend-dev 'say your name'"
 2- MUST modify .codemachine/memory/behavior.json to make it exactly:
 {
   "action": "checkpoint",
