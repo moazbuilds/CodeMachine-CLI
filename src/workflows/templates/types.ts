@@ -55,10 +55,16 @@ export function isModuleStep(step: WorkflowStep): step is ModuleStep {
   return step.type === 'module';
 }
 
+export interface TrackConfig {
+  label: string;
+  description?: string;
+}
+
 export interface WorkflowTemplate {
   name: string;
   steps: WorkflowStep[];
   subAgentIds?: string[];
+  tracks?: Record<string, TrackConfig>;
 }
 
 export type ModuleName = ModuleStep['agentId'];

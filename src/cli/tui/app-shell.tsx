@@ -15,16 +15,21 @@ import { useSession } from "@tui/shared/context/session"
 import { useUpdateNotifier } from "@tui/shared/context/update-notifier"
 import { Home } from "@tui/routes/home"
 import { Workflow } from "@tui/routes/workflow"
+import { Onboard } from "@tui/routes/onboard"
 import { homedir } from "os"
 import { WorkflowEventBus } from "../../workflows/events/index.js"
 import { MonitoringCleanup } from "../../agents/monitoring/index.js"
 import path from "path"
 import { createRequire } from "node:module"
 import { resolvePackageJson } from "../../shared/runtime/pkg.js"
+import { getSelectedTrack, setSelectedTrack } from "../../shared/workflows/index.js"
+import { loadTemplate } from "../../workflows/templates/loader.js"
+import { getTemplatePathFromTracking } from "../../shared/workflows/template.js"
+import type { TrackConfig } from "../../workflows/templates/types"
 import type { InitialToast } from "./app"
 
 // Module-level view state for post-processing effects
-export let currentView: "home" | "workflow" = "home"
+export let currentView: "home" | "onboard" | "workflow" = "home"
 
 export function App(props: { initialToast?: InitialToast }) {
   const dimensions = useTerminalDimensions()
@@ -37,8 +42,9 @@ export function App(props: { initialToast?: InitialToast }) {
 
   const [ctrlCPressed, setCtrlCPressed] = createSignal(false)
   let ctrlCTimeout: NodeJS.Timeout | null = null
-  const [view, setView] = createSignal<"home" | "workflow">("home")
+  const [view, setView] = createSignal<"home" | "onboard" | "workflow">("home")
   const [workflowEventBus, setWorkflowEventBus] = createSignal<WorkflowEventBus | null>(null)
+  const [templateTracks, setTemplateTracks] = createSignal<Record<string, TrackConfig> | null>(null)
 
   let pendingWorkflowStart: (() => void) | null = null
 
@@ -50,6 +56,32 @@ export function App(props: { initialToast?: InitialToast }) {
   }
 
   const handleStartWorkflow = async () => {
+    const cwd = process.env.CODEMACHINE_CWD || process.cwd()
+    const cmRoot = path.join(cwd, '.codemachine')
+
+    // Check if tracks exist and no selection yet
+    try {
+      const templatePath = await getTemplatePathFromTracking(cmRoot)
+      const template = await loadTemplate(cwd, templatePath)
+      const selectedTrack = await getSelectedTrack(cmRoot)
+
+      // If tracks exist and none selected, show onboard view
+      if (template.tracks && Object.keys(template.tracks).length > 0 && !selectedTrack) {
+        setTemplateTracks(template.tracks)
+        currentView = "onboard"
+        setView("onboard")
+        return
+      }
+    } catch (error) {
+      // If template loading fails, proceed to workflow anyway
+      console.error("Failed to check tracks:", error)
+    }
+
+    // No tracks or already selected - start workflow directly
+    startWorkflowExecution()
+  }
+
+  const startWorkflowExecution = () => {
     const eventBus = new WorkflowEventBus()
     setWorkflowEventBus(eventBus)
     // @ts-expect-error - global export for workflow connection
@@ -68,6 +100,22 @@ export function App(props: { initialToast?: InitialToast }) {
 
     currentView = "workflow"
     setView("workflow")
+  }
+
+  const handleOnboardComplete = async (trackId: string) => {
+    const cwd = process.env.CODEMACHINE_CWD || process.cwd()
+    const cmRoot = path.join(cwd, '.codemachine')
+
+    // Save selected track
+    await setSelectedTrack(cmRoot, trackId)
+
+    // Start workflow
+    startWorkflowExecution()
+  }
+
+  const handleOnboardCancel = () => {
+    currentView = "home"
+    setView("home")
   }
 
   createEffect(() => {
@@ -136,13 +184,20 @@ export function App(props: { initialToast?: InitialToast }) {
           <Match when={view() === "home"}>
             <Home initialToast={props.initialToast} onStartWorkflow={handleStartWorkflow} />
           </Match>
+          <Match when={view() === "onboard"}>
+            <Onboard
+              tracks={templateTracks() ?? {}}
+              onComplete={handleOnboardComplete}
+              onCancel={handleOnboardCancel}
+            />
+          </Match>
           <Match when={view() === "workflow"}>
             <Workflow eventBus={workflowEventBus()} onAdapterReady={handleAdapterReady} />
           </Match>
         </Switch>
       </box>
 
-      <Show when={view() !== "workflow"}>
+      <Show when={view() === "home"}>
         <box height={1} flexShrink={0} backgroundColor={themeCtx.theme.backgroundPanel}>
           <box flexDirection="row" justifyContent="space-between" paddingLeft={1} paddingRight={1}>
             <box flexDirection="row" gap={1}>
