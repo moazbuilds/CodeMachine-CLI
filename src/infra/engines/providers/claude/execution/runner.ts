@@ -7,7 +7,17 @@ import { metadata } from '../metadata.js';
 import { expandHomeDir } from '../../../../../shared/utils/index.js';
 import { createTelemetryCapture } from '../../../../../shared/telemetry/index.js';
 import type { ParsedTelemetry } from '../../../core/types.js';
-import { formatThinking, formatCommand, formatResult, formatStatus } from '../../../../../shared/formatters/outputMarkers.js';
+import {
+  formatThinking,
+  formatCommand,
+  formatResult,
+  formatStatus,
+  formatDuration,
+  formatCost,
+  formatTokens,
+  addMarker,
+  SYMBOL_BULLET,
+} from '../../../../../shared/formatters/outputMarkers.js';
 
 export interface RunClaudeOptions {
   prompt: string;
@@ -99,7 +109,11 @@ function formatStreamJsonLine(line: string): string | null {
         ? `${totalIn}in/${json.usage.output_tokens}out (${totalCached} cached)`
         : `${totalIn}in/${json.usage.output_tokens}out`;
 
-      return `⏱️  Duration: ${json.duration_ms}ms | Cost: $${json.total_cost_usd} | Tokens: ${tokensDisplay}`;
+      // Format telemetry line with rich formatting
+      const durationStr = formatDuration(json.duration_ms);
+      const costStr = formatCost(json.total_cost_usd);
+      const tokensStr = formatTokens(totalIn, json.usage.output_tokens, totalCached > 0 ? totalCached : undefined);
+      return addMarker('GRAY', `${SYMBOL_BULLET} `, 'DIM') + `${durationStr} ${addMarker('GRAY', '│', 'DIM')} ${costStr} ${addMarker('GRAY', '│', 'DIM')} ${tokensStr}`;
     }
 
     return null;

@@ -47,7 +47,7 @@ export interface OutputWindowProps {
  * Output window showing current agent's output
  * Displays last N lines with syntax highlighting using scrollbox
  */
-const OUTPUT_HEADER_HEIGHT = 5  // Side curve header (5 lines: padding + ╭─ + info + thinking + ╰─)
+const OUTPUT_HEADER_HEIGHT = 4  // Side curve header (4 lines: ╭─ + info + thinking + ╰─)
 
 export function OutputWindow(props: OutputWindowProps) {
   const themeCtx = useTheme()

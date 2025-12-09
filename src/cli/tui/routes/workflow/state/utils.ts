@@ -9,7 +9,13 @@ export function updateAgentTelemetryInList(
     agent.id === agentId
       ? {
           ...agent,
-          telemetry: { ...agent.telemetry, ...telemetry },
+          telemetry: {
+            tokensIn: agent.telemetry.tokensIn + (telemetry.tokensIn ?? 0),
+            tokensOut: agent.telemetry.tokensOut + (telemetry.tokensOut ?? 0),
+            cached: (agent.telemetry.cached ?? 0) + (telemetry.cached ?? 0) || undefined,
+            cost: (agent.telemetry.cost ?? 0) + (telemetry.cost ?? 0) || undefined,
+            duration: (agent.telemetry.duration ?? 0) + (telemetry.duration ?? 0) || undefined,
+          },
         }
       : agent,
   )

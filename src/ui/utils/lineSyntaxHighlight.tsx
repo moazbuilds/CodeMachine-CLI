@@ -27,13 +27,14 @@ export const LineSyntaxHighlight: React.FC<LineSyntaxHighlightProps> = ({
   const { color: markerColor, text } = parseMarker(line);
 
   // Determine text color based on marker or content
-  const getTextColor = (parsedColor: 'gray' | 'green' | 'red' | 'orange' | 'cyan' | null, text: string): string | undefined => {
+  const getTextColor = (parsedColor: string | null, text: string): string | undefined => {
     // If there's a color marker, use it
     if (parsedColor) {
-      // Use hex color for orange since Ink supports it
-      if (parsedColor === 'orange') {
-        return '#FF8C00'; // Dark orange hex color
-      }
+      // Use hex colors for extended palette
+      if (parsedColor === 'orange') return '#FF8C00';
+      if (parsedColor === 'yellow') return 'yellow';
+      if (parsedColor === 'blue') return 'blue';
+      if (parsedColor === 'magenta') return 'magenta';
       return parsedColor;
     }
 

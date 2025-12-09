@@ -106,14 +106,18 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
      * These are kept in log files for debugging but hidden from UI
      */
     function filterHeaderLines(fileLines: string[]): string[] {
-      return fileLines.filter((line) => {
-        if (!line) return true // keep empty lines for spacing
+      const filtered = fileLines.filter((line) => {
         if (line.includes("╭─") || line.includes("╰─")) return false
         if (line.includes("Started:") || line.includes("Prompt:")) return false
         // Filter out token telemetry lines (shown in telemetry bar instead)
-        if (line.includes("⏱️") && line.includes("Tokens:")) return false
+        if (line.includes("Tokens:") && (line.includes("in/") || line.includes("out"))) return false
         return true
       })
+      // Trim empty lines from start
+      while (filtered.length > 0 && !filtered[0]?.trim()) {
+        filtered.shift()
+      }
+      return filtered
     }
 
     /**

@@ -28,8 +28,10 @@ export function TelemetryBar(props: TelemetryBarProps) {
   const themeCtx = useTheme()
 
   const totalText = () => {
-    const base = formatTokens(props.total.tokensIn, props.total.tokensOut)
-    return props.total.cached ? `${base} (${formatNumber(props.total.cached)} cached)` : base
+    const cached = props.total.cached ?? 0
+    const newTokensIn = props.total.tokensIn - cached
+    const base = formatTokens(newTokensIn, props.total.tokensOut)
+    return cached > 0 ? `${base} (${formatNumber(cached)} cached)` : base
   }
 
   const showStatus = () => props.status === "checkpoint" || props.status === "paused" || props.status === "stopped"
@@ -58,6 +60,7 @@ export function TelemetryBar(props: TelemetryBarProps) {
       justifyContent="space-between"
       width="100%"
       borderStyle="rounded"
+      borderColor={themeCtx.theme.border}
     >
       {/* Left side: workflow name, runtime, status */}
       <box flexDirection="row">

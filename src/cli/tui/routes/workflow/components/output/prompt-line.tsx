@@ -13,7 +13,6 @@
  */
 
 import { createSignal, createEffect, onCleanup, Show } from "solid-js"
-import { useKeyboard } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
 
 export type PromptLineState =
@@ -34,88 +33,62 @@ export function PromptLine(props: PromptLineProps) {
   const themeCtx = useTheme()
   const [input, setInput] = createSignal("")
   const [typingText, setTypingText] = createSignal("")
-  const [isTypingForward, setIsTypingForward] = createSignal(true)
 
-  const TYPING_SPEED = 40 // ms per character
-  const PAUSE_DURATION = 1000 // ms to pause at full text before erasing
+  const PLACEHOLDER = "Enter to continue or type prompt..."
 
-  const TYPING_MESSAGE = "Enter to continue or type prompt..."
-
-  // Typing effect for placeholder when focused and input is empty
-  let typingInterval: ReturnType<typeof setInterval> | null = null
-
+  // Typing effect with proper cleanup using onCleanup inside createEffect
   createEffect(() => {
     const shouldAnimate = props.isFocused &&
       (props.state.mode === "active" || props.state.mode === "chained") &&
       input() === ""
 
-    if (shouldAnimate) {
-      let charIndex = 0
-      let forward = true
-      let pauseCounter = 0
-
-      // Start fresh
+    if (!shouldAnimate) {
       setTypingText("")
+      return
+    }
 
-      typingInterval = setInterval(() => {
-        if (forward) {
-          if (charIndex < TYPING_MESSAGE.length) {
-            charIndex++
-            setTypingText(TYPING_MESSAGE.slice(0, charIndex))
-          } else {
-            // Pause at full text
-            pauseCounter++
-            if (pauseCounter >= PAUSE_DURATION / TYPING_SPEED) {
-              forward = false
-              pauseCounter = 0
-            }
-          }
+    // Animation state
+    let charIndex = 0
+    let forward = true
+    let pauseCounter = 0
+    const TYPING_SPEED = 40
+    const PAUSE_CYCLES = 25 // cycles to pause (1000ms / 40ms)
+
+    setTypingText("")
+
+    const interval = setInterval(() => {
+      if (forward) {
+        if (charIndex < PLACEHOLDER.length) {
+          charIndex++
+          setTypingText(PLACEHOLDER.slice(0, charIndex))
         } else {
-          if (charIndex > 0) {
-            charIndex--
-            setTypingText(TYPING_MESSAGE.slice(0, charIndex))
-          } else {
-            // Pause at empty
-            pauseCounter++
-            if (pauseCounter >= PAUSE_DURATION / TYPING_SPEED) {
-              forward = true
-              pauseCounter = 0
-            }
+          pauseCounter++
+          if (pauseCounter >= PAUSE_CYCLES) {
+            forward = false
+            pauseCounter = 0
           }
         }
-      }, TYPING_SPEED)
-    } else {
-      if (typingInterval) {
-        clearInterval(typingInterval)
-        typingInterval = null
+      } else {
+        if (charIndex > 0) {
+          charIndex--
+          setTypingText(PLACEHOLDER.slice(0, charIndex))
+        } else {
+          pauseCounter++
+          if (pauseCounter >= PAUSE_CYCLES) {
+            forward = true
+            pauseCounter = 0
+          }
+        }
       }
-      setTypingText("")
-    }
+    }, TYPING_SPEED)
+
+    // Cleanup when effect re-runs or component unmounts
+    onCleanup(() => {
+      clearInterval(interval)
+    })
   })
 
-  onCleanup(() => {
-    if (typingInterval) clearInterval(typingInterval)
-  })
-
-  // Global keyboard handling for escape/navigation (only when focused)
-  useKeyboard((evt) => {
-    if (!props.isFocused) return
-
-    // Escape - exit focus
-    if (evt.name === "escape") {
-      evt.preventDefault()
-      props.onFocusExit()
-      return
-    }
-
-    // Left arrow at start of input - exit focus
-    if (evt.name === "left" && input() === "") {
-      evt.preventDefault()
-      props.onFocusExit()
-      return
-    }
-    // Don't preventDefault for other keys - let them pass to input
-  })
+  // Keyboard is handled by input's onKeyDown - no useKeyboard here to avoid race conditions
 
   const handleSubmit = () => {
     const value = input().trim()
@@ -131,9 +104,36 @@ export function PromptLine(props: PromptLineProps) {
     }
   }
 
-  const handleKeyDown = (evt: { name?: string }) => {
+  const handleKeyDown = (evt: { name?: string; ctrl?: boolean; preventDefault?: () => void }) => {
+    // Enter - submit
     if (evt.name === "return") {
       handleSubmit()
+      return
+    }
+
+    // Left arrow at start - exit focus
+    if (evt.name === "left" && input() === "") {
+      evt.preventDefault?.()
+      props.onFocusExit()
+      return
+    }
+
+    // Note: Escape and Ctrl+S are handled at workflow-keyboard level
+    // to avoid race conditions with multiple useKeyboard hooks
+  }
+
+  // Handle paste events (Ctrl+V, right-click paste, terminal paste)
+  const handlePaste = (evt: { text: string; preventDefault?: () => void }) => {
+    if (!isInteractive() || !evt.text) return
+
+    // Normalize line endings (Windows ConPTY sends CR-only in bracketed paste)
+    const normalized = evt.text.replace(/\r\n/g, "\n").replace(/\r/g, "\n")
+    // Replace newlines with spaces for single-line input
+    const cleanText = normalized.replace(/\n+/g, " ").trim()
+
+    if (cleanText) {
+      evt.preventDefault?.()
+      setInput((prev) => prev + cleanText)
     }
   }
 
@@ -207,6 +207,7 @@ export function PromptLine(props: PromptLineProps) {
               placeholderColor={themeCtx.theme.textMuted}
               onInput={setInput}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               focused={true}
               flexGrow={1}
               backgroundColor={themeCtx.theme.background}

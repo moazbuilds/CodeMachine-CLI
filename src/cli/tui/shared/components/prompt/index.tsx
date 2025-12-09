@@ -160,9 +160,13 @@ export function Prompt(props: PromptProps) {
             ref={(r) => (inputRef = r)}
             value={input()}
             placeholder={props.disabled ? "Dialog open..." : (props.placeholder || "Type /start to see the magic")}
+            placeholderColor={themeCtx.theme.textMuted}
             onInput={handleInput}
             onKeyDown={handleKeyDown}
             focused={!props.disabled}
+            textColor={themeCtx.theme.text}
+            focusedTextColor={themeCtx.theme.text}
+            cursorColor={themeCtx.theme.primary}
             backgroundColor="transparent"
             focusedBackgroundColor="transparent"
           />

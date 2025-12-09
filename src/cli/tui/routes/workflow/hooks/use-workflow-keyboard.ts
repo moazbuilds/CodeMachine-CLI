@@ -2,6 +2,7 @@
  * Workflow Keyboard Hook
  *
  * Handles keyboard navigation for the workflow view.
+ * Global shortcuts (Ctrl+S) always work regardless of modal/focus state.
  */
 
 import { useKeyboard } from "@opentui/solid"
@@ -18,8 +19,16 @@ export interface UseWorkflowKeyboardOptions {
   }
   /** Calculate visible items for navigation */
   calculateVisibleItems: () => number
-  /** Check if keyboard should be disabled */
-  isDisabled: () => boolean
+  /** Check if a modal is blocking (checkpoint, stop, log viewer, history) */
+  isModalBlocking: () => boolean
+  /** Check if prompt box is focused */
+  isPromptBoxFocused: () => boolean
+  /** Check if chained prompts are active */
+  isChainedActive: () => boolean
+  /** Check if workflow is paused */
+  isPaused: () => boolean
+  /** Resume workflow (used when skipping while paused) */
+  resumeWorkflow: () => void
   /** Open log viewer for an agent */
   openLogViewer: (agentId: string) => void
   /** Open history view */
@@ -36,6 +45,8 @@ export interface UseWorkflowKeyboardOptions {
   canFocusPromptBox?: () => boolean
   /** Focus the prompt box */
   focusPromptBox?: () => void
+  /** Exit prompt box focus */
+  exitPromptBoxFocus?: () => void
 }
 
 /**
@@ -43,9 +54,58 @@ export interface UseWorkflowKeyboardOptions {
  */
 export function useWorkflowKeyboard(options: UseWorkflowKeyboardOptions) {
   useKeyboard((evt) => {
-    if (options.isDisabled()) return
+    // === GLOBAL SHORTCUTS (always work) ===
 
-    // H key - toggle history view
+    // Ctrl+S - skip current agent (ALWAYS available)
+    // Handles different states: chained prompts, paused, or running
+    if (evt.ctrl && evt.name === "s") {
+      evt.preventDefault()
+
+      // If chained prompts active, skip all remaining chained prompts
+      if (options.isChainedActive()) {
+        ;(process as NodeJS.EventEmitter).emit("chained:skip-all")
+        options.exitPromptBoxFocus?.()
+        return
+      }
+
+      // If paused, resume first then skip
+      if (options.isPaused()) {
+        options.resumeWorkflow()
+        options.exitPromptBoxFocus?.()
+        // Small delay to let resume take effect, then skip
+        setTimeout(() => {
+          ;(process as NodeJS.EventEmitter).emit("workflow:skip")
+        }, 50)
+        return
+      }
+
+      // Normal case: just emit skip
+      ;(process as NodeJS.EventEmitter).emit("workflow:skip")
+      return
+    }
+
+    // === PROMPT BOX FOCUSED STATE ===
+    // When prompt box is focused, only handle Escape (to exit focus)
+    // Other keys should pass through to the input component
+    if (options.isPromptBoxFocused()) {
+      if (evt.name === "escape") {
+        evt.preventDefault()
+        options.exitPromptBoxFocus?.()
+      }
+      // Don't handle other keys - let the input handle them
+      return
+    }
+
+    // === MODAL BLOCKING STATE ===
+    // When a modal is open (checkpoint, stop, log viewer, history),
+    // let the modal handle its own keyboard events
+    if (options.isModalBlocking()) {
+      return
+    }
+
+    // === NORMAL WORKFLOW SHORTCUTS ===
+
+    // H key - open history view
     if (evt.name === "h") {
       evt.preventDefault()
       options.openHistory()
@@ -112,13 +172,6 @@ export function useWorkflowKeyboard(options: UseWorkflowKeyboardOptions) {
     if (evt.name === "escape" && options.canStop()) {
       evt.preventDefault()
       options.showStopConfirmation()
-      return
-    }
-
-    // Ctrl+S - skip current agent
-    if (evt.ctrl && evt.name === "s") {
-      evt.preventDefault()
-      ;(process as NodeJS.EventEmitter).emit("workflow:skip")
       return
     }
   })

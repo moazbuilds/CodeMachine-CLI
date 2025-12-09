@@ -276,7 +276,11 @@ export function WorkflowShell(props: WorkflowShellProps) {
     getState: state,
     actions: ui.actions,
     calculateVisibleItems: getVisibleItems,
-    isDisabled: () => isCheckpointActive() || isPromptBoxFocused() || modals.isLogViewerActive() || modals.isHistoryActive() || modals.isHistoryLogViewerActive() || showStopModal(),
+    isModalBlocking: () => isCheckpointActive() || modals.isLogViewerActive() || modals.isHistoryActive() || modals.isHistoryLogViewerActive() || showStopModal(),
+    isPromptBoxFocused: () => isPromptBoxFocused(),
+    isChainedActive,
+    isPaused: () => pauseControl.isPaused(),
+    resumeWorkflow: () => pauseControl.resumeWithPrompt(),
     openLogViewer: modals.setLogViewerAgentId,
     openHistory: () => modals.setShowHistory(true),
     pauseWorkflow: () => pauseControl.pause(),
@@ -288,6 +292,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
     getCurrentAgentId: () => currentAgent()?.id ?? null,
     canFocusPromptBox: () => (isChainedActive() || pauseControl.isPaused()) && isShowingRunningAgent() && !isPromptBoxFocused(),
     focusPromptBox: () => setIsPromptBoxFocused(true),
+    exitPromptBoxFocus: () => setIsPromptBoxFocused(false),
   })
 
   return (
@@ -308,7 +313,6 @@ export function WorkflowShell(props: WorkflowShellProps) {
               isLoading={logStream.isLoading}
               isConnecting={logStream.isConnecting}
               error={logStream.error}
-              maxLines={state().visibleItemCount}
               latestThinking={logStream.latestThinking}
               chainedState={isShowingRunningAgent() ? state().chainedState : null}
               isPaused={pauseControl.isPaused()}
