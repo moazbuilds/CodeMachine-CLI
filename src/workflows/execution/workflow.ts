@@ -4,6 +4,7 @@ import * as fs from 'node:fs';
 import type { RunWorkflowOptions } from '../templates/index.js';
 import { loadTemplateWithPath } from '../templates/index.js';
 import { formatAgentLog } from '../../shared/logging/index.js';
+import { formatUserInput } from '../../shared/formatters/outputMarkers.js';
 import { debug, setDebugLogFile } from '../../shared/logging/logger.js';
 import {
   getTemplatePathFromTracking,
@@ -25,7 +26,7 @@ import { executeStep, type ChainedPrompt } from './step.js';
 import { executeTriggerAgent } from './trigger.js';
 import { shouldExecuteFallback, executeFallbackStep } from './fallback.js';
 import { WorkflowUIManager } from '../../ui/index.js';
-import { MonitoringCleanup } from '../../agents/monitoring/index.js';
+import { MonitoringCleanup, AgentLoggerService } from '../../agents/monitoring/index.js';
 import { WorkflowEventBus, WorkflowEventEmitter } from '../events/index.js';
 
 /**
@@ -226,7 +227,8 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         engineName,
         stepIndex,
         totalModuleSteps,
-        initialStatus
+        initialStatus,
+        step.model
       );
 
       // Update agent with step information
@@ -512,6 +514,13 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     // Mutate current step to carry the chosen engine forward
     step.engine = engineType;
 
+    // Resolve model: step override > engine default, and update UI
+    const engineModule = registry.get(engineType);
+    const resolvedModel = step.model ?? engineModule?.metadata.defaultModel;
+    if (resolvedModel) {
+      emitter.updateAgentModel(uniqueAgentId, resolvedModel);
+    }
+
     // Set up skip listener and abort controller for this step (covers fallback + main + triggers)
     const abortController = new AbortController();
     currentAbortController = abortController; // Track for pause functionality
@@ -647,9 +656,16 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
           }
 
           if (action.type === 'custom' && action.prompt) {
-            // User typed a custom prompt
-            ui.logMessage(uniqueAgentId, `User prompt: "${action.prompt.substring(0, 50)}${action.prompt.length > 50 ? '...' : ''}"`);
-            emitter.logMessage(uniqueAgentId, `User prompt: "${action.prompt.substring(0, 50)}${action.prompt.length > 50 ? '...' : ''}"`);
+            // User typed a custom prompt - format with user input style
+            const userInputLog = formatUserInput(action.prompt);
+            ui.logMessage(uniqueAgentId, userInputLog);
+            emitter.logMessage(uniqueAgentId, userInputLog);
+
+            // Write to agent log file directly
+            if (chainedState.monitoringId !== undefined) {
+              const loggerService = AgentLoggerService.getInstance();
+              loggerService.write(chainedState.monitoringId, `\n${userInputLog}\n`);
+            }
 
             // Resume with user's custom prompt
             stepOutput = await executeStep(step, cwd, {

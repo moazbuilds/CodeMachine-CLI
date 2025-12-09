@@ -21,6 +21,7 @@ export interface AgentState {
   id: string
   name: string
   engine: string
+  model?: string
   status: AgentStatus
   telemetry: AgentTelemetry
   startTime: number

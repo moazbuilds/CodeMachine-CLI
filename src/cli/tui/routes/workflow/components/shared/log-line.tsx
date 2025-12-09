@@ -40,8 +40,12 @@ export function LogLine(props: LogLineProps) {
     if (color === "orange") return themeCtx.theme.warning
     if (color === "cyan") return themeCtx.theme.info
     if (color === "gray") return themeCtx.theme.textMuted
+    if (color === "magenta") return themeCtx.theme.purple
     return themeCtx.theme.text
   })
+
+  // Check if this is a user input line (magenta) - show with background
+  const isUserInput = () => parsed().color === "magenta"
 
   // Check for bold marker (===)
   const isBold = () => parsed().text.startsWith("===")
@@ -57,5 +61,14 @@ export function LogLine(props: LogLineProps) {
     return text
   })
 
-  return <text fg={lineColor()} attributes={isBold() ? 1 : undefined} wrap width={maxWidth()}>{displayText()}</text>
+  return (
+    <text
+      fg={lineColor()}
+      bg={isUserInput() ? themeCtx.theme.backgroundElement : undefined}
+      attributes={isBold() ? 1 : undefined}
+      width={maxWidth()}
+    >
+      {displayText()}
+    </text>
+  )
 }

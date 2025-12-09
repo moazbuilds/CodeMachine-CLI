@@ -32,6 +32,75 @@ import type { InitialToast } from "./app"
 // Module-level view state for post-processing effects
 export let currentView: "home" | "onboard" | "workflow" = "home"
 
+/**
+ * Get the clipboard copy method based on OS (lazy loaded)
+ */
+function getClipboardCopyMethod(): ((text: string) => Promise<void>) | null {
+  const os = process.platform
+
+  if (os === "darwin" && Bun.which("osascript")) {
+    return async (text: string) => {
+      const escaped = text.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
+      await Bun.$`osascript -e 'set the clipboard to "${escaped}"'`.nothrow().quiet()
+    }
+  }
+
+  if (os === "linux") {
+    if (process.env.WAYLAND_DISPLAY && Bun.which("wl-copy")) {
+      return async (text: string) => {
+        const proc = Bun.spawn(["wl-copy"], { stdin: "pipe", stdout: "ignore", stderr: "ignore" })
+        proc.stdin.write(text)
+        proc.stdin.end()
+        await proc.exited.catch(() => {})
+      }
+    }
+    if (Bun.which("xclip")) {
+      return async (text: string) => {
+        const proc = Bun.spawn(["xclip", "-selection", "clipboard"], { stdin: "pipe", stdout: "ignore", stderr: "ignore" })
+        proc.stdin.write(text)
+        proc.stdin.end()
+        await proc.exited.catch(() => {})
+      }
+    }
+    if (Bun.which("xsel")) {
+      return async (text: string) => {
+        const proc = Bun.spawn(["xsel", "--clipboard", "--input"], { stdin: "pipe", stdout: "ignore", stderr: "ignore" })
+        proc.stdin.write(text)
+        proc.stdin.end()
+        await proc.exited.catch(() => {})
+      }
+    }
+    if (Bun.which("clip.exe")) {
+      return async (text: string) => {
+        const proc = Bun.spawn(["clip.exe"], { stdin: "pipe", stdout: "ignore", stderr: "ignore" })
+        proc.stdin.write(text)
+        proc.stdin.end()
+        await proc.exited.catch(() => {})
+      }
+    }
+  }
+
+  if (os === "win32" && Bun.which("powershell")) {
+    return async (text: string) => {
+      const escaped = text.replace(/"/g, '""')
+      await Bun.$`powershell -command "Set-Clipboard -Value \"${escaped}\""`.nothrow().quiet()
+    }
+  }
+
+  return null
+}
+
+let clipboardMethod: ((text: string) => Promise<void>) | null | undefined
+
+async function copyToSystemClipboard(text: string): Promise<void> {
+  if (clipboardMethod === undefined) {
+    clipboardMethod = getClipboardCopyMethod()
+  }
+  if (clipboardMethod) {
+    await clipboardMethod(text)
+  }
+}
+
 export function App(props: { initialToast?: InitialToast }) {
   const dimensions = useTerminalDimensions()
   const themeCtx = useTheme()
@@ -159,6 +228,27 @@ export function App(props: { initialToast?: InitialToast }) {
 
     if (evt.ctrl && evt.name === "c") {
       evt.preventDefault()
+
+      // Check if there's a text selection - if so, copy it instead of exiting
+      const selection = renderer.getSelection()
+      if (selection && selection.isActive) {
+        const selectedText = selection.getSelectedText()
+        if (selectedText && selectedText.length > 0) {
+          // OSC52 via renderer.writeOut
+          const base64 = Buffer.from(selectedText).toString("base64")
+          const osc52 = `\x1b]52;c;${base64}\x07`
+          const finalOsc52 = process.env.TMUX ? `\x1bPtmux;\x1b${osc52}\x1b\\` : osc52
+          // @ts-expect-error writeOut exists on renderer
+          renderer.writeOut(finalOsc52)
+          // Also try system clipboard
+          copyToSystemClipboard(selectedText)
+            .then(() => toast.show({ variant: "info", message: "Copied to clipboard", duration: 1500 }))
+            .catch(() => toast.show({ variant: "error", message: "Failed to copy", duration: 1500 }))
+          renderer.clearSelection()
+          return
+        }
+      }
+
       if (view() === "workflow") {
         void MonitoringCleanup.triggerCtrlCFromUI()
         return

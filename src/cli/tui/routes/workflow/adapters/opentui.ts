@@ -19,6 +19,7 @@ export interface UIActions {
     id: string
     name: string
     engine: string
+    model?: string
     status: AgentStatus
     telemetry: { tokensIn: number; tokensOut: number; cached?: number; cost?: number }
     startTime: number
@@ -28,6 +29,7 @@ export interface UIActions {
     totalSteps?: number
   }): void
   updateAgentStatus(agentId: string, status: AgentStatus): void
+  updateAgentModel(agentId: string, model: string): void
   updateAgentTelemetry(
     agentId: string,
     telemetry: { tokensIn?: number; tokensOut?: number; cached?: number; cost?: number }
@@ -103,6 +105,7 @@ export class OpenTUIAdapter extends BaseUIAdapter {
           id: event.agent.id,
           name: event.agent.name,
           engine: event.agent.engine,
+          model: event.agent.model,
           status: event.agent.status,
           telemetry: { tokensIn: 0, tokensOut: 0 },
           startTime: Date.now(),
@@ -115,6 +118,10 @@ export class OpenTUIAdapter extends BaseUIAdapter {
 
       case "agent:status":
         this.actions.updateAgentStatus(event.agentId, event.status)
+        break
+
+      case "agent:model":
+        this.actions.updateAgentModel(event.agentId, event.model)
         break
 
       case "agent:telemetry":

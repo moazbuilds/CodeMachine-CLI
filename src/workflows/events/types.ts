@@ -23,6 +23,7 @@ export interface AgentInfo {
   id: string;
   name: string;
   engine: string;
+  model?: string;
   stepIndex: number;
   totalSteps: number;
   status: AgentStatus;
@@ -44,6 +45,7 @@ export type WorkflowEvent =
   // Agent lifecycle events
   | { type: 'agent:added'; agent: AgentInfo }
   | { type: 'agent:status'; agentId: string; status: AgentStatus }
+  | { type: 'agent:model'; agentId: string; model: string }
   | { type: 'agent:telemetry'; agentId: string; telemetry: Partial<AgentTelemetry> }
   | { type: 'agent:reset'; agentId: string; cycleNumber?: number }
 

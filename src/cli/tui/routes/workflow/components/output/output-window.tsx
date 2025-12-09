@@ -10,6 +10,7 @@
 import { Show, For } from "solid-js"
 import { useTheme } from "@tui/shared/context/theme"
 import { ShimmerText } from "./shimmer-text"
+import { TypingText } from "./typing-text"
 import { LogLine } from "../shared/log-line"
 import { ChainedPromptBox } from "./chained-box"
 import type { AgentState, SubAgentState, ChainedState } from "../../state/types"
@@ -31,6 +32,7 @@ export interface OutputWindowProps {
   error: string | null
   maxLines?: number
   connectingMessageIndex?: number
+  latestThinking?: string | null
   // Chained prompt box props
   chainedState?: ChainedState | null
   isPromptBoxFocused?: boolean
@@ -44,7 +46,7 @@ export interface OutputWindowProps {
  * Output window showing current agent's output
  * Displays last N lines with syntax highlighting using scrollbox
  */
-const OUTPUT_HEADER_HEIGHT = 2  // Header line + padding
+const OUTPUT_HEADER_HEIGHT = 5  // Side curve header (5 lines: padding + ╭─ + info + thinking + ╰─)
 
 export function OutputWindow(props: OutputWindowProps) {
   const themeCtx = useTheme()
@@ -54,10 +56,15 @@ export function OutputWindow(props: OutputWindowProps) {
   // Scrollbox height accounts for the output header
   const scrollboxHeight = () => Math.max(3, effectiveMaxLines() - OUTPUT_HEADER_HEIGHT)
 
-  // Determine agent type
-  const agentType = () => {
-    if (!props.currentAgent) return ""
-    return "parentId" in props.currentAgent ? "sub-agent" : "main"
+  // Check if agent is running
+  const isRunning = () => props.currentAgent?.status === "running"
+
+  // Get status color
+  const statusColor = () => {
+    const status = props.currentAgent?.status
+    if (status === "completed") return themeCtx.theme.success
+    if (status === "failed") return themeCtx.theme.error
+    return themeCtx.theme.warning
   }
 
   // Get connecting message
@@ -83,19 +90,32 @@ export function OutputWindow(props: OutputWindowProps) {
           </box>
         }
       >
-        <box paddingLeft={1} paddingRight={4} paddingBottom={1} flexDirection="row" justifyContent="space-between">
-          <text fg={themeCtx.theme.text} attributes={1 | 4}>
-            Output: {props.currentAgent!.name}
-          </text>
-          <box flexDirection="row" gap={1}>
-            <text fg={themeCtx.theme.textMuted}>{agentType()}</text>
-            <text fg={themeCtx.theme.info}>{props.currentAgent!.engine}</text>
-            <text fg={props.currentAgent!.status === "completed" ? themeCtx.theme.success : props.currentAgent!.status === "failed" ? themeCtx.theme.error : themeCtx.theme.warning}>
-              {props.currentAgent!.status}
-            </text>
+        {/* Side Curve Header */}
+        <box flexDirection="column" paddingLeft={1} paddingTop={1} height={5} flexShrink={0}>
+          <text fg={themeCtx.theme.border}>╭─</text>
+          <box flexDirection="row" justifyContent="space-between" paddingRight={2}>
+            <box flexDirection="row">
+              <text fg={themeCtx.theme.border}>│  </text>
+              <text fg={themeCtx.theme.text}>{isRunning() && props.latestThinking ? "(╭ರ_•́)" : "(˶ᵔ ᵕ ᵔ˶)"}</text>
+              <text>  </text>
+              <text fg={themeCtx.theme.text} attributes={1}>{props.currentAgent!.name}</text>
+            </box>
+            <box flexDirection="row" gap={1}>
+              <text fg={themeCtx.theme.info}>{props.currentAgent!.engine}</text>
+              <Show when={props.currentAgent!.model}>
+                <text fg={themeCtx.theme.textMuted}>{props.currentAgent!.model}</text>
+              </Show>
+              <text fg={statusColor()}>● {props.currentAgent!.status}</text>
+            </box>
           </box>
+          <box flexDirection="row">
+            <text fg={themeCtx.theme.border}>│  </text>
+            <Show when={isRunning() && props.latestThinking} fallback={<text fg={themeCtx.theme.textMuted}>↳ Waiting...</text>}>
+              <TypingText text={`↳ ${props.latestThinking}`} speed={30} />
+            </Show>
+          </box>
+          <text fg={themeCtx.theme.border}>╰─</text>
         </box>
-
         {/* Output area */}
         <box paddingLeft={1} paddingRight={1} flexDirection="column" flexGrow={1}>
           <Show when={props.isLoading}>

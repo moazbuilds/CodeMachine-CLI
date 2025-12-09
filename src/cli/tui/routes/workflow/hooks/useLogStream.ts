@@ -19,6 +19,7 @@ export interface LogStreamResult {
   fileSize: number
   agentName: string
   isRunning: boolean
+  latestThinking: string | null
 }
 
 /**
@@ -61,6 +62,7 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
   const [error, setError] = createSignal<string | null>(null)
   const [fileSize, setFileSize] = createSignal(0)
   const [agent, setAgent] = createSignal<AgentRecord | null>(null)
+  const [latestThinking, setLatestThinking] = createSignal<string | null>(null)
 
   createEffect(() => {
     const agentId = monitoringAgentId()
@@ -100,6 +102,37 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
     }
 
     /**
+     * Filter out box-style header lines from log display
+     * These are kept in log files for debugging but hidden from UI
+     */
+    function filterHeaderLines(fileLines: string[]): string[] {
+      return fileLines.filter((line) => {
+        if (!line) return true // keep empty lines for spacing
+        if (line.includes("╭─") || line.includes("╰─")) return false
+        if (line.includes("Started:") || line.includes("Prompt:")) return false
+        return true
+      })
+    }
+
+    /**
+     * Extract latest thinking line from logs
+     * Looks for lines with "Thinking:" pattern
+     */
+    function extractLatestThinking(fileLines: string[]): string | null {
+      for (let i = fileLines.length - 1; i >= 0; i--) {
+        const line = fileLines[i]
+        if (line && line.includes("Thinking:")) {
+          // Extract text after "Thinking:" and strip markers
+          const match = line.match(/Thinking:\s*(.+)/)
+          if (match) {
+            return match[1].trim()
+          }
+        }
+      }
+      return null
+    }
+
+    /**
      * Update log lines from file
      */
     function updateLogs(logPath: string): boolean {
@@ -111,8 +144,11 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
         }
 
         const fileLines = readLogFile(logPath)
+        const filteredLines = filterHeaderLines(fileLines)
+        const thinking = extractLatestThinking(fileLines)
         if (mounted) {
-          setLines(fileLines)
+          setLines(filteredLines)
+          setLatestThinking(thinking)
           setFileSize(getFileSize(logPath))
           setIsConnecting(false)
           setError(null)
@@ -176,8 +212,8 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
 
           if (retrySuccess) {
             clearInterval(retryInterval)
-            // Start normal polling after successful connection
-            if (agentRecord.status === "running" && mounted) {
+            // Always start polling after successful connection
+            if (mounted) {
               startPolling(agentRecord.logPath)
             }
           }
@@ -186,8 +222,8 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
         return
       }
 
-      // Set up real-time updates for running agents
-      if (success && agentRecord.status === "running") {
+      // Always start polling for log updates
+      if (success) {
         startPolling(agentRecord.logPath)
       }
     }
@@ -246,6 +282,9 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
     },
     get isRunning() {
       return agent()?.status === "running"
+    },
+    get latestThinking() {
+      return latestThinking()
     },
   }
 }

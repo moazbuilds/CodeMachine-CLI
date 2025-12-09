@@ -306,6 +306,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
               isConnecting={logStream.isConnecting}
               error={logStream.error}
               maxLines={state().visibleItemCount}
+              latestThinking={logStream.latestThinking}
               chainedState={isShowingRunningAgent() ? state().chainedState : null}
               isPromptBoxFocused={isPromptBoxFocused()}
               onChainedCustom={handleChainedCustom}

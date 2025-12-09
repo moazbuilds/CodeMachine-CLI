@@ -104,7 +104,8 @@ export class WorkflowEventEmitter {
     engine: string,
     stepIndex: number,
     totalSteps: number,
-    status: AgentStatus = 'pending'
+    status: AgentStatus = 'pending',
+    model?: string
   ): void {
     // Track step info for this agent
     this.agentStepMap.set(agentId, { stepIndex, totalSteps });
@@ -113,6 +114,7 @@ export class WorkflowEventEmitter {
       id: agentId,
       name,
       engine,
+      model,
       stepIndex,
       totalSteps,
       status,
@@ -133,6 +135,17 @@ export class WorkflowEventEmitter {
       type: 'agent:status',
       agentId,
       status,
+    });
+  }
+
+  /**
+   * Emit agent model update (called when model is resolved at execution time)
+   */
+  updateAgentModel(agentId: string, model: string): void {
+    this.bus.emit({
+      type: 'agent:model',
+      agentId,
+      model,
     });
   }
 

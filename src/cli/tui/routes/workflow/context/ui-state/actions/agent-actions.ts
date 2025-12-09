@@ -45,6 +45,17 @@ export function createAgentActions(ctx: AgentActionsContext) {
     ctx.notifyImmediate()
   }
 
+  function updateAgentModel(agentId: string, model: string): void {
+    const state = ctx.getState()
+    ctx.setState({
+      ...state,
+      agents: state.agents.map((agent) =>
+        agent.id === agentId ? { ...agent, model } : agent,
+      ),
+    })
+    ctx.notify()
+  }
+
   function updateAgentTelemetry(
     agentId: string,
     telemetry: Partial<WorkflowState["agents"][number]["telemetry"]>,
@@ -69,6 +80,7 @@ export function createAgentActions(ctx: AgentActionsContext) {
   return {
     addAgent,
     updateAgentStatus,
+    updateAgentModel,
     updateAgentTelemetry,
     registerMonitoringId,
   }
