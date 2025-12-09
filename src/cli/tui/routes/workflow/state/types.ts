@@ -61,6 +61,20 @@ export interface CheckpointState {
   reason?: string
 }
 
+export interface ChainedPromptInfo {
+  name: string
+  label: string
+  content: string
+}
+
+export interface ChainedState {
+  active: boolean
+  currentIndex: number
+  totalPrompts: number
+  nextPromptLabel: string | null
+  monitoringId?: number
+}
+
 export interface ExecutionRecord {
   id: string
   agentName: string
@@ -96,6 +110,7 @@ export interface WorkflowState {
   executionHistory: ExecutionRecord[]
   loopState: LoopState | null
   checkpointState: CheckpointState | null
+  chainedState: ChainedState | null
   expandedNodes: Set<string>
   showTelemetryView: boolean
   selectedAgentId: string | null

@@ -4,9 +4,20 @@ import type { WorkflowStep } from '../templates/index.js';
 import { isModuleStep } from '../templates/types.js';
 import type { EngineType } from '../../infra/engines/index.js';
 import { processPromptString } from '../../shared/prompts/index.js';
-import { executeAgent } from '../../agents/runner/runner.js';
+import { executeAgent, type ChainedPrompt } from '../../agents/runner/runner.js';
 import type { WorkflowUIManager } from '../../ui/index.js';
 import type { WorkflowEventEmitter } from '../events/emitter.js';
+
+export type { ChainedPrompt } from '../../agents/runner/runner.js';
+
+/**
+ * Output from executing a workflow step
+ */
+export interface StepOutput {
+  output: string;
+  monitoringId?: number;
+  chainedPrompts?: ChainedPrompt[];
+}
 
 export interface StepExecutorOptions {
   logger: (chunk: string) => void;
@@ -48,7 +59,7 @@ export async function executeStep(
   step: WorkflowStep,
   cwd: string,
   options: StepExecutorOptions,
-): Promise<string> {
+): Promise<StepOutput> {
   // Only module steps can be executed
   if (!isModuleStep(step)) {
     throw new Error('Only module steps can be executed');
@@ -108,5 +119,9 @@ export async function executeStep(
   // DO NOT parse from final output - it would match the FIRST telemetry line (early/wrong values)
   // instead of the LAST telemetry line (final/correct values), causing incorrect UI display.
 
-  return result.output;
+  return {
+    output: result.output,
+    monitoringId: result.agentId,
+    chainedPrompts: result.chainedPrompts,
+  };
 }

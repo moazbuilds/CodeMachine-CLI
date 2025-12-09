@@ -21,7 +21,7 @@ import { shouldSkipStep, logSkipDebug, type ActiveLoop } from '../behaviors/skip
 import { handleLoopLogic, createActiveLoop } from '../behaviors/loop/controller.js';
 import { handleTriggerLogic } from '../behaviors/trigger/controller.js';
 import { handleCheckpointLogic } from '../behaviors/checkpoint/controller.js';
-import { executeStep } from './step.js';
+import { executeStep, type ChainedPrompt } from './step.js';
 import { executeTriggerAgent } from './trigger.js';
 import { shouldExecuteFallback, executeFallbackStep } from './fallback.js';
 import { WorkflowUIManager } from '../../ui/index.js';
@@ -273,6 +273,16 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   };
   let currentAbortController: AbortController | null = null; // Separate - different lifecycle
 
+  // Chained prompts handling state
+  const chainedState = {
+    active: false,
+    prompts: [] as ChainedPrompt[],
+    currentIndex: 0,
+    monitoringId: undefined as number | undefined,
+    pendingAction: null as { type: 'custom' | 'next' | 'skip'; prompt?: string } | null,
+    resolver: null as (() => void) | null,
+  };
+
   const pauseListener = () => {
     if (!pauseState.paused) {
       pauseState.paused = true;
@@ -308,6 +318,41 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
   process.on('workflow:pause', pauseListener);
   process.on('workflow:resume', resumeListener);
+
+  // Chained prompts event listeners
+  const chainedCustomListener = (data: { prompt: string }) => {
+    if (chainedState.active) {
+      chainedState.pendingAction = { type: 'custom', prompt: data.prompt };
+      if (chainedState.resolver) {
+        chainedState.resolver();
+        chainedState.resolver = null;
+      }
+    }
+  };
+
+  const chainedNextListener = () => {
+    if (chainedState.active) {
+      chainedState.pendingAction = { type: 'next' };
+      if (chainedState.resolver) {
+        chainedState.resolver();
+        chainedState.resolver = null;
+      }
+    }
+  };
+
+  const chainedSkipListener = () => {
+    if (chainedState.active) {
+      chainedState.pendingAction = { type: 'skip' };
+      if (chainedState.resolver) {
+        chainedState.resolver();
+        chainedState.resolver = null;
+      }
+    }
+  };
+
+  process.on('chained:custom', chainedCustomListener);
+  process.on('chained:next', chainedNextListener);
+  process.on('chained:skip-all', chainedSkipListener);
 
   try {
     for (let index = startIndex; index < template.steps.length; index += 1) {
@@ -502,7 +547,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         emitter.logMessage(uniqueAgentId, `Resuming from paused session...`);
       }
 
-      const output = await executeStep(step, cwd, {
+      let stepOutput = await executeStep(step, cwd, {
         logger: () => {}, // No-op: UI reads from log files
         stderrLogger: () => {}, // No-op: UI reads from log files
         ui,
@@ -513,8 +558,131 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         resumePrompt: stepResumePrompt,
       });
 
+      // Handle chained prompts if present (allows steering the agent with additional prompts)
+      if (stepOutput.chainedPrompts && stepOutput.chainedPrompts.length > 0) {
+        chainedState.active = true;
+        chainedState.prompts = stepOutput.chainedPrompts;
+        chainedState.currentIndex = 0;
+        chainedState.monitoringId = stepOutput.monitoringId;
+
+        // Show modal with initial state
+        const getNextLabel = () => {
+          if (chainedState.currentIndex < chainedState.prompts.length) {
+            return chainedState.prompts[chainedState.currentIndex].label;
+          }
+          return null;
+        };
+
+        emitter.setChainedState({
+          active: true,
+          currentIndex: chainedState.currentIndex,
+          totalPrompts: chainedState.prompts.length,
+          nextPromptLabel: getNextLabel(),
+          monitoringId: chainedState.monitoringId,
+        });
+
+        // Loop until user chooses to skip or all prompts exhausted and they choose next
+        while (chainedState.active) {
+          // Wait for user action
+          await new Promise<void>((resolve) => {
+            chainedState.resolver = resolve;
+          });
+
+          const action = chainedState.pendingAction;
+          chainedState.pendingAction = null;
+
+          if (!action) continue;
+
+          if (action.type === 'skip') {
+            // User chose to skip all remaining chained prompts
+            ui.logMessage(uniqueAgentId, `Skipping remaining chained prompts.`);
+            emitter.logMessage(uniqueAgentId, `Skipping remaining chained prompts.`);
+            chainedState.active = false;
+            break;
+          }
+
+          if (action.type === 'next') {
+            // Check if there are more prompts in queue
+            if (chainedState.currentIndex >= chainedState.prompts.length) {
+              // No more prompts - continue to next agent
+              ui.logMessage(uniqueAgentId, `All chained prompts completed. Continuing to next agent.`);
+              emitter.logMessage(uniqueAgentId, `All chained prompts completed. Continuing to next agent.`);
+              chainedState.active = false;
+              break;
+            }
+
+            // Feed the next chained prompt
+            const nextPrompt = chainedState.prompts[chainedState.currentIndex];
+            ui.logMessage(uniqueAgentId, `Feeding chained prompt: "${nextPrompt.label}"`);
+            emitter.logMessage(uniqueAgentId, `Feeding chained prompt: "${nextPrompt.label}"`);
+
+            // Resume with chained prompt content
+            stepOutput = await executeStep(step, cwd, {
+              logger: () => {},
+              stderrLogger: () => {},
+              ui,
+              emitter,
+              abortSignal: abortController.signal,
+              uniqueAgentId,
+              resumeMonitoringId: chainedState.monitoringId,
+              resumePrompt: nextPrompt.content,
+            });
+
+            // Update monitoring ID for next iteration
+            chainedState.monitoringId = stepOutput.monitoringId;
+            chainedState.currentIndex += 1;
+
+            // Update modal state
+            emitter.setChainedState({
+              active: true,
+              currentIndex: chainedState.currentIndex,
+              totalPrompts: chainedState.prompts.length,
+              nextPromptLabel: getNextLabel(),
+              monitoringId: chainedState.monitoringId,
+            });
+          }
+
+          if (action.type === 'custom' && action.prompt) {
+            // User typed a custom prompt
+            ui.logMessage(uniqueAgentId, `User prompt: "${action.prompt.substring(0, 50)}${action.prompt.length > 50 ? '...' : ''}"`);
+            emitter.logMessage(uniqueAgentId, `User prompt: "${action.prompt.substring(0, 50)}${action.prompt.length > 50 ? '...' : ''}"`);
+
+            // Resume with user's custom prompt
+            stepOutput = await executeStep(step, cwd, {
+              logger: () => {},
+              stderrLogger: () => {},
+              ui,
+              emitter,
+              abortSignal: abortController.signal,
+              uniqueAgentId,
+              resumeMonitoringId: chainedState.monitoringId,
+              resumePrompt: action.prompt,
+            });
+
+            // Update monitoring ID for next iteration
+            chainedState.monitoringId = stepOutput.monitoringId;
+
+            // Show modal again (same state - custom prompts don't advance the queue)
+            emitter.setChainedState({
+              active: true,
+              currentIndex: chainedState.currentIndex,
+              totalPrompts: chainedState.prompts.length,
+              nextPromptLabel: getNextLabel(),
+              monitoringId: chainedState.monitoringId,
+            });
+          }
+        }
+
+        // Clear chained state
+        chainedState.active = false;
+        chainedState.prompts = [];
+        chainedState.currentIndex = 0;
+        chainedState.monitoringId = undefined;
+        emitter.setChainedState(null);
+      }
+
       // Check for trigger behavior first
-      const triggerResult = await handleTriggerLogic(step, output, cwd, ui, emitter);
+      const triggerResult = await handleTriggerLogic(step, stepOutput.output, cwd, ui, emitter);
       if (triggerResult?.shouldTrigger && triggerResult.triggerAgentId) {
         const triggeredAgentId = triggerResult.triggerAgentId; // Capture for use in callbacks
         try {
@@ -562,7 +730,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
 
       // Check for checkpoint behavior first (to pause workflow for manual review)
-      const checkpointResult = await handleCheckpointLogic(step, output, cwd, ui, emitter);
+      const checkpointResult = await handleCheckpointLogic(step, stepOutput.output, cwd, ui, emitter);
       if (checkpointResult?.shouldStopWorkflow) {
         // Wait for user action via events (Continue or Quit)
         await new Promise<void>((resolve) => {
@@ -598,7 +766,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         // Otherwise continue to next step (current step already marked complete via executeOnce)
       }
 
-      const loopResult = await handleLoopLogic(step, index, output, loopCounters, cwd, ui, emitter);
+      const loopResult = await handleLoopLogic(step, index, stepOutput.output, loopCounters, cwd, ui, emitter);
 
       if (loopResult.decision?.shouldRepeat) {
         // Set active loop with skip list
@@ -734,5 +902,8 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     process.removeListener('workflow:stop', stopListener);
     process.removeListener('workflow:pause', pauseListener);
     process.removeListener('workflow:resume', resumeListener);
+    process.removeListener('chained:custom', chainedCustomListener);
+    process.removeListener('chained:next', chainedNextListener);
+    process.removeListener('chained:skip-all', chainedSkipListener);
   }
 }

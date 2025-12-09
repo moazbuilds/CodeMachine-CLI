@@ -10,7 +10,7 @@ import { createSignal } from "solid-js"
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
 import { ModalBase, ModalHeader, ModalContent, ModalFooter } from "@tui/shared/components/modal"
-import { PauseInput } from "./pause-input"
+import { PromptInput } from "@tui/shared/components/prompt-input"
 
 export interface PauseModalProps {
   onResume: (prompt?: string) => void
@@ -48,7 +48,7 @@ export function PauseModal(props: PauseModalProps) {
           Press [Esc] to resume, or type a prompt and press [Enter] to steer the agent.
         </text>
       </ModalContent>
-      <PauseInput value={input()} onInput={setInput} onSubmit={handleSubmit} />
+      <PromptInput value={input()} onInput={setInput} onSubmit={handleSubmit} placeholder="Continue where you left off..." />
       <ModalFooter shortcuts="[Esc] Resume  •  [Enter] Steer with prompt" />
     </ModalBase>
   )

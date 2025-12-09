@@ -7,11 +7,12 @@
  * Shows last N lines with auto-scroll for running agents using OpenTUI scrollbox
  */
 
-import { Show, For, createMemo } from "solid-js"
+import { Show, For, createMemo, createSignal } from "solid-js"
+import { useInput } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
 import { ShimmerText } from "./shimmer-text"
 import { LogLine } from "../shared/log-line"
-import type { AgentState, SubAgentState } from "../../state/types"
+import type { AgentState, SubAgentState, ChainedState } from "../../state/types"
 
 // Rotating messages shown while connecting to agent
 const CONNECTING_MESSAGES = [

@@ -20,6 +20,7 @@ import type {
   AgentTelemetry,
   LoopState,
   CheckpointState,
+  ChainedState,
   WorkflowStatus,
   SubAgentState,
   TriggeredAgentState,
@@ -273,6 +274,21 @@ export class WorkflowEventEmitter {
   clearCheckpointState(): void {
     this.bus.emit({
       type: 'checkpoint:clear',
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Chained Prompts State
+  // ─────────────────────────────────────────────────────────────────
+
+  /**
+   * Emit chained prompts state change
+   * Mirrors: ui.setChainedState(chainedState)
+   */
+  setChainedState(chainedState: ChainedState | null): void {
+    this.bus.emit({
+      type: 'chained:state',
+      chainedState,
     });
   }
 

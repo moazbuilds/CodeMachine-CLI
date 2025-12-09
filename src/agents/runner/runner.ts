@@ -5,7 +5,10 @@ import { getEngine } from '../../infra/engines/index.js';
 import { MemoryAdapter } from '../../infra/fs/memory-adapter.js';
 import { MemoryStore } from '../index.js';
 import { loadAgentConfig } from './config.js';
+import { loadChainedPrompts, type ChainedPrompt } from './chained.js';
 import { AgentMonitorService, AgentLoggerService } from '../monitoring/index.js';
+
+export type { ChainedPrompt } from './chained.js';
 import type { ParsedTelemetry } from '../../infra/engines/core/types.js';
 import { formatForLogFile } from '../../shared/formatters/logFileFormatter.js';
 import { info, error, debug } from '../../shared/logging/logger.js';
@@ -184,6 +187,7 @@ async function ensureEngineAuth(engineType: EngineType): Promise<void> {
 export interface AgentExecutionOutput {
   output: string;
   agentId?: number;
+  chainedPrompts?: ChainedPrompt[];
 }
 
 export async function executeAgent(
@@ -400,9 +404,22 @@ export async function executeAgent(
       // Streams will be closed by cleanup handlers or monitoring service shutdown
     }
 
+    // Load chained prompts if configured (only on fresh execution, not resume)
+    let chainedPrompts: ChainedPrompt[] | undefined;
+    if (!resumeMonitoringId && agentConfig.chainedPromptsPath) {
+      chainedPrompts = await loadChainedPrompts(
+        agentConfig.chainedPromptsPath,
+        projectRoot ?? workingDir
+      );
+      if (chainedPrompts.length > 0) {
+        debug(`Loaded ${chainedPrompts.length} chained prompts for agent '${agentId}'`);
+      }
+    }
+
     return {
       output: stdout,
-      agentId: monitoringAgentId
+      agentId: monitoringAgentId,
+      chainedPrompts,
     };
   } catch (error) {
     // Mark agent as failed (unless already paused - that means intentional abort)

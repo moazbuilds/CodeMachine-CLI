@@ -13,7 +13,7 @@ import { useUIState } from "./context/ui-state"
 import { AgentTimeline } from "./components/timeline"
 import { OutputWindow, TelemetryBar, StatusFooter } from "./components/output"
 import { formatRuntime } from "./state/formatters"
-import { CheckpointModal, LogViewer, HistoryView, PauseModal } from "./components/modals"
+import { CheckpointModal, LogViewer, HistoryView, PauseModal, ChainedModal } from "./components/modals"
 import { OpenTUIAdapter } from "./adapters/opentui"
 import { useLogStream } from "./hooks/useLogStream"
 import { useSubAgentSync } from "./hooks/useSubAgentSync"
@@ -161,6 +161,22 @@ export function WorkflowShell(props: WorkflowShellProps) {
     ;(process as NodeJS.EventEmitter).emit("checkpoint:quit")
   }
 
+  // Chained prompts modal state and handlers
+  const isChainedActive = () => state().chainedState?.active ?? false
+
+  const handleChainedCustom = (prompt: string) => {
+    ;(process as NodeJS.EventEmitter).emit("chained:custom", { prompt })
+  }
+
+  const handleChainedNext = () => {
+    ;(process as NodeJS.EventEmitter).emit("chained:next")
+  }
+
+  const handleChainedSkip = () => {
+    ui.actions.setChainedState(null)
+    ;(process as NodeJS.EventEmitter).emit("chained:skip-all")
+  }
+
   const getMonitoringId = (uiAgentId: string): number | undefined => {
     const s = state()
     const mainAgent = s.agents.find((a) => a.id === uiAgentId)
@@ -177,7 +193,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
     getState: state,
     actions: ui.actions,
     calculateVisibleItems: getVisibleItems,
-    isDisabled: () => isCheckpointActive() || modals.isLogViewerActive() || modals.isHistoryActive() || modals.isHistoryLogViewerActive() || pauseControl.isPaused(),
+    isDisabled: () => isCheckpointActive() || isChainedActive() || modals.isLogViewerActive() || modals.isHistoryActive() || modals.isHistoryLogViewerActive() || pauseControl.isPaused(),
     openLogViewer: modals.setLogViewerAgentId,
     openHistory: () => modals.setShowHistory(true),
     pauseWorkflow: () => pauseControl.pause(),
@@ -215,6 +231,19 @@ export function WorkflowShell(props: WorkflowShellProps) {
       <Show when={pauseControl.isPaused()}>
         <box position="absolute" left={0} top={0} width="100%" height="100%" zIndex={2000}>
           <PauseModal onResume={(prompt) => pauseControl.resumeWithPrompt(prompt)} onCancel={() => pauseControl.resumeWithPrompt()} />
+        </box>
+      </Show>
+
+      <Show when={isChainedActive()}>
+        <box position="absolute" left={0} top={0} width="100%" height="100%" zIndex={2000}>
+          <ChainedModal
+            currentIndex={state().chainedState?.currentIndex ?? 0}
+            totalPrompts={state().chainedState?.totalPrompts ?? 0}
+            nextPromptLabel={state().chainedState?.nextPromptLabel ?? null}
+            onCustomPrompt={handleChainedCustom}
+            onNextStep={handleChainedNext}
+            onSkipAll={handleChainedSkip}
+          />
         </box>
       </Show>
 

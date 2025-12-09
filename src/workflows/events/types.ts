@@ -10,6 +10,7 @@ import type {
   AgentTelemetry,
   LoopState,
   CheckpointState,
+  ChainedState,
   WorkflowStatus,
   SubAgentState,
   TriggeredAgentState,
@@ -67,6 +68,9 @@ export type WorkflowEvent =
   // Checkpoint events
   | { type: 'checkpoint:state'; checkpoint: CheckpointState | null }
   | { type: 'checkpoint:clear' }
+
+  // Chained prompts events
+  | { type: 'chained:state'; chainedState: ChainedState | null }
 
   // Message/logging events
   | { type: 'message:log'; agentId: string; message: string }

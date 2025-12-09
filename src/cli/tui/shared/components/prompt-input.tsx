@@ -1,20 +1,22 @@
 /** @jsxImportSource @opentui/solid */
 /**
- * Pause Input Component
+ * Prompt Input Component
  *
- * Input field for entering resume prompt.
+ * Reusable input field for entering prompts.
+ * Used by PauseModal, ChainedModal, etc.
  */
 
 import type { Setter } from "solid-js"
 import { useTheme } from "@tui/shared/context/theme"
 
-export interface PauseInputProps {
+export interface PromptInputProps {
   value: string
   onInput: Setter<string>
   onSubmit: () => void
+  placeholder?: string
 }
 
-export function PauseInput(props: PauseInputProps) {
+export function PromptInput(props: PromptInputProps) {
   const themeCtx = useTheme()
 
   const handleKeyDown = (evt: { name?: string }) => {
@@ -33,7 +35,7 @@ export function PauseInput(props: PauseInputProps) {
     >
       <input
         value={props.value}
-        placeholder="Continue where you left off..."
+        placeholder={props.placeholder ?? "Type prompt..."}
         onInput={props.onInput}
         onKeyDown={handleKeyDown}
         focused={true}

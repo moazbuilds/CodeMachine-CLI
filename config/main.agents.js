@@ -77,6 +77,7 @@ module.exports = [
     name: 'Test Agent 1',
     description: 'First test agent for workflow testing',
     promptPath: path.join(promptsDir, 'test-workflows', 'test-agent-1.md'),
+    chainedPromptsPath: path.join(promptsDir, 'test-workflows', 'test-agent-1-chained'),
   },
   {
     id: 'test-agent-2',
