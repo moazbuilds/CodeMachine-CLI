@@ -76,7 +76,7 @@ export function OutputWindow(props: OutputWindowProps) {
           </box>
         }
       >
-        <box paddingLeft={1} paddingRight={1} paddingBottom={1} flexDirection="row" justifyContent="space-between">
+        <box paddingLeft={1} paddingRight={4} paddingBottom={1} flexDirection="row" justifyContent="space-between">
           <text fg={themeCtx.theme.text} attributes={1 | 4}>
             Output: {props.currentAgent!.name}
           </text>
@@ -112,7 +112,7 @@ export function OutputWindow(props: OutputWindowProps) {
 
           <Show when={!props.isLoading && !props.isConnecting && !props.error && props.lines.length > 0}>
             <scrollbox
-              height={scrollboxHeight()}
+              flexGrow={1}
               width="100%"
               stickyScroll={true}
               stickyStart="bottom"

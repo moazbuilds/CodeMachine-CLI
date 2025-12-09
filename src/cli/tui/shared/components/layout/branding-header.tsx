@@ -7,7 +7,7 @@ export function BrandingHeader(props: { version: string; currentDir: string }) {
   const themeCtx = useTheme()
 
   return (
-    <box flexDirection="column" paddingLeft={1} paddingRight={1} paddingBottom={1}>
+    <box flexDirection="column" paddingLeft={1} paddingRight={1} paddingTop={1} paddingBottom={1}>
       <text> </text>
       <text fg={themeCtx.theme.primary}>
         {` ${SIMPLE_LOGO[0]}  `}

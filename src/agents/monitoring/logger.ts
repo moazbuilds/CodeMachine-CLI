@@ -62,23 +62,11 @@ export class AgentLoggerService {
     const stream = createWriteStream(agent.logPath, { flags: 'a', encoding: 'utf-8' });
     this.activeStreams.set(agentId, stream);
 
-    // Write header with first line of prompt (full prompt only in debug mode)
-    // Note: Don't check NODE_ENV here as Bun build optimizes it to 'true' at build time
-    const isDebugMode = process.env.DEBUG === '1' || process.env.DEBUG === 'true';
+    // Write header with first line of prompt only
     const firstLine = agent.prompt.split('\n')[0];
-
-    // In debug mode, use full untruncated prompt if available
-    let promptToLog: string;
-    if (isDebugMode) {
-      const fullPrompt = this.fullPrompts.get(agentId);
-      promptToLog = fullPrompt || agent.prompt; // Fall back to stored (truncated) prompt if full not available
-      // Clean up the full prompt from memory after using it
-      this.fullPrompts.delete(agentId);
-    } else {
-      promptToLog = firstLine;
-      // Also clean up if it was stored but we're not in debug mode
-      this.fullPrompts.delete(agentId);
-    }
+    const promptToLog = firstLine;
+    // Clean up any stored full prompt
+    this.fullPrompts.delete(agentId);
 
     // Format timestamp for better readability (remove T and milliseconds)
     const formattedTime = agent.startTime.replace('T', ' ').replace(/\.\d{3}Z$/, '');

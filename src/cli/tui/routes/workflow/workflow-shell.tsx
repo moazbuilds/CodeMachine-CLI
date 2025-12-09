@@ -207,11 +207,11 @@ export function WorkflowShell(props: WorkflowShellProps) {
       </box>
 
       <box flexDirection="row" flexGrow={1} gap={1}>
-        <box flexDirection="column" width={showOutputPanel() ? "50%" : "100%"} border borderColor={themeCtx.theme.borderSubtle} backgroundColor={themeCtx.theme.backgroundPanel}>
+        <box flexDirection="column" width={showOutputPanel() ? "35%" : "100%"}>
           <AgentTimeline state={state()} onToggleExpand={(id) => ui.actions.toggleExpand(id)} availableHeight={state().visibleItemCount} isPaused={pauseControl.isPaused()} />
         </box>
         <Show when={showOutputPanel()}>
-          <box flexDirection="column" width="50%" border borderColor={themeCtx.theme.borderSubtle} backgroundColor={themeCtx.theme.backgroundPanel}>
+          <box flexDirection="column" width="65%">
             <OutputWindow currentAgent={currentAgent()} lines={logStream.lines} isLoading={logStream.isLoading} isConnecting={logStream.isConnecting} error={logStream.error} maxLines={state().visibleItemCount} />
           </box>
         </Show>
