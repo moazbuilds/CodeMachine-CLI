@@ -12,7 +12,7 @@ import { useTheme } from "@tui/shared/context/theme"
 import { ShimmerText } from "./shimmer-text"
 import { TypingText } from "./typing-text"
 import { LogLine } from "../shared/log-line"
-import { ChainedPromptBox } from "./chained-box"
+import { PromptLine, type PromptLineState } from "./prompt-line"
 import type { AgentState, SubAgentState, ChainedState } from "../../state/types"
 
 // Rotating messages shown while connecting to agent
@@ -33,12 +33,13 @@ export interface OutputWindowProps {
   maxLines?: number
   connectingMessageIndex?: number
   latestThinking?: string | null
-  // Chained prompt box props
+  // Prompt line props
   chainedState?: ChainedState | null
+  isPaused?: boolean
+  workflowStatus?: string
   isPromptBoxFocused?: boolean
-  onChainedCustom?: (prompt: string) => void
+  onPromptSubmit?: (prompt: string) => void
   onChainedNext?: () => void
-  onChainedSkip?: () => void
   onPromptBoxFocusExit?: () => void
 }
 
@@ -53,8 +54,9 @@ export function OutputWindow(props: OutputWindowProps) {
 
   const effectiveMaxLines = () => props.maxLines ?? 20
 
-  // Scrollbox height accounts for the output header
-  const scrollboxHeight = () => Math.max(3, effectiveMaxLines() - OUTPUT_HEADER_HEIGHT)
+  // Scrollbox height accounts for the output header + prompt line (3 lines)
+  const PROMPT_LINE_HEIGHT = 3
+  const scrollboxHeight = () => Math.max(3, effectiveMaxLines() - OUTPUT_HEADER_HEIGHT - PROMPT_LINE_HEIGHT)
 
   // Check if agent is running
   const isRunning = () => props.currentAgent?.status === "running"
@@ -71,6 +73,39 @@ export function OutputWindow(props: OutputWindowProps) {
   const connectingMessage = () => {
     const idx = props.connectingMessageIndex ?? 0
     return CONNECTING_MESSAGES[idx % CONNECTING_MESSAGES.length]
+  }
+
+  // Compute prompt line state
+  const promptLineState = (): PromptLineState => {
+    const status = props.workflowStatus
+    const chainedState = props.chainedState
+
+    // Workflow not running or completed
+    if (!status || status === "completed" || status === "stopped" || status === "idle") {
+      return { mode: "disabled" }
+    }
+
+    // Paused state
+    if (props.isPaused) {
+      return { mode: "active", reason: "paused" }
+    }
+
+    // Chained state
+    if (chainedState?.active) {
+      return {
+        mode: "chained",
+        label: chainedState.nextPromptLabel ?? "next step",
+        index: chainedState.currentIndex + 1,
+        total: chainedState.totalPrompts,
+      }
+    }
+
+    // Running but not paused/chained
+    if (status === "running" || status === "stopping") {
+      return { mode: "passive" }
+    }
+
+    return { mode: "disabled" }
   }
 
   return (
@@ -157,19 +192,16 @@ export function OutputWindow(props: OutputWindowProps) {
             </scrollbox>
           </Show>
 
-          {/* Chained prompt box - shown when chaining is active */}
-          <ChainedPromptBox
-            isVisible={props.chainedState?.active ?? false}
-            isFocused={props.isPromptBoxFocused ?? false}
-            currentIndex={props.chainedState?.currentIndex ?? 0}
-            totalPrompts={props.chainedState?.totalPrompts ?? 0}
-            nextPromptLabel={props.chainedState?.nextPromptLabel ?? null}
-            onCustomPrompt={props.onChainedCustom ?? (() => {})}
-            onNextStep={props.onChainedNext ?? (() => {})}
-            onSkipAll={props.onChainedSkip ?? (() => {})}
-            onFocusExit={props.onPromptBoxFocusExit ?? (() => {})}
-          />
         </box>
+
+        {/* Always-present prompt line */}
+        <PromptLine
+          state={promptLineState()}
+          isFocused={props.isPromptBoxFocused ?? false}
+          onSubmit={props.onPromptSubmit ?? (() => {})}
+          onNextStep={props.onChainedNext}
+          onFocusExit={props.onPromptBoxFocusExit ?? (() => {})}
+        />
       </Show>
     </box>
   )

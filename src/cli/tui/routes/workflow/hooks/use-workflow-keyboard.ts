@@ -32,7 +32,7 @@ export interface UseWorkflowKeyboardOptions {
   canStop: () => boolean
   /** Get current agent ID shown in output window (fallback for Enter key) */
   getCurrentAgentId?: () => string | null
-  /** Check if prompt box can be focused (chaining active) */
+  /** Check if prompt box can be focused (chaining/paused active) */
   canFocusPromptBox?: () => boolean
   /** Focus the prompt box */
   focusPromptBox?: () => void
@@ -73,7 +73,7 @@ export function useWorkflowKeyboard(options: UseWorkflowKeyboardOptions) {
       return
     }
 
-    // Right arrow - focus prompt box (when chaining is active)
+    // Right arrow - focus prompt box (when chaining/paused active)
     if (evt.name === "right") {
       if (options.canFocusPromptBox?.()) {
         evt.preventDefault()

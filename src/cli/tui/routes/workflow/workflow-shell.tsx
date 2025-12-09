@@ -14,7 +14,7 @@ import { useUIState } from "./context/ui-state"
 import { AgentTimeline } from "./components/timeline"
 import { OutputWindow, TelemetryBar, StatusFooter } from "./components/output"
 import { formatRuntime } from "./state/formatters"
-import { CheckpointModal, LogViewer, HistoryView, PauseModal, StopModal } from "./components/modals"
+import { CheckpointModal, LogViewer, HistoryView, StopModal } from "./components/modals"
 import { OpenTUIAdapter } from "./adapters/opentui"
 import { useLogStream } from "./hooks/useLogStream"
 import { useSubAgentSync } from "./hooks/useSubAgentSync"
@@ -215,11 +215,11 @@ export function WorkflowShell(props: WorkflowShellProps) {
     return s.selectedAgentId === running.id && s.selectedItemType !== "sub"
   })
 
-  // Auto-focus prompt box when chaining becomes active
+  // Auto-focus prompt box when chaining becomes active or paused
   createEffect(() => {
-    if (isChainedActive() && isShowingRunningAgent()) {
+    if ((isChainedActive() || pauseControl.isPaused()) && isShowingRunningAgent()) {
       setIsPromptBoxFocused(true)
-    } else if (!isChainedActive()) {
+    } else if (!isChainedActive() && !pauseControl.isPaused()) {
       setIsPromptBoxFocused(false)
     }
   })
@@ -237,11 +237,20 @@ export function WorkflowShell(props: WorkflowShellProps) {
     setShowStopModal(false)
   }
 
-  const handleChainedCustom = (prompt: string) => {
-    // Clear UI state while agent processes the prompt
-    ui.actions.setChainedState(null)
-    setIsPromptBoxFocused(false)
-    ;(process as NodeJS.EventEmitter).emit("chained:custom", { prompt })
+  // Unified prompt submit handler for both pause and chained states
+  const handlePromptSubmit = (prompt: string) => {
+    if (pauseControl.isPaused()) {
+      // Resume with optional prompt
+      pauseControl.resumeWithPrompt(prompt || undefined)
+      setIsPromptBoxFocused(false)
+    } else if (isChainedActive()) {
+      if (prompt) {
+        // Custom prompt for chained
+        ui.actions.setChainedState(null)
+        setIsPromptBoxFocused(false)
+        ;(process as NodeJS.EventEmitter).emit("chained:custom", { prompt })
+      }
+    }
   }
 
   const handleChainedNext = () => {
@@ -249,12 +258,6 @@ export function WorkflowShell(props: WorkflowShellProps) {
     ui.actions.setChainedState(null)
     setIsPromptBoxFocused(false)
     ;(process as NodeJS.EventEmitter).emit("chained:next")
-  }
-
-  const handleChainedSkip = () => {
-    ui.actions.setChainedState(null)
-    setIsPromptBoxFocused(false)
-    ;(process as NodeJS.EventEmitter).emit("chained:skip-all")
   }
 
   const getMonitoringId = (uiAgentId: string): number | undefined => {
@@ -273,7 +276,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
     getState: state,
     actions: ui.actions,
     calculateVisibleItems: getVisibleItems,
-    isDisabled: () => isCheckpointActive() || isPromptBoxFocused() || modals.isLogViewerActive() || modals.isHistoryActive() || modals.isHistoryLogViewerActive() || pauseControl.isPaused() || showStopModal(),
+    isDisabled: () => isCheckpointActive() || isPromptBoxFocused() || modals.isLogViewerActive() || modals.isHistoryActive() || modals.isHistoryLogViewerActive() || showStopModal(),
     openLogViewer: modals.setLogViewerAgentId,
     openHistory: () => modals.setShowHistory(true),
     pauseWorkflow: () => pauseControl.pause(),
@@ -283,7 +286,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
       return status === "running" || status === "paused" || status === "stopping"
     },
     getCurrentAgentId: () => currentAgent()?.id ?? null,
-    canFocusPromptBox: () => isChainedActive() && isShowingRunningAgent() && !isPromptBoxFocused(),
+    canFocusPromptBox: () => (isChainedActive() || pauseControl.isPaused()) && isShowingRunningAgent() && !isPromptBoxFocused(),
     focusPromptBox: () => setIsPromptBoxFocused(true),
   })
 
@@ -308,10 +311,11 @@ export function WorkflowShell(props: WorkflowShellProps) {
               maxLines={state().visibleItemCount}
               latestThinking={logStream.latestThinking}
               chainedState={isShowingRunningAgent() ? state().chainedState : null}
+              isPaused={pauseControl.isPaused()}
+              workflowStatus={state().workflowStatus}
               isPromptBoxFocused={isPromptBoxFocused()}
-              onChainedCustom={handleChainedCustom}
+              onPromptSubmit={handlePromptSubmit}
               onChainedNext={handleChainedNext}
-              onChainedSkip={handleChainedSkip}
               onPromptBoxFocusExit={() => setIsPromptBoxFocused(false)}
             />
           </box>
@@ -326,12 +330,6 @@ export function WorkflowShell(props: WorkflowShellProps) {
       <Show when={isCheckpointActive()}>
         <box position="absolute" left={0} top={0} width="100%" height="100%" zIndex={2000}>
           <CheckpointModal reason={state().checkpointState?.reason} onContinue={handleCheckpointContinue} onQuit={handleCheckpointQuit} />
-        </box>
-      </Show>
-
-      <Show when={pauseControl.isPaused()}>
-        <box position="absolute" left={0} top={0} width="100%" height="100%" zIndex={2000}>
-          <PauseModal onResume={(prompt) => pauseControl.resumeWithPrompt(prompt)} onCancel={() => pauseControl.resumeWithPrompt()} />
         </box>
       </Show>
 

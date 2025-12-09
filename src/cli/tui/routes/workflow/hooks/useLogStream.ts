@@ -102,7 +102,7 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
     }
 
     /**
-     * Filter out box-style header lines from log display
+     * Filter out box-style header lines and telemetry from log display
      * These are kept in log files for debugging but hidden from UI
      */
     function filterHeaderLines(fileLines: string[]): string[] {
@@ -110,6 +110,8 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
         if (!line) return true // keep empty lines for spacing
         if (line.includes("╭─") || line.includes("╰─")) return false
         if (line.includes("Started:") || line.includes("Prompt:")) return false
+        // Filter out token telemetry lines (shown in telemetry bar instead)
+        if (line.includes("⏱️") && line.includes("Tokens:")) return false
         return true
       })
     }
