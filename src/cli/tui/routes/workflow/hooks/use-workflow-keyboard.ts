@@ -26,6 +26,10 @@ export interface UseWorkflowKeyboardOptions {
   openHistory: () => void
   /** Pause workflow */
   pauseWorkflow: () => void
+  /** Show stop confirmation modal */
+  showStopConfirmation: () => void
+  /** Check if workflow can be stopped */
+  canStop: () => boolean
   /** Get current agent ID shown in output window (fallback for Enter key) */
   getCurrentAgentId?: () => string | null
 }
@@ -88,6 +92,13 @@ export function useWorkflowKeyboard(options: UseWorkflowKeyboardOptions) {
       if (s.selectedAgentId && (s.selectedItemType === "main" || s.selectedItemType === "summary")) {
         options.actions.toggleExpand(s.selectedAgentId)
       }
+      return
+    }
+
+    // Escape key - show stop confirmation (only if workflow can be stopped)
+    if (evt.name === "escape" && options.canStop()) {
+      evt.preventDefault()
+      options.showStopConfirmation()
       return
     }
 

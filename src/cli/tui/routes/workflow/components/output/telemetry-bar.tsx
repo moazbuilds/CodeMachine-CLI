@@ -6,10 +6,8 @@
  * Show workflow info, status, and total telemetry in footer
  */
 
-import { Show, Switch, Match } from "solid-js"
 import { useTheme } from "@tui/shared/context/theme"
 import { formatTokens, formatNumber } from "../../state/formatters"
-import { ShimmerText } from "./shimmer-text"
 import type { WorkflowStatus } from "../../state/types"
 
 export interface TelemetryBarProps {
@@ -34,6 +32,24 @@ export function TelemetryBar(props: TelemetryBarProps) {
     return props.total.cached ? `${base} (${formatNumber(props.total.cached)} cached)` : base
   }
 
+  const showStatus = () => props.status === "checkpoint" || props.status === "paused" || props.status === "stopped"
+
+  const statusColor = () => {
+    switch (props.status) {
+      case "stopped": return themeCtx.theme.error
+      default: return themeCtx.theme.warning
+    }
+  }
+
+  const statusText = () => {
+    switch (props.status) {
+      case "checkpoint": return "Checkpoint"
+      case "paused": return "Paused"
+      case "stopped": return "Stopped"
+      default: return ""
+    }
+  }
+
   return (
     <box
       paddingLeft={1}
@@ -49,29 +65,8 @@ export function TelemetryBar(props: TelemetryBarProps) {
           {props.workflowName}
         </text>
         <text fg={themeCtx.theme.textMuted}> • {props.runtime}</text>
-        <text fg={themeCtx.theme.text}> • </text>
-
-        {/* Status with animation for running state */}
-        <Switch>
-          <Match when={props.status === "running"}>
-            <ShimmerText text="Running..." />
-          </Match>
-          <Match when={props.status === "stopping"}>
-            <text fg={themeCtx.theme.warning}>⚠ Press Ctrl+C again to close the session</text>
-          </Match>
-          <Match when={props.status === "completed"}>
-            <text fg={themeCtx.theme.success}>● Completed</text>
-          </Match>
-          <Match when={props.status === "stopped"}>
-            <text fg={themeCtx.theme.error}>⏹ Stopped by user</text>
-          </Match>
-          <Match when={props.status === "checkpoint"}>
-            <text fg={themeCtx.theme.warning}>⏸ Checkpoint - Review Required</text>
-          </Match>
-          <Match when={props.status === "paused"}>
-            <text fg={themeCtx.theme.warning}>⏸ Paused - Press [P] to resume</text>
-          </Match>
-        </Switch>
+        {showStatus() && <text fg={themeCtx.theme.text}> • </text>}
+        {showStatus() && <text fg={statusColor()}>{statusText()}</text>}
       </box>
 
       {/* Right side: token counts */}

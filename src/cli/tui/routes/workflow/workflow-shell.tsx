@@ -9,11 +9,12 @@ import { createMemo, createSignal, createEffect, onMount, onCleanup, Show } from
 import { useTerminalDimensions } from "@opentui/solid"
 import { BrandingHeader } from "@tui/shared/components/layout/branding-header"
 import { useTheme } from "@tui/shared/context/theme"
+import { useToast } from "@tui/shared/context/toast"
 import { useUIState } from "./context/ui-state"
 import { AgentTimeline } from "./components/timeline"
 import { OutputWindow, TelemetryBar, StatusFooter } from "./components/output"
 import { formatRuntime } from "./state/formatters"
-import { CheckpointModal, LogViewer, HistoryView, PauseModal, ChainedModal } from "./components/modals"
+import { CheckpointModal, LogViewer, HistoryView, PauseModal, ChainedModal, StopModal } from "./components/modals"
 import { OpenTUIAdapter } from "./adapters/opentui"
 import { useLogStream } from "./hooks/useLogStream"
 import { useSubAgentSync } from "./hooks/useSubAgentSync"
@@ -33,12 +34,41 @@ export interface WorkflowShellProps {
 export function WorkflowShell(props: WorkflowShellProps) {
   const themeCtx = useTheme()
   const ui = useUIState()
+  const toast = useToast()
   const state = () => ui.state()
   const dimensions = useTerminalDimensions()
   const modals = useWorkflowModals()
   const pauseControl = usePause()
 
   const getVisibleItems = () => calculateVisibleItems(dimensions()?.height ?? 30)
+
+  // Show toast on workflow status change
+  createEffect((prevStatus: string | undefined) => {
+    const status = state().workflowStatus
+    if (prevStatus && prevStatus !== status) {
+      switch (status) {
+        case "running":
+          toast.show({ variant: "info", message: "Workflow running...", duration: 2000 })
+          break
+        case "stopping":
+          toast.show({ variant: "warning", message: "Press Ctrl+C again to exit", duration: 3000 })
+          break
+        case "completed":
+          toast.show({ variant: "success", message: "Workflow completed!", duration: 4000 })
+          break
+        case "stopped":
+          toast.show({ variant: "error", message: "Stopped by user", duration: 3000 })
+          break
+        case "checkpoint":
+          toast.show({ variant: "warning", message: "Checkpoint - Review Required", duration: 5000 })
+          break
+        case "paused":
+          toast.show({ variant: "warning", message: "Paused - Press [P] to resume", duration: 4000 })
+          break
+      }
+    }
+    return status
+  })
 
   // Responsive: hide output panel on narrow terminals
   const MIN_WIDTH_FOR_SPLIT_VIEW = 100
@@ -60,8 +90,14 @@ export function WorkflowShell(props: WorkflowShellProps) {
     ui.actions.setWorkflowStatus("stopping")
   }
 
+  const handleUserStop = () => {
+    setCheckpointFreezeTime(Date.now())
+    ui.actions.setWorkflowStatus("stopped")
+  }
+
   onMount(() => {
     ;(process as NodeJS.EventEmitter).on('workflow:stopping', handleStopping)
+    ;(process as NodeJS.EventEmitter).on('workflow:user-stop', handleUserStop)
     if (props.eventBus) {
       adapter = new OpenTUIAdapter({ actions: ui.actions })
       adapter.connect(props.eventBus)
@@ -72,6 +108,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
 
   onCleanup(() => {
     ;(process as NodeJS.EventEmitter).off('workflow:stopping', handleStopping)
+    ;(process as NodeJS.EventEmitter).off('workflow:user-stop', handleUserStop)
     if (adapter) {
       adapter.stop()
       adapter.disconnect()
@@ -164,6 +201,19 @@ export function WorkflowShell(props: WorkflowShellProps) {
   // Chained prompts modal state and handlers
   const isChainedActive = () => state().chainedState?.active ?? false
 
+  // Stop confirmation modal state
+  const [showStopModal, setShowStopModal] = createSignal(false)
+
+  const handleStopConfirm = () => {
+    setShowStopModal(false)
+    ;(process as NodeJS.EventEmitter).emit("workflow:user-stop")
+    ;(process as NodeJS.EventEmitter).emit("workflow:stop")
+  }
+
+  const handleStopCancel = () => {
+    setShowStopModal(false)
+  }
+
   const handleChainedCustom = (prompt: string) => {
     ;(process as NodeJS.EventEmitter).emit("chained:custom", { prompt })
   }
@@ -193,10 +243,15 @@ export function WorkflowShell(props: WorkflowShellProps) {
     getState: state,
     actions: ui.actions,
     calculateVisibleItems: getVisibleItems,
-    isDisabled: () => isCheckpointActive() || isChainedActive() || modals.isLogViewerActive() || modals.isHistoryActive() || modals.isHistoryLogViewerActive() || pauseControl.isPaused(),
+    isDisabled: () => isCheckpointActive() || isChainedActive() || modals.isLogViewerActive() || modals.isHistoryActive() || modals.isHistoryLogViewerActive() || pauseControl.isPaused() || showStopModal(),
     openLogViewer: modals.setLogViewerAgentId,
     openHistory: () => modals.setShowHistory(true),
     pauseWorkflow: () => pauseControl.pause(),
+    showStopConfirmation: () => setShowStopModal(true),
+    canStop: () => {
+      const status = state().workflowStatus
+      return status === "running" || status === "paused"
+    },
     getCurrentAgentId: () => currentAgent()?.id ?? null,
   })
 
@@ -262,6 +317,12 @@ export function WorkflowShell(props: WorkflowShellProps) {
       <Show when={modals.isHistoryLogViewerActive()}>
         <box position="absolute" left={0} top={0} width="100%" height="100%" zIndex={1000} backgroundColor={themeCtx.theme.background}>
           <LogViewer agentId={String(modals.historyLogViewerMonitoringId())} getMonitoringId={() => modals.historyLogViewerMonitoringId() ?? undefined} onClose={() => { modals.setHistoryLogViewerMonitoringId(null); modals.setShowHistory(true) }} />
+        </box>
+      </Show>
+
+      <Show when={showStopModal()}>
+        <box position="absolute" left={0} top={0} width="100%" height="100%" zIndex={2000}>
+          <StopModal onConfirm={handleStopConfirm} onCancel={handleStopCancel} />
         </box>
       </Show>
     </box>

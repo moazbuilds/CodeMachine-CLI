@@ -257,8 +257,13 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   // Workflow stop flag for Ctrl+C handling
   let workflowShouldStop = false;
   let stoppedByCheckpointQuit = false;
+  let currentAbortController: AbortController | null = null; // Separate - different lifecycle
   const stopListener = () => {
     workflowShouldStop = true;
+    // Also abort the current agent execution
+    if (currentAbortController) {
+      currentAbortController.abort();
+    }
   };
   process.on('workflow:stop', stopListener);
 
@@ -271,7 +276,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     resumePrompt: undefined as string | undefined,
     resolver: null as (() => void) | null,
   };
-  let currentAbortController: AbortController | null = null; // Separate - different lifecycle
 
   // Chained prompts handling state
   const chainedState = {

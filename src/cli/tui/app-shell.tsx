@@ -10,6 +10,7 @@ import { useTerminalDimensions, useKeyboard, useRenderer } from "@opentui/solid"
 import { TextAttributes } from "@opentui/core"
 import { useKV } from "@tui/shared/context/kv"
 import { useToast } from "@tui/shared/context/toast"
+import { Toast } from "@tui/shared/ui/toast"
 import { useTheme } from "@tui/shared/context/theme"
 import { useSession } from "@tui/shared/context/session"
 import { useUpdateNotifier } from "@tui/shared/context/update-notifier"
@@ -194,6 +195,7 @@ export function App(props: { initialToast?: InitialToast }) {
 
   return (
     <box width={dimensions().width} height={dimensions().height} backgroundColor={themeCtx.theme.background} flexDirection="column">
+      <Toast />
       <box flexGrow={1}>
         <Switch>
           <Match when={view() === "home"}>
