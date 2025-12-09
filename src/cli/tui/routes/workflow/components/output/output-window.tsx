@@ -7,11 +7,11 @@
  * Shows last N lines with auto-scroll for running agents using OpenTUI scrollbox
  */
 
-import { Show, For, createMemo, createSignal } from "solid-js"
-import { useInput } from "@opentui/solid"
+import { Show, For } from "solid-js"
 import { useTheme } from "@tui/shared/context/theme"
 import { ShimmerText } from "./shimmer-text"
 import { LogLine } from "../shared/log-line"
+import { ChainedPromptBox } from "./chained-box"
 import type { AgentState, SubAgentState, ChainedState } from "../../state/types"
 
 // Rotating messages shown while connecting to agent
@@ -31,6 +31,13 @@ export interface OutputWindowProps {
   error: string | null
   maxLines?: number
   connectingMessageIndex?: number
+  // Chained prompt box props
+  chainedState?: ChainedState | null
+  isPromptBoxFocused?: boolean
+  onChainedCustom?: (prompt: string) => void
+  onChainedNext?: () => void
+  onChainedSkip?: () => void
+  onPromptBoxFocusExit?: () => void
 }
 
 /**
@@ -124,11 +131,24 @@ export function OutputWindow(props: OutputWindowProps) {
                 },
               }}
               viewportCulling={true}
-              focused={true}
+              focused={!props.isPromptBoxFocused}
             >
               <For each={props.lines}>{(line) => <LogLine line={line} />}</For>
             </scrollbox>
           </Show>
+
+          {/* Chained prompt box - shown when chaining is active */}
+          <ChainedPromptBox
+            isVisible={props.chainedState?.active ?? false}
+            isFocused={props.isPromptBoxFocused ?? false}
+            currentIndex={props.chainedState?.currentIndex ?? 0}
+            totalPrompts={props.chainedState?.totalPrompts ?? 0}
+            nextPromptLabel={props.chainedState?.nextPromptLabel ?? null}
+            onCustomPrompt={props.onChainedCustom ?? (() => {})}
+            onNextStep={props.onChainedNext ?? (() => {})}
+            onSkipAll={props.onChainedSkip ?? (() => {})}
+            onFocusExit={props.onPromptBoxFocusExit ?? (() => {})}
+          />
         </box>
       </Show>
     </box>
