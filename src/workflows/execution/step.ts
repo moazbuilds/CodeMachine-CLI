@@ -122,6 +122,8 @@ export async function executeStep(
     uniqueAgentId: options.uniqueAgentId,
     resumeMonitoringId: options.resumeMonitoringId,
     resumePrompt: options.resumePrompt,
+    // Pass emitter as UI so runner can register monitoring ID immediately
+    ui: options.emitter,
   });
 
   debug(`[DEBUG step] executeAgent completed. agentId=${result.agentId}, outputLength=${result.output?.length ?? 0}`);

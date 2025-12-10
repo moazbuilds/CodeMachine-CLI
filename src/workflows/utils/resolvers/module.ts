@@ -42,6 +42,7 @@ export function resolveModule(id: string, overrides: ModuleOverrides = {}): Work
   const promptPath = overrides.promptPath ?? moduleEntry.promptPath;
   const model = overrides.model ?? moduleEntry.model;
   const modelReasoningEffort = overrides.modelReasoningEffort ?? moduleEntry.modelReasoningEffort;
+  const engine = overrides.engine ?? moduleEntry.engine;
 
   if (typeof promptPath !== 'string' || !promptPath.trim()) {
     throw new Error(`Module ${id} is missing a promptPath configuration.`);
@@ -56,6 +57,7 @@ export function resolveModule(id: string, overrides: ModuleOverrides = {}): Work
     promptPath,
     model,
     modelReasoningEffort,
+    engine,
     module: {
       id: moduleEntry.id,
       behavior,

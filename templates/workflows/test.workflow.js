@@ -21,11 +21,11 @@ export default {
     },
   },
   steps: [
-    resolveStep('test-agent-1', { engine: 'codex' }),                                  // No tracks/conditions = runs always
-    resolveStep('test-agent-2', { engine: 'codex', tracks: ['bmad', 'quick'] }),                // Only in bmad track
+    resolveStep('test-agent-1'),                                  // No tracks/conditions = runs always
+    resolveStep('test-agent-2', { tracks: ['bmad', 'quick'] }),                // Only in bmad track
     resolveUI("❚❚ Human Review"),
-    resolveStep('test-agent-3', { engine: 'codex', tracks: ['quick'], conditions: ['has_ui'] }), // Quick track + has_ui
-    resolveModule('auto-loop', { engine: 'codex', loopSteps: 3, loopMaxIterations: 5, conditions: ['has_api'] }), // Only if has_api
+    resolveStep('test-agent-3', { tracks: ['quick'], conditions: ['has_ui'] }), // Quick track + has_ui
+    resolveModule('auto-loop', { loopSteps: 3, loopMaxIterations: 5, conditions: ['has_api'] }), // Only if has_api
   ],
   subAgentIds: ['frontend-dev'],
 };

@@ -13,9 +13,7 @@ module.exports = {
     plan_fallback: path.join('.codemachine', 'prompts', 'plan_fallback.md'),
     tasks: path.join('.codemachine', 'artifacts', 'tasks.json'),
     all_tasks_json: path.join('.codemachine', 'artifacts', 'tasks', '*.json'),
-    task_fallback: path.join('.codemachine', 'prompts', 'task_fallback.md'),
     context: path.join('.codemachine', 'prompts', 'context.md'),
-    code_fallback: path.join('.codemachine', 'prompts', 'code_fallback.md'),
   },
 
   // Paths relative to codemachine package root
