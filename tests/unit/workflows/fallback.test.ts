@@ -39,7 +39,7 @@ describe('executeFallbackStep', () => {
       },
     };
 
-    await executeFallbackStep(step, '/tmp', Date.now(), 'claude', undefined, undefined, 'parent-agent', controller.signal);
+    await executeFallbackStep(step, '/tmp', Date.now(), 'claude', undefined, 'parent-agent', controller.signal);
 
     expect(executeStepMock).toHaveBeenCalledTimes(1);
     const callArgs = executeStepMock.mock.calls[0] as [

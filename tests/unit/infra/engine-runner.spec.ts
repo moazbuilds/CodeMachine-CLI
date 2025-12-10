@@ -97,7 +97,7 @@ describe('Engine Runner', () => {
       onErrorData: handleError,
     });
 
-    expect(handleData).toHaveBeenCalledWith('[GRAY]● Message: All tasks done\n');
+    expect(handleData).toHaveBeenCalledWith('[GRAY]* All tasks done\n');
     expect(handleError).toHaveBeenCalledWith('error-chunk');
     expect(result).toEqual({ stdout: 'final output', stderr: 'final error output' });
     expect(spawnSpy).toHaveBeenCalledTimes(1);
