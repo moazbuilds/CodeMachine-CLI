@@ -42,7 +42,7 @@ export function PauseModal(props: PauseModalProps) {
 
   return (
     <ModalBase width={modalWidth()}>
-      <ModalHeader title="PAUSED" icon="⏸" iconColor={themeCtx.theme.warning} />
+      <ModalHeader title="PAUSED" icon="||" iconColor={themeCtx.theme.warning} />
       <ModalContent>
         <text fg={themeCtx.theme.textMuted}>
           Press [Esc] to resume, or type a prompt and press [Enter] to steer the agent.

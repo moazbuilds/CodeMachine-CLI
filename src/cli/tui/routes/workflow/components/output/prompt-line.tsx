@@ -142,7 +142,7 @@ export function PromptLine(props: PromptLineProps) {
 
   const getPromptSymbol = () => {
     if (props.state.mode === "disabled") return "·"
-    if (props.state.mode === "active" && props.state.reason === "paused") return "⏸"
+    if (props.state.mode === "active" && props.state.reason === "paused") return "||"
     return "❯"
   }
 

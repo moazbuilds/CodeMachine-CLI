@@ -94,7 +94,7 @@ export function SubAgentNode(props: SubAgentNodeProps) {
             <text> </text>
           </>
         }>
-          <text fg={themeCtx.theme.warning}>⏸ </text>
+          <text fg={themeCtx.theme.warning}>|| </text>
         </Show>
       </Show>
       <text fg={themeCtx.theme.text}>{props.agent.name}</text>

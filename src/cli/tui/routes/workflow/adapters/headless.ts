@@ -155,7 +155,7 @@ export class HeadlessAdapter extends BaseUIAdapter {
 
       case 'checkpoint:state':
         if (event.checkpoint?.active) {
-          this.log(`⏸️  Checkpoint: ${event.checkpoint.reason || 'Manual review required'}`);
+          this.log(`||  Checkpoint: ${event.checkpoint.reason || 'Manual review required'}`);
         }
         break;
 
