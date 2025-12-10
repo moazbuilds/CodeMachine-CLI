@@ -261,6 +261,8 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   // Get the starting index based on resume configuration
   const startIndex = await getResumeStartIndex(cmRoot);
 
+  debug(`[DEBUG workflow] startIndex=${startIndex}, template.steps.length=${template.steps.length}`);
+
   if (startIndex > 0) {
     console.log(`Resuming workflow from step ${startIndex}...`);
   }
@@ -326,7 +328,11 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   process.on('workflow:input', inputListener);
 
   try {
+    debug(`[DEBUG workflow] Entering step loop. startIndex=${startIndex}, totalSteps=${template.steps.length}, workflowShouldStop=${workflowShouldStop}`);
+
     for (let index = startIndex; index < template.steps.length; index += 1) {
+    debug(`[DEBUG workflow] Loop iteration index=${index}, workflowShouldStop=${workflowShouldStop}`);
+
     // Check if workflow should stop (Ctrl+C pressed)
     if (workflowShouldStop) {
       console.log(formatAgentLog('workflow', 'Workflow stopped by user.'));
@@ -359,13 +365,16 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     }
 
     const step = template.steps[index];
+    debug(`[DEBUG workflow] Step ${index}: type=${step.type}, agentId=${'agentId' in step ? step.agentId : 'N/A'}`);
 
     // UI elements are pre-populated and don't need execution
     if (step.type === 'ui') {
+      debug(`[DEBUG workflow] Step ${index} is UI type, skipping`);
       continue;
     }
 
     if (step.type !== 'module') {
+      debug(`[DEBUG workflow] Step ${index} is not module type, skipping`);
       continue;
     }
 
@@ -374,13 +383,16 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
     const skipResult = shouldSkipStep(step, index, completedSteps, activeLoop, ui, uniqueAgentId, emitter, selectedTrack, selectedConditions);
     if (skipResult.skip) {
+      debug(`[DEBUG workflow] Step ${index} (${uniqueAgentId}) skipped: ${skipResult.reason}`);
       ui.logMessage(uniqueAgentId, skipResult.reason!);
       emitter.logMessage(uniqueAgentId, skipResult.reason!);
       continue;
     }
 
+    debug(`[DEBUG workflow] Step ${index} (${uniqueAgentId}) will execute`);
     logSkipDebug(step, activeLoop);
 
+    debug(`[DEBUG workflow] Updating UI status to running...`);
     // Update UI status to running (this clears the output buffer)
     ui.updateAgentStatus(uniqueAgentId, 'running');
     emitter.updateAgentStatus(uniqueAgentId, 'running');
@@ -391,6 +403,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     emitter.logMessage(uniqueAgentId, '═'.repeat(80));
     emitter.logMessage(uniqueAgentId, `${step.agentName} started to work.`);
 
+    debug(`[DEBUG workflow] Resetting behavior file...`);
     // Reset behavior file to default "continue" before each agent run
     const behaviorFile = path.join(cwd, '.codemachine/memory/behavior.json');
     const behaviorDir = path.dirname(behaviorFile);
@@ -399,19 +412,25 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     }
     fs.writeFileSync(behaviorFile, JSON.stringify({ action: 'continue' }, null, 2));
 
+    debug(`[DEBUG workflow] Marking step as started...`);
     // Mark step as started (adds to notCompletedSteps)
     await markStepStarted(cmRoot, index);
+    debug(`[DEBUG workflow] Step marked as started, determining engine...`);
+    debug(`[DEBUG workflow] step.engine=${step.engine}`);
 
     // Determine engine: step override > first authenticated engine
     let engineType: string;
     if (step.engine) {
+      debug(`[DEBUG workflow] Using step-specified engine: ${step.engine}`);
       engineType = step.engine;
 
       // If an override is provided but not authenticated, log and fall back
       const overrideEngine = registry.get(engineType);
+      debug(`[DEBUG workflow] Checking auth for override engine...`);
       const isOverrideAuthed = overrideEngine
         ? await authCache.isAuthenticated(overrideEngine.metadata.id, () => overrideEngine.auth.isAuthenticated())
         : false;
+      debug(`[DEBUG workflow] isOverrideAuthed=${isOverrideAuthed}`);
       if (!isOverrideAuthed) {
         const pretty = overrideEngine?.metadata.name ?? engineType;
         const authMsg = `${pretty} override is not authenticated; falling back to first authenticated engine by order. Run 'codemachine auth login' to use ${pretty}.`;
@@ -445,15 +464,19 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         }
       }
     } else {
+      debug(`[DEBUG workflow] No step.engine specified, finding authenticated engine...`);
       // Fallback: find first authenticated engine by order (with caching)
       const engines = registry.getAll();
+      debug(`[DEBUG workflow] Available engines: ${engines.map(e => e.metadata.id).join(', ')}`);
       let foundEngine = null;
 
       for (const engine of engines) {
+        debug(`[DEBUG workflow] Checking auth for engine: ${engine.metadata.id}`);
         const isAuth = await authCache.isAuthenticated(
           engine.metadata.id,
           () => engine.auth.isAuthenticated()
         );
+        debug(`[DEBUG workflow] Engine ${engine.metadata.id} isAuth=${isAuth}`);
         if (isAuth) {
           foundEngine = engine;
           break;
@@ -461,32 +484,39 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       }
 
       if (!foundEngine) {
+        debug(`[DEBUG workflow] No authenticated engine found, using default`);
         // If no authenticated engine, use default (first by order)
         foundEngine = registry.getDefault();
       }
 
       if (!foundEngine) {
+        debug(`[DEBUG workflow] No engines registered at all!`);
         throw new Error('No engines registered. Please install at least one engine.');
       }
 
       engineType = foundEngine.metadata.id;
+      debug(`[DEBUG workflow] Selected engine: ${engineType}`);
       const engineMsg = `No engine specified, using ${foundEngine.metadata.name} (${engineType})`;
       ui.logMessage(uniqueAgentId, engineMsg);
       emitter.logMessage(uniqueAgentId, engineMsg);
     }
 
+    debug(`[DEBUG workflow] Engine determined: ${engineType}`);
     // Ensure the selected engine is used during execution
     // (executeStep falls back to default engine if step.engine is unset)
     // Mutate current step to carry the chosen engine forward
     step.engine = engineType;
 
+    debug(`[DEBUG workflow] Resolving model...`);
     // Resolve model: step override > engine default, and update UI
     const engineModule = registry.get(engineType);
     const resolvedModel = step.model ?? engineModule?.metadata.defaultModel;
+    debug(`[DEBUG workflow] resolvedModel=${resolvedModel}`);
     if (resolvedModel) {
       emitter.updateAgentModel(uniqueAgentId, resolvedModel);
     }
 
+    debug(`[DEBUG workflow] Setting up abort controller and skip listener...`);
     // Set up skip listener and abort controller for this step (covers fallback + main + triggers)
     const abortController = new AbortController();
     currentAbortController = abortController; // Track for pause functionality
@@ -504,7 +534,9 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     };
     process.once('workflow:skip', skipListener);
 
+    debug(`[DEBUG workflow] Entering try block...`);
     try {
+      debug(`[DEBUG workflow] Checking if fallback should execute... notCompletedSteps=${JSON.stringify(notCompletedSteps)}`);
       // Check if fallback should be executed before the original step
       if (shouldExecuteFallback(step, index, notCompletedSteps)) {
         ui.logMessage(uniqueAgentId, `Detected incomplete step. Running fallback agent first.`);
@@ -520,8 +552,10 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         }
       }
 
+      debug(`[DEBUG workflow] Fallback check passed, checking chain resume...`);
       // Check if resuming from saved chain state BEFORE execution
       const isResumingFromChain = chainResumeInfo && chainResumeInfo.stepIndex === index;
+      debug(`[DEBUG workflow] isResumingFromChain=${isResumingFromChain}, chainResumeInfo=${JSON.stringify(chainResumeInfo)}`);
 
       let stepOutput;
 
@@ -554,12 +588,14 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
           );
         }
       } else {
+        debug(`[DEBUG workflow] Normal execution path (not resuming from chain)`);
         // Normal path - log if resuming from pause
         if (stepResumeMonitoringId) {
           ui.logMessage(uniqueAgentId, `Resuming from paused session...`);
           emitter.logMessage(uniqueAgentId, `Resuming from paused session...`);
         }
 
+        debug(`[DEBUG workflow] About to call executeStep...`);
         // Execute the step
         stepOutput = await executeStep(step, cwd, {
           logger: () => {}, // No-op: UI reads from log files
@@ -572,21 +608,27 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
           resumePrompt: stepResumePrompt,
         });
 
+        debug(`[DEBUG workflow] executeStep completed. monitoringId=${stepOutput.monitoringId}`);
+
         // Initialize step session with session data (for resume capability)
         // Only on fresh execution, not chain resume (session already saved)
         if (stepOutput.monitoringId !== undefined) {
+          debug(`[DEBUG workflow] Initializing step session...`);
           const monitor = AgentMonitorService.getInstance();
           const agent = monitor.getAgent(stepOutput.monitoringId);
           const sessionId = agent?.sessionId ?? '';
           await initStepSession(cmRoot, index, sessionId, stepOutput.monitoringId);
+          debug(`[DEBUG workflow] Step session initialized`);
         }
       }
 
+      debug(`[DEBUG workflow] Checking for chained prompts...`);
       // Unified input handling - activates for both:
       // 1. Resume from pause with custom prompt (steering)
       // 2. Chained prompts from workflow config
       const hasChainedPrompts = stepOutput.chainedPrompts && stepOutput.chainedPrompts.length > 0;
       const shouldEnterInputLoop = (stepResumePrompt && stepResumeMonitoringId) || hasChainedPrompts || isResumingFromChain;
+      debug(`[DEBUG workflow] hasChainedPrompts=${hasChainedPrompts}, shouldEnterInputLoop=${shouldEnterInputLoop}`);
 
       if (shouldEnterInputLoop) {
         // Initialize input state
@@ -625,7 +667,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
           // Emit input state to TUI
           emitter.setInputState({
             active: true,
-            queuedPrompts: inputState.queuedPrompts.map(p => ({ label: p.label, content: p.content })),
+            queuedPrompts: inputState.queuedPrompts.map(p => ({ name: p.name, label: p.label, content: p.content })),
             currentIndex: inputState.currentIndex,
             monitoringId: inputState.monitoringId,
           });
@@ -727,7 +769,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
           // Update UI with new state
           emitter.setInputState({
             active: true,
-            queuedPrompts: inputState.queuedPrompts.map(p => ({ label: p.label, content: p.content })),
+            queuedPrompts: inputState.queuedPrompts.map(p => ({ name: p.name, label: p.label, content: p.content })),
             currentIndex: inputState.currentIndex,
             monitoringId: inputState.monitoringId,
           });
@@ -910,6 +952,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         index -= 1;
       } else if (error instanceof Error && error.name === 'AbortError') {
         // Check if this was a user-requested skip (abort)
+        debug(`[DEBUG workflow] Step ${index} (${uniqueAgentId}) was aborted by user`);
         ui.updateAgentStatus(uniqueAgentId, 'skipped');
         emitter.updateAgentStatus(uniqueAgentId, 'skipped');
         ui.logMessage(uniqueAgentId, `${step.agentName} was skipped by user.`);
@@ -918,17 +961,42 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
         // Continue to next step - don't throw
       } else {
-        // Don't update status to failed - let it stay as running/retrying
-        const failMsg = `${step.agentName} failed: ${error instanceof Error ? error.message : String(error)}`;
-        ui.logMessage(uniqueAgentId, failMsg);
-        emitter.logMessage(uniqueAgentId, failMsg);
-        throw error;
+        // Error occurred - log it and stop the workflow
+        debug(`[DEBUG workflow] Step ${index} (${uniqueAgentId}) failed with error: ${error instanceof Error ? error.message : String(error)}`);
+
+        // Check if it's a file not found error
+        if (error instanceof Error && (error.message.includes('ENOENT') || error.message.includes('not found'))) {
+          const errorMsg = `CRITICAL ERROR: ${step.agentName} failed - required file not found: ${error.message}`;
+          ui.updateAgentStatus(uniqueAgentId, 'failed');
+          emitter.updateAgentStatus(uniqueAgentId, 'failed');
+          ui.logMessage(uniqueAgentId, errorMsg);
+          emitter.logMessage(uniqueAgentId, errorMsg);
+
+          // Set workflow status to failed and stop
+          ui.setWorkflowStatus('failed');
+          emitter.setWorkflowStatus('failed');
+          workflowShouldStop = true;
+        } else {
+          // Generic error - log and stop
+          const failMsg = `${step.agentName} failed: ${error instanceof Error ? error.message : String(error)}`;
+          ui.logMessage(uniqueAgentId, failMsg);
+          emitter.logMessage(uniqueAgentId, failMsg);
+          ui.updateAgentStatus(uniqueAgentId, 'failed');
+          emitter.updateAgentStatus(uniqueAgentId, 'failed');
+
+          // Set workflow status to failed and stop
+          ui.setWorkflowStatus('failed');
+          emitter.setWorkflowStatus('failed');
+          workflowShouldStop = true;
+        }
       }
     } finally {
       // Always clean up the skip listener
       process.removeListener('workflow:skip', skipListener);
     }
   }
+
+  debug(`[DEBUG workflow] Step loop ended. workflowShouldStop=${workflowShouldStop}, stoppedByCheckpointQuit=${stoppedByCheckpointQuit}`);
 
   // Check if workflow was stopped by user (Ctrl+C or checkpoint quit)
   if (workflowShouldStop) {
@@ -964,8 +1032,21 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   });
   } catch (error) {
     // On workflow error, set status, stop UI, then exit
-    ui.setWorkflowStatus('stopped');
-    emitter.setWorkflowStatus('stopped');
+    debug(`[DEBUG workflow] FATAL ERROR: ${error instanceof Error ? error.message : String(error)}`);
+    debug(`[DEBUG workflow] Error stack: ${error instanceof Error ? error.stack : 'No stack'}`);
+
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : 'Unknown error';
+
+    ui.logMessage('workflow', `\n${'═'.repeat(80)}\nWORKFLOW FAILED\n${'═'.repeat(80)}`);
+    ui.logMessage('workflow', `Error: ${errorMsg}`);
+    ui.logMessage('workflow', `Stack: ${errorStack}`);
+
+    emitter.logMessage('workflow', `\n${'═'.repeat(80)}\nWORKFLOW FAILED\n${'═'.repeat(80)}`);
+    emitter.logMessage('workflow', `Error: ${errorMsg}`);
+
+    ui.setWorkflowStatus('failed');
+    emitter.setWorkflowStatus('failed');
 
     // Stop UI to restore console before logging error
     ui.stop();

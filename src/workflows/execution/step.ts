@@ -7,6 +7,7 @@ import { processPromptString } from '../../shared/prompts/index.js';
 import { executeAgent, type ChainedPrompt } from '../../agents/runner/runner.js';
 import type { WorkflowUIManager } from '../../ui/index.js';
 import type { WorkflowEventEmitter } from '../events/emitter.js';
+import { debug } from '../../shared/logging/logger.js';
 
 export type { ChainedPrompt } from '../../agents/runner/runner.js';
 
@@ -60,17 +61,32 @@ export async function executeStep(
   cwd: string,
   options: StepExecutorOptions,
 ): Promise<StepOutput> {
+  debug(`[DEBUG step] executeStep called for agentId=${step.type === 'module' ? step.agentId : 'N/A'}`);
+
   // Only module steps can be executed
   if (!isModuleStep(step)) {
+    debug(`[DEBUG step] Not a module step, throwing error`);
     throw new Error('Only module steps can be executed');
   }
 
+  debug(`[DEBUG step] Loading prompt from ${step.promptPath}`);
   // Load and process the prompt template
   const promptPath = path.isAbsolute(step.promptPath)
     ? step.promptPath
     : path.resolve(cwd, step.promptPath);
-  const rawPrompt = await readFile(promptPath, 'utf8');
+  debug(`[DEBUG step] Resolved promptPath: ${promptPath}`);
+
+  let rawPrompt: string;
+  try {
+    rawPrompt = await readFile(promptPath, 'utf8');
+    debug(`[DEBUG step] Prompt loaded, length=${rawPrompt.length}`);
+  } catch (fileError) {
+    debug(`[DEBUG step] ERROR reading prompt file: ${fileError instanceof Error ? fileError.message : String(fileError)}`);
+    throw fileError;
+  }
+
   const prompt = await processPromptString(rawPrompt, cwd);
+  debug(`[DEBUG step] Prompt processed, length=${prompt.length}`);
 
   // Use environment variable or default to 30 minutes (1800000ms)
   const timeout =
@@ -78,9 +94,11 @@ export async function executeStep(
     (process.env.CODEMACHINE_AGENT_TIMEOUT
       ? Number.parseInt(process.env.CODEMACHINE_AGENT_TIMEOUT, 10)
       : 1800000);
+  debug(`[DEBUG step] timeout=${timeout}ms`);
 
   // Determine engine: step override > default
   const engineType: EngineType | undefined = step.engine;
+  debug(`[DEBUG step] engineType=${engineType}`);
 
   // Build telemetry callback that updates both UI and emitter
   const onTelemetry = options.uniqueAgentId
@@ -90,6 +108,7 @@ export async function executeStep(
       }
     : undefined;
 
+  debug(`[DEBUG step] Calling executeAgent...`);
   // Execute via the unified execution runner
   // Runner handles: auth, monitoring, engine execution, memory storage
   const result = await executeAgent(step.agentId, prompt, {
@@ -109,9 +128,12 @@ export async function executeStep(
     resumePrompt: options.resumePrompt,
   });
 
+  debug(`[DEBUG step] executeAgent completed. agentId=${result.agentId}, outputLength=${result.output?.length ?? 0}`);
+
   // Run special post-execution steps
   const agentName = step.agentName.toLowerCase();
   if (step.agentId === 'agents-builder' || agentName.includes('builder')) {
+    debug(`[DEBUG step] Running agents builder post-step`);
     await runAgentsBuilderStep(cwd);
   }
 
@@ -119,6 +141,7 @@ export async function executeStep(
   // DO NOT parse from final output - it would match the FIRST telemetry line (early/wrong values)
   // instead of the LAST telemetry line (final/correct values), causing incorrect UI display.
 
+  debug(`[DEBUG step] executeStep returning`);
   return {
     output: result.output,
     monitoringId: result.agentId,

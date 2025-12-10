@@ -89,9 +89,11 @@ export function OutputWindow(props: OutputWindowProps) {
       // Has queued prompts = show chained UI
       if (inputState.queuedPrompts && inputState.queuedPrompts.length > 0) {
         const idx = inputState.currentIndex ?? 0
+        const prompt = inputState.queuedPrompts[idx]
         return {
           mode: "chained",
-          label: inputState.queuedPrompts[idx]?.label ?? "next step",
+          name: prompt?.name ?? "next step",
+          description: prompt?.label ?? "",
           index: idx + 1,
           total: inputState.queuedPrompts.length,
         }

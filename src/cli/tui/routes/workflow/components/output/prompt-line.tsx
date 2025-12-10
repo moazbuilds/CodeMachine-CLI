@@ -24,7 +24,7 @@ export type PromptLineState =
   | { mode: "disabled" }
   | { mode: "passive" }
   | { mode: "active"; reason?: "paused" | "chaining" }
-  | { mode: "chained"; label: string; index: number; total: number }
+  | { mode: "chained"; name: string; description: string; index: number; total: number }
 
 export interface PromptLineProps {
   state: PromptLineState
@@ -37,7 +37,8 @@ export interface PromptLineProps {
 // Confirmation modal for chained prompts
 interface ChainConfirmModalProps {
   stepIndex: number
-  stepLabel: string
+  stepName: string
+  stepDescription: string
   totalSteps: number
   onConfirm: () => void
   onCancel: () => void
@@ -92,7 +93,8 @@ function ChainConfirmModal(props: ChainConfirmModalProps) {
           Are you sure you want to proceed to step {props.stepIndex}/{props.totalSteps}?
         </text>
         <box height={1} />
-        <text fg={themeCtx.theme.primary} attributes={1}>"{props.stepLabel}"</text>
+        <text fg={themeCtx.theme.primary} attributes={1}>{props.stepName}</text>
+        <text fg={themeCtx.theme.textMuted}>{props.stepDescription}</text>
         <box height={1} />
         <text fg={themeCtx.theme.textMuted}>
           You cannot return to the previous step once you proceed.
@@ -298,7 +300,7 @@ export function PromptLine(props: PromptLineProps) {
       return "Type to steer agent..."
     }
     if (props.state.mode === "chained") {
-      return `Next: "${props.state.label}" (${props.state.index}/${props.state.total})`
+      return `Next: "${props.state.name}" (${props.state.index}/${props.state.total})`
     }
     return ""
   }
@@ -306,7 +308,7 @@ export function PromptLine(props: PromptLineProps) {
   const getHint = () => {
     if (!isInteractive()) return null
     if (props.state.mode === "chained") {
-      return `Step ${props.state.index}/${props.state.total}: ${props.state.label}`
+      return `Step ${props.state.index}/${props.state.total}: ${props.state.name}`
     }
     if (props.state.mode === "active" && props.state.reason === "paused") {
       return "[Enter] Resume"
@@ -322,11 +324,12 @@ export function PromptLine(props: PromptLineProps) {
     if (props.state.mode === "chained") {
       return {
         index: props.state.index + 1,
-        label: props.state.label,
+        name: props.state.name,
+        description: props.state.description,
         total: props.state.total,
       }
     }
-    return { index: 0, label: "", total: 0 }
+    return { index: 0, name: "", description: "", total: 0 }
   }
 
   return (
@@ -381,7 +384,8 @@ export function PromptLine(props: PromptLineProps) {
       <Show when={showConfirm()}>
         <ChainConfirmModal
           stepIndex={getNextStepInfo().index}
-          stepLabel={getNextStepInfo().label}
+          stepName={getNextStepInfo().name}
+          stepDescription={getNextStepInfo().description}
           totalSteps={getNextStepInfo().total}
           onConfirm={handleConfirm}
           onCancel={handleCancelConfirm}

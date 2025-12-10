@@ -63,7 +63,8 @@ export interface CheckpointState {
 }
 
 export interface QueuedPrompt {
-  label: string
+  name: string
+  label: string  // description
   content: string
 }
 
