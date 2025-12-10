@@ -11,8 +11,7 @@ export function BrandingHeader(props: { version: string; currentDir: string }) {
   const lineWidth = () => (dimensions()?.width ?? 80) - 2
 
   return (
-    <box flexDirection="column" paddingLeft={1} paddingRight={1} paddingTop={1} paddingBottom={1}>
-      <text> </text>
+    <box flexDirection="column" paddingLeft={1} paddingRight={1} paddingTop={1}>
       <text fg={themeCtx.theme.primary}>
         {` ${SIMPLE_LOGO[0]}  `}
         <span style={{ fg: themeCtx.theme.textMuted }}>v{props.version}</span>

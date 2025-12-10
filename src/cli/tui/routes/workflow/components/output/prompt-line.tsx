@@ -177,7 +177,8 @@ export function PromptLine(props: PromptLineProps) {
     return "[Enter] Send"
   }
 
-  const showInput = () => props.isFocused && isInteractive()
+  // Always show input when focused (for stability), but only allow typing when interactive
+  const showInput = () => props.isFocused
 
   return (
     <box flexDirection="column" flexShrink={0} paddingLeft={1} paddingRight={1}>
@@ -199,14 +200,14 @@ export function PromptLine(props: PromptLineProps) {
             <text fg={themeCtx.theme.textMuted}>{getPlaceholder()}</text>
           </Show>
 
-          {/* Input (shown when focused and interactive) */}
+          {/* Input (always shown when focused to maintain stable focus) */}
           <Show when={showInput()}>
             <input
               value={input()}
-              placeholder={typingText()}
+              placeholder={isInteractive() ? typingText() : getPlaceholder()}
               placeholderColor={themeCtx.theme.textMuted}
-              onInput={setInput}
-              onKeyDown={handleKeyDown}
+              onInput={isInteractive() ? setInput : () => {}}
+              onKeyDown={isInteractive() ? handleKeyDown : () => {}}
               onPaste={handlePaste}
               focused={true}
               flexGrow={1}
@@ -214,7 +215,7 @@ export function PromptLine(props: PromptLineProps) {
               focusedBackgroundColor={themeCtx.theme.background}
               textColor={themeCtx.theme.text}
               focusedTextColor={themeCtx.theme.text}
-              cursorColor={themeCtx.theme.primary}
+              cursorColor={isInteractive() ? themeCtx.theme.primary : themeCtx.theme.textMuted}
             />
           </Show>
         </box>
@@ -224,15 +225,6 @@ export function PromptLine(props: PromptLineProps) {
           <text fg={themeCtx.theme.textMuted}> {getHint()}</text>
         </Show>
       </box>
-
-      {/* Context hint when not focused but interactive */}
-      <Show when={!props.isFocused && isInteractive()}>
-        <box height={1} paddingLeft={2}>
-          <text fg={themeCtx.theme.textMuted}>
-            Press [→] to focus input
-          </text>
-        </box>
-      </Show>
     </box>
   )
 }

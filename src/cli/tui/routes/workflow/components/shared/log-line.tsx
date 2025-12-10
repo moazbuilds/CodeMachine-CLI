@@ -11,10 +11,11 @@
  * Uses the enhanced parseMarker system for professional CLI output.
  */
 
-import { createMemo, Show } from "solid-js"
+import { createMemo, Show, For } from "solid-js"
 import { TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
+import { useUIState } from "../../context/ui-state"
 import { parseMarker, type ParsedMarker } from "../../../../../../shared/formatters/outputMarkers.js"
 
 /**
@@ -35,6 +36,40 @@ function detectLinePrefix(text: string): { type: 'star' | 'bullet' | null; conte
     return { type: 'bullet', content: indentStr + trimmed.slice(2) }
   }
   return { type: null, content: text }
+}
+
+/**
+ * Word-wrap text to fit within maxWidth, breaking at word boundaries
+ */
+function wordWrap(text: string, maxWidth: number): string[] {
+  if (maxWidth <= 0 || text.length <= maxWidth) {
+    return [text]
+  }
+
+  const lines: string[] = []
+  const words = text.split(' ')
+  let currentLine = ''
+
+  for (const word of words) {
+    if (currentLine.length === 0) {
+      // First word on line - add it even if too long
+      currentLine = word
+    } else if (currentLine.length + 1 + word.length <= maxWidth) {
+      // Word fits on current line
+      currentLine += ' ' + word
+    } else {
+      // Word doesn't fit - start new line
+      lines.push(currentLine)
+      currentLine = word
+    }
+  }
+
+  // Don't forget the last line
+  if (currentLine.length > 0) {
+    lines.push(currentLine)
+  }
+
+  return lines.length > 0 ? lines : ['']
 }
 
 export interface LogLineProps {
@@ -76,13 +111,16 @@ function getTextAttributes(parsed: ParsedMarker): number {
 export function LogLine(props: LogLineProps) {
   const themeCtx = useTheme()
   const dimensions = useTerminalDimensions()
+  const ui = useUIState()
 
-  // Calculate max width for a log line (65% panel width minus padding)
+  // Calculate max width for a log line dynamically based on timeline state
   const maxWidth = createMemo(() => {
     if (props.maxWidth) return props.maxWidth
     const termWidth = dimensions()?.width ?? 120
-    // Output panel is 65% width, -6 for padding
-    return Math.floor(termWidth * 0.65) - 6
+    const isFullWidth = ui.state().timelineCollapsed
+    // Full width when timeline collapsed, otherwise 65% for split view
+    const widthRatio = isFullWidth ? 1 : 0.65
+    return Math.floor(termWidth * widthRatio) - 6
   })
 
   // Parse color and attribute markers from log line
@@ -130,19 +168,35 @@ export function LogLine(props: LogLineProps) {
 
   // Get prefix symbol for bullet points
   const bulletSymbol = () => prefixInfo().type === 'bullet' ? '• ' : ''
+  const bulletWidth = () => prefixInfo().type === 'bullet' ? 2 : 0
+
+  // Word-wrapped lines
+  const wrappedLines = createMemo(() => {
+    const width = maxWidth() - bulletWidth()
+    return wordWrap(displayText(), width)
+  })
 
   return (
-    <box flexDirection="row" width={maxWidth()}>
-      <Show when={prefixInfo().type === 'bullet'}>
-        <text fg={themeCtx.theme.textMuted}>{bulletSymbol()}</text>
-      </Show>
-      <text
-        fg={lineColor()}
-        bg={isUserInput() ? themeCtx.theme.backgroundElement : undefined}
-        attributes={textAttrs()}
-      >
-        {displayText()}
-      </text>
+    <box flexDirection="column" width={maxWidth()}>
+      <For each={wrappedLines()}>
+        {(line, index) => (
+          <box flexDirection="row">
+            <Show when={prefixInfo().type === 'bullet' && index() === 0}>
+              <text fg={themeCtx.theme.textMuted}>{bulletSymbol()}</text>
+            </Show>
+            <Show when={prefixInfo().type === 'bullet' && index() > 0}>
+              <text>  </text>
+            </Show>
+            <text
+              fg={lineColor()}
+              bg={isUserInput() ? themeCtx.theme.backgroundElement : undefined}
+              attributes={textAttrs()}
+            >
+              {line}
+            </text>
+          </box>
+        )}
+      </For>
     </box>
   )
 }

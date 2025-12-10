@@ -75,10 +75,20 @@ export function usePause() {
     ;(process as NodeJS.EventEmitter).emit("workflow:resume", { monitoringId, resumePrompt })
   }
 
+  /**
+   * Clear pause state without emitting resume event.
+   * Used when chained prompts handle the resume instead.
+   */
+  const clearPauseState = () => {
+    setIsPaused(false)
+    setPausedAgentId(null)
+  }
+
   return {
     isPaused,
     pausedAgentId,
     pause,
-    resumeWithPrompt
+    resumeWithPrompt,
+    clearPauseState
   }
 }

@@ -21,6 +21,7 @@ export interface AgentTimelineProps {
   onToggleExpand: (agentId: string) => void
   availableHeight?: number
   isPaused?: boolean
+  isPromptBoxFocused?: boolean
 }
 
 const TIMELINE_HEADER_HEIGHT = 2 // Header text + padding
@@ -61,7 +62,7 @@ export function AgentTimeline(props: AgentTimelineProps) {
   return (
     <box flexDirection="column" width="100%">
       {/* Header */}
-      <box paddingLeft={1} paddingRight={1} paddingBottom={1}>
+      <box paddingLeft={1} paddingRight={1} paddingTop={1} paddingBottom={1}>
         <text fg={themeCtx.theme.text} attributes={1}>
           Workflow Pipeline{headerSuffix()}
         </text>
@@ -80,7 +81,7 @@ export function AgentTimeline(props: AgentTimelineProps) {
           height={viewportHeight()}
           scrollbarOptions={{ visible: false }}
           viewportCulling={true}
-          focused={true}
+          focused={!props.isPromptBoxFocused}
         >
           <For each={layout()}>
             {(entry) => {

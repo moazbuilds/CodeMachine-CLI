@@ -47,9 +47,6 @@ export function WorkflowShell(props: WorkflowShellProps) {
     const status = state().workflowStatus
     if (prevStatus && prevStatus !== status) {
       switch (status) {
-        case "running":
-          toast.show({ variant: "info", message: "Workflow running...", duration: 2000 })
-          break
         case "stopping":
           toast.show({ variant: "warning", message: "Press Ctrl+C again to exit", duration: 3000 })
           break
@@ -61,9 +58,6 @@ export function WorkflowShell(props: WorkflowShellProps) {
           break
         case "checkpoint":
           toast.show({ variant: "warning", message: "Checkpoint - Review Required", duration: 5000 })
-          break
-        case "paused":
-          toast.show({ variant: "warning", message: "Paused - Press [P] to resume", duration: 4000 })
           break
       }
     }
@@ -205,7 +199,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
   const isChainedActive = () => state().chainedState?.active ?? false
 
   // Prompt box focus state (for inline chained prompt box)
-  const [isPromptBoxFocused, setIsPromptBoxFocused] = createSignal(false)
+  const [isPromptBoxFocused, setIsPromptBoxFocused] = createSignal(true)
 
   // Check if output window is showing the running agent (not a manually selected one)
   const isShowingRunningAgent = createMemo(() => {
@@ -240,19 +234,36 @@ export function WorkflowShell(props: WorkflowShellProps) {
     setShowStopModal(false)
   }
 
+  // Check if we're in a paused state that needs resume handling
+  // This includes both TUI isPaused and workflow status "paused" (for steering loop)
+  const isInPausedState = () => pauseControl.isPaused() || (state().workflowStatus === "paused" && !isChainedActive())
+
   // Unified prompt submit handler for both pause and chained states
   const handlePromptSubmit = (prompt: string) => {
-    if (pauseControl.isPaused()) {
-      // Resume with optional prompt
-      pauseControl.resumeWithPrompt(prompt || undefined)
-      setIsPromptBoxFocused(false)
-    } else if (isChainedActive()) {
+    // Check chained state FIRST - if chained is active, user input should go to the chained handler
+    // even if pause was triggered (the workflow is waiting on chainedState.resolver, not pauseState.resolver)
+    if (isChainedActive()) {
       if (prompt) {
-        // Custom prompt for chained
+        // Custom prompt for chained - clear pause state without emitting resume event
+        // since the workflow is waiting on chainedState.resolver, not pauseState.resolver
+        if (pauseControl.isPaused()) {
+          pauseControl.clearPauseState()
+        }
         ui.actions.setChainedState(null)
         setIsPromptBoxFocused(false)
         ;(process as NodeJS.EventEmitter).emit("chained:custom", { prompt })
       }
+    } else if (isInPausedState()) {
+      // Resume with optional prompt (only when not in chained state)
+      // This handles both initial pause (pauseControl.isPaused) and steering loop (workflow status paused)
+      if (pauseControl.isPaused()) {
+        pauseControl.resumeWithPrompt(prompt || undefined)
+      } else {
+        // Steering loop - emit resume directly since pauseControl isn't tracking this pause
+        const monitoringId = currentAgent()?.monitoringId
+        ;(process as NodeJS.EventEmitter).emit("workflow:resume", { monitoringId, resumePrompt: prompt || undefined })
+      }
+      setIsPromptBoxFocused(false)
     }
   }
 
@@ -293,7 +304,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
       return status === "running" || status === "paused" || status === "stopping"
     },
     getCurrentAgentId: () => currentAgent()?.id ?? null,
-    canFocusPromptBox: () => (isChainedActive() || pauseControl.isPaused()) && isShowingRunningAgent() && !isPromptBoxFocused(),
+    canFocusPromptBox: () => (isChainedActive() || isInPausedState()) && isShowingRunningAgent() && !isPromptBoxFocused(),
     focusPromptBox: () => setIsPromptBoxFocused(true),
     exitPromptBoxFocus: () => setIsPromptBoxFocused(false),
   })
@@ -307,7 +318,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
       <box flexDirection="row" flexGrow={1} gap={1}>
         <Show when={!isTimelineCollapsed()}>
           <box flexDirection="column" width={showOutputPanel() ? "35%" : "100%"}>
-            <AgentTimeline state={state()} onToggleExpand={(id) => ui.actions.toggleExpand(id)} availableHeight={state().visibleItemCount} isPaused={pauseControl.isPaused()} />
+            <AgentTimeline state={state()} onToggleExpand={(id) => ui.actions.toggleExpand(id)} availableHeight={state().visibleItemCount} isPaused={pauseControl.isPaused()} isPromptBoxFocused={isPromptBoxFocused()} />
           </box>
         </Show>
         <Show when={showOutputPanel() || isTimelineCollapsed()}>

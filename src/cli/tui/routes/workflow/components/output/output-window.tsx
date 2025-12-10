@@ -47,7 +47,7 @@ export interface OutputWindowProps {
  * Output window showing current agent's output
  * Displays last N lines with syntax highlighting using scrollbox
  */
-const OUTPUT_HEADER_HEIGHT = 4  // Side curve header (4 lines: ╭─ + info + thinking + ╰─)
+const OUTPUT_HEADER_HEIGHT = 4  // Side curve header (╭─ + info + thinking + ╰─)
 
 export function OutputWindow(props: OutputWindowProps) {
   const themeCtx = useTheme()
@@ -85,8 +85,9 @@ export function OutputWindow(props: OutputWindowProps) {
       return { mode: "disabled" }
     }
 
-    // Paused state
-    if (props.isPaused) {
+    // Paused state - check both TUI isPaused and workflow status "paused"
+    // (workflow status "paused" is used for steering loop after pause-resume)
+    if (props.isPaused || (status === "paused" && !chainedState?.active)) {
       return { mode: "active", reason: "paused" }
     }
 
@@ -126,7 +127,7 @@ export function OutputWindow(props: OutputWindowProps) {
         }
       >
         {/* Side Curve Header */}
-        <box flexDirection="column" paddingLeft={1} paddingTop={1} height={5} flexShrink={0}>
+        <box flexDirection="column" paddingLeft={1} height={4} flexShrink={0}>
           <text fg={themeCtx.theme.border}>╭─</text>
           <box flexDirection="row" justifyContent="space-between" paddingRight={2}>
             <box flexDirection="row">

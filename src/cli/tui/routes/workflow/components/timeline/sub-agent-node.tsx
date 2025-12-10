@@ -11,7 +11,7 @@ import { useTheme } from "@tui/shared/context/theme"
 import { useTick } from "@tui/shared/hooks/tick"
 import { Spinner } from "@tui/shared/components/spinner"
 import type { SubAgentState } from "../../state/types"
-import { formatDuration, formatTokens } from "../../state/formatters"
+import { formatDuration } from "../../state/formatters"
 import { getStatusIcon, getStatusColor } from "./status-utils"
 
 export interface SubAgentNodeProps {
@@ -74,11 +74,6 @@ export function SubAgentNode(props: SubAgentNodeProps) {
     return formatDuration(Math.max(0, elapsed))
   }
 
-  const tokenStr = () => {
-    const { tokensIn, tokensOut } = props.agent.telemetry
-    return tokensIn > 0 || tokensOut > 0 ? formatTokens(tokensIn, tokensOut) : ""
-  }
-
   // Selection indicator
   const selectionPrefix = () => (props.isSelected ? "> " : "  ")
 
@@ -99,17 +94,8 @@ export function SubAgentNode(props: SubAgentNodeProps) {
       </Show>
       <text fg={themeCtx.theme.text}>{props.agent.name}</text>
       <text fg={themeCtx.theme.textMuted}> ({props.agent.engine})</text>
-      <Show when={props.agent.status === "skipped"}>
-        <text fg={themeCtx.theme.textMuted}> • Skipped</text>
-      </Show>
       <Show when={duration()}>
-        <text fg={themeCtx.theme.text}> • {duration()}</text>
-      </Show>
-      <Show when={tokenStr()}>
-        <text fg={themeCtx.theme.textMuted}> • {tokenStr()}</text>
-      </Show>
-      <Show when={props.agent.error}>
-        <text fg={themeCtx.theme.error}> • Failed</text>
+        <text fg={themeCtx.theme.textMuted}> • {duration()}</text>
       </Show>
     </box>
   )

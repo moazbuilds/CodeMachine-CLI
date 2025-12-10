@@ -11,7 +11,7 @@ import { useTheme } from "@tui/shared/context/theme"
 import { useTick } from "@tui/shared/hooks/tick"
 import { Spinner } from "@tui/shared/components/spinner"
 import type { AgentState } from "../../state/types"
-import { formatDuration, formatTokens } from "../../state/formatters"
+import { formatDuration } from "../../state/formatters"
 import { getStatusIcon, getStatusColor } from "./status-utils"
 
 export interface MainAgentNodeProps {
@@ -74,24 +74,6 @@ export function MainAgentNode(props: MainAgentNodeProps) {
     return formatDuration(Math.max(0, elapsed))
   }
 
-  // Build telemetry display
-  const tokenStr = () => {
-    const { tokensIn, tokensOut } = props.agent.telemetry
-    return tokensIn > 0 || tokensOut > 0 ? formatTokens(tokensIn, tokensOut) : ""
-  }
-
-  // Activity counts
-  const activityStr = () => {
-    const activities: string[] = []
-    if (props.agent.toolCount > 0) {
-      activities.push(`${props.agent.toolCount} tools`)
-    }
-    if (props.agent.thinkingCount > 0) {
-      activities.push(`${props.agent.thinkingCount} thinking`)
-    }
-    return activities.length > 0 ? ` • ${activities.join(", ")}` : ""
-  }
-
   const hasLoopRound = () => props.agent.loopRound && props.agent.loopRound > 0
 
   // Selection indicator
@@ -116,20 +98,8 @@ export function MainAgentNode(props: MainAgentNodeProps) {
         </Show>
         <text fg={themeCtx.theme.text} attributes={1}>{props.agent.name}</text>
         <text fg={themeCtx.theme.textMuted}> ({props.agent.engine})</text>
-        <Show when={props.agent.status === "skipped"}>
-          <text fg={themeCtx.theme.textMuted}> • Skipped</text>
-        </Show>
         <Show when={duration()}>
-          <text fg={themeCtx.theme.text}> • {duration()}</text>
-        </Show>
-        <Show when={tokenStr()}>
-          <text fg={themeCtx.theme.textMuted}> • {tokenStr()}</text>
-        </Show>
-        <Show when={activityStr()}>
-          <text fg={themeCtx.theme.textMuted}>{activityStr()}</text>
-        </Show>
-        <Show when={props.agent.error}>
-          <text fg={themeCtx.theme.error}> • Failed</text>
+          <text fg={themeCtx.theme.textMuted}> • {duration()}</text>
         </Show>
       </box>
 

@@ -325,9 +325,20 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   process.on('workflow:pause', pauseListener);
   process.on('workflow:resume', resumeListener);
 
+  // Helper to reset pause state when chained handlers take over
+  const resetPauseForChained = () => {
+    if (pauseState.paused) {
+      pauseState.paused = false;
+      pauseState.requested = false;
+      emitter.setWorkflowStatus('running');
+    }
+  };
+
   // Chained prompts event listeners
   const chainedCustomListener = (data: { prompt: string }) => {
     if (chainedState.active) {
+      // If pause was triggered during chained wait, clear it since chained is handling the input
+      resetPauseForChained();
       chainedState.pendingAction = { type: 'custom', prompt: data.prompt };
       if (chainedState.resolver) {
         chainedState.resolver();
@@ -338,6 +349,8 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
   const chainedNextListener = () => {
     if (chainedState.active) {
+      // If pause was triggered during chained wait, clear it since chained is handling the input
+      resetPauseForChained();
       chainedState.pendingAction = { type: 'next' };
       if (chainedState.resolver) {
         chainedState.resolver();
@@ -348,6 +361,8 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
   const chainedSkipListener = () => {
     if (chainedState.active) {
+      // If pause was triggered during chained wait, clear it since chained is handling the input
+      resetPauseForChained();
       chainedState.pendingAction = { type: 'skip' };
       if (chainedState.resolver) {
         chainedState.resolver();
@@ -571,6 +586,76 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         resumePrompt: stepResumePrompt,
       });
 
+      // If we resumed from pause with a custom prompt, enter steering loop
+      // This lets the user keep sending prompts until they press Enter with empty input
+      if (stepResumePrompt && stepResumeMonitoringId) {
+        let steeringMonitoringId = stepOutput.monitoringId;
+        let continueSteeringLoop = true;
+
+        // Keep agent status as "running" while in steering loop
+        // (executeStep may have marked it complete, but we're not done yet)
+        ui.updateAgentStatus(uniqueAgentId, 'running');
+        emitter.updateAgentStatus(uniqueAgentId, 'running');
+
+        while (continueSteeringLoop) {
+          // Set paused state to show prompt UI (reuse the pause UI for steering)
+          pauseState.paused = true;
+          emitter.setWorkflowStatus('paused');
+
+          // Wait for user input via workflow:resume event
+          await new Promise<void>((resolve) => {
+            pauseState.resolver = resolve;
+          });
+
+          // Get the resume prompt from pause state
+          const steeringPrompt = pauseState.resumePrompt;
+          const newMonitoringId = pauseState.monitoringId;
+
+          // Clear pause state
+          pauseState.paused = false;
+          pauseState.resumePrompt = undefined;
+          pauseState.monitoringId = undefined;
+
+          // If empty prompt, user wants to proceed to next step
+          if (!steeringPrompt) {
+            emitter.setWorkflowStatus('running');
+            continueSteeringLoop = false;
+            break;
+          }
+
+          // User sent another prompt - log it and resume
+          const userInputLog = formatUserInput(steeringPrompt);
+          ui.logMessage(uniqueAgentId, userInputLog);
+          emitter.logMessage(uniqueAgentId, userInputLog);
+
+          // Write to agent log file
+          if (steeringMonitoringId !== undefined) {
+            const loggerService = AgentLoggerService.getInstance();
+            loggerService.write(steeringMonitoringId, `\n${userInputLog}\n`);
+          }
+
+          // Set status back to running
+          ui.updateAgentStatus(uniqueAgentId, 'running');
+          emitter.updateAgentStatus(uniqueAgentId, 'running');
+          emitter.setWorkflowStatus('running');
+
+          // Resume with the new prompt
+          stepOutput = await executeStep(step, cwd, {
+            logger: () => {},
+            stderrLogger: () => {},
+            ui,
+            emitter,
+            abortSignal: abortController.signal,
+            uniqueAgentId,
+            resumeMonitoringId: newMonitoringId ?? steeringMonitoringId,
+            resumePrompt: steeringPrompt,
+          });
+
+          // Update monitoring ID for next iteration
+          steeringMonitoringId = stepOutput.monitoringId;
+        }
+      }
+
       // Handle chained prompts if present (allows steering the agent with additional prompts)
       if (stepOutput.chainedPrompts && stepOutput.chainedPrompts.length > 0) {
         chainedState.active = true;
@@ -629,6 +714,10 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
             ui.logMessage(uniqueAgentId, `Feeding chained prompt: "${nextPrompt.label}"`);
             emitter.logMessage(uniqueAgentId, `Feeding chained prompt: "${nextPrompt.label}"`);
 
+            // Set status back to running so UI continues showing this agent
+            ui.updateAgentStatus(uniqueAgentId, 'running');
+            emitter.updateAgentStatus(uniqueAgentId, 'running');
+
             // Resume with chained prompt content
             stepOutput = await executeStep(step, cwd, {
               logger: () => {},
@@ -666,6 +755,10 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
               const loggerService = AgentLoggerService.getInstance();
               loggerService.write(chainedState.monitoringId, `\n${userInputLog}\n`);
             }
+
+            // Set status back to running so UI continues showing this agent
+            ui.updateAgentStatus(uniqueAgentId, 'running');
+            emitter.updateAgentStatus(uniqueAgentId, 'running');
 
             // Resume with user's custom prompt
             stepOutput = await executeStep(step, cwd, {
