@@ -114,6 +114,7 @@ export interface WorkflowState {
   chainedState: ChainedState | null
   expandedNodes: Set<string>
   showTelemetryView: boolean
+  timelineCollapsed: boolean
   selectedAgentId: string | null
   selectedSubAgentId: string | null
   selectedItemType: "main" | "summary" | "sub" | null

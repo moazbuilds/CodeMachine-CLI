@@ -16,6 +16,7 @@ export interface UseWorkflowKeyboardOptions {
     navigateUp: (visibleItemCount?: number) => void
     navigateDown: (visibleItemCount?: number) => void
     toggleExpand: (agentId: string) => void
+    toggleTimeline: () => void
   }
   /** Calculate visible items for navigation */
   calculateVisibleItems: () => number
@@ -81,6 +82,13 @@ export function useWorkflowKeyboard(options: UseWorkflowKeyboardOptions) {
 
       // Normal case: just emit skip
       ;(process as NodeJS.EventEmitter).emit("workflow:skip")
+      return
+    }
+
+    // Tab key - toggle timeline panel (GLOBAL - works even in prompt box)
+    if (evt.name === "tab") {
+      evt.preventDefault()
+      options.actions.toggleTimeline()
       return
     }
 

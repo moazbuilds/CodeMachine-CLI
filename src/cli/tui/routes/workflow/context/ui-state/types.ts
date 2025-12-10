@@ -31,6 +31,7 @@ export type UIActions = {
   navigateUp(visibleItemCount?: number): void
   selectItem(itemId: string, itemType: "main" | "summary" | "sub", visibleItemCount?: number, immediate?: boolean): void
   toggleExpand(agentId: string): void
+  toggleTimeline(): void
   setVisibleItemCount(count: number): void
   setScrollOffset(offset: number, visibleItemCount?: number): void
   setWorkflowStatus(status: WorkflowStatus): void

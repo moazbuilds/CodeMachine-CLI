@@ -24,6 +24,7 @@ export function createInitialState(workflowName: string, totalSteps = 0): Workfl
     chainedState: null,
     expandedNodes: new Set(),
     showTelemetryView: false,
+    timelineCollapsed: false,
     selectedAgentId: null,
     selectedSubAgentId: null,
     selectedItemType: null,

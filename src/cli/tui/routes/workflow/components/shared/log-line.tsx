@@ -6,15 +6,36 @@
  * - Colors: gray, green, red, orange, cyan, magenta, blue, yellow
  * - Attributes: bold, dim, italic, underline, inverse, strikethrough
  * - Combined markers: [GREEN:BOLD], [RED:UNDERLINE,BOLD], etc.
+ * - Line prefix formatting: * for bold highlight, - for bullet points
  *
  * Uses the enhanced parseMarker system for professional CLI output.
  */
 
-import { createMemo } from "solid-js"
+import { createMemo, Show } from "solid-js"
 import { TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
 import { parseMarker, type ParsedMarker } from "../../../../../../shared/formatters/outputMarkers.js"
+
+/**
+ * Detect line prefix type for special formatting
+ * Returns: 'star' for * prefix, 'bullet' for - prefix, null otherwise
+ */
+function detectLinePrefix(text: string): { type: 'star' | 'bullet' | null; content: string } {
+  const trimmed = text.trimStart()
+  const indent = text.length - trimmed.length
+  const indentStr = text.slice(0, indent)
+
+  // Check for "* " prefix (star/highlight)
+  if (trimmed.startsWith('* ')) {
+    return { type: 'star', content: indentStr + trimmed.slice(2) }
+  }
+  // Check for "- " prefix (bullet point)
+  if (trimmed.startsWith('- ')) {
+    return { type: 'bullet', content: indentStr + trimmed.slice(2) }
+  }
+  return { type: null, content: text }
+}
 
 export interface LogLineProps {
   line: string
@@ -67,6 +88,9 @@ export function LogLine(props: LogLineProps) {
   // Parse color and attribute markers from log line
   const parsed = createMemo(() => parseMarker(props.line))
 
+  // Detect line prefix after marker parsing
+  const prefixInfo = createMemo(() => detectLinePrefix(parsed().text))
+
   // Map marker colors to theme colors
   const lineColor = createMemo(() => {
     const color = parsed().color
@@ -86,27 +110,40 @@ export function LogLine(props: LogLineProps) {
   // Check if this is a user input line (magenta) - show with background
   const isUserInput = () => parsed().color === "magenta"
 
-  // Compute text attributes bitmask
-  const textAttrs = createMemo(() => getTextAttributes(parsed()))
+  // Compute text attributes bitmask (add bold for star prefix)
+  const textAttrs = createMemo(() => {
+    let attrs = getTextAttributes(parsed())
+    if (prefixInfo().type === 'star') {
+      attrs |= TextAttributes.BOLD
+    }
+    return attrs
+  })
 
   // Strip ANSI codes from display text
   const displayText = createMemo(() => {
-    let text = parsed().text
+    let text = prefixInfo().content
     // Strip any remaining ANSI codes
     // eslint-disable-next-line no-control-regex
     text = text.replace(/\x1b\[[0-9;]*m/g, "")
     return text
   })
 
+  // Get prefix symbol for bullet points
+  const bulletSymbol = () => prefixInfo().type === 'bullet' ? '• ' : ''
+
   return (
-    <text
-      fg={lineColor()}
-      bg={isUserInput() ? themeCtx.theme.backgroundElement : undefined}
-      attributes={textAttrs()}
-      width={maxWidth()}
-    >
-      {displayText()}
-    </text>
+    <box flexDirection="row" width={maxWidth()}>
+      <Show when={prefixInfo().type === 'bullet'}>
+        <text fg={themeCtx.theme.textMuted}>{bulletSymbol()}</text>
+      </Show>
+      <text
+        fg={lineColor()}
+        bg={isUserInput() ? themeCtx.theme.backgroundElement : undefined}
+        attributes={textAttrs()}
+      >
+        {displayText()}
+      </text>
+    </box>
   )
 }
 
@@ -117,6 +154,9 @@ export function LogLineInline(props: { line: string }) {
   const themeCtx = useTheme()
 
   const parsed = createMemo(() => parseMarker(props.line))
+
+  // Detect line prefix after marker parsing
+  const prefixInfo = createMemo(() => detectLinePrefix(parsed().text))
 
   const lineColor = createMemo(() => {
     const color = parsed().color
@@ -133,21 +173,36 @@ export function LogLineInline(props: { line: string }) {
     }
   })
 
-  const textAttrs = createMemo(() => getTextAttributes(parsed()))
+  // Compute text attributes bitmask (add bold for star prefix)
+  const textAttrs = createMemo(() => {
+    let attrs = getTextAttributes(parsed())
+    if (prefixInfo().type === 'star') {
+      attrs |= TextAttributes.BOLD
+    }
+    return attrs
+  })
 
   const displayText = createMemo(() => {
-    let text = parsed().text
+    let text = prefixInfo().content
     // eslint-disable-next-line no-control-regex
     text = text.replace(/\x1b\[[0-9;]*m/g, "")
     return text
   })
 
+  // Get prefix symbol for bullet points
+  const bulletSymbol = () => prefixInfo().type === 'bullet' ? '• ' : ''
+
   return (
-    <text
-      fg={lineColor()}
-      attributes={textAttrs()}
-    >
-      {displayText()}
-    </text>
+    <box flexDirection="row">
+      <Show when={prefixInfo().type === 'bullet'}>
+        <text fg={themeCtx.theme.textMuted}>{bulletSymbol()}</text>
+      </Show>
+      <text
+        fg={lineColor()}
+        attributes={textAttrs()}
+      >
+        {displayText()}
+      </text>
+    </box>
   )
 }

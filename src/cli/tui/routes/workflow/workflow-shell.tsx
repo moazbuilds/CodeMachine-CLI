@@ -74,6 +74,9 @@ export function WorkflowShell(props: WorkflowShellProps) {
   const MIN_WIDTH_FOR_SPLIT_VIEW = 100
   const showOutputPanel = () => (dimensions()?.width ?? 80) >= MIN_WIDTH_FOR_SPLIT_VIEW
 
+  // Timeline collapsed state (toggled with Tab key)
+  const isTimelineCollapsed = () => state().timelineCollapsed
+
   // Update visible item count when terminal dimensions change
   createEffect(() => {
     ui.actions.setVisibleItemCount(getVisibleItems())
@@ -302,11 +305,13 @@ export function WorkflowShell(props: WorkflowShellProps) {
       </box>
 
       <box flexDirection="row" flexGrow={1} gap={1}>
-        <box flexDirection="column" width={showOutputPanel() ? "35%" : "100%"}>
-          <AgentTimeline state={state()} onToggleExpand={(id) => ui.actions.toggleExpand(id)} availableHeight={state().visibleItemCount} isPaused={pauseControl.isPaused()} />
-        </box>
-        <Show when={showOutputPanel()}>
-          <box flexDirection="column" width="65%">
+        <Show when={!isTimelineCollapsed()}>
+          <box flexDirection="column" width={showOutputPanel() ? "35%" : "100%"}>
+            <AgentTimeline state={state()} onToggleExpand={(id) => ui.actions.toggleExpand(id)} availableHeight={state().visibleItemCount} isPaused={pauseControl.isPaused()} />
+          </box>
+        </Show>
+        <Show when={showOutputPanel() || isTimelineCollapsed()}>
+          <box flexDirection="column" width={isTimelineCollapsed() ? "100%" : "65%"}>
             <OutputWindow
               currentAgent={currentAgent()}
               lines={logStream.lines}
