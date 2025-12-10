@@ -12,6 +12,10 @@ import {
   getNotCompletedSteps,
   markStepCompleted,
   markStepStarted,
+  initStepSession,
+  updateStepSession,
+  markChainCompleted,
+  getChainResumeInfo,
   removeFromNotCompleted,
   getResumeStartIndex,
   getSelectedTrack,
@@ -24,9 +28,11 @@ import { handleTriggerLogic } from '../behaviors/trigger/controller.js';
 import { handleCheckpointLogic } from '../behaviors/checkpoint/controller.js';
 import { executeStep, type ChainedPrompt } from './step.js';
 import { executeTriggerAgent } from './trigger.js';
+import { loadAgentConfig } from '../../agents/runner/index.js';
+import { loadChainedPrompts } from '../../agents/runner/chained.js';
 import { shouldExecuteFallback, executeFallbackStep } from './fallback.js';
 import { WorkflowUIManager } from '../../ui/index.js';
-import { MonitoringCleanup, AgentLoggerService } from '../../agents/monitoring/index.js';
+import { MonitoringCleanup, AgentLoggerService, AgentMonitorService } from '../../agents/monitoring/index.js';
 import { WorkflowEventBus, WorkflowEventEmitter } from '../events/index.js';
 
 /**
@@ -140,6 +146,9 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
   // Load selected conditions for condition-based filtering
   const selectedConditions = await getSelectedConditions(cmRoot);
+
+  // Load chain resume info (for resuming mid-chain)
+  const chainResumeInfo = await getChainResumeInfo(cmRoot);
 
   const loopCounters = new Map<string, number>();
   let activeLoop: ActiveLoop | null = null;
@@ -511,47 +520,116 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         }
       }
 
-      // Log if resuming
-      if (stepResumeMonitoringId) {
-        ui.logMessage(uniqueAgentId, `Resuming from paused session...`);
-        emitter.logMessage(uniqueAgentId, `Resuming from paused session...`);
-      }
+      // Check if resuming from saved chain state BEFORE execution
+      const isResumingFromChain = chainResumeInfo && chainResumeInfo.stepIndex === index;
 
-      let stepOutput = await executeStep(step, cwd, {
-        logger: () => {}, // No-op: UI reads from log files
-        stderrLogger: () => {}, // No-op: UI reads from log files
-        ui,
-        emitter,
-        abortSignal: abortController.signal,
-        uniqueAgentId,
-        resumeMonitoringId: stepResumeMonitoringId,
-        resumePrompt: stepResumePrompt,
-      });
+      let stepOutput;
+
+      if (isResumingFromChain) {
+        // Skip initial executeStep - agent already ran previously
+        // Register monitoringId with UI so TUI can load existing logs
+        ui.registerMonitoringId(uniqueAgentId, chainResumeInfo.monitoringId);
+        emitter.registerMonitoringId(uniqueAgentId, chainResumeInfo.monitoringId);
+
+        // Mark agent as running (was paused)
+        const monitor = AgentMonitorService.getInstance();
+        await monitor.markRunning(chainResumeInfo.monitoringId);
+
+        ui.logMessage(uniqueAgentId, `Resuming from saved chain state...`);
+        emitter.logMessage(uniqueAgentId, `Resuming from saved chain state...`);
+
+        // Create synthetic stepOutput with saved monitoringId
+        stepOutput = {
+          output: '',
+          monitoringId: chainResumeInfo.monitoringId,
+          chainedPrompts: undefined as ChainedPrompt[] | undefined,
+        };
+
+        // Load chained prompts from agent config
+        const agentConfig = await loadAgentConfig(step.agentId, cwd);
+        if (agentConfig?.chainedPromptsPath) {
+          stepOutput.chainedPrompts = await loadChainedPrompts(
+            agentConfig.chainedPromptsPath,
+            cwd
+          );
+        }
+      } else {
+        // Normal path - log if resuming from pause
+        if (stepResumeMonitoringId) {
+          ui.logMessage(uniqueAgentId, `Resuming from paused session...`);
+          emitter.logMessage(uniqueAgentId, `Resuming from paused session...`);
+        }
+
+        // Execute the step
+        stepOutput = await executeStep(step, cwd, {
+          logger: () => {}, // No-op: UI reads from log files
+          stderrLogger: () => {}, // No-op: UI reads from log files
+          ui,
+          emitter,
+          abortSignal: abortController.signal,
+          uniqueAgentId,
+          resumeMonitoringId: stepResumeMonitoringId,
+          resumePrompt: stepResumePrompt,
+        });
+
+        // Initialize step session with session data (for resume capability)
+        // Only on fresh execution, not chain resume (session already saved)
+        if (stepOutput.monitoringId !== undefined) {
+          const monitor = AgentMonitorService.getInstance();
+          const agent = monitor.getAgent(stepOutput.monitoringId);
+          const sessionId = agent?.sessionId ?? '';
+          await initStepSession(cmRoot, index, sessionId, stepOutput.monitoringId);
+        }
+      }
 
       // Unified input handling - activates for both:
       // 1. Resume from pause with custom prompt (steering)
       // 2. Chained prompts from workflow config
       const hasChainedPrompts = stepOutput.chainedPrompts && stepOutput.chainedPrompts.length > 0;
-      const shouldEnterInputLoop = (stepResumePrompt && stepResumeMonitoringId) || hasChainedPrompts;
+      const shouldEnterInputLoop = (stepResumePrompt && stepResumeMonitoringId) || hasChainedPrompts || isResumingFromChain;
 
       if (shouldEnterInputLoop) {
         // Initialize input state
         inputState.active = true;
-        inputState.monitoringId = stepOutput.monitoringId;
+        inputState.monitoringId = isResumingFromChain
+          ? chainResumeInfo.monitoringId
+          : stepOutput.monitoringId;
         inputState.queuedPrompts = hasChainedPrompts ? stepOutput.chainedPrompts! : [];
-        inputState.currentIndex = 0;
+        // Resume from saved chain index if available
+        inputState.currentIndex = isResumingFromChain
+          ? chainResumeInfo.chainIndex
+          : 0;
 
-        // Keep agent status as "running" while in input loop
-        ui.updateAgentStatus(uniqueAgentId, 'running');
-        emitter.updateAgentStatus(uniqueAgentId, 'running');
+        // Check if all chains are already done (resume edge case)
+        const allChainsAlreadyDone = isResumingFromChain && inputState.currentIndex >= inputState.queuedPrompts.length;
 
-        // Emit input state to TUI
-        emitter.setInputState({
-          active: true,
-          queuedPrompts: inputState.queuedPrompts.map(p => ({ label: p.label, content: p.content })),
-          currentIndex: inputState.currentIndex,
-          monitoringId: inputState.monitoringId,
-        });
+        if (allChainsAlreadyDone) {
+          // All chains already completed - mark step complete and continue to next step
+          ui.logMessage(uniqueAgentId, `All chained prompts already completed. Continuing to next agent.`);
+          emitter.logMessage(uniqueAgentId, `All chained prompts already completed. Continuing to next agent.`);
+          await markStepCompleted(cmRoot, index);
+          inputState.active = false;
+          inputState.queuedPrompts = [];
+          inputState.currentIndex = 0;
+          inputState.monitoringId = undefined;
+        } else {
+          if (isResumingFromChain) {
+            ui.logMessage(uniqueAgentId, `Resuming from chain ${chainResumeInfo.chainIndex + 1}/${inputState.queuedPrompts.length}...`);
+            emitter.logMessage(uniqueAgentId, `Resuming from chain ${chainResumeInfo.chainIndex + 1}/${inputState.queuedPrompts.length}...`);
+          }
+
+          // Keep agent status as "running" while in input loop
+          ui.updateAgentStatus(uniqueAgentId, 'running');
+          emitter.updateAgentStatus(uniqueAgentId, 'running');
+
+          // Emit input state to TUI
+          emitter.setInputState({
+            active: true,
+            queuedPrompts: inputState.queuedPrompts.map(p => ({ label: p.label, content: p.content })),
+            currentIndex: inputState.currentIndex,
+            monitoringId: inputState.monitoringId,
+          });
+        }
 
         while (inputState.active) {
           // Wait for user input via workflow:input event
@@ -632,6 +710,20 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
           // Update monitoring ID for next iteration
           inputState.monitoringId = stepOutput.monitoringId;
 
+          // Update session data if changed
+          if (inputState.monitoringId !== undefined) {
+            const monitor = AgentMonitorService.getInstance();
+            const agent = monitor.getAgent(inputState.monitoringId);
+            const sessionId = agent?.sessionId ?? '';
+            await updateStepSession(cmRoot, index, sessionId, inputState.monitoringId);
+          }
+
+          // Mark the chain we just completed (currentIndex was incremented before execution)
+          const completedChainIndex = inputState.currentIndex - 1;
+          if (completedChainIndex >= 0) {
+            await markChainCompleted(cmRoot, index, completedChainIndex);
+          }
+
           // Update UI with new state
           emitter.setInputState({
             active: true,
@@ -649,6 +741,12 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         inputState.pendingPrompt = undefined;
         inputState.pendingSkip = false;
         emitter.setInputState(null);
+
+        // Mark step as completed after all chained prompts are done
+        // This ensures steps with chained prompts are marked complete even without executeOnce
+        if (hasChainedPrompts) {
+          await markStepCompleted(cmRoot, index);
+        }
       }
 
       // Check for trigger behavior first

@@ -9,6 +9,20 @@ const packageRoot = resolvePackageRoot(import.meta.url, 'workflows template trac
 
 const templatesDir = path.resolve(packageRoot, 'templates', 'workflows');
 
+/**
+ * Data stored for each workflow step
+ */
+export interface StepData {
+  /** Session ID for resuming the agent conversation */
+  sessionId: string;
+  /** Monitoring ID for log file access */
+  monitoringId: number;
+  /** Completed chain indices (only present while step has incomplete chains) */
+  completedChains?: number[];
+  /** ISO timestamp when step fully completed (presence indicates step is done) */
+  completedAt?: string;
+}
+
 interface TemplateTracking {
   activeTemplate: string;
   /**
@@ -17,7 +31,8 @@ interface TemplateTracking {
    * To convert to local time in JavaScript: new Date(lastUpdated).toLocaleString()
    */
   lastUpdated: string;
-  completedSteps?: number[];
+  /** Step data indexed by step number as string (e.g., "0", "1", "2") */
+  completedSteps?: Record<string, StepData>;
   notCompletedSteps?: number[];
   resumeFromLastStep?: boolean;
   selectedTrack?: string; // Selected workflow track (e.g., 'bmad', 'quick', 'enterprise')
@@ -54,7 +69,7 @@ export async function setActiveTemplate(cmRoot: string, templateName: string): P
   const data: TemplateTracking = {
     activeTemplate: templateName,
     lastUpdated: new Date().toISOString(), // ISO 8601 UTC format (e.g., "2025-10-13T14:40:14.123Z")
-    completedSteps: [],
+    completedSteps: {},
     notCompletedSteps: [],
     resumeFromLastStep: true,
   };
@@ -132,7 +147,7 @@ export async function setSelectedTrack(cmRoot: string, track: string): Promise<v
       data = {
         activeTemplate: '',
         lastUpdated: new Date().toISOString(),
-        completedSteps: [],
+        completedSteps: {},
         notCompletedSteps: [],
         resumeFromLastStep: true,
       };
@@ -141,7 +156,7 @@ export async function setSelectedTrack(cmRoot: string, track: string): Promise<v
     data = {
       activeTemplate: '',
       lastUpdated: new Date().toISOString(),
-      completedSteps: [],
+      completedSteps: {},
       notCompletedSteps: [],
       resumeFromLastStep: true,
     };
@@ -209,7 +224,7 @@ export async function setSelectedConditions(cmRoot: string, conditions: string[]
       data = {
         activeTemplate: '',
         lastUpdated: new Date().toISOString(),
-        completedSteps: [],
+        completedSteps: {},
         notCompletedSteps: [],
         resumeFromLastStep: true,
       };
@@ -218,7 +233,7 @@ export async function setSelectedConditions(cmRoot: string, conditions: string[]
     data = {
       activeTemplate: '',
       lastUpdated: new Date().toISOString(),
-      completedSteps: [],
+      completedSteps: {},
       notCompletedSteps: [],
       resumeFromLastStep: true,
     };
@@ -266,7 +281,7 @@ export async function setProjectName(cmRoot: string, projectName: string): Promi
       data = {
         activeTemplate: '',
         lastUpdated: new Date().toISOString(),
-        completedSteps: [],
+        completedSteps: {},
         notCompletedSteps: [],
         resumeFromLastStep: true,
       };
@@ -275,7 +290,7 @@ export async function setProjectName(cmRoot: string, projectName: string): Promi
     data = {
       activeTemplate: '',
       lastUpdated: new Date().toISOString(),
-      completedSteps: [],
+      completedSteps: {},
       notCompletedSteps: [],
       resumeFromLastStep: true,
     };

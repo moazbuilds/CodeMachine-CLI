@@ -13,13 +13,22 @@ export {
   setProjectName,
 } from './template.js';
 
+// Types
+export type { StepData } from './template.js';
+
 // Step tracking functions
 export {
   getCompletedSteps,
+  getStepData,
+  isStepCompleted,
+  markStepStarted,
+  initStepSession,
+  updateStepSession,
+  markChainCompleted,
   markStepCompleted,
+  getChainResumeInfo,
   clearCompletedSteps,
   getNotCompletedSteps,
-  markStepStarted,
   removeFromNotCompleted,
   clearNotCompletedSteps,
   getResumeStartIndex,
