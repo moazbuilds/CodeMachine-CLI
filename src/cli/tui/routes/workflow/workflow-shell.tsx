@@ -77,6 +77,9 @@ export function WorkflowShell(props: WorkflowShellProps) {
   // Track checkpoint freeze time
   const [checkpointFreezeTime, setCheckpointFreezeTime] = createSignal<number | undefined>(undefined)
 
+  // Track when waiting for agent response after user prompt
+  const [isAwaitingResponse, setIsAwaitingResponse] = createSignal(false)
+
   // Connect to event bus
   let adapter: OpenTUIAdapter | null = null
 
@@ -156,6 +159,15 @@ export function WorkflowShell(props: WorkflowShellProps) {
   })
 
   const logStream = useLogStream(() => currentAgent()?.monitoringId)
+
+  // Reset awaiting response when new log lines appear (agent started responding)
+  createEffect((prevLineCount: number) => {
+    const currentCount = logStream.lines.length
+    if (isAwaitingResponse() && currentCount > prevLineCount) {
+      setIsAwaitingResponse(false)
+    }
+    return currentCount
+  }, 0)
 
   const runtime = createMemo(() => {
     tick()
@@ -241,6 +253,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
   // Unified prompt submit handler - uses single workflow:input event
   const handlePromptSubmit = (prompt: string) => {
     if (isWaitingForInput()) {
+      setIsAwaitingResponse(true) // Show connecting state while waiting for agent
       ;(process as NodeJS.EventEmitter).emit("workflow:input", { prompt: prompt || undefined })
       setIsPromptBoxFocused(false)
     }
@@ -312,7 +325,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
               currentAgent={currentAgent()}
               lines={logStream.lines}
               isLoading={logStream.isLoading}
-              isConnecting={logStream.isConnecting}
+              isConnecting={logStream.isConnecting || isAwaitingResponse()}
               error={logStream.error}
               latestThinking={logStream.latestThinking}
               inputState={isShowingRunningAgent() ? state().inputState : null}

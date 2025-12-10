@@ -12,12 +12,15 @@ import type { ParsedTelemetry } from '../../../core/types.js';
 export interface RunOpenCodeOptions {
   prompt: string;
   workingDir: string;
+  resumeSessionId?: string;
+  resumePrompt?: string;
   model?: string;
   agent?: string;
   env?: NodeJS.ProcessEnv;
   onData?: (chunk: string) => void;
   onErrorData?: (chunk: string) => void;
   onTelemetry?: (telemetry: ParsedTelemetry) => void;
+  onSessionId?: (sessionId: string) => void;
   abortSignal?: AbortSignal;
   timeout?: number; // Timeout in milliseconds (default: 1800000ms = 30 minutes)
 }
@@ -28,6 +31,20 @@ export interface RunOpenCodeResult {
 }
 
 const ANSI_ESCAPE_SEQUENCE = new RegExp(String.raw`\u001B\[[0-9;?]*[ -/]*[@-~]`, 'g');
+
+/**
+ * Build the final resume prompt combining steering instruction with user message
+ */
+function buildResumePrompt(userPrompt?: string): string {
+  const defaultPrompt = 'Continue from where you left off.';
+
+  if (!userPrompt) {
+    return defaultPrompt;
+  }
+
+  // Combine steering instruction with user's message
+  return `[USER STEERING] The user paused this session to give you new direction. Continue from where you left off, but prioritize the user's request: "${userPrompt}"`;
+}
 
 function shouldApplyDefault(key: string, overrides?: NodeJS.ProcessEnv): boolean {
   return overrides?.[key] === undefined && process.env[key] === undefined;
@@ -139,12 +156,15 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
   const {
     prompt,
     workingDir,
+    resumeSessionId,
+    resumePrompt,
     model,
     agent,
     env,
     onData,
     onErrorData,
     onTelemetry,
+    onSessionId,
     abortSignal,
     timeout = 1800000,
   } = options;
@@ -160,7 +180,7 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
   const runnerEnv = resolveRunnerEnv(env);
   const plainLogs =
     (env?.CODEMACHINE_PLAIN_LOGS ?? process.env.CODEMACHINE_PLAIN_LOGS ?? '').toString() === '1';
-  const { command, args } = buildOpenCodeRunCommand({ model, agent });
+  const { command, args } = buildOpenCodeRunCommand({ model, agent, resumeSessionId });
 
   logger.debug(
     `OpenCode runner - prompt length: ${prompt.length}, lines: ${prompt.split('\n').length}, agent: ${
@@ -171,6 +191,7 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
   const telemetryCapture = createTelemetryCapture('opencode', model, prompt, workingDir);
   let jsonBuffer = '';
   let isFirstStep = true;
+  let sessionIdCaptured = false;
 
   const processLine = (line: string): void => {
     if (!line.trim()) {
@@ -208,6 +229,13 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const parsedObj = parsed as Record<string, any>;
 
+    // Capture session ID from first event that contains it
+    if (!sessionIdCaptured && parsedObj.sessionID && onSessionId) {
+      sessionIdCaptured = true;
+      logger.debug(`[SESSION_ID CAPTURED] ${parsedObj.sessionID}`);
+      onSessionId(parsedObj.sessionID);
+    }
+
     let formatted: string | null = null;
     switch (parsedObj.type) {
       case 'tool_use':
@@ -225,11 +253,15 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
         break;
       case 'text': {
         const textPart = parsedObj.part;
-        const textValue =
+        const rawText =
           typeof textPart?.text === 'string'
             ? cleanAnsi(textPart.text, plainLogs)
             : '';
-        formatted = textValue ? formatMessage(textValue) : null;
+        // Strip leading newlines - OpenCode adds these for terminal formatting
+        // which we handle ourselves via formatMessage
+        const textValue = rawText.replace(/^\n+/, '');
+        // Only format if text has non-whitespace content
+        formatted = textValue.trim() ? formatMessage(textValue) : null;
         break;
       }
       case 'error':
@@ -272,7 +304,7 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
       args,
       cwd: workingDir,
       env: runnerEnv,
-      stdinInput: prompt,
+      stdinInput: resumeSessionId ? buildResumePrompt(resumePrompt) : prompt,
       stdioMode: 'pipe',
       onStdout: (chunk) => {
         const normalized = normalizeChunk(chunk);

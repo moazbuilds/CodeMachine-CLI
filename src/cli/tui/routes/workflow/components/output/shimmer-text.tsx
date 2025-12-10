@@ -14,6 +14,7 @@ import { useTheme } from "@tui/shared/context/theme"
 export interface ShimmerTextProps {
   text: string
   color?: RGBA
+  bold?: boolean
 }
 
 const DURATION = 2_500

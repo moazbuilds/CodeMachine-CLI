@@ -7,6 +7,10 @@ export interface OpenCodeCommandOptions {
    * Agent name to run (defaults to 'build')
    */
   agent?: string;
+  /**
+   * Session ID to resume (uses -s flag)
+   */
+  resumeSessionId?: string;
 }
 
 export interface OpenCodeCommand {
@@ -16,6 +20,11 @@ export interface OpenCodeCommand {
 
 export function buildOpenCodeRunCommand(options: OpenCodeCommandOptions = {}): OpenCodeCommand {
   const args: string[] = ['run', '--format', 'json'];
+
+  // Add session resume flag if provided
+  if (options.resumeSessionId?.trim()) {
+    args.push('--session', options.resumeSessionId.trim());
+  }
 
   const agentName = options.agent?.trim() || 'build';
   if (agentName) {

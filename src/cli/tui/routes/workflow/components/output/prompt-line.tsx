@@ -214,8 +214,8 @@ export function PromptLine(props: PromptLineProps) {
   const handleSubmit = () => {
     const value = prepareSubmitValue()
 
-    // For chained prompts, show confirmation before proceeding
-    if (props.state.mode === "chained") {
+    // For chained prompts, show confirmation only if input is empty
+    if (props.state.mode === "chained" && value === "") {
       setPendingSubmitValue(value)
       setShowConfirm(true)
       return
