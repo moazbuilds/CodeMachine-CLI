@@ -18,7 +18,6 @@ import { CheckpointModal, LogViewer, HistoryView, StopModal } from "./components
 import { OpenTUIAdapter } from "./adapters/opentui"
 import { useLogStream } from "./hooks/useLogStream"
 import { useSubAgentSync } from "./hooks/useSubAgentSync"
-import { usePause } from "./hooks/usePause"
 import { useWorkflowModals } from "./hooks/use-workflow-modals"
 import { useWorkflowKeyboard } from "./hooks/use-workflow-keyboard"
 import { calculateVisibleItems } from "./constants"
@@ -38,7 +37,6 @@ export function WorkflowShell(props: WorkflowShellProps) {
   const state = () => ui.state()
   const dimensions = useTerminalDimensions()
   const modals = useWorkflowModals()
-  const pauseControl = usePause()
 
   const getVisibleItems = () => calculateVisibleItems(dimensions()?.height ?? 30)
 
@@ -114,20 +112,23 @@ export function WorkflowShell(props: WorkflowShellProps) {
 
   useSubAgentSync(() => state(), ui.actions)
 
+  // Unified input waiting check
+  const isWaitingForInput = () => state().inputState?.active ?? false
+
   // Timer freeze effects
   createEffect(() => {
     const checkpointState = state().checkpointState
     if (checkpointState?.active && !checkpointFreezeTime()) {
       setCheckpointFreezeTime(Date.now())
-    } else if (!checkpointState?.active && checkpointFreezeTime() && !pauseControl.isPaused()) {
+    } else if (!checkpointState?.active && checkpointFreezeTime() && !isWaitingForInput()) {
       setCheckpointFreezeTime(undefined)
     }
   })
 
   createEffect(() => {
-    if (pauseControl.isPaused() && !checkpointFreezeTime()) {
+    if (isWaitingForInput() && !checkpointFreezeTime()) {
       setCheckpointFreezeTime(Date.now())
-    } else if (!pauseControl.isPaused() && checkpointFreezeTime() && !state().checkpointState?.active) {
+    } else if (!isWaitingForInput() && checkpointFreezeTime() && !state().checkpointState?.active) {
       setCheckpointFreezeTime(undefined)
     }
   })
@@ -195,10 +196,13 @@ export function WorkflowShell(props: WorkflowShellProps) {
     ;(process as NodeJS.EventEmitter).emit("checkpoint:quit")
   }
 
-  // Chained prompts state
-  const isChainedActive = () => state().chainedState?.active ?? false
+  // Check if we have queued prompts (chained mode)
+  const hasQueuedPrompts = (): boolean => {
+    const inputSt = state().inputState
+    return !!(inputSt?.queuedPrompts && inputSt.queuedPrompts.length > 0)
+  }
 
-  // Prompt box focus state (for inline chained prompt box)
+  // Prompt box focus state (for inline prompt box)
   const [isPromptBoxFocused, setIsPromptBoxFocused] = createSignal(true)
 
   // Check if output window is showing the running agent (not a manually selected one)
@@ -212,11 +216,11 @@ export function WorkflowShell(props: WorkflowShellProps) {
     return s.selectedAgentId === running.id && s.selectedItemType !== "sub"
   })
 
-  // Auto-focus prompt box when chaining becomes active or paused
+  // Auto-focus prompt box when input waiting becomes active
   createEffect(() => {
-    if ((isChainedActive() || pauseControl.isPaused()) && isShowingRunningAgent()) {
+    if (isWaitingForInput() && isShowingRunningAgent()) {
       setIsPromptBoxFocused(true)
-    } else if (!isChainedActive() && !pauseControl.isPaused()) {
+    } else if (!isWaitingForInput()) {
       setIsPromptBoxFocused(false)
     }
   })
@@ -234,44 +238,25 @@ export function WorkflowShell(props: WorkflowShellProps) {
     setShowStopModal(false)
   }
 
-  // Check if we're in a paused state that needs resume handling
-  // This includes both TUI isPaused and workflow status "paused" (for steering loop)
-  const isInPausedState = () => pauseControl.isPaused() || (state().workflowStatus === "paused" && !isChainedActive())
-
-  // Unified prompt submit handler for both pause and chained states
+  // Unified prompt submit handler - uses single workflow:input event
   const handlePromptSubmit = (prompt: string) => {
-    // Check chained state FIRST - if chained is active, user input should go to the chained handler
-    // even if pause was triggered (the workflow is waiting on chainedState.resolver, not pauseState.resolver)
-    if (isChainedActive()) {
-      if (prompt) {
-        // Custom prompt for chained - clear pause state without emitting resume event
-        // since the workflow is waiting on chainedState.resolver, not pauseState.resolver
-        if (pauseControl.isPaused()) {
-          pauseControl.clearPauseState()
-        }
-        ui.actions.setChainedState(null)
-        setIsPromptBoxFocused(false)
-        ;(process as NodeJS.EventEmitter).emit("chained:custom", { prompt })
-      }
-    } else if (isInPausedState()) {
-      // Resume with optional prompt (only when not in chained state)
-      // This handles both initial pause (pauseControl.isPaused) and steering loop (workflow status paused)
-      if (pauseControl.isPaused()) {
-        pauseControl.resumeWithPrompt(prompt || undefined)
-      } else {
-        // Steering loop - emit resume directly since pauseControl isn't tracking this pause
-        const monitoringId = currentAgent()?.monitoringId
-        ;(process as NodeJS.EventEmitter).emit("workflow:resume", { monitoringId, resumePrompt: prompt || undefined })
-      }
+    if (isWaitingForInput()) {
+      ;(process as NodeJS.EventEmitter).emit("workflow:input", { prompt: prompt || undefined })
       setIsPromptBoxFocused(false)
     }
   }
 
-  const handleChainedNext = () => {
-    // Clear UI state while agent processes the next prompt
-    ui.actions.setChainedState(null)
-    setIsPromptBoxFocused(false)
-    ;(process as NodeJS.EventEmitter).emit("chained:next")
+  // Skip all remaining prompts
+  const handleSkip = () => {
+    if (isWaitingForInput()) {
+      ;(process as NodeJS.EventEmitter).emit("workflow:input", { skip: true })
+      setIsPromptBoxFocused(false)
+    }
+  }
+
+  // Pause the workflow (aborts current step)
+  const pauseWorkflow = () => {
+    ;(process as NodeJS.EventEmitter).emit("workflow:pause")
   }
 
   const getMonitoringId = (uiAgentId: string): number | undefined => {
@@ -292,19 +277,19 @@ export function WorkflowShell(props: WorkflowShellProps) {
     calculateVisibleItems: getVisibleItems,
     isModalBlocking: () => isCheckpointActive() || modals.isLogViewerActive() || modals.isHistoryActive() || modals.isHistoryLogViewerActive() || showStopModal(),
     isPromptBoxFocused: () => isPromptBoxFocused(),
-    isChainedActive,
-    isPaused: () => pauseControl.isPaused(),
-    resumeWorkflow: () => pauseControl.resumeWithPrompt(),
+    isWaitingForInput,
+    hasQueuedPrompts,
     openLogViewer: modals.setLogViewerAgentId,
     openHistory: () => modals.setShowHistory(true),
-    pauseWorkflow: () => pauseControl.pause(),
+    pauseWorkflow,
+    handleSkip,
     showStopConfirmation: () => setShowStopModal(true),
     canStop: () => {
       const status = state().workflowStatus
       return status === "running" || status === "paused" || status === "stopping"
     },
     getCurrentAgentId: () => currentAgent()?.id ?? null,
-    canFocusPromptBox: () => (isChainedActive() || isInPausedState()) && isShowingRunningAgent() && !isPromptBoxFocused(),
+    canFocusPromptBox: () => isWaitingForInput() && isShowingRunningAgent() && !isPromptBoxFocused(),
     focusPromptBox: () => setIsPromptBoxFocused(true),
     exitPromptBoxFocus: () => setIsPromptBoxFocused(false),
   })
@@ -318,7 +303,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
       <box flexDirection="row" flexGrow={1} gap={1}>
         <Show when={!isTimelineCollapsed()}>
           <box flexDirection="column" width={showOutputPanel() ? "35%" : "100%"}>
-            <AgentTimeline state={state()} onToggleExpand={(id) => ui.actions.toggleExpand(id)} availableHeight={state().visibleItemCount} isPaused={pauseControl.isPaused()} isPromptBoxFocused={isPromptBoxFocused()} />
+            <AgentTimeline state={state()} onToggleExpand={(id) => ui.actions.toggleExpand(id)} availableHeight={state().visibleItemCount} isPaused={isWaitingForInput()} isPromptBoxFocused={isPromptBoxFocused()} />
           </box>
         </Show>
         <Show when={showOutputPanel() || isTimelineCollapsed()}>
@@ -330,12 +315,11 @@ export function WorkflowShell(props: WorkflowShellProps) {
               isConnecting={logStream.isConnecting}
               error={logStream.error}
               latestThinking={logStream.latestThinking}
-              chainedState={isShowingRunningAgent() ? state().chainedState : null}
-              isPaused={pauseControl.isPaused()}
+              inputState={isShowingRunningAgent() ? state().inputState : null}
               workflowStatus={state().workflowStatus}
               isPromptBoxFocused={isPromptBoxFocused()}
               onPromptSubmit={handlePromptSubmit}
-              onChainedNext={handleChainedNext}
+              onSkip={handleSkip}
               onPromptBoxFocusExit={() => setIsPromptBoxFocused(false)}
             />
           </box>
@@ -361,7 +345,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
 
       <Show when={modals.isHistoryActive()}>
         <box position="absolute" left={0} top={0} width="100%" height="100%" zIndex={1000} backgroundColor={themeCtx.theme.background}>
-          <HistoryView onClose={() => modals.setShowHistory(false)} onOpenLogViewer={(id) => { modals.setHistoryLogViewerMonitoringId(id); modals.setShowHistory(false) }} disabled={isCheckpointActive() || pauseControl.isPaused()} initialSelectedIndex={modals.historySelectedIndex()} onSelectedIndexChange={modals.setHistorySelectedIndex} />
+          <HistoryView onClose={() => modals.setShowHistory(false)} onOpenLogViewer={(id) => { modals.setHistoryLogViewerMonitoringId(id); modals.setShowHistory(false) }} disabled={isCheckpointActive() || isWaitingForInput()} initialSelectedIndex={modals.historySelectedIndex()} onSelectedIndexChange={modals.setHistorySelectedIndex} />
         </box>
       </Show>
 

@@ -4,7 +4,7 @@
  * Actions for managing workflow status and checkpoint state.
  */
 
-import type { WorkflowState, WorkflowStatus, LoopState, ChainedState, TriggeredAgentState } from "../types"
+import type { WorkflowState, WorkflowStatus, LoopState, ChainedState, InputState, TriggeredAgentState } from "../types"
 
 export type WorkflowActionsContext = {
   getState(): WorkflowState
@@ -35,6 +35,18 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
     ctx.notify()
   }
 
+  function setInputState(inputState: InputState | null): void {
+    const state = ctx.getState()
+    ctx.setState({ ...state, inputState })
+    if (inputState && inputState.active) {
+      setWorkflowStatus("paused")
+    } else {
+      setWorkflowStatus("running")
+    }
+    ctx.notify()
+  }
+
+  /** @deprecated Use setInputState instead */
   function setChainedState(chainedState: ChainedState | null): void {
     const state = ctx.getState()
     ctx.setState({ ...state, chainedState })
@@ -107,6 +119,7 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
   return {
     setWorkflowStatus,
     setCheckpointState,
+    setInputState,
     setChainedState,
     setLoopState,
     clearLoopRound,

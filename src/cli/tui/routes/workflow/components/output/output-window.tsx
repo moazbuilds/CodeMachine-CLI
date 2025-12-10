@@ -13,7 +13,7 @@ import { ShimmerText } from "./shimmer-text"
 import { TypingText } from "./typing-text"
 import { LogLine } from "../shared/log-line"
 import { PromptLine, type PromptLineState } from "./prompt-line"
-import type { AgentState, SubAgentState, ChainedState } from "../../state/types"
+import type { AgentState, SubAgentState, InputState } from "../../state/types"
 
 // Rotating messages shown while connecting to agent
 const CONNECTING_MESSAGES = [
@@ -34,12 +34,11 @@ export interface OutputWindowProps {
   connectingMessageIndex?: number
   latestThinking?: string | null
   // Prompt line props
-  chainedState?: ChainedState | null
-  isPaused?: boolean
+  inputState?: InputState | null
   workflowStatus?: string
   isPromptBoxFocused?: boolean
   onPromptSubmit?: (prompt: string) => void
-  onChainedNext?: () => void
+  onSkip?: () => void
   onPromptBoxFocusExit?: () => void
 }
 
@@ -75,33 +74,33 @@ export function OutputWindow(props: OutputWindowProps) {
     return CONNECTING_MESSAGES[idx % CONNECTING_MESSAGES.length]
   }
 
-  // Compute prompt line state
+  // Compute prompt line state from unified inputState
   const promptLineState = (): PromptLineState => {
     const status = props.workflowStatus
-    const chainedState = props.chainedState
+    const inputState = props.inputState
 
     // Workflow not running or completed
     if (!status || status === "completed" || status === "stopped" || status === "idle") {
       return { mode: "disabled" }
     }
 
-    // Paused state - check both TUI isPaused and workflow status "paused"
-    // (workflow status "paused" is used for steering loop after pause-resume)
-    if (props.isPaused || (status === "paused" && !chainedState?.active)) {
+    // Input state active (unified pause/chained)
+    if (inputState?.active) {
+      // Has queued prompts = show chained UI
+      if (inputState.queuedPrompts && inputState.queuedPrompts.length > 0) {
+        const idx = inputState.currentIndex ?? 0
+        return {
+          mode: "chained",
+          label: inputState.queuedPrompts[idx]?.label ?? "next step",
+          index: idx + 1,
+          total: inputState.queuedPrompts.length,
+        }
+      }
+      // No queue = simple pause/steering
       return { mode: "active", reason: "paused" }
     }
 
-    // Chained state
-    if (chainedState?.active) {
-      return {
-        mode: "chained",
-        label: chainedState.nextPromptLabel ?? "next step",
-        index: chainedState.currentIndex + 1,
-        total: chainedState.totalPrompts,
-      }
-    }
-
-    // Running but not paused/chained
+    // Running but not waiting for input
     if (status === "running" || status === "stopping") {
       return { mode: "passive" }
     }
@@ -200,7 +199,7 @@ export function OutputWindow(props: OutputWindowProps) {
           state={promptLineState()}
           isFocused={props.isPromptBoxFocused ?? false}
           onSubmit={props.onPromptSubmit ?? (() => {})}
-          onNextStep={props.onChainedNext}
+          onSkip={props.onSkip}
           onFocusExit={props.onPromptBoxFocusExit ?? (() => {})}
         />
       </Show>

@@ -62,12 +62,31 @@ export interface CheckpointState {
   reason?: string
 }
 
+export interface QueuedPrompt {
+  label: string
+  content: string
+}
+
+/**
+ * Unified input state - replaces both pause and chained prompts
+ * When active, the workflow is waiting for user input before continuing
+ */
+export interface InputState {
+  active: boolean
+  // Optional queued prompts (from workflow chained prompts config)
+  queuedPrompts?: QueuedPrompt[]
+  currentIndex?: number
+  monitoringId?: number
+}
+
+/** @deprecated Use InputState instead */
 export interface ChainedPromptInfo {
   name: string
   label: string
   content: string
 }
 
+/** @deprecated Use InputState instead */
 export interface ChainedState {
   active: boolean
   currentIndex: number
@@ -111,6 +130,8 @@ export interface WorkflowState {
   executionHistory: ExecutionRecord[]
   loopState: LoopState | null
   checkpointState: CheckpointState | null
+  inputState: InputState | null
+  /** @deprecated Use inputState instead */
   chainedState: ChainedState | null
   expandedNodes: Set<string>
   showTelemetryView: boolean

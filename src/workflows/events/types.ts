@@ -11,6 +11,7 @@ import type {
   LoopState,
   CheckpointState,
   ChainedState,
+  InputState,
   WorkflowStatus,
   SubAgentState,
   TriggeredAgentState,
@@ -71,7 +72,10 @@ export type WorkflowEvent =
   | { type: 'checkpoint:state'; checkpoint: CheckpointState | null }
   | { type: 'checkpoint:clear' }
 
-  // Chained prompts events
+  // Input state events (unified pause/chained)
+  | { type: 'input:state'; inputState: InputState | null }
+
+  // Chained prompts events (deprecated - use input:state)
   | { type: 'chained:state'; chainedState: ChainedState | null }
 
   // Message/logging events

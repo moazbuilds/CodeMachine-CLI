@@ -6,7 +6,7 @@
  */
 
 import type { WorkflowEvent } from "../../../../../workflows/events/index.js"
-import type { AgentStatus, SubAgentState, LoopState, ChainedState, TriggeredAgentState } from "../state/types.js"
+import type { AgentStatus, SubAgentState, LoopState, ChainedState, InputState, TriggeredAgentState } from "../state/types.js"
 import { BaseUIAdapter } from "./base.js"
 import type { UIAdapterOptions } from "./types.js"
 
@@ -42,6 +42,8 @@ export interface UIActions {
   clearSubAgents(parentId: string): void
   setWorkflowStatus(status: "running" | "stopping" | "completed" | "stopped" | "checkpoint" | "paused"): void
   setCheckpointState(checkpoint: { active: boolean; reason?: string } | null): void
+  setInputState(inputState: InputState | null): void
+  /** @deprecated Use setInputState instead */
   setChainedState(chainedState: ChainedState | null): void
   registerMonitoringId(uiAgentId: string, monitoringId: number): void
   addTriggeredAgent(sourceAgentId: string, triggeredAgent: TriggeredAgentState): void
@@ -177,7 +179,12 @@ export class OpenTUIAdapter extends BaseUIAdapter {
         this.actions.setCheckpointState(null)
         break
 
-      // Chained prompts events
+      // Input state events (unified pause/chained)
+      case "input:state":
+        this.actions.setInputState(event.inputState)
+        break
+
+      // Chained prompts events (deprecated - use input:state)
       case "chained:state":
         this.actions.setChainedState(event.chainedState)
         break

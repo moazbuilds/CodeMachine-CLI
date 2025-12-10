@@ -21,6 +21,7 @@ import type {
   LoopState,
   CheckpointState,
   ChainedState,
+  InputState,
   WorkflowStatus,
   SubAgentState,
   TriggeredAgentState,
@@ -291,10 +292,26 @@ export class WorkflowEventEmitter {
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // Chained Prompts State
+  // Input State (Unified Pause/Chained)
   // ─────────────────────────────────────────────────────────────────
 
   /**
+   * Emit input state change (unified pause/chained prompts)
+   * Mirrors: ui.setInputState(inputState)
+   */
+  setInputState(inputState: InputState | null): void {
+    this.bus.emit({
+      type: 'input:state',
+      inputState,
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Chained Prompts State (Deprecated)
+  // ─────────────────────────────────────────────────────────────────
+
+  /**
+   * @deprecated Use setInputState instead
    * Emit chained prompts state change
    * Mirrors: ui.setChainedState(chainedState)
    */

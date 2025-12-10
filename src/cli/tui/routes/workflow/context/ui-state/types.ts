@@ -7,6 +7,7 @@ import type {
   AgentStatus,
   LoopState,
   ChainedState,
+  InputState,
   SubAgentState,
   TriggeredAgentState,
   WorkflowStatus,
@@ -36,6 +37,8 @@ export type UIActions = {
   setScrollOffset(offset: number, visibleItemCount?: number): void
   setWorkflowStatus(status: WorkflowStatus): void
   setCheckpointState(checkpoint: { active: boolean; reason?: string } | null): void
+  setInputState(inputState: InputState | null): void
+  /** @deprecated Use setInputState instead */
   setChainedState(chainedState: ChainedState | null): void
   registerMonitoringId(uiAgentId: string, monitoringId: number): void
   addTriggeredAgent(sourceAgentId: string, triggeredAgent: TriggeredAgentState): void
@@ -44,4 +47,4 @@ export type UIActions = {
   logMessage(agentId: string, message: string): void
 }
 
-export type { WorkflowState, AgentStatus, LoopState, ChainedState, SubAgentState, TriggeredAgentState, WorkflowStatus }
+export type { WorkflowState, AgentStatus, LoopState, ChainedState, InputState, SubAgentState, TriggeredAgentState, WorkflowStatus }

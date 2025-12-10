@@ -24,25 +24,25 @@ export interface UseWorkflowKeyboardOptions {
   isModalBlocking: () => boolean
   /** Check if prompt box is focused */
   isPromptBoxFocused: () => boolean
-  /** Check if chained prompts are active */
-  isChainedActive: () => boolean
-  /** Check if workflow is paused */
-  isPaused: () => boolean
-  /** Resume workflow (used when skipping while paused) */
-  resumeWorkflow: () => void
+  /** Check if workflow is waiting for user input (unified pause/chained) */
+  isWaitingForInput: () => boolean
+  /** Check if there are queued prompts (chained mode) */
+  hasQueuedPrompts: () => boolean
   /** Open log viewer for an agent */
   openLogViewer: (agentId: string) => void
   /** Open history view */
   openHistory: () => void
-  /** Pause workflow */
+  /** Pause workflow (aborts current step) */
   pauseWorkflow: () => void
+  /** Skip remaining prompts */
+  handleSkip: () => void
   /** Show stop confirmation modal */
   showStopConfirmation: () => void
   /** Check if workflow can be stopped */
   canStop: () => boolean
   /** Get current agent ID shown in output window (fallback for Enter key) */
   getCurrentAgentId?: () => string | null
-  /** Check if prompt box can be focused (chaining/paused active) */
+  /** Check if prompt box can be focused (input waiting active) */
   canFocusPromptBox?: () => boolean
   /** Focus the prompt box */
   focusPromptBox?: () => void
@@ -57,30 +57,20 @@ export function useWorkflowKeyboard(options: UseWorkflowKeyboardOptions) {
   useKeyboard((evt) => {
     // === GLOBAL SHORTCUTS (always work) ===
 
-    // Ctrl+S - skip current agent (ALWAYS available)
-    // Handles different states: chained prompts, paused, or running
+    // Ctrl+S - skip (ALWAYS available)
+    // When waiting for input: skip remaining prompts
+    // When running: skip current agent
     if (evt.ctrl && evt.name === "s") {
       evt.preventDefault()
 
-      // If chained prompts active, skip all remaining chained prompts
-      if (options.isChainedActive()) {
-        ;(process as NodeJS.EventEmitter).emit("chained:skip-all")
+      // If waiting for input (paused or chained), skip remaining prompts
+      if (options.isWaitingForInput()) {
+        options.handleSkip()
         options.exitPromptBoxFocus?.()
         return
       }
 
-      // If paused, resume first then skip
-      if (options.isPaused()) {
-        options.resumeWorkflow()
-        options.exitPromptBoxFocus?.()
-        // Small delay to let resume take effect, then skip
-        setTimeout(() => {
-          ;(process as NodeJS.EventEmitter).emit("workflow:skip")
-        }, 50)
-        return
-      }
-
-      // Normal case: just emit skip
+      // Normal case: skip current agent
       ;(process as NodeJS.EventEmitter).emit("workflow:skip")
       return
     }

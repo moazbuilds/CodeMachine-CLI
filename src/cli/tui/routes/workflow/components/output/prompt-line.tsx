@@ -25,7 +25,7 @@ export interface PromptLineProps {
   state: PromptLineState
   isFocused: boolean
   onSubmit: (prompt: string) => void
-  onNextStep?: () => void
+  onSkip?: () => void
   onFocusExit: () => void
 }
 
@@ -93,13 +93,13 @@ export function PromptLine(props: PromptLineProps) {
   const handleSubmit = () => {
     const value = input().trim()
     if (value) {
+      // Custom prompt provided
       props.onSubmit(value)
       setInput("")
-    } else if (props.state.mode === "chained" && props.onNextStep) {
-      // Empty submit on chained = run next step
-      props.onNextStep()
-    } else if (props.state.mode === "active") {
-      // Empty submit on active (paused) = resume
+    } else {
+      // Empty submit - parent decides what to do:
+      // - For chained: use next queued prompt
+      // - For paused: resume/continue to next agent
       props.onSubmit("")
     }
   }
