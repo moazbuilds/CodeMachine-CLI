@@ -16,21 +16,13 @@ module.exports = {
     task_fallback: path.join('.codemachine', 'prompts', 'task_fallback.md'),
     context: path.join('.codemachine', 'prompts', 'context.md'),
     code_fallback: path.join('.codemachine', 'prompts', 'code_fallback.md'),
-    // Add more placeholders as needed:
   },
 
   // Paths relative to codemachine package root
   packageDir: {
-    orchestration_guide: path.join('prompts', 'orchestration', 'guide.md'),
-    arch_output_format: path.join('prompts', 'templates', 'codemachine', 'output-formats', 'architecture-output.md'),
-    plan_output_format: path.join('prompts', 'templates', 'codemachine', 'output-formats', 'planning-output.md'),
-    task_output_format: path.join('prompts', 'templates', 'codemachine', 'output-formats', 'task-breakdown-output.md'),
     context_output_format: path.join('prompts', 'templates', 'codemachine', 'output-formats', 'context-output.md'),
-    task_validation_output_format: path.join('prompts', 'templates', 'codemachine', 'output-formats', 'task-validation-output.md'),
-    // dev.codemachine
-    smart_anchor: path.join('prompts', 'templates', 'dev-codemachine', 'sub-agents', 'shared-instructions', 'smart-anchor.md'),
-    command_constraints: path.join('prompts', 'templates', 'dev-codemachine', 'sub-agents', 'shared-instructions', 'command-constraints.md'),
-    atomic_generation: path.join('prompts', 'templates', 'dev-codemachine', 'sub-agents', 'shared-instructions', 'atomic-generation.md'),
-    // Add codemachine package-level placeholders here
+    smart_anchor: path.join('prompts', 'templates', 'codemachine', 'shared-instructions', 'smart-anchor.md'),
+    command_constraints: path.join('prompts', 'templates', 'codemachine', 'shared-instructions', 'command-constraints.md'),
+    atomic_generation: path.join('prompts', 'templates', 'codemachine', 'shared-instructions', 'atomic-generation.md'),
   }
 };

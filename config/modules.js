@@ -14,17 +14,6 @@ module.exports = [
     },
   },
   {
-    id: 'iteration-checker',
-    name: 'Iteration Checker',
-    description: 'Checks if additional iterations are needed and can trigger other agents dynamically.',
-    promptPath: path.join(promptsDir, 'templates', 'codemachine', 'workflows', 'iteration-verification-workflow.md'),
-    behavior: {
-      type: 'trigger',
-      action: 'mainAgentCall',
-      triggerAgentId: 'git-commit', // Default agent to trigger, can be overridden by behavior.json
-    },
-  },
-  {
     id: 'auto-loop',
     name: 'Auto Loop',
     description: 'Simple auto loop module for testing - always signals to continue looping.',

@@ -1,5 +1,5 @@
 export default {
-  name: 'CodeMachine Workflow',
+  name: 'CodeMachine-One Workflow',
   steps: [
     resolveStep('init', { executeOnce: true, engine: 'codex', model: 'gpt-5', modelReasoningEffort: 'low' }), // Initialize development environment
     resolveStep('principal-analyst', { executeOnce: true, engine: 'claude' }), // Review specifications and identify critical ambiguities

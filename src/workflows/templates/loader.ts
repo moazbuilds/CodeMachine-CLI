@@ -39,7 +39,7 @@ export async function loadTemplate(cwd: string, templatePath?: string): Promise<
       ? templatePath
       : path.resolve(packageRoot, templatePath)
     : undefined;
-  const codemachineTemplate = path.resolve(templatesDir, 'codemachine.workflow.js');
+  const codemachineTemplate = path.resolve(templatesDir, 'codemachine-one.workflow.js');
   const candidates = [resolvedTemplateOverride, codemachineTemplate].filter(Boolean) as string[];
 
   const errors: string[] = [];
@@ -66,7 +66,7 @@ export async function loadTemplateWithPath(cwd: string, templatePath?: string): 
       ? templatePath
       : path.resolve(packageRoot, templatePath)
     : undefined;
-  const codemachineTemplate = path.resolve(templatesDir, 'codemachine.workflow.js');
+  const codemachineTemplate = path.resolve(templatesDir, 'codemachine-one.workflow.js');
   const candidates = [resolvedTemplateOverride, codemachineTemplate].filter(Boolean) as string[];
 
   const errors: string[] = [];
