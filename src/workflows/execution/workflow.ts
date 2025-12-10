@@ -31,7 +31,6 @@ import { executeTriggerAgent } from './trigger.js';
 import { loadAgentConfig } from '../../agents/runner/index.js';
 import { loadChainedPrompts } from '../../agents/runner/chained.js';
 import { shouldExecuteFallback, executeFallbackStep } from './fallback.js';
-import { WorkflowUIManager } from '../../ui/index.js';
 import { MonitoringCleanup, AgentLoggerService, AgentMonitorService } from '../../agents/monitoring/index.js';
 import { WorkflowEventBus, WorkflowEventEmitter } from '../events/index.js';
 
@@ -167,19 +166,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     globalThis.__workflowEventBus = eventBus;
   }
 
-  // Initialize Workflow UI Manager (old UI - will be removed after migration)
-  const ui = new WorkflowUIManager(template.name);
-  if (debugLogPath) {
-    ui.setDebugLogPath(debugLogPath);
-  }
-
-  // Wrap registerMonitoringId to also emit to event bus for new OpenTUI
-  const originalRegisterMonitoringId = ui.registerMonitoringId.bind(ui);
-  ui.registerMonitoringId = (uiAgentId: string, monitoringAgentId: number) => {
-    originalRegisterMonitoringId(uiAgentId, monitoringAgentId);
-    emitter.registerMonitoringId(uiAgentId, monitoringAgentId);
-  };
-
   // Emit workflow started event
   // Count only module steps that match the selected track and conditions
   const totalModuleSteps = template.steps.filter(s => {
@@ -226,10 +212,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         initialStatus = 'completed';
       }
 
-      // Old UI (will be removed)
-      const agentId = ui.addMainAgent(step.agentName ?? step.agentId, engineName, stepIndex, initialStatus, uniqueAgentId);
-
-      // New event system - emit agent added
       emitter.addMainAgent(
         uniqueAgentId,
         step.agentName ?? step.agentId,
@@ -239,24 +221,10 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         initialStatus,
         step.model
       );
-
-      // Update agent with step information
-      const state = ui.getState();
-      const agent = state.agents.find(a => a.id === agentId);
-      if (agent) {
-        agent.stepIndex = stepIndex;
-        agent.totalSteps = totalModuleSteps;
-      }
     } else if (step.type === 'ui') {
-      // Pre-populate UI elements
-      ui.addUIElement(step.text, stepIndex);
-      // New event system - emit UI element
       emitter.addUIElement(step.text, stepIndex);
     }
   });
-
-  // Start UI after all agents are pre-populated (single clean render)
-  ui.start();
 
   // Get the starting index based on resume configuration
   const startIndex = await getResumeStartIndex(cmRoot);
@@ -381,10 +349,9 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     // Create unique agent ID for this step instance (matches UI pre-population)
     const uniqueAgentId = `${step.agentId}-step-${index}`;
 
-    const skipResult = shouldSkipStep(step, index, completedSteps, activeLoop, ui, uniqueAgentId, emitter, selectedTrack, selectedConditions);
+    const skipResult = shouldSkipStep(step, index, completedSteps, activeLoop, uniqueAgentId, emitter, selectedTrack, selectedConditions);
     if (skipResult.skip) {
       debug(`[DEBUG workflow] Step ${index} (${uniqueAgentId}) skipped: ${skipResult.reason}`);
-      ui.logMessage(uniqueAgentId, skipResult.reason!);
       emitter.logMessage(uniqueAgentId, skipResult.reason!);
       continue;
     }
@@ -393,13 +360,8 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     logSkipDebug(step, activeLoop);
 
     debug(`[DEBUG workflow] Updating UI status to running...`);
-    // Update UI status to running (this clears the output buffer)
-    ui.updateAgentStatus(uniqueAgentId, 'running');
     emitter.updateAgentStatus(uniqueAgentId, 'running');
 
-    // Log start message AFTER clearing buffer
-    ui.logMessage(uniqueAgentId, '═'.repeat(80));
-    ui.logMessage(uniqueAgentId, `${step.agentName} started to work.`);
     emitter.logMessage(uniqueAgentId, '═'.repeat(80));
     emitter.logMessage(uniqueAgentId, `${step.agentName} started to work.`);
 
@@ -434,7 +396,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       if (!isOverrideAuthed) {
         const pretty = overrideEngine?.metadata.name ?? engineType;
         const authMsg = `${pretty} override is not authenticated; falling back to first authenticated engine by order. Run 'codemachine auth login' to use ${pretty}.`;
-        ui.logMessage(uniqueAgentId, authMsg);
         emitter.logMessage(uniqueAgentId, authMsg);
 
         // Find first authenticated engine by order (with caching)
@@ -459,7 +420,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         if (fallbackEngine) {
           engineType = fallbackEngine.metadata.id;
           const fallbackMsg = `Falling back to ${fallbackEngine.metadata.name} (${engineType})`;
-          ui.logMessage(uniqueAgentId, fallbackMsg);
           emitter.logMessage(uniqueAgentId, fallbackMsg);
         }
       }
@@ -497,7 +457,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       engineType = foundEngine.metadata.id;
       debug(`[DEBUG workflow] Selected engine: ${engineType}`);
       const engineMsg = `No engine specified, using ${foundEngine.metadata.name} (${engineType})`;
-      ui.logMessage(uniqueAgentId, engineMsg);
       emitter.logMessage(uniqueAgentId, engineMsg);
     }
 
@@ -528,7 +487,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         return;
       }
       skipRequested = true;
-      ui.logMessage(uniqueAgentId, '⏭️  Skip requested by user...');
       emitter.logMessage(uniqueAgentId, '⏭️  Skip requested by user...');
       abortController.abort();
     };
@@ -539,13 +497,11 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       debug(`[DEBUG workflow] Checking if fallback should execute... notCompletedSteps=${JSON.stringify(notCompletedSteps)}`);
       // Check if fallback should be executed before the original step
       if (shouldExecuteFallback(step, index, notCompletedSteps)) {
-        ui.logMessage(uniqueAgentId, `Detected incomplete step. Running fallback agent first.`);
         emitter.logMessage(uniqueAgentId, `Detected incomplete step. Running fallback agent first.`);
         try {
-          await executeFallbackStep(step, cwd, workflowStartTime, engineType, ui, emitter, uniqueAgentId, abortController.signal);
+          await executeFallbackStep(step, cwd, workflowStartTime, engineType, emitter, uniqueAgentId, abortController.signal);
         } catch (error) {
           // Fallback failed, step remains in notCompletedSteps
-          ui.logMessage(uniqueAgentId, `Fallback failed. Skipping original step retry.`);
           emitter.logMessage(uniqueAgentId, `Fallback failed. Skipping original step retry.`);
           // Don't update status to failed - just let it stay as running or retrying
           throw error;
@@ -561,15 +517,13 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
       if (isResumingFromChain) {
         // Skip initial executeStep - agent already ran previously
-        // Register monitoringId with UI so TUI can load existing logs
-        ui.registerMonitoringId(uniqueAgentId, chainResumeInfo.monitoringId);
+        // Register monitoringId so TUI can load existing logs
         emitter.registerMonitoringId(uniqueAgentId, chainResumeInfo.monitoringId);
 
         // Mark agent as running (was paused)
         const monitor = AgentMonitorService.getInstance();
         await monitor.markRunning(chainResumeInfo.monitoringId);
 
-        ui.logMessage(uniqueAgentId, `Resuming from saved chain state...`);
         emitter.logMessage(uniqueAgentId, `Resuming from saved chain state...`);
 
         // Create synthetic stepOutput with saved monitoringId
@@ -591,16 +545,14 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         debug(`[DEBUG workflow] Normal execution path (not resuming from chain)`);
         // Normal path - log if resuming from pause
         if (stepResumeMonitoringId) {
-          ui.logMessage(uniqueAgentId, `Resuming from paused session...`);
           emitter.logMessage(uniqueAgentId, `Resuming from paused session...`);
         }
 
         debug(`[DEBUG workflow] About to call executeStep...`);
         // Execute the step
         stepOutput = await executeStep(step, cwd, {
-          logger: () => {}, // No-op: UI reads from log files
-          stderrLogger: () => {}, // No-op: UI reads from log files
-          ui,
+          logger: () => {},
+          stderrLogger: () => {},
           emitter,
           abortSignal: abortController.signal,
           uniqueAgentId,
@@ -647,7 +599,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
         if (allChainsAlreadyDone) {
           // All chains already completed - mark step complete and continue to next step
-          ui.logMessage(uniqueAgentId, `All chained prompts already completed. Continuing to next agent.`);
           emitter.logMessage(uniqueAgentId, `All chained prompts already completed. Continuing to next agent.`);
           await markStepCompleted(cmRoot, index);
           inputState.active = false;
@@ -656,12 +607,10 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
           inputState.monitoringId = undefined;
         } else {
           if (isResumingFromChain) {
-            ui.logMessage(uniqueAgentId, `Resuming from chain ${chainResumeInfo.chainIndex + 1}/${inputState.queuedPrompts.length}...`);
             emitter.logMessage(uniqueAgentId, `Resuming from chain ${chainResumeInfo.chainIndex + 1}/${inputState.queuedPrompts.length}...`);
           }
 
           // Keep agent status as "running" while in input loop
-          ui.updateAgentStatus(uniqueAgentId, 'running');
           emitter.updateAgentStatus(uniqueAgentId, 'running');
 
           // Emit input state to TUI
@@ -681,7 +630,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
           // Handle skip
           if (inputState.pendingSkip) {
-            ui.logMessage(uniqueAgentId, `Skipping remaining prompts.`);
             emitter.logMessage(uniqueAgentId, `Skipping remaining prompts.`);
             inputState.active = false;
             inputState.pendingSkip = false;
@@ -696,12 +644,10 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
             if (inputState.currentIndex < inputState.queuedPrompts.length) {
               const nextPrompt = inputState.queuedPrompts[inputState.currentIndex];
               promptToUse = nextPrompt.content;
-              ui.logMessage(uniqueAgentId, `Feeding chained prompt: "${nextPrompt.label}"`);
               emitter.logMessage(uniqueAgentId, `Feeding chained prompt: "${nextPrompt.label}"`);
               inputState.currentIndex += 1;
             } else {
               // No more queued prompts - continue to next agent
-              ui.logMessage(uniqueAgentId, `All chained prompts completed. Continuing to next agent.`);
               emitter.logMessage(uniqueAgentId, `All chained prompts completed. Continuing to next agent.`);
               inputState.active = false;
               break;
@@ -719,7 +665,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
           if (inputState.pendingPrompt) {
             // Only log user input for custom prompts (not queued ones)
             const userInputLog = formatUserInput(promptToUse);
-            ui.logMessage(uniqueAgentId, userInputLog);
             emitter.logMessage(uniqueAgentId, userInputLog);
 
             // Write to agent log file
@@ -733,7 +678,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
           inputState.pendingPrompt = undefined;
 
           // Set status back to running
-          ui.updateAgentStatus(uniqueAgentId, 'running');
           emitter.updateAgentStatus(uniqueAgentId, 'running');
           emitter.setWorkflowStatus('running');
 
@@ -741,7 +685,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
           stepOutput = await executeStep(step, cwd, {
             logger: () => {},
             stderrLogger: () => {},
-            ui,
             emitter,
             abortSignal: abortController.signal,
             uniqueAgentId,
@@ -792,7 +735,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       }
 
       // Check for trigger behavior first
-      const triggerResult = await handleTriggerLogic(step, stepOutput.output, cwd, ui, emitter);
+      const triggerResult = await handleTriggerLogic(step, stepOutput.output, cwd, emitter);
       if (triggerResult?.shouldTrigger && triggerResult.triggerAgentId) {
         const triggeredAgentId = triggerResult.triggerAgentId; // Capture for use in callbacks
         try {
@@ -803,16 +746,13 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
             logger: () => {}, // No-op: UI reads from log files
             stderrLogger: () => {}, // No-op: UI reads from log files
             sourceAgentId: uniqueAgentId,
-            ui,
             emitter,
             abortSignal: abortController.signal,
           });
         } catch (triggerError) {
           // Check if this was a user-requested skip (abort)
           if (triggerError instanceof Error && triggerError.name === 'AbortError') {
-            ui.updateAgentStatus(triggeredAgentId, 'skipped');
             emitter.updateAgentStatus(triggeredAgentId, 'skipped');
-            ui.logMessage(triggeredAgentId, `Triggered agent was skipped by user.`);
             emitter.logMessage(triggeredAgentId, `Triggered agent was skipped by user.`);
           }
           // Continue with workflow even if triggered agent fails or is skipped
@@ -830,17 +770,14 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
       // Update UI status to completed
       // This must happen BEFORE loop logic to ensure UI updates even when loops trigger
-      ui.updateAgentStatus(uniqueAgentId, 'completed');
       emitter.updateAgentStatus(uniqueAgentId, 'completed');
 
       // Log completion messages BEFORE loop check (so they're part of current agent's output)
-      ui.logMessage(uniqueAgentId, `${step.agentName} has completed their work.`);
-      ui.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
       emitter.logMessage(uniqueAgentId, `${step.agentName} has completed their work.`);
       emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
 
       // Check for checkpoint behavior first (to pause workflow for manual review)
-      const checkpointResult = await handleCheckpointLogic(step, stepOutput.output, cwd, ui, emitter);
+      const checkpointResult = await handleCheckpointLogic(step, stepOutput.output, cwd, emitter);
       if (checkpointResult?.shouldStopWorkflow) {
         // Wait for user action via events (Continue or Quit)
         await new Promise<void>((resolve) => {
@@ -864,19 +801,17 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         });
 
         // Clear checkpoint state and resume
-        ui.clearCheckpointState();
         emitter.clearCheckpointState();
 
         if (workflowShouldStop) {
           // User chose to quit from checkpoint - set status to stopped
-          ui.setWorkflowStatus('stopped');
           emitter.setWorkflowStatus('stopped');
           break; // User chose to quit
         }
         // Otherwise continue to next step (current step already marked complete via executeOnce)
       }
 
-      const loopResult = await handleLoopLogic(step, index, stepOutput.output, loopCounters, cwd, ui, emitter);
+      const loopResult = await handleLoopLogic(step, index, stepOutput.output, loopCounters, cwd, emitter);
 
       if (loopResult.decision?.shouldRepeat) {
         // Set active loop with skip list
@@ -894,7 +829,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
           skipList: loopResult.decision.skipList || [],
           reason: loopResult.decision.reason,
         };
-        ui.setLoopState(loopState);
         emitter.setLoopState(loopState);
 
         // Reset all agents that will be re-executed in the loop
@@ -904,7 +838,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
           const resetStep = template.steps[resetIndex];
           if (resetStep && resetStep.type === 'module') {
             const resetUniqueAgentId = `${resetStep.agentId}-step-${resetIndex}`;
-            await ui.resetAgentForLoop(resetUniqueAgentId, iteration);
             emitter.resetAgentForLoop(resetUniqueAgentId, iteration);
           }
         }
@@ -918,8 +851,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       if (newActiveLoop !== (undefined as unknown as ActiveLoop | null)) {
         activeLoop = newActiveLoop;
         if (!newActiveLoop) {
-          ui.setLoopState(null);
-          ui.clearLoopRound(uniqueAgentId);
           emitter.setLoopState(null);
           emitter.clearLoopRound(uniqueAgentId);
         }
@@ -927,7 +858,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     } catch (error) {
       // Check if this was a pause request (process killed)
       if (inputState.requested) {
-        ui.logMessage(uniqueAgentId, `${step.agentName} paused.`);
         emitter.logMessage(uniqueAgentId, `${step.agentName} paused.`);
 
         // Store step index and activate input state for resume
@@ -953,10 +883,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       } else if (error instanceof Error && error.name === 'AbortError') {
         // Check if this was a user-requested skip (abort)
         debug(`[DEBUG workflow] Step ${index} (${uniqueAgentId}) was aborted by user`);
-        ui.updateAgentStatus(uniqueAgentId, 'skipped');
         emitter.updateAgentStatus(uniqueAgentId, 'skipped');
-        ui.logMessage(uniqueAgentId, `${step.agentName} was skipped by user.`);
-        ui.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
         emitter.logMessage(uniqueAgentId, `${step.agentName} was skipped by user.`);
         emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
         // Continue to next step - don't throw
@@ -967,26 +894,20 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         // Check if it's a file not found error
         if (error instanceof Error && (error.message.includes('ENOENT') || error.message.includes('not found'))) {
           const errorMsg = `CRITICAL ERROR: ${step.agentName} failed - required file not found: ${error.message}`;
-          ui.updateAgentStatus(uniqueAgentId, 'failed');
           emitter.updateAgentStatus(uniqueAgentId, 'failed');
-          ui.logMessage(uniqueAgentId, errorMsg);
           emitter.logMessage(uniqueAgentId, errorMsg);
 
-          // Set workflow status to failed and stop
-          ui.setWorkflowStatus('failed');
-          emitter.setWorkflowStatus('failed');
+          // Set workflow status to stopped and stop
+          emitter.setWorkflowStatus('stopped');
           workflowShouldStop = true;
         } else {
           // Generic error - log and stop
           const failMsg = `${step.agentName} failed: ${error instanceof Error ? error.message : String(error)}`;
-          ui.logMessage(uniqueAgentId, failMsg);
           emitter.logMessage(uniqueAgentId, failMsg);
-          ui.updateAgentStatus(uniqueAgentId, 'failed');
           emitter.updateAgentStatus(uniqueAgentId, 'failed');
 
-          // Set workflow status to failed and stop
-          ui.setWorkflowStatus('failed');
-          emitter.setWorkflowStatus('failed');
+          // Set workflow status to stopped and stop
+          emitter.setWorkflowStatus('stopped');
           workflowShouldStop = true;
         }
       }
@@ -1023,7 +944,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   // for the two-stage Ctrl+C behavior to work after completion
 
   // Set status to completed and keep UI alive
-  ui.setWorkflowStatus('completed');
   emitter.setWorkflowStatus('completed');
   // UI will stay running - user presses Ctrl+C to exit with two-stage behavior
   // Wait indefinitely - the SIGINT handler will call process.exit()
@@ -1036,20 +956,11 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     debug(`[DEBUG workflow] Error stack: ${error instanceof Error ? error.stack : 'No stack'}`);
 
     const errorMsg = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : 'Unknown error';
-
-    ui.logMessage('workflow', `\n${'═'.repeat(80)}\nWORKFLOW FAILED\n${'═'.repeat(80)}`);
-    ui.logMessage('workflow', `Error: ${errorMsg}`);
-    ui.logMessage('workflow', `Stack: ${errorStack}`);
 
     emitter.logMessage('workflow', `\n${'═'.repeat(80)}\nWORKFLOW FAILED\n${'═'.repeat(80)}`);
     emitter.logMessage('workflow', `Error: ${errorMsg}`);
 
-    ui.setWorkflowStatus('failed');
-    emitter.setWorkflowStatus('failed');
-
-    // Stop UI to restore console before logging error
-    ui.stop();
+    emitter.setWorkflowStatus('stopped');
 
     // Re-throw error to be handled by caller (will now print after UI is stopped)
     throw error;

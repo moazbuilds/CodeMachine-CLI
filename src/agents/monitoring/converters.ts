@@ -1,6 +1,5 @@
 import type { AgentRecord } from './types.js';
-import type { SubAgentState, AgentStatus as UIAgentStatus } from '../../ui/state/types.js';
-import type { EngineType } from '../../infra/engines/core/types.js';
+import type { SubAgentState, AgentStatus as UIAgentStatus } from '../../cli/tui/routes/workflow/state/types.js';
 
 /**
  * Convert monitoring AgentRecord to UI SubAgentState
@@ -9,7 +8,7 @@ import type { EngineType } from '../../infra/engines/core/types.js';
 export function agentRecordToSubAgentState(
   agent: AgentRecord,
   uiParentId?: string,
-  fallbackEngine?: EngineType
+  fallbackEngine?: string
 ): SubAgentState | null {
   // Root agents (no parentId) cannot be converted to SubAgentState
   if (!agent.parentId) {
@@ -56,7 +55,7 @@ export function agentRecordToSubAgentState(
 export function convertChildrenToSubAgents(
   children: AgentRecord[],
   uiParentId?: string,
-  fallbackEngine?: EngineType
+  fallbackEngine?: string
 ): SubAgentState[] {
   return children
     .map(child => agentRecordToSubAgentState(child, uiParentId, fallbackEngine))

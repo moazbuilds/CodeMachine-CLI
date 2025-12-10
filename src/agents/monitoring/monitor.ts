@@ -1,4 +1,4 @@
-import type { ParsedTelemetry } from '../../ui/utils/telemetryParser.js';
+import type { ParsedTelemetry } from '../../shared/telemetry/index.js';
 import { getDB } from './db/connection.js';
 import { AgentRepository } from './db/repository.js';
 import type { AgentRecord, AgentQueryFilters, AgentStatus, RegisterAgentInput } from './types.js';

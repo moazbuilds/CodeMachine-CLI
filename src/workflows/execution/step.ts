@@ -5,7 +5,6 @@ import { isModuleStep } from '../templates/types.js';
 import type { EngineType } from '../../infra/engines/index.js';
 import { processPromptString } from '../../shared/prompts/index.js';
 import { executeAgent, type ChainedPrompt } from '../../agents/runner/runner.js';
-import type { WorkflowUIManager } from '../../ui/index.js';
 import type { WorkflowEventEmitter } from '../events/emitter.js';
 import { debug } from '../../shared/logging/logger.js';
 
@@ -24,7 +23,6 @@ export interface StepExecutorOptions {
   logger: (chunk: string) => void;
   stderrLogger: (chunk: string) => void;
   timeout?: number;
-  ui?: WorkflowUIManager;
   emitter?: WorkflowEventEmitter;
   abortSignal?: AbortSignal;
   /** Parent agent ID for tracking relationships */
@@ -100,10 +98,9 @@ export async function executeStep(
   const engineType: EngineType | undefined = step.engine;
   debug(`[DEBUG step] engineType=${engineType}`);
 
-  // Build telemetry callback that updates both UI and emitter
+  // Build telemetry callback that updates emitter
   const onTelemetry = options.uniqueAgentId
     ? (telemetry: import('../../cli/tui/routes/workflow/state/types.js').AgentTelemetry) => {
-        options.ui?.updateAgentTelemetry(options.uniqueAgentId!, telemetry);
         options.emitter?.updateAgentTelemetry(options.uniqueAgentId!, telemetry);
       }
     : undefined;
@@ -122,7 +119,6 @@ export async function executeStep(
     disableMonitoring: options.disableMonitoring,
     abortSignal: options.abortSignal,
     timeout,
-    ui: options.ui,
     uniqueAgentId: options.uniqueAgentId,
     resumeMonitoringId: options.resumeMonitoringId,
     resumePrompt: options.resumePrompt,

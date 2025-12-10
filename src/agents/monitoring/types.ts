@@ -1,4 +1,4 @@
-import type { ParsedTelemetry } from '../../ui/utils/telemetryParser.js';
+import type { ParsedTelemetry } from '../../shared/telemetry/index.js';
 import type { EngineType } from '../../infra/engines/core/types.js';
 
 /**

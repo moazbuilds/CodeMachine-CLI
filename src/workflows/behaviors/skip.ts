@@ -1,6 +1,5 @@
 import type { WorkflowStep } from '../templates/index.js';
 import { isModuleStep } from '../templates/types.js';
-import type { WorkflowUIManager } from '../../ui/index.js';
 import type { WorkflowEventEmitter } from '../events/emitter.js';
 import { debug } from '../../shared/logging/logger.js';
 
@@ -13,7 +12,6 @@ export function shouldSkipStep(
   index: number,
   completedSteps: number[],
   activeLoop: ActiveLoop | null,
-  ui?: WorkflowUIManager,
   uniqueAgentId?: string,
   emitter?: WorkflowEventEmitter,
   selectedTrack?: string | null,
@@ -29,7 +27,6 @@ export function shouldSkipStep(
 
   // Track-based filtering: skip if step has tracks and selectedTrack not in list
   if (step.tracks?.length && selectedTrack && !step.tracks.includes(selectedTrack)) {
-    ui?.updateAgentStatus(agentId, 'skipped');
     emitter?.updateAgentStatus(agentId, 'skipped');
     return { skip: true, reason: `${step.agentName} skipped (not in "${selectedTrack}" track).` };
   }
@@ -39,7 +36,6 @@ export function shouldSkipStep(
     const userConditions = selectedConditions ?? [];
     const missingConditions = step.conditions.filter(c => !userConditions.includes(c));
     if (missingConditions.length > 0) {
-      ui?.updateAgentStatus(agentId, 'skipped');
       emitter?.updateAgentStatus(agentId, 'skipped');
       return { skip: true, reason: `${step.agentName} skipped (missing conditions: ${missingConditions.join(', ')}).` };
     }
@@ -47,14 +43,12 @@ export function shouldSkipStep(
 
   // Skip step if executeOnce is true and it's already completed
   if (step.executeOnce && completedSteps.includes(index)) {
-    ui?.updateAgentStatus(agentId, 'skipped');
     emitter?.updateAgentStatus(agentId, 'skipped');
     return { skip: true, reason: `${step.agentName} skipped (already completed).` };
   }
 
   // Skip step if it's in the active loop's skip list
   if (activeLoop?.skip.includes(step.agentId)) {
-    ui?.updateAgentStatus(agentId, 'skipped');
     emitter?.updateAgentStatus(agentId, 'skipped');
     return { skip: true, reason: `${step.agentName} skipped (loop configuration).` };
   }

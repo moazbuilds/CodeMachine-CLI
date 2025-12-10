@@ -2,13 +2,11 @@ import type { WorkflowStep } from '../templates/index.js';
 import { isModuleStep } from '../templates/types.js';
 import { executeStep } from './step.js';
 import { mainAgents } from '../utils/config.js';
-import type { WorkflowUIManager } from '../../ui/index.js';
 import type { WorkflowEventEmitter } from '../events/index.js';
 
 export interface FallbackExecutionOptions {
   logger: (message: string) => void;
   stderrLogger: (message: string) => void;
-  ui?: WorkflowUIManager;
   emitter?: WorkflowEventEmitter;
   abortSignal?: AbortSignal;
 }
@@ -34,7 +32,6 @@ export async function executeFallbackStep(
   cwd: string,
   workflowStartTime: number,
   engineType: string,
-  ui?: WorkflowUIManager,
   emitter?: WorkflowEventEmitter,
   uniqueParentAgentId?: string,
   abortSignal?: AbortSignal,
@@ -51,9 +48,6 @@ export async function executeFallbackStep(
   const fallbackAgentId = step.notCompletedFallback;
   const parentAgentId = uniqueParentAgentId ?? step.agentId;
 
-  if (ui) {
-    ui.logMessage(fallbackAgentId, `Fallback agent for ${step.agentName} started to work.`);
-  }
   if (emitter) {
     emitter.logMessage(fallbackAgentId, `Fallback agent for ${step.agentName} started to work.`);
   }
@@ -76,7 +70,7 @@ export async function executeFallbackStep(
     promptPath: fallbackAgent.promptPath, // Use the fallback agent's prompt, not the original step's
   };
 
-  // Add fallback agent to UI as sub-agent
+  // Add fallback agent as sub-agent
   const engineName = engineType; // preserve original engine type, even if unknown
   const fallbackAgentData = {
     id: fallbackAgentId,
@@ -89,28 +83,19 @@ export async function executeFallbackStep(
     toolCount: 0,
     thinkingCount: 0,
   };
-  if (ui) {
-    ui.addSubAgent(parentAgentId, fallbackAgentData);
-  }
   if (emitter) {
     emitter.addSubAgent(parentAgentId, fallbackAgentData);
   }
 
   try {
     await executeStep(fallbackStep, cwd, {
-      logger: () => {}, // No-op: UI reads from log files
-      stderrLogger: () => {}, // No-op: UI reads from log files
-      ui,
+      logger: () => {},
+      stderrLogger: () => {},
       uniqueAgentId: fallbackAgentId,
       abortSignal,
     });
 
-    // Update UI status on success
-    if (ui) {
-      ui.updateAgentStatus(fallbackAgentId, 'completed');
-      ui.logMessage(fallbackAgentId, `Fallback agent completed successfully.`);
-      ui.logMessage(fallbackAgentId, '═'.repeat(80));
-    }
+    // Update status on success
     if (emitter) {
       emitter.updateAgentStatus(fallbackAgentId, 'completed');
       emitter.logMessage(fallbackAgentId, `Fallback agent completed successfully.`);
@@ -119,9 +104,6 @@ export async function executeFallbackStep(
   } catch (error) {
     // Don't update status to failed - let it stay as running/retrying
     const errorMsg = `Fallback agent failed: ${error instanceof Error ? error.message : String(error)}`;
-    if (ui) {
-      ui.logMessage(fallbackAgentId, errorMsg);
-    }
     if (emitter) {
       emitter.logMessage(fallbackAgentId, errorMsg);
     }
