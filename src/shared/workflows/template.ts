@@ -22,6 +22,7 @@ interface TemplateTracking {
   resumeFromLastStep?: boolean;
   selectedTrack?: string; // Selected workflow track (e.g., 'bmad', 'quick', 'enterprise')
   selectedConditions?: string[]; // Selected conditions (e.g., ['has_ui', 'has_api'])
+  projectName?: string; // User-provided project name for placeholder replacement
 }
 
 /**
@@ -224,6 +225,63 @@ export async function setSelectedConditions(cmRoot: string, conditions: string[]
   }
 
   data.selectedConditions = conditions;
+  data.lastUpdated = new Date().toISOString();
+
+  await writeFile(trackingPath, JSON.stringify(data, null, 2), 'utf8');
+}
+
+/**
+ * Gets the project name from the tracking file.
+ */
+export async function getProjectName(cmRoot: string): Promise<string | null> {
+  const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
+
+  if (!existsSync(trackingPath)) {
+    return null;
+  }
+
+  try {
+    const content = await readFile(trackingPath, 'utf8');
+    const data = JSON.parse(content) as TemplateTracking;
+    return data.projectName ?? null;
+  } catch (error) {
+    console.warn(`Failed to read project name: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
+
+/**
+ * Sets the project name in the tracking file.
+ */
+export async function setProjectName(cmRoot: string, projectName: string): Promise<void> {
+  const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
+
+  let data: TemplateTracking;
+
+  if (existsSync(trackingPath)) {
+    try {
+      const content = await readFile(trackingPath, 'utf8');
+      data = JSON.parse(content) as TemplateTracking;
+    } catch {
+      data = {
+        activeTemplate: '',
+        lastUpdated: new Date().toISOString(),
+        completedSteps: [],
+        notCompletedSteps: [],
+        resumeFromLastStep: true,
+      };
+    }
+  } else {
+    data = {
+      activeTemplate: '',
+      lastUpdated: new Date().toISOString(),
+      completedSteps: [],
+      notCompletedSteps: [],
+      resumeFromLastStep: true,
+    };
+  }
+
+  data.projectName = projectName;
   data.lastUpdated = new Date().toISOString();
 
   await writeFile(trackingPath, JSON.stringify(data, null, 2), 'utf8');

@@ -3,6 +3,7 @@ import { loadPlaceholdersConfig, resolvePlaceholderPath } from '../config/loader
 import { loadPlaceholderContent } from '../content/loader.js';
 import { findPlaceholders, getUniquePlaceholderNames } from './parser.js';
 import { handlePlaceholderLoadError } from './errors.js';
+import { getBuiltInContent } from './builtins.js';
 
 /**
  * Simple cache for placeholder content with file modification time tracking
@@ -131,6 +132,12 @@ async function replacePlaceholders(
 
   // Load all placeholders in parallel
   const loadTasks = placeholderNamesArray.map(async (placeholderName) => {
+    // Check if it's a built-in dynamic placeholder first
+    const builtInContent = await getBuiltInContent(placeholderName, cwd);
+    if (builtInContent !== null) {
+      return { placeholderName, content: builtInContent, isOptional: false };
+    }
+
     // Find if this placeholder is optional by checking the first occurrence
     const firstOccurrence = placeholders.find((p) => p.name === placeholderName);
     const isOptional = firstOccurrence?.isOptional || false;

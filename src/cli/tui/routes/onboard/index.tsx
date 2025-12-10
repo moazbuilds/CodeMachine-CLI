@@ -13,11 +13,12 @@ import type { TrackConfig, ConditionConfig } from "../../../../workflows/templat
 export interface OnboardProps {
   tracks?: Record<string, TrackConfig>
   conditions?: Record<string, ConditionConfig>
-  onComplete: (result: { trackId?: string; conditions?: string[] }) => void
+  initialProjectName?: string | null // If set, skip project name input
+  onComplete: (result: { projectName?: string; trackId?: string; conditions?: string[] }) => void
   onCancel?: () => void
 }
 
-type OnboardStep = 'tracks' | 'conditions'
+type OnboardStep = 'project_name' | 'tracks' | 'conditions'
 
 export function Onboard(props: OnboardProps) {
   const themeCtx = useTheme()
@@ -27,33 +28,48 @@ export function Onboard(props: OnboardProps) {
   const [typingDone, setTypingDone] = createSignal(false)
 
   // Multi-step state
-  const [currentStep, setCurrentStep] = createSignal<OnboardStep>('tracks')
+  const [currentStep, setCurrentStep] = createSignal<OnboardStep>('project_name')
+  const [projectName, setProjectName] = createSignal("")
   const [selectedTrackId, setSelectedTrackId] = createSignal<string | undefined>()
   const [selectedConditions, setSelectedConditions] = createSignal<Set<string>>(new Set())
 
   const hasTracks = () => props.tracks && Object.keys(props.tracks).length > 0
   const hasConditions = () => props.conditions && Object.keys(props.conditions).length > 0
 
-  // Determine initial step
+  // Determine initial step - skip project_name if already set
   onMount(() => {
-    if (!hasTracks() && hasConditions()) {
-      setCurrentStep('conditions')
+    if (props.initialProjectName) {
+      setProjectName(props.initialProjectName)
+      if (hasTracks()) {
+        setCurrentStep('tracks')
+      } else if (hasConditions()) {
+        setCurrentStep('conditions')
+      } else {
+        props.onComplete({ projectName: props.initialProjectName })
+      }
     }
   })
 
+  const projectNameQuestion = "What is your project name?"
   const trackQuestion = "What is your project size?"
   const conditionsQuestion = "What features does your project have?"
 
   const trackEntries = () => props.tracks ? Object.entries(props.tracks) : []
   const conditionEntries = () => props.conditions ? Object.entries(props.conditions) : []
 
-  const currentQuestion = () => currentStep() === 'tracks' ? trackQuestion : conditionsQuestion
+  const currentQuestion = () => {
+    switch (currentStep()) {
+      case 'project_name': return projectNameQuestion
+      case 'tracks': return trackQuestion
+      case 'conditions': return conditionsQuestion
+    }
+  }
   const currentEntries = () => currentStep() === 'tracks' ? trackEntries() : conditionEntries()
 
   // Typing effect - reset when step changes
   createEffect(() => {
     const step = currentStep()
-    const question = step === 'tracks' ? trackQuestion : conditionsQuestion
+    const question = currentQuestion()
     setTypedText("")
     setTypingDone(false)
     setSelectedIndex(0)
@@ -72,17 +88,31 @@ export function Onboard(props: OnboardProps) {
     return () => clearInterval(interval)
   })
 
+  const handleProjectNameSubmit = () => {
+    const name = projectName().trim()
+    if (!name) return // Don't proceed with empty name
+
+    if (hasTracks()) {
+      setCurrentStep('tracks')
+    } else if (hasConditions()) {
+      setCurrentStep('conditions')
+    } else {
+      props.onComplete({ projectName: name })
+    }
+  }
+
   const handleTrackSelect = (trackId: string) => {
     setSelectedTrackId(trackId)
     if (hasConditions()) {
       setCurrentStep('conditions')
     } else {
-      props.onComplete({ trackId })
+      props.onComplete({ projectName: projectName(), trackId })
     }
   }
 
   const handleConditionsComplete = () => {
     props.onComplete({
+      projectName: projectName(),
       trackId: selectedTrackId(),
       conditions: Array.from(selectedConditions())
     })
@@ -102,7 +132,28 @@ export function Onboard(props: OnboardProps) {
 
   useKeyboard((evt) => {
     const entries = currentEntries()
+    const step = currentStep()
 
+    // Handle project_name input step
+    if (step === 'project_name') {
+      if (evt.name === "return") {
+        evt.preventDefault()
+        handleProjectNameSubmit()
+      } else if (evt.name === "backspace") {
+        evt.preventDefault()
+        setProjectName((prev) => prev.slice(0, -1))
+      } else if (evt.name === "escape") {
+        evt.preventDefault()
+        props.onCancel?.()
+      } else if (evt.sequence && evt.sequence.length === 1 && !evt.ctrl && !evt.meta) {
+        // Regular character input
+        evt.preventDefault()
+        setProjectName((prev) => prev + evt.sequence)
+      }
+      return
+    }
+
+    // Handle tracks and conditions steps
     if (evt.name === "up") {
       evt.preventDefault()
       setSelectedIndex((prev) => Math.max(0, prev - 1))
@@ -111,7 +162,7 @@ export function Onboard(props: OnboardProps) {
       setSelectedIndex((prev) => Math.min(entries.length - 1, prev + 1))
     } else if (evt.name === "return") {
       evt.preventDefault()
-      if (currentStep() === 'tracks') {
+      if (step === 'tracks') {
         const [trackId] = entries[selectedIndex()]
         handleTrackSelect(trackId)
       } else {
@@ -119,7 +170,7 @@ export function Onboard(props: OnboardProps) {
         const [conditionId] = entries[selectedIndex()]
         toggleCondition(conditionId)
       }
-    } else if (evt.name === "tab" && currentStep() === 'conditions') {
+    } else if (evt.name === "tab" && step === 'conditions') {
       evt.preventDefault()
       handleConditionsComplete()
     } else if (evt.name === "escape") {
@@ -129,7 +180,7 @@ export function Onboard(props: OnboardProps) {
       const num = parseInt(evt.name, 10)
       if (num >= 1 && num <= entries.length) {
         evt.preventDefault()
-        if (currentStep() === 'tracks') {
+        if (step === 'tracks') {
           const [trackId] = entries[num - 1]
           handleTrackSelect(trackId)
         } else {
@@ -186,6 +237,22 @@ export function Onboard(props: OnboardProps) {
 
         {/* Options */}
         <box flexDirection="column" gap={1} marginTop={1}>
+          <Show when={currentStep() === 'project_name'}>
+            <box flexDirection="row" gap={1}>
+              <text fg={themeCtx.theme.primary}>{">"}</text>
+              <box
+                backgroundColor={themeCtx.theme.backgroundElement}
+                paddingLeft={1}
+                paddingRight={1}
+                minWidth={30}
+              >
+                <text fg={themeCtx.theme.text}>
+                  {projectName()}{typingDone() ? "_" : ""}
+                </text>
+              </box>
+            </box>
+          </Show>
+
           <Show when={currentStep() === 'tracks'}>
             <For each={trackEntries()}>
               {([trackId, config], index) => {
@@ -246,6 +313,11 @@ export function Onboard(props: OnboardProps) {
 
         {/* Footer */}
         <box marginTop={2}>
+          <Show when={currentStep() === 'project_name'}>
+            <text fg={themeCtx.theme.textMuted}>
+              [Enter] Confirm  [Esc] Cancel
+            </text>
+          </Show>
           <Show when={currentStep() === 'tracks'}>
             <text fg={themeCtx.theme.textMuted}>
               [Up/Down] Navigate  [Enter] Select  [Esc] Cancel

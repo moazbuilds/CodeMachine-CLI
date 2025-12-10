@@ -9,6 +9,8 @@ export {
   getSelectedConditions,
   hasSelectedConditions,
   setSelectedConditions,
+  getProjectName,
+  setProjectName,
 } from './template.js';
 
 // Step tracking functions

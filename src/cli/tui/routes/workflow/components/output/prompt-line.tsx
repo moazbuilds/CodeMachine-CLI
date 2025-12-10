@@ -15,6 +15,9 @@
 import { createSignal, createEffect, onCleanup, Show } from "solid-js"
 import { useTheme } from "@tui/shared/context/theme"
 
+const LARGE_PASTE_THRESHOLD = 1000
+type PendingPaste = { placeholder: string; content: string }
+
 export type PromptLineState =
   | { mode: "disabled" }
   | { mode: "passive" }
@@ -33,6 +36,8 @@ export function PromptLine(props: PromptLineProps) {
   const themeCtx = useTheme()
   const [input, setInput] = createSignal("")
   const [typingText, setTypingText] = createSignal("")
+  const [pendingPastes, setPendingPastes] = createSignal<PendingPaste[]>([])
+  let pasteCounter = 0
 
   const PLACEHOLDER = "Enter to continue or type prompt..."
 
@@ -91,17 +96,20 @@ export function PromptLine(props: PromptLineProps) {
   // Keyboard is handled by input's onKeyDown - no useKeyboard here to avoid race conditions
 
   const handleSubmit = () => {
-    const value = input().trim()
-    if (value) {
-      // Custom prompt provided
-      props.onSubmit(value)
-      setInput("")
-    } else {
-      // Empty submit - parent decides what to do:
-      // - For chained: use next queued prompt
-      // - For paused: resume/continue to next agent
-      props.onSubmit("")
+    let value = input().trim()
+
+    // Replace placeholders with actual pasted content
+    for (const { placeholder, content } of pendingPastes()) {
+      value = value.replace(placeholder, content)
     }
+
+    // Clear paste state
+    setPendingPastes([])
+    pasteCounter = 0
+    setInput("")
+
+    // Submit (empty or with content)
+    props.onSubmit(value)
   }
 
   const handleKeyDown = (evt: { name?: string; ctrl?: boolean; preventDefault?: () => void }) => {
@@ -131,8 +139,16 @@ export function PromptLine(props: PromptLineProps) {
     // Replace newlines with spaces for single-line input
     const cleanText = normalized.replace(/\n+/g, " ").trim()
 
-    if (cleanText) {
-      evt.preventDefault?.()
+    if (!cleanText) return
+    evt.preventDefault?.()
+
+    // Large paste: use placeholder to avoid UI slowdown
+    if (cleanText.length > LARGE_PASTE_THRESHOLD) {
+      pasteCounter++
+      const placeholder = `[Pasted Content ${cleanText.length} chars${pasteCounter > 1 ? ` #${pasteCounter}` : ""}]`
+      setPendingPastes((prev) => [...prev, { placeholder, content: cleanText }])
+      setInput((prev) => prev + placeholder)
+    } else {
       setInput((prev) => prev + cleanText)
     }
   }

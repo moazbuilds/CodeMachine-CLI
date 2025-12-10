@@ -23,7 +23,7 @@ import { MonitoringCleanup } from "../../agents/monitoring/index.js"
 import path from "path"
 import { createRequire } from "node:module"
 import { resolvePackageJson } from "../../shared/runtime/pkg.js"
-import { getSelectedTrack, setSelectedTrack, hasSelectedConditions, setSelectedConditions } from "../../shared/workflows/index.js"
+import { getSelectedTrack, setSelectedTrack, hasSelectedConditions, setSelectedConditions, getProjectName, setProjectName } from "../../shared/workflows/index.js"
 import { loadTemplate } from "../../workflows/templates/loader.js"
 import { getTemplatePathFromTracking } from "../../shared/workflows/template.js"
 import type { TrackConfig, ConditionConfig } from "../../workflows/templates/types"
@@ -116,6 +116,7 @@ export function App(props: { initialToast?: InitialToast }) {
   const [workflowEventBus, setWorkflowEventBus] = createSignal<WorkflowEventBus | null>(null)
   const [templateTracks, setTemplateTracks] = createSignal<Record<string, TrackConfig> | null>(null)
   const [templateConditions, setTemplateConditions] = createSignal<Record<string, ConditionConfig> | null>(null)
+  const [initialProjectName, setInitialProjectName] = createSignal<string | null>(null)
 
   let pendingWorkflowStart: (() => void) | null = null
 
@@ -136,16 +137,19 @@ export function App(props: { initialToast?: InitialToast }) {
       const template = await loadTemplate(cwd, templatePath)
       const selectedTrack = await getSelectedTrack(cmRoot)
       const conditionsSelected = await hasSelectedConditions(cmRoot)
+      const existingProjectName = await getProjectName(cmRoot)
 
       const hasTracks = template.tracks && Object.keys(template.tracks).length > 0
       const hasConditions = template.conditions && Object.keys(template.conditions).length > 0
       const needsTrackSelection = hasTracks && !selectedTrack
       const needsConditionsSelection = hasConditions && !conditionsSelected
+      const needsProjectName = !existingProjectName
 
-      // If tracks or conditions exist and none selected, show onboard view
-      if (needsTrackSelection || needsConditionsSelection) {
+      // If project name, tracks or conditions need selection, show onboard view
+      if (needsProjectName || needsTrackSelection || needsConditionsSelection) {
         if (hasTracks) setTemplateTracks(template.tracks!)
         if (hasConditions) setTemplateConditions(template.conditions!)
+        setInitialProjectName(existingProjectName) // Pass existing name if any (to skip that step)
         currentView = "onboard"
         setView("onboard")
         return
@@ -180,9 +184,14 @@ export function App(props: { initialToast?: InitialToast }) {
     setView("workflow")
   }
 
-  const handleOnboardComplete = async (result: { trackId?: string; conditions?: string[] }) => {
+  const handleOnboardComplete = async (result: { projectName?: string; trackId?: string; conditions?: string[] }) => {
     const cwd = process.env.CODEMACHINE_CWD || process.cwd()
     const cmRoot = path.join(cwd, '.codemachine')
+
+    // Save project name if provided
+    if (result.projectName) {
+      await setProjectName(cmRoot, result.projectName)
+    }
 
     // Save selected track if provided
     if (result.trackId) {
@@ -295,6 +304,7 @@ export function App(props: { initialToast?: InitialToast }) {
             <Onboard
               tracks={templateTracks() ?? undefined}
               conditions={templateConditions() ?? undefined}
+              initialProjectName={initialProjectName()}
               onComplete={handleOnboardComplete}
               onCancel={handleOnboardCancel}
             />
