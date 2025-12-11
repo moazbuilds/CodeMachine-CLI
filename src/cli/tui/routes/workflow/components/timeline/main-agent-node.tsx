@@ -11,18 +11,27 @@ import { useTheme } from "@tui/shared/context/theme"
 import { useTick } from "@tui/shared/hooks/tick"
 import { Spinner } from "@tui/shared/components/spinner"
 import type { AgentState } from "../../state/types"
-import { formatDuration } from "../../state/formatters"
+import { formatDuration, truncate } from "../../state/formatters"
 import { getStatusIcon, getStatusColor } from "./status-utils"
 
 export interface MainAgentNodeProps {
   agent: AgentState
   isSelected: boolean
   isPaused?: boolean
+  availableWidth?: number
 }
+
+// Maximum agent name length before truncation
+const MAX_NAME_LENGTH = 22
+// Minimum timeline section width to show engine name
+const MIN_WIDTH_FOR_ENGINE = 45
 
 export function MainAgentNode(props: MainAgentNodeProps) {
   const themeCtx = useTheme()
   const now = useTick()
+
+  // Only show engine if timeline section is wide enough
+  const showEngine = () => (props.availableWidth ?? 80) >= MIN_WIDTH_FOR_ENGINE
 
   const color = () => props.agent.error ? themeCtx.theme.error : getStatusColor(props.agent.status, themeCtx.theme)
 
@@ -79,27 +88,31 @@ export function MainAgentNode(props: MainAgentNodeProps) {
   // Selection indicator
   const selectionPrefix = () => (props.isSelected ? "> " : "  ")
 
+  const displayName = () => truncate(props.agent.name, MAX_NAME_LENGTH)
+
   return (
     <box flexDirection="column" paddingLeft={1} paddingRight={1}>
-      {/* Main line */}
-      <box flexDirection="row">
-        <text fg={themeCtx.theme.text}>{selectionPrefix()}</text>
+      {/* Main line - use wrapMode="none" and overflow="hidden" to prevent text wrapping */}
+      <box flexDirection="row" overflow="hidden">
+        <text wrapMode="none" fg={themeCtx.theme.text}>{selectionPrefix()}</text>
         <Show when={props.agent.status === "running"} fallback={
-          <text fg={color()}>{getStatusIcon(props.agent.status)} </text>
+          <text wrapMode="none" fg={color()}>{getStatusIcon(props.agent.status)} </text>
         }>
           <Show when={props.isPaused} fallback={
             <>
               <Spinner color={color()} />
-              <text> </text>
+              <text wrapMode="none"> </text>
             </>
           }>
-            <text fg={themeCtx.theme.warning}>|| </text>
+            <text wrapMode="none" fg={themeCtx.theme.warning}>|| </text>
           </Show>
         </Show>
-        <text fg={themeCtx.theme.text} attributes={1}>{props.agent.name}</text>
-        <text fg={themeCtx.theme.textMuted}> ({props.agent.engine})</text>
+        <text wrapMode="none" fg={themeCtx.theme.text} attributes={1}>{displayName()}</text>
+        <Show when={showEngine()}>
+          <text wrapMode="none" fg={themeCtx.theme.textMuted}> ({props.agent.engine})</text>
+        </Show>
         <Show when={duration()}>
-          <text fg={themeCtx.theme.textMuted}> • {duration()}</text>
+          <text wrapMode="none" fg={themeCtx.theme.textMuted}> • {duration()}</text>
         </Show>
       </box>
 

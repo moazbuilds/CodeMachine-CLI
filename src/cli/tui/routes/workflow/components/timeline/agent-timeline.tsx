@@ -20,6 +20,7 @@ export interface AgentTimelineProps {
   state: WorkflowState
   onToggleExpand: (agentId: string) => void
   availableHeight?: number
+  availableWidth?: number
   isPaused?: boolean
   isPromptBoxFocused?: boolean
 }
@@ -89,7 +90,7 @@ export function AgentTimeline(props: AgentTimelineProps) {
 
               // Main agent
               if (item.type === "main") {
-                return <MainAgentNode agent={item.agent} isSelected={isMainSelected(item.id)} isPaused={props.isPaused} />
+                return <MainAgentNode agent={item.agent} isSelected={isMainSelected(item.id)} isPaused={props.isPaused} availableWidth={props.availableWidth} />
               }
 
               // Sub-agent summary (collapsed)

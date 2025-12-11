@@ -12,7 +12,7 @@ module.exports = [
   },
   {
     id: 'principal-analyst',
-    name: 'Principal Analyst - Checkpoint',
+    name: 'Analyst Checkpoint',
     description: 'Reviews project specifications and identifies critical ambiguities requiring clarification',
     promptPath: path.join(promptsDir, 'codemachine', 'main-agents', '01-principal-analyst.md'),
   },
@@ -48,13 +48,13 @@ module.exports = [
   },
   {
     id: 'task-sanity-check',
-    name: 'Task Verification Agent',
+    name: 'Task Reviewer',
     description: 'Verifies generated code against task requirements and acceptance criteria',
     promptPath: path.join(promptsDir, 'codemachine', 'main-agents', '07-task-validation-agent.md'),
   },
   {
     id: 'runtime-prep',
-    name: 'Runtime Preparation Agent',
+    name: 'Runtime Prep',
     description: 'Generates robust shell scripts for project automation (install, run, lint, test)',
     promptPath: path.join(promptsDir, 'codemachine', 'main-agents', '08-runtime-preparation-agent.md'),
   },

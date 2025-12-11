@@ -318,13 +318,14 @@ export function WorkflowShell(props: WorkflowShellProps) {
       <box flexDirection="row" flexGrow={1} gap={1}>
         <Show when={!isTimelineCollapsed()}>
           <box flexDirection="column" width={showOutputPanel() ? "35%" : "100%"}>
-            <AgentTimeline state={state()} onToggleExpand={(id) => ui.actions.toggleExpand(id)} availableHeight={state().visibleItemCount} isPaused={isWaitingForInput()} isPromptBoxFocused={isPromptBoxFocused()} />
+            <AgentTimeline state={state()} onToggleExpand={(id) => ui.actions.toggleExpand(id)} availableHeight={state().visibleItemCount} availableWidth={Math.floor((dimensions()?.width ?? 80) * (showOutputPanel() ? 0.35 : 1))} isPaused={isWaitingForInput()} isPromptBoxFocused={isPromptBoxFocused()} />
           </box>
         </Show>
         <Show when={showOutputPanel() || isTimelineCollapsed()}>
           <box flexDirection="column" width={isTimelineCollapsed() ? "100%" : "65%"}>
             <OutputWindow
               currentAgent={currentAgent()}
+              availableWidth={Math.floor((dimensions()?.width ?? 80) * (isTimelineCollapsed() ? 1 : 0.65))}
               lines={logStream.lines}
               isLoading={logStream.isLoading}
               isConnecting={logStream.isConnecting}

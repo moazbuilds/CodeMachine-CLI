@@ -7,7 +7,7 @@
  * Shows last N lines with auto-scroll for running agents using OpenTUI scrollbox
  */
 
-import { Show, For } from "solid-js"
+import { Show, For, createMemo } from "solid-js"
 import { useTheme } from "@tui/shared/context/theme"
 import { ShimmerText } from "./shimmer-text"
 import { TypingText } from "./typing-text"
@@ -40,22 +40,30 @@ export interface OutputWindowProps {
   onPromptSubmit?: (prompt: string) => void
   onSkip?: () => void
   onPromptBoxFocusExit?: () => void
+  // Responsive layout
+  availableWidth?: number
 }
 
 /**
  * Output window showing current agent's output
  * Displays last N lines with syntax highlighting using scrollbox
  */
-const OUTPUT_HEADER_HEIGHT = 4  // Side curve header (╭─ + info + thinking + ╰─)
+const OUTPUT_HEADER_HEIGHT_WIDE = 4  // Side curve header when wide (╭─ + info + thinking + ╰─)
+const OUTPUT_HEADER_HEIGHT_NARROW = 5  // Side curve header when narrow (extra line for status)
+const MIN_WIDTH_FOR_INLINE_STATUS = 75  // Minimum width to show status inline with name
 
 export function OutputWindow(props: OutputWindowProps) {
   const themeCtx = useTheme()
+
+  // Check if we have enough width to show status inline (based on output section width)
+  const isWideLayout = createMemo(() => (props.availableWidth ?? 80) >= MIN_WIDTH_FOR_INLINE_STATUS)
 
   const effectiveMaxLines = () => props.maxLines ?? 20
 
   // Scrollbox height accounts for the output header + prompt line (3 lines)
   const PROMPT_LINE_HEIGHT = 3
-  const scrollboxHeight = () => Math.max(3, effectiveMaxLines() - OUTPUT_HEADER_HEIGHT - PROMPT_LINE_HEIGHT)
+  const outputHeaderHeight = () => isWideLayout() ? OUTPUT_HEADER_HEIGHT_WIDE : OUTPUT_HEADER_HEIGHT_NARROW
+  const scrollboxHeight = () => Math.max(3, effectiveMaxLines() - outputHeaderHeight() - PROMPT_LINE_HEIGHT)
 
   // Check if agent is running
   const isRunning = () => props.currentAgent?.status === "running"
@@ -127,24 +135,47 @@ export function OutputWindow(props: OutputWindowProps) {
           </box>
         }
       >
-        {/* Side Curve Header */}
-        <box flexDirection="column" paddingLeft={1} height={4} flexShrink={0}>
+        {/* Side Curve Header - Responsive layout */}
+        <box flexDirection="column" paddingLeft={1} height={outputHeaderHeight()} flexShrink={0}>
           <text fg={themeCtx.theme.border}>╭─</text>
-          <box flexDirection="row" justifyContent="space-between" paddingRight={2}>
+
+          {/* Wide layout: name and status on same line */}
+          <Show when={isWideLayout()}>
+            <box flexDirection="row" justifyContent="space-between" paddingRight={2}>
+              <box flexDirection="row">
+                <text fg={themeCtx.theme.border}>│  </text>
+                <text fg={themeCtx.theme.text}>{isRunning() && props.latestThinking ? "(╭ರ_•́)" : "(˶ᵔ ᵕ ᵔ˶)"}</text>
+                <text>  </text>
+                <text fg={themeCtx.theme.text} attributes={1}>{props.currentAgent!.name}</text>
+              </box>
+              <box flexDirection="row" gap={1}>
+                <text fg={themeCtx.theme.info}>{props.currentAgent!.engine}</text>
+                <Show when={props.currentAgent!.model}>
+                  <text fg={themeCtx.theme.textMuted}>{props.currentAgent!.model}</text>
+                </Show>
+                <text fg={statusColor()}>● {props.currentAgent!.status}</text>
+              </box>
+            </box>
+          </Show>
+
+          {/* Narrow layout: name on one line, status on next line */}
+          <Show when={!isWideLayout()}>
             <box flexDirection="row">
               <text fg={themeCtx.theme.border}>│  </text>
               <text fg={themeCtx.theme.text}>{isRunning() && props.latestThinking ? "(╭ರ_•́)" : "(˶ᵔ ᵕ ᵔ˶)"}</text>
               <text>  </text>
               <text fg={themeCtx.theme.text} attributes={1}>{props.currentAgent!.name}</text>
             </box>
-            <box flexDirection="row" gap={1}>
+            <box flexDirection="row">
+              <text fg={themeCtx.theme.border}>│  </text>
               <text fg={themeCtx.theme.info}>{props.currentAgent!.engine}</text>
               <Show when={props.currentAgent!.model}>
-                <text fg={themeCtx.theme.textMuted}>{props.currentAgent!.model}</text>
+                <text fg={themeCtx.theme.textMuted}> {props.currentAgent!.model}</text>
               </Show>
-              <text fg={statusColor()}>● {props.currentAgent!.status}</text>
+              <text fg={statusColor()}> ● {props.currentAgent!.status}</text>
             </box>
-          </box>
+          </Show>
+
           <box flexDirection="row">
             <text fg={themeCtx.theme.border}>│  </text>
             <Show when={isRunning() && props.latestThinking} fallback={<text fg={themeCtx.theme.textMuted}>↳ Waiting...</text>}>
