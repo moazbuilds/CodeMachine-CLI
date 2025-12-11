@@ -4,7 +4,7 @@ import {
   type WorkflowStep,
   type WorkflowTemplate,
 } from '../templates/types.js';
-import { runWorkflow } from './workflow.js';
+import { runWorkflow } from './run.js';
 import { validateSpecification } from '../../runtime/services/index.js';
 
 export { validateSpecification, ValidationError } from '../../runtime/services/index.js';
