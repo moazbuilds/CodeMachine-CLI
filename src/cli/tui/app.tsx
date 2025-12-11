@@ -88,7 +88,7 @@ export async function startTUI(
         targetFps: 60,
         gatherStats: false,
         exitOnCtrlC: false,
-        useKittyKeyboard: true,
+        useKittyKeyboard: { events: true },
         useMouse: true,
         postProcessFns: [
           (buffer) => {
