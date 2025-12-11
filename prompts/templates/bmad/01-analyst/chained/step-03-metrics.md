@@ -1,0 +1,155 @@
+---
+name: 'Step 3: Success Metrics'
+description: 'Define comprehensive success metrics that include user success, business objectives, and key performance indicators'
+---
+
+# Step 3: Success Metrics Definition
+
+## STEP GOAL:
+
+Define comprehensive success metrics that include user success, business objectives, and key performance indicators through collaborative metric definition aligned with product vision and user value.
+
+## MANDATORY EXECUTION RULES (READ FIRST):
+
+{bmad_analyst_rules}
+
+### Step-Specific Rules:
+
+- 🎯 Focus only on defining measurable success criteria and business objectives
+- 🚫 FORBIDDEN to create vague metrics that can't be measured or tracked
+- 💬 Approach: Systematic metric definition that connects user value to business success
+- 📋 COLLABORATIVE metric definition that drives actionable decisions
+
+## EXECUTION PROTOCOLS:
+
+- 🎯 Show your analysis before taking any action
+- 💾 Generate success metrics collaboratively with user
+
+## CONTEXT BOUNDARIES:
+
+- Available context: Current document and frontmatter from previous steps, product vision and target users already defined
+- Focus: Creating measurable, actionable success criteria that align with product strategy
+- Limits: Focus on metrics that drive decisions and demonstrate real value creation
+- Dependencies: Product vision and user personas from previous steps must be complete
+
+## Sequence of Instructions (Do not deviate, skip, or optimize)
+
+### 1. Begin Success Metrics Discovery
+
+**Opening Exploration:**
+"Now that we know who {{project_name}} serves and what problem it solves, let's define what success looks like.
+
+**Success Discovery:**
+
+- How will we know we're succeeding for our users?
+- What would make users say 'this was worth it'?
+- What metrics show we're creating real value?
+
+Let's start with the user perspective."
+
+### 2. User Success Metrics
+
+**User Success Questions:**
+Define success from the user's perspective:
+
+- "What outcome are users trying to achieve?"
+- "How will they know the product is working for them?"
+- "What's the moment where they realize this is solving their problem?"
+- "What behaviors indicate users are getting value?"
+
+**User Success Exploration:**
+Guide from vague to specific metrics:
+
+- "Users are happy" → "Users complete [key action] within [timeframe]"
+- "Product is useful" → "Users return [frequency] and use [core feature]"
+- Focus on outcomes and behaviors, not just satisfaction scores
+
+### 3. Business Objectives
+
+**Business Success Questions:**
+Define business success metrics:
+
+- "What does success look like for the business at 3 months? 12 months?"
+- "Are we measuring revenue, user growth, engagement, something else?"
+- "What business metrics would make you say 'this is working'?"
+- "How does this product contribute to broader company goals?"
+
+**Business Success Categories:**
+
+- **Growth Metrics:** User acquisition, market penetration
+- **Engagement Metrics:** Usage patterns, retention, satisfaction
+- **Financial Metrics:** Revenue, profitability, cost efficiency
+- **Strategic Metrics:** Market position, competitive advantage
+
+### 4. Key Performance Indicators
+
+**KPI Development Process:**
+Define specific, measurable KPIs:
+
+- Transform objectives into measurable indicators
+- Ensure each KPI has a clear measurement method
+- Define targets and timeframes where appropriate
+- Include leading indicators that predict success
+
+**KPI Examples:**
+
+- User acquisition: "X new users per month"
+- Engagement: "Y% of users complete core journey weekly"
+- Business impact: "$Z in cost savings or revenue generation"
+
+### 5. Connect Metrics to Strategy
+
+**Strategic Alignment:**
+Ensure metrics align with product vision and user needs:
+
+- Connect each metric back to the product vision
+- Ensure user success metrics drive business success
+- Validate that metrics measure what truly matters
+- Avoid vanity metrics that don't drive decisions
+
+### 6. Generate Success Metrics Content
+
+**Content to Append:**
+Prepare the following structure for document append:
+
+```markdown
+## Success Metrics
+
+[Success metrics content based on conversation]
+
+### Business Objectives
+
+[Business objectives content based on conversation, or N/A if not discussed]
+
+### Key Performance Indicators
+
+[Key performance indicators content based on conversation, or N/A if not discussed]
+```
+
+### 7. Step Completion
+
+**Content Presentation:**
+"I've defined success metrics that will help us track whether {{project_name}} is creating real value for users and achieving business objectives.
+
+- If you want to **modify or add details**, just tell me what you'd like to change
+- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+
+---
+
+## 🚨 SYSTEM SUCCESS/FAILURE METRICS
+
+### ✅ SUCCESS:
+
+- User success metrics that focus on outcomes and behaviors
+- Clear business objectives aligned with product strategy
+- Specific, measurable KPIs with defined targets and timeframes
+- Metrics that connect user value to business success
+
+### ❌ SYSTEM FAILURE:
+
+- Vague success metrics that can't be measured or tracked
+- Business objectives disconnected from user success
+- Too many metrics or missing critical success indicators
+- Metrics that don't drive actionable decisions
+
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
