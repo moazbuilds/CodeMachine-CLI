@@ -25,6 +25,11 @@ Added MKDocs integration, improving the project's documentation infrastructure.
 ### [LegendEvent](https://github.com/LegendEvent)
 Reported and fixed a critical bug in the OpenCode engine integration, helping improve stability and reliability.
 
+## Other Contributors
+
+- [Sam Tregar](https://github.com/samtregar)
+- [Danny T](https://github.com/ReWrite94)
+
 ---
 
 Want to see your name here? Check out our [Contributing Guide](./CONTRIBUTING.md) to get started!

@@ -2,6 +2,27 @@
   "name": "codemachine",
   "version": "0.7.0",
   "description": "Multi-Agent Workflow Orchestration.",
+  "license": "Apache-2.0",
+  "author": "CodeMachine Contributors",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/moazbuilds/CodeMachine-CLI.git"
+  },
+  "homepage": "https://github.com/moazbuilds/CodeMachine-CLI#readme",
+  "bugs": {
+    "url": "https://github.com/moazbuilds/CodeMachine-CLI/issues"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "multi-agent",
+    "workflow",
+    "orchestration",
+    "automation",
+    "cli",
+    "llm",
+    "code-generation"
+  ],
   "type": "module",
   "bin": {
     "codemachine": "bin/codemachine.js",
