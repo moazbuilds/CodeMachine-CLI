@@ -91,9 +91,9 @@ ${engine}: ${errorMessage}`;
     debug(`[DEBUG workflow] isFileNotFoundError=true, emitting workflow:error`);
     debug(`[DEBUG workflow] errorMsg=${errorMsg}`);
     emitter.updateAgentStatus(uniqueAgentId, 'failed');
-    emitter.logMessage(uniqueAgentId, errorMsg);
 
-    // Set workflow status to error and emit error event for toast
+    // Set workflow status to error and emit error event for modal
+    // Don't log to output window - the modal will display the error
     debug(`[DEBUG workflow] Calling emitter.setWorkflowStatus('error')`);
     emitter.setWorkflowStatus('error');
     debug(`[DEBUG workflow] Emitting process event 'workflow:error'`);
@@ -109,10 +109,10 @@ ${engine}: ${errorMessage}`;
 ${engine}: ${error instanceof Error ? error.message : String(error)}`;
   debug(`[DEBUG workflow] Generic error path`);
   debug(`[DEBUG workflow] errorMsg=${errorMsg}`);
-  emitter.logMessage(uniqueAgentId, errorMsg);
   emitter.updateAgentStatus(uniqueAgentId, 'failed');
 
-  // Set workflow status to error and emit error event for toast
+  // Set workflow status to error and emit error event for modal
+  // Don't log to output window - the modal will display the error
   debug(`[DEBUG workflow] Calling emitter.setWorkflowStatus('error') for generic error`);
   emitter.setWorkflowStatus('error');
   debug(`[DEBUG workflow] Emitting process event 'workflow:error' for generic error`);

@@ -95,8 +95,8 @@ export function WorkflowShell(props: WorkflowShellProps) {
   const isErrorModalActive = () => errorMessage() !== null
 
   const handleWorkflowError = (data: { reason: string }) => {
+    // Only set error message - workflow status is already set via event bus adapter
     setErrorMessage(data.reason)
-    ui.actions.setWorkflowStatus("error")
   }
 
   const handleErrorModalClose = () => {

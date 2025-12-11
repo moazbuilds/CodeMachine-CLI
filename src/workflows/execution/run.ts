@@ -528,10 +528,8 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
     const errorMsg = error instanceof Error ? error.message : String(error);
 
-    emitter.logMessage('workflow', `\n${'═'.repeat(80)}\nWORKFLOW FAILED\n${'═'.repeat(80)}`);
-    emitter.logMessage('workflow', `Error: ${errorMsg}`);
-
-    // Set workflow status to error and emit error event for toast
+    // Set workflow status to error and emit error event for modal
+    // Don't log to output window - the modal will display the error
     emitter.setWorkflowStatus('error');
     (process as NodeJS.EventEmitter).emit('workflow:error', { reason: errorMsg });
 
