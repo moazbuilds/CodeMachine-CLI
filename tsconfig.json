@@ -17,6 +17,6 @@
       "@tui/*": ["./src/cli/tui/*"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "scripts"],
   "exclude": ["node_modules", "dist", "tests"]
 }

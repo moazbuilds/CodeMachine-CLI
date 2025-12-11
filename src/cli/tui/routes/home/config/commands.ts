@@ -6,7 +6,7 @@
 
 import { createRequire } from "node:module"
 import * as path from "node:path"
-import { resolvePackageJson } from "../../../../../shared/runtime/pkg.js"
+import { resolvePackageJson } from "../../../../../shared/runtime/root.js"
 
 /**
  * Get the application version from package.json

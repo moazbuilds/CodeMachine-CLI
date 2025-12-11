@@ -1,6 +1,6 @@
 [project]
 name = "codemachine-cli"
-version = "0.7.0"
+version = "0.8.0"
 description = "Autonomous multi-agent orchestration platform for turning specifications into production-ready code"
 readme = "README.md"
 requires-python = ">=3.11"

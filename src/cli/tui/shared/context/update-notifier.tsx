@@ -3,7 +3,7 @@ import { createSignal, onMount } from "solid-js"
 import updateNotifier from "update-notifier"
 import { createSimpleContext } from "./helper"
 import { createRequire } from "node:module"
-import { resolvePackageJson } from "../../../../shared/runtime/pkg.js"
+import { resolvePackageJson } from "../../../../shared/runtime/root.js"
 
 export const { use: useUpdateNotifier, provider: UpdateNotifierProvider } = createSimpleContext({
   name: "UpdateNotifier",

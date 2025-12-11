@@ -8,7 +8,7 @@ import {
   registerStepCommand,
   registerAgentsCommand,
 } from './commands/index.js';
-import { resolvePackageJson } from '../shared/runtime/pkg.js';
+import { resolvePackageJson } from '../shared/runtime/root.js';
 
 export async function registerCli(program: Command): Promise<void> {
   const packageJsonPath = resolvePackageJson(import.meta.url, 'CLI module');

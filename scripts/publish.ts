@@ -47,8 +47,11 @@ const run = async (cmd: string, cwd = repoRoot, captureStderr = false) => {
   let stderrOutput = '';
   if (captureStderr && proc.stderr) {
     const decoder = new TextDecoder();
-    for await (const chunk of proc.stderr) {
-      const text = decoder.decode(chunk);
+    const reader = proc.stderr.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const text = decoder.decode(value);
       process.stderr.write(text); // Still show it to user
       stderrOutput += text;
     }
@@ -87,11 +90,10 @@ for (const { name, dir } of platformPackages) {
     process.exit(1);
   }
 
-  // Best-effort: make binaries executable on Unix targets so npm keeps the bit.
+  // Best-effort: make binary executable on Unix targets so npm keeps the bit.
   try {
     if (!name.includes('windows')) {
       chmodSync(join(dir, 'codemachine'), 0o755);
-      chmodSync(join(dir, 'codemachine-workflow'), 0o755);
     }
   } catch {
     // ignore chmod failures (e.g., cross-platform artifacts not present)

@@ -53,7 +53,7 @@ async function initializeInBackground(cwd: string): Promise<void> {
   if (!existsSync(cmRoot)) {
     // Lazy load bootstrap utilities (only on first run)
     const { bootstrapWorkspace } = await import('./services/workspace/index.js');
-    const { resolvePackageRoot } = await import('../shared/runtime/pkg.js');
+    const { resolvePackageRoot } = await import('../shared/runtime/root.js');
 
     const packageRoot = resolvePackageRoot(import.meta.url, 'runtime setup');
     const templatesDir = path.resolve(packageRoot, 'templates', 'workflows');

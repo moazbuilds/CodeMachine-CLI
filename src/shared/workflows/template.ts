@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import * as path from 'node:path';
-import { resolvePackageRoot } from '../runtime/pkg.js';
+import { resolvePackageRoot } from '../runtime/root.js';
 
 const TEMPLATE_TRACKING_FILE = 'template.json';
 

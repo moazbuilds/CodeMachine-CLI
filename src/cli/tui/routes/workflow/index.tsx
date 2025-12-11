@@ -7,7 +7,7 @@
 
 import { createRequire } from "node:module"
 import { homedir } from "node:os"
-import { resolvePackageJson } from "../../../../shared/runtime/pkg.js"
+import { resolvePackageJson } from "../../../../shared/runtime/root.js"
 import { UIStateProvider } from "./context/ui-state"
 import { WorkflowShell } from "./workflow-shell"
 import type { WorkflowEventBus } from "../../../../workflows/events/index.js"

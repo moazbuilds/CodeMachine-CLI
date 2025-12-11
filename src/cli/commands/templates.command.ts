@@ -7,7 +7,7 @@ import { hasTemplateChanged, setActiveTemplate } from '../../shared/workflows/in
 import { bootstrapWorkspace } from '../../runtime/services/workspace/index.js';
 import { selectFromMenu, type SelectionChoice } from '../utils/selection-menu.js';
 import { isModuleStep } from '../../workflows/templates/types.js';
-import { resolvePackageRoot } from '../../shared/runtime/pkg.js';
+import { resolvePackageRoot } from '../../shared/runtime/root.js';
 
 const packageRoot = resolvePackageRoot(import.meta.url, 'templates command');
 

@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 import type { WorkflowTemplate } from './types.js';
 import { validateWorkflowTemplate } from './validator.js';
 import { ensureTemplateGlobals } from './globals.js';
-import { resolvePackageRoot } from '../../shared/runtime/pkg.js';
+import { resolvePackageRoot } from '../../shared/runtime/root.js';
 
 // Package root resolution
 export const packageRoot = resolvePackageRoot(import.meta.url, 'workflow templates loader');

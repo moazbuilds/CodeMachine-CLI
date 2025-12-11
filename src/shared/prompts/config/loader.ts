@@ -2,7 +2,7 @@ import * as path from 'node:path';
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import type { PlaceholdersConfig } from './types.js';
-import { resolvePackageRoot } from '../../runtime/pkg.js';
+import { resolvePackageRoot } from '../../runtime/root.js';
 
 const require = createRequire(import.meta.url);
 

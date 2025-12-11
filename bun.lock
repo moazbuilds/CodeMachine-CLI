@@ -33,10 +33,10 @@
         "typescript-eslint": "^8.49.0",
       },
       "optionalDependencies": {
-        "codemachine-darwin-arm64": "0.7.0",
-        "codemachine-darwin-x64": "0.7.0",
-        "codemachine-linux-x64": "0.7.0",
-        "codemachine-windows-x64": "0.7.0",
+        "codemachine-darwin-arm64": "0.8.0",
+        "codemachine-darwin-x64": "0.8.0",
+        "codemachine-linux-x64": "0.8.0",
+        "codemachine-windows-x64": "0.8.0",
       },
     },
   },
@@ -406,14 +406,6 @@
     "chalk": ["chalk@5.6.2", "", {}, "sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA=="],
 
     "cli-boxes": ["cli-boxes@3.0.0", "", {}, "sha512-/lzGpEWL/8PfI0BmBOPRwp0c/wFNX1RdUML3jK/RcSBA9T8mZDdQpqYBKtCFTOfQbwPqWEOpjqW+Fnayc0969g=="],
-
-    "codemachine-darwin-arm64": ["codemachine-darwin-arm64@0.7.0", "", { "os": "darwin", "cpu": "arm64", "bin": { "cm": "codemachine", "codemachine": "codemachine", "codemachine-workflow": "codemachine-workflow" } }, "sha512-mSd2Q0nXZlhSmvtbMk67jQ721WPtkvV7QN1EufQbaRIG+9LPOBJqxyRsn91EGyQj9ybZVH85IXGeyH3VaQ+Z9g=="],
-
-    "codemachine-darwin-x64": ["codemachine-darwin-x64@0.7.0", "", { "os": "darwin", "cpu": "x64", "bin": { "cm": "codemachine", "codemachine": "codemachine", "codemachine-workflow": "codemachine-workflow" } }, "sha512-LA8HZgB+fqszRa0JygtZTXVyJRkOO1Iqmzv/Jobn5qVXSF9r1F7p4WHF6sOSquUclkn3SJGDOs9nUSJQFD120w=="],
-
-    "codemachine-linux-x64": ["codemachine-linux-x64@0.7.0", "", { "os": "linux", "cpu": "x64", "bin": { "cm": "codemachine", "codemachine": "codemachine", "codemachine-workflow": "codemachine-workflow" } }, "sha512-Q8ShXnVQ1HMkyX1MK5Egi2zprGgcm+SBUzhJwSuzMbNbn1cC4J0CWBTtdw8jYE27Uxf9G6rXBWvz0VWMOptIew=="],
-
-    "codemachine-windows-x64": ["codemachine-windows-x64@0.7.0", "", { "os": "win32", "cpu": "x64", "bin": { "cm": "codemachine.exe", "codemachine": "codemachine.exe", "codemachine-workflow": "codemachine-workflow.exe" } }, "sha512-DcWuLfrbnOQgMytSm7M3IJDtOdMMJKeEhMLhaOaZbZpRwhhizMnkrzcVe5/gfyIg42mvgqDUjaZDt6dqt8GP3A=="],
 
     "color-convert": ["color-convert@2.0.1", "", { "dependencies": { "color-name": "~1.1.4" } }, "sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ=="],
 

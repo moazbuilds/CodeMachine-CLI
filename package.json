@@ -1,6 +1,6 @@
 {
   "name": "codemachine",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Multi-Agent Workflow Orchestration.",
   "license": "Apache-2.0",
   "author": "CodeMachine Contributors",
@@ -41,10 +41,10 @@
     "bun": "1.3.3"
   },
   "optionalDependencies": {
-    "codemachine-linux-x64": "0.7.0",
-    "codemachine-darwin-arm64": "0.7.0",
-    "codemachine-darwin-x64": "0.7.0",
-    "codemachine-windows-x64": "0.7.0"
+    "codemachine-linux-x64": "0.8.0",
+    "codemachine-darwin-arm64": "0.8.0",
+    "codemachine-darwin-x64": "0.8.0",
+    "codemachine-windows-x64": "0.8.0"
   },
   "scripts": {
     "_comment_dev": "Development: Run from source (no build needed)",
@@ -52,7 +52,7 @@
     "debug": "DEBUG=true bun --conditions=browser src/runtime/cli-setup.ts",
     "start": "bun --conditions=browser src/runtime/cli-setup.ts",
     "_comment_build": "Production: Build platform-specific executables",
-    "build": "bun scripts/build-binaries.mjs",
+    "build": "bun scripts/build.ts",
     "_comment_quality": "Code Quality: Linting, testing, formatting",
     "lint": "eslint --max-warnings=0 \"{src,tests}/**/*.{ts,tsx}\"",
     "test": "bun test",
@@ -62,7 +62,6 @@
     "typecheck": "tsc --noEmit",
     "_comment_release": "Release: Publishing and validation",
     "prepare": "husky install",
-    "validate": "bun scripts/validate.mjs",
     "release": "bun scripts/publish.ts --tag latest",
     "publish:all": "bun scripts/publish.ts --tag latest --dry-run"
   },

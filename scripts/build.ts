@@ -43,12 +43,12 @@ console.log(`${bold}${cyan}│${reset}  Building ${bold}CodeMachine${reset} v${m
 console.log(`${bold}${cyan}╰────────────────────────────────────────╯${reset}\n`);
 
 // Collect resource files for embedding and generate a manifest that imports them.
-function collectFiles(dir) {
-  const results = [];
-  const stack = [dir];
+function collectFiles(dir: string): string[] {
+  const results: string[] = [];
+  const stack: string[] = [dir];
 
   while (stack.length > 0) {
-    const current = stack.pop();
+    const current = stack.pop()!;
     const absPath = join(repoRoot, current);
     const entries = readdirSync(absPath, { withFileTypes: true });
 
@@ -167,8 +167,10 @@ const targetKeys = flagAll
     ? requestedTargets
     : [defaultTarget];
 
+type PlatformKey = keyof typeof platformMap;
+
 const targets = targetKeys.map((key) => {
-  const cfg = platformMap[key];
+  const cfg = platformMap[key as PlatformKey];
   if (!cfg) {
     console.error(`${red}✗${reset} Unsupported target: ${bold}${key}${reset}`);
     console.error(`${dim}Supported:${reset} ${Object.keys(platformMap).join(', ')}`);
@@ -185,22 +187,17 @@ try {
   for (const targetConfig of targets) {
     const {
       target,
-      pkgOs = targetConfig.os,
-      npmOs = targetConfig.pkgOs ?? targetConfig.os,
+      pkgOs,
+      npmOs,
       arch: archName,
-      ext = '',
+      ext,
       key,
     } = targetConfig;
     const outdir = join(outputRoot, `codemachine-${pkgOs}-${archName}`);
 
-    console.log(`${cyan}→${reset} Building executables for ${dim}${target}${reset}...`);
+    console.log(`${cyan}→${reset} Building ${dim}${target}${reset}...`);
     mkdirSync(outdir, { recursive: true });
 
-    // Build TWO separate executables to prevent JSX runtime conflicts:
-    // 1. Main TUI executable (with SolidJS transform)
-    // 2. Workflow runner executable (NO SolidJS transform, React/Ink only)
-
-    console.log(`  ${dim}├─${reset} Main TUI executable...`);
     const binaryPath = join(outdir, `codemachine${ext}`);
 
     const result = await Bun.build({
@@ -215,73 +212,37 @@ try {
         asset: '[dir]/[name].[ext]', // Preserve original filenames (no hashing)
       },
       compile: {
-        target: target,
+        target: target as 'bun-linux-x64' | 'bun-darwin-arm64' | 'bun-darwin-x64' | 'bun-windows-x64',
         outfile: binaryPath,
       },
       entrypoints: ['./src/runtime/index.ts', manifestPath],
     });
 
     if (!result.success) {
-      console.error(`  ${red}✗${reset} Main TUI build failed:`);
-      console.error(`    Logs count: ${result.logs.length}`);
+      console.error(`${red}✗${reset} Build failed for ${target}:`);
       for (const log of result.logs) {
-        console.error(`    ${dim}${log}${reset}`);
+        console.error(`  ${dim}${log}${reset}`);
       }
       if (result.logs.length === 0) {
-        console.error(`    ${dim}No build logs available. Result:${reset}`, result);
+        console.error(`  ${dim}No build logs available. Result:${reset}`, result);
       }
       process.exit(1);
     }
-
-    console.log(`  ${green}✓${reset} ${dim}Main TUI built${reset}`);
-    console.log(`  ${dim}├─${reset} Workflow runner executable...`);
-
-    const workflowBinaryPath = join(outdir, `codemachine-workflow${ext}`);
-
-    const workflowResult = await Bun.build({
-      conditions: ['browser'],
-      tsconfig: './tsconfig.json',
-      // NO SolidJS plugin - React/Ink JSX only
-      minify: true,
-      define: {
-        __CODEMACHINE_VERSION__: JSON.stringify(mainVersion),
-      },
-      naming: {
-        asset: '[dir]/[name].[ext]', // Preserve original filenames (no hashing)
-      },
-      compile: {
-        target: target,
-        outfile: workflowBinaryPath,
-      },
-      entrypoints: ['./src/workflows/runner-process.ts', manifestPath],
-    });
-
-    if (!workflowResult.success) {
-      console.error(`  ${red}✗${reset} Workflow runner build failed:`);
-      for (const log of workflowResult.logs) {
-        console.error(`    ${dim}${log}${reset}`);
-      }
-      process.exit(1);
-    }
-
-    console.log(`  ${green}✓${reset} ${dim}Workflow runner built${reset}`);
 
     // Create package.json for the platform-specific package
     const pkgName = `codemachine-${pkgOs}-${archName}`;
-    const binEntries = {
-      codemachine: `codemachine${ext}`,
-      'codemachine-workflow': `codemachine-workflow${ext}`,
-      cm: `codemachine${ext}`,
-    };
 
     const pkg = {
       name: pkgName,
       version: mainVersion,
-      description: `${mainPackage.description} (prebuilt ${pkgOs}-${archName} binaries)`,
+      description: `${mainPackage.description} (prebuilt ${pkgOs}-${archName} binary)`,
       os: [npmOs],
       cpu: [archName],
-      files: ['codemachine' + ext, 'codemachine-workflow' + ext],
-      bin: binEntries,
+      files: [`codemachine${ext}`],
+      bin: {
+        codemachine: `codemachine${ext}`,
+        cm: `codemachine${ext}`,
+      },
     };
 
     await Bun.write(join(outdir, 'package.json'), JSON.stringify(pkg, null, 2));
@@ -296,12 +257,12 @@ try {
     }
 
     console.log(`${green}✓${reset} ${bold}Built ${pkgName}${reset}`);
-    console.log(`${dim}  • ${outdir}/codemachine${ext}${reset}`);
-    console.log(`${dim}  • ${outdir}/codemachine-workflow${ext}${reset}\n`);
+    console.log(`${dim}  • ${outdir}/codemachine${ext}${reset}\n`);
   }
 
   console.log(`\n${green}✓${reset} ${bold}Build complete for ${targets.length} target(s)${reset}\n`);
-} catch (error) {
+} catch (err) {
+  const error = err as Error;
   console.error(`\n${red}✗${reset} ${bold}Build failed${reset}`);
   console.error(`${dim}Error type: ${error?.constructor?.name}${reset}`);
   console.error(`${dim}Error message: ${error?.message || 'No message'}${reset}`);
