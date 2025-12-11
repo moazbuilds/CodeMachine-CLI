@@ -191,6 +191,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   // Workflow stop flag for Ctrl+C handling
   let workflowShouldStop = false;
   let stoppedByCheckpointQuit = false;
+  let stoppedByError: Error | null = null; // Track if stopped due to error (for headless mode)
   let currentAbortController: AbortController | null = null; // Separate - different lifecycle
   const stopListener = () => {
     workflowShouldStop = true;
@@ -457,6 +458,13 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
       if (errorResult.shouldStop) {
         workflowShouldStop = true;
+        // Store error for headless mode - allows proper error propagation
+        if (error instanceof Error) {
+          stoppedByError = error;
+        } else {
+          stoppedByError = new Error(String(error));
+        }
+        break; // Exit loop immediately on error
       }
     } finally {
       // Always clean up the skip listener
@@ -464,11 +472,27 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     }
   }
 
-  debug(`[DEBUG workflow] Step loop ended. workflowShouldStop=${workflowShouldStop}, stoppedByCheckpointQuit=${stoppedByCheckpointQuit}`);
+  debug(`[DEBUG workflow] Step loop ended. workflowShouldStop=${workflowShouldStop}, stoppedByCheckpointQuit=${stoppedByCheckpointQuit}, stoppedByError=${stoppedByError ? 'yes' : 'no'}`);
 
-  // Check if workflow was stopped by user (Ctrl+C or checkpoint quit)
+  // Check if workflow was stopped by user (Ctrl+C or checkpoint quit) or error
   if (workflowShouldStop) {
-    if (stoppedByCheckpointQuit) {
+    // Check if stopped due to an error - throw it to propagate to caller (headless mode)
+    if (stoppedByError) {
+      // In headless mode, this will be caught by start.command.ts and printed
+      // In TUI mode, the error was already handled by handleStepError (toast shown)
+      // Check if we have a TUI by seeing if the event bus has subscribers
+      // (TUI mode creates event bus BEFORE workflow runs and connects adapter)
+      const hasTUI = eventBus.hasSubscribers();
+      debug(`[DEBUG workflow] stoppedByError - hasTUI=${hasTUI}`);
+      if (!hasTUI) {
+        // Headless mode - throw error to be handled by caller
+        throw stoppedByError;
+      }
+      // TUI mode - wait for user to press Ctrl+C to exit
+      await new Promise(() => {
+        // Never resolves - keeps event loop alive until Ctrl+C exits process
+      });
+    } else if (stoppedByCheckpointQuit) {
       // Workflow was stopped by checkpoint quit - status already set to 'stopped'
       // UI will stay running showing the stopped status
       // Wait indefinitely - user can press Ctrl+C to exit
@@ -507,7 +531,9 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     emitter.logMessage('workflow', `\n${'═'.repeat(80)}\nWORKFLOW FAILED\n${'═'.repeat(80)}`);
     emitter.logMessage('workflow', `Error: ${errorMsg}`);
 
-    emitter.setWorkflowStatus('stopped');
+    // Set workflow status to error and emit error event for toast
+    emitter.setWorkflowStatus('error');
+    (process as NodeJS.EventEmitter).emit('workflow:error', { reason: errorMsg });
 
     // Re-throw error to be handled by caller (will now print after UI is stopped)
     throw error;

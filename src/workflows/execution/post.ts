@@ -2,6 +2,7 @@ import { markStepCompleted, removeFromNotCompleted } from '../../shared/workflow
 import { handleLoopLogic, createActiveLoop } from '../behaviors/loop/controller.js';
 import { handleTriggerLogic } from '../behaviors/trigger/controller.js';
 import { handleCheckpointLogic } from '../behaviors/checkpoint/controller.js';
+import { handleErrorLogic } from '../behaviors/error/controller.js';
 import type { WorkflowEventEmitter } from '../events/index.js';
 import { type ModuleStep, type WorkflowTemplate, isModuleStep } from '../templates/types.js';
 import { executeTriggerAgent } from './trigger.js';
@@ -31,7 +32,7 @@ interface HandlePostExecResult {
 }
 
 /**
- * Handle post-execution behaviors: trigger → checkpoint → loop
+ * Handle post-execution behaviors: error → trigger → checkpoint → loop
  */
 export async function handlePostExec(options: HandlePostExecOptions): Promise<HandlePostExecResult> {
   const {
@@ -49,7 +50,16 @@ export async function handlePostExec(options: HandlePostExecOptions): Promise<Ha
     engineType,
   } = options;
 
-  // Check for trigger behavior first
+  // Check for error behavior first (highest priority - halts everything)
+  const errorResult = await handleErrorLogic(step, stepOutput.output, cwd, emitter);
+  if (errorResult?.shouldStopWorkflow) {
+    emitter.setWorkflowStatus('error');
+    // Emit error event for toast display in UI
+    (process as NodeJS.EventEmitter).emit('workflow:error', { reason: errorResult.reason });
+    return { shouldBreak: true, workflowShouldStop: true };
+  }
+
+  // Check for trigger behavior
   const triggerResult = await handleTriggerLogic(step, stepOutput.output, cwd, emitter);
   if (triggerResult?.shouldTrigger && triggerResult.triggerAgentId) {
     const triggeredAgentId = triggerResult.triggerAgentId; // Capture for use in callbacks

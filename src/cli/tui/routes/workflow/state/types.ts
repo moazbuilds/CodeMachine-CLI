@@ -55,7 +55,7 @@ export interface LoopState {
   reason?: string
 }
 
-export type WorkflowStatus = "running" | "stopping" | "completed" | "stopped" | "checkpoint" | "paused"
+export type WorkflowStatus = "running" | "stopping" | "completed" | "stopped" | "checkpoint" | "paused" | "error"
 
 export interface CheckpointState {
   active: boolean

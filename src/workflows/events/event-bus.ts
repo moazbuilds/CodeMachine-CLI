@@ -195,6 +195,18 @@ export class WorkflowEventBus {
       typed,
     };
   }
+
+  /**
+   * Check if there are any subscribers
+   * Used to detect if TUI is connected (headless vs interactive mode)
+   */
+  hasSubscribers(): boolean {
+    if (this.listeners.size > 0) return true;
+    for (const set of this.typedListeners.values()) {
+      if (set.size > 0) return true;
+    }
+    return false;
+  }
 }
 
 /**

@@ -6,6 +6,7 @@
  */
 
 import type { WorkflowEvent } from "../../../../../workflows/events/index.js"
+import { debug } from "../../../../../shared/logging/logger.js"
 import type { AgentStatus, SubAgentState, LoopState, ChainedState, InputState, TriggeredAgentState } from "../state/types.js"
 import { BaseUIAdapter } from "./base.js"
 import type { UIAdapterOptions } from "./types.js"
@@ -40,7 +41,7 @@ export interface UIActions {
   batchAddSubAgents(parentId: string, subAgents: SubAgentState[]): void
   updateSubAgentStatus(subAgentId: string, status: AgentStatus): void
   clearSubAgents(parentId: string): void
-  setWorkflowStatus(status: "running" | "stopping" | "completed" | "stopped" | "checkpoint" | "paused"): void
+  setWorkflowStatus(status: "running" | "stopping" | "completed" | "stopped" | "checkpoint" | "paused" | "error"): void
   setCheckpointState(checkpoint: { active: boolean; reason?: string } | null): void
   setInputState(inputState: InputState | null): void
   /** @deprecated Use setInputState instead */
@@ -94,6 +95,7 @@ export class OpenTUIAdapter extends BaseUIAdapter {
         break
 
       case "workflow:status":
+        debug(`[DEBUG Adapter] Received workflow:status event with status=${event.status}`)
         this.actions.setWorkflowStatus(event.status)
         break
 

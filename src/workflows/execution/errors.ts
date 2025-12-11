@@ -69,23 +69,48 @@ export async function handleStepError(options: HandleStepErrorOptions): Promise<
   // Error occurred - log it and stop the workflow
   debug(`[DEBUG workflow] Step ${index} (${uniqueAgentId}) failed with error: ${error instanceof Error ? error.message : String(error)}`);
 
-  // Check if it's a file not found error
-  if (error instanceof Error && (error.message.includes('ENOENT') || error.message.includes('not found'))) {
-    const errorMsg = `CRITICAL ERROR: ${step.agentName} failed - required file not found: ${error.message}`;
+  // Check if it's a file not found error (ENOENT, PlaceholderError, or similar)
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorName = error instanceof Error ? error.name : 'unknown';
+  debug(`[DEBUG workflow] Error name: ${errorName}, checking for file not found...`);
+
+  const isFileNotFoundError = error instanceof Error && (
+    errorMessage.includes('ENOENT') ||
+    errorMessage.includes('not found') ||
+    errorMessage.includes('Expected file:') ||
+    error.name === 'PlaceholderError'
+  );
+
+  debug(`[DEBUG workflow] isFileNotFoundError=${isFileNotFoundError}`);
+
+  if (isFileNotFoundError) {
+    const errorMsg = `CRITICAL ERROR: ${step.agentName} failed - required file not found:\n${errorMessage}`;
+    debug(`[DEBUG workflow] isFileNotFoundError=true, emitting workflow:error`);
+    debug(`[DEBUG workflow] errorMsg=${errorMsg}`);
     emitter.updateAgentStatus(uniqueAgentId, 'failed');
     emitter.logMessage(uniqueAgentId, errorMsg);
 
-    // Set workflow status to stopped and stop
-    emitter.setWorkflowStatus('stopped');
+    // Set workflow status to error and emit error event for toast
+    debug(`[DEBUG workflow] Calling emitter.setWorkflowStatus('error')`);
+    emitter.setWorkflowStatus('error');
+    debug(`[DEBUG workflow] Emitting process event 'workflow:error'`);
+    (process as NodeJS.EventEmitter).emit('workflow:error', { reason: errorMsg });
+    debug(`[DEBUG workflow] Done emitting, returning shouldStop=true`);
     return { adjustIndex: 0, shouldStop: true };
   }
 
   // Generic error - log and stop
-  const failMsg = `${step.agentName} failed: ${error instanceof Error ? error.message : String(error)}`;
-  emitter.logMessage(uniqueAgentId, failMsg);
+  const errorMsg = `${step.agentName} failed: ${error instanceof Error ? error.message : String(error)}`;
+  debug(`[DEBUG workflow] Generic error path`);
+  debug(`[DEBUG workflow] errorMsg=${errorMsg}`);
+  emitter.logMessage(uniqueAgentId, errorMsg);
   emitter.updateAgentStatus(uniqueAgentId, 'failed');
 
-  // Set workflow status to stopped and stop
-  emitter.setWorkflowStatus('stopped');
+  // Set workflow status to error and emit error event for toast
+  debug(`[DEBUG workflow] Calling emitter.setWorkflowStatus('error') for generic error`);
+  emitter.setWorkflowStatus('error');
+  debug(`[DEBUG workflow] Emitting process event 'workflow:error' for generic error`);
+  (process as NodeJS.EventEmitter).emit('workflow:error', { reason: errorMsg });
+  debug(`[DEBUG workflow] Done emitting generic error, returning shouldStop=true`);
   return { adjustIndex: 0, shouldStop: true };
 }

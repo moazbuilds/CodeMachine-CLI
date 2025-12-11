@@ -110,6 +110,16 @@ export function App(props: { initialToast?: InitialToast }) {
   const toast = useToast()
   const kv = useKV()
 
+  // Global error handler - any part of the app can emit 'app:error' to show a toast
+  const handleAppError = (data: { message: string; duration?: number }) => {
+    toast.show({
+      variant: "error",
+      message: data.message,
+      duration: data.duration ?? 0, // permanent by default
+    })
+  }
+  ;(process as NodeJS.EventEmitter).on('app:error', handleAppError)
+
   const [ctrlCPressed, setCtrlCPressed] = createSignal(false)
   let ctrlCTimeout: NodeJS.Timeout | null = null
   const [view, setView] = createSignal<"home" | "onboard" | "workflow">("home")
@@ -175,7 +185,9 @@ export function App(props: { initialToast?: InitialToast }) {
     pendingWorkflowStart = () => {
       import("../../workflows/execution/queue.js").then(({ runWorkflowQueue }) => {
         runWorkflowQueue({ cwd, specificationPath: specPath }).catch((error) => {
-          console.error("Workflow failed:", error)
+          // Emit error event to show toast with actual error message
+          const errorMsg = error instanceof Error ? error.message : String(error)
+          ;(process as NodeJS.EventEmitter).emit('app:error', { message: errorMsg })
         })
       })
     }

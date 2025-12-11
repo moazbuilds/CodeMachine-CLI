@@ -33,9 +33,12 @@ export const { use: useToast, provider: ToastProvider } = createSimpleContext({
         setStore("current", rest)
 
         if (timeoutHandle) clearTimeout(timeoutHandle)
-        timeoutHandle = setTimeout(() => {
-          setStore("current", null)
-        }, duration)
+        // Only set timeout if duration > 0 (duration 0 means permanent toast)
+        if (duration > 0) {
+          timeoutHandle = setTimeout(() => {
+            setStore("current", null)
+          }, duration)
+        }
       },
       dismiss() {
         if (timeoutHandle) clearTimeout(timeoutHandle)

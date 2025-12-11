@@ -14,7 +14,7 @@ import { useUIState } from "./context/ui-state"
 import { AgentTimeline } from "./components/timeline"
 import { OutputWindow, TelemetryBar, StatusFooter } from "./components/output"
 import { formatRuntime } from "./state/formatters"
-import { CheckpointModal, LogViewer, HistoryView, StopModal } from "./components/modals"
+import { CheckpointModal, LogViewer, HistoryView, StopModal, ErrorModal } from "./components/modals"
 import { OpenTUIAdapter } from "./adapters/opentui"
 import { useLogStream } from "./hooks/useLogStream"
 import { useSubAgentSync } from "./hooks/useSubAgentSync"
@@ -90,7 +90,21 @@ export function WorkflowShell(props: WorkflowShellProps) {
     ui.actions.setWorkflowStatus("stopped")
   }
 
+  // Error modal state
+  const [errorMessage, setErrorMessage] = createSignal<string | null>(null)
+  const isErrorModalActive = () => errorMessage() !== null
+
+  const handleWorkflowError = (data: { reason: string }) => {
+    setErrorMessage(data.reason)
+    ui.actions.setWorkflowStatus("error")
+  }
+
+  const handleErrorModalClose = () => {
+    setErrorMessage(null)
+  }
+
   onMount(() => {
+    ;(process as NodeJS.EventEmitter).on('workflow:error', handleWorkflowError)
     ;(process as NodeJS.EventEmitter).on('workflow:stopping', handleStopping)
     ;(process as NodeJS.EventEmitter).on('workflow:user-stop', handleUserStop)
     if (props.eventBus) {
@@ -102,6 +116,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
   })
 
   onCleanup(() => {
+    ;(process as NodeJS.EventEmitter).off('workflow:error', handleWorkflowError)
     ;(process as NodeJS.EventEmitter).off('workflow:stopping', handleStopping)
     ;(process as NodeJS.EventEmitter).off('workflow:user-stop', handleUserStop)
     if (adapter) {
@@ -275,7 +290,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
     getState: state,
     actions: ui.actions,
     calculateVisibleItems: getVisibleItems,
-    isModalBlocking: () => isCheckpointActive() || modals.isLogViewerActive() || modals.isHistoryActive() || modals.isHistoryLogViewerActive() || showStopModal(),
+    isModalBlocking: () => isCheckpointActive() || modals.isLogViewerActive() || modals.isHistoryActive() || modals.isHistoryLogViewerActive() || showStopModal() || isErrorModalActive(),
     isPromptBoxFocused: () => isPromptBoxFocused(),
     isWaitingForInput,
     hasQueuedPrompts,
@@ -358,6 +373,12 @@ export function WorkflowShell(props: WorkflowShellProps) {
       <Show when={showStopModal()}>
         <box position="absolute" left={0} top={0} width="100%" height="100%" zIndex={2000}>
           <StopModal onConfirm={handleStopConfirm} onCancel={handleStopCancel} />
+        </box>
+      </Show>
+
+      <Show when={isErrorModalActive()}>
+        <box position="absolute" left={0} top={0} width="100%" height="100%" zIndex={2000}>
+          <ErrorModal message={errorMessage()!} onClose={handleErrorModalClose} />
         </box>
       </Show>
     </box>
