@@ -44,9 +44,15 @@ export function resolveModule(id: string, overrides: ModuleOverrides = {}): Work
   const modelReasoningEffort = overrides.modelReasoningEffort ?? moduleEntry.modelReasoningEffort;
   const engine = overrides.engine ?? moduleEntry.engine;
 
-  if (typeof promptPath !== 'string' || !promptPath.trim()) {
+  const promptPathInvalid = Array.isArray(promptPath)
+    ? promptPath.length === 0 || promptPath.some(p => typeof p !== 'string' || p.trim() === '')
+    : typeof promptPath !== 'string' || !promptPath.trim();
+
+  if (promptPathInvalid) {
     throw new Error(`Module ${id} is missing a promptPath configuration.`);
   }
+
+  const safePromptPath = promptPath as string | string[];
 
   const behavior = resolveLoopBehavior(moduleEntry.behavior, overrides);
 
@@ -54,7 +60,7 @@ export function resolveModule(id: string, overrides: ModuleOverrides = {}): Work
     type: 'module',
     agentId: moduleEntry.id,
     agentName,
-    promptPath,
+    promptPath: safePromptPath,
     model,
     modelReasoningEffort,
     engine,

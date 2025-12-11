@@ -5,6 +5,18 @@ export interface ValidationResult {
   errors: string[];
 }
 
+function isValidPromptPath(value: unknown): boolean {
+  if (typeof value === 'string') {
+    return value.trim().length > 0;
+  }
+
+  if (Array.isArray(value)) {
+    return value.length > 0 && value.every(item => typeof item === 'string' && item.trim().length > 0);
+  }
+
+  return false;
+}
+
 export function validateWorkflowTemplate(value: unknown): ValidationResult {
   const errors: string[] = [];
   if (!value || typeof value !== 'object') {
@@ -57,8 +69,8 @@ export function validateWorkflowTemplate(value: unknown): ValidationResult {
         if (typeof candidate.agentName !== 'string') {
           errors.push(`Step[${index}].agentName must be a string`);
         }
-        if (typeof candidate.promptPath !== 'string') {
-          errors.push(`Step[${index}].promptPath must be a string`);
+        if (!isValidPromptPath(candidate.promptPath)) {
+          errors.push(`Step[${index}].promptPath must be a non-empty string or array of non-empty strings`);
         }
 
         if (candidate.model !== undefined && typeof candidate.model !== 'string') {

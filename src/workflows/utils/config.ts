@@ -8,7 +8,7 @@ export const packageRoot = resolvePackageRoot(import.meta.url, 'workflow config'
 export interface AgentConfig {
   id: string;
   name?: string;
-  promptPath?: string;
+  promptPath?: string | string[];
   model?: string;
   modelReasoningEffort?: string;
   engine?: string; // Dynamic engine type from registry

@@ -67,17 +67,28 @@ export async function executeStep(
     throw new Error('Only module steps can be executed');
   }
 
-  debug(`[DEBUG step] Loading prompt from ${step.promptPath}`);
-  // Load and process the prompt template
-  const promptPath = path.isAbsolute(step.promptPath)
-    ? step.promptPath
-    : path.resolve(cwd, step.promptPath);
-  debug(`[DEBUG step] Resolved promptPath: ${promptPath}`);
+  const promptSources = Array.isArray(step.promptPath) ? step.promptPath : [step.promptPath];
+  debug(`[DEBUG step] Loading prompt from ${promptSources.join(', ')}`);
+  if (promptSources.length === 0) {
+    throw new Error(`Agent ${step.agentId} has no promptPath configured`);
+  }
+  // Load and process the prompt template(s)
+  const resolvedPromptPaths = promptSources.map(p =>
+    path.isAbsolute(p) ? p : path.resolve(cwd, p),
+  );
+  debug(`[DEBUG step] Resolved promptPath(s): ${resolvedPromptPaths.join(', ')}`);
 
   let rawPrompt: string;
   try {
-    rawPrompt = await readFile(promptPath, 'utf8');
-    debug(`[DEBUG step] Prompt loaded, length=${rawPrompt.length}`);
+    const parts = await Promise.all(
+      resolvedPromptPaths.map(async promptPath => {
+        const content = await readFile(promptPath, 'utf8');
+        debug(`[DEBUG step] Prompt loaded from ${promptPath}, length=${content.length}`);
+        return content;
+      }),
+    );
+    rawPrompt = parts.join('\n\n');
+    debug(`[DEBUG step] Combined prompt length=${rawPrompt.length}`);
   } catch (fileError) {
     debug(`[DEBUG step] ERROR reading prompt file: ${fileError instanceof Error ? fileError.message : String(fileError)}`);
     throw fileError;

@@ -58,16 +58,23 @@ export async function executeFallbackStep(
     throw new Error(`Fallback agent not found: ${fallbackAgentId}`);
   }
 
-  if (!fallbackAgent.promptPath) {
+  const promptPath = fallbackAgent.promptPath;
+  const promptPathInvalid = Array.isArray(promptPath)
+    ? promptPath.length === 0 || promptPath.some(p => typeof p !== 'string' || p.trim() === '')
+    : typeof promptPath !== 'string' || promptPath.trim() === '';
+
+  if (promptPathInvalid) {
     throw new Error(`Fallback agent ${fallbackAgentId} is missing a promptPath configuration`);
   }
+
+  const safePromptPath = promptPath as string | string[];
 
   // Create a fallback step with the fallback agent's prompt path
   const fallbackStep: WorkflowStep = {
     ...step,
     agentId: fallbackAgentId,
     agentName: fallbackAgent.name || fallbackAgentId,
-    promptPath: fallbackAgent.promptPath, // Use the fallback agent's prompt, not the original step's
+    promptPath: safePromptPath, // Use the fallback agent's prompt, not the original step's
   };
 
   // Add fallback agent as sub-agent

@@ -1,6 +1,6 @@
 export interface StepOverrides {
   agentName?: string;
-  promptPath?: string;
+  promptPath?: string | string[];
   model?: string;
   modelReasoningEffort?: string;
   engine?: string; // Dynamic engine type from registry
@@ -14,7 +14,7 @@ export interface WorkflowStep {
   type: string;
   agentId: string;
   agentName: string;
-  promptPath: string;
+  promptPath: string | string[];
   model?: string;
   modelReasoningEffort?: string;
   engine?: string; // Dynamic engine type from registry

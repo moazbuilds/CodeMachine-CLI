@@ -11,15 +11,21 @@ export function resolveStep(id: string, overrides: StepOverrides = {}): Workflow
   const promptPath = overrides.promptPath ?? agent.promptPath;
   const model = overrides.model ?? agent.model;
 
-  if (!agentName || !promptPath) {
+  const promptPathMissing = Array.isArray(promptPath)
+    ? promptPath.length === 0 || promptPath.some(p => typeof p !== 'string' || p.trim() === '')
+    : typeof promptPath !== 'string' || promptPath.trim() === '';
+
+  if (!agentName || promptPathMissing) {
     throw new Error(`Agent ${id} is missing required fields (name or promptPath)`);
   }
+
+  const safePromptPath = promptPath as string | string[];
 
   return {
     type: 'module',
     agentId: agent.id,
     agentName,
-    promptPath,
+    promptPath: safePromptPath,
     model,
     modelReasoningEffort: overrides.modelReasoningEffort ?? agent.modelReasoningEffort,
     engine: overrides.engine ?? agent.engine, // Override from step or use agent config

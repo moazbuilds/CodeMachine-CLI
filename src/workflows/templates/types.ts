@@ -31,7 +31,7 @@ export interface ModuleStep {
   type: 'module';
   agentId: string;
   agentName: string;
-  promptPath: string;
+  promptPath: string | string[];
   model?: string;
   modelReasoningEffort?: 'low' | 'medium' | 'high';
   engine?: string; // Dynamic engine type from registry

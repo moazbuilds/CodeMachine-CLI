@@ -6,7 +6,7 @@ import { loadWorkflowModule, isWorkflowTemplate } from '../../../workflows/index
 export type WorkflowAgentDefinition = {
   id: string;
   name?: string;
-  promptPath?: string;
+  promptPath?: string | string[];
   model?: string;
   modelReasoningEffort?: 'low' | 'medium' | 'high';
 };

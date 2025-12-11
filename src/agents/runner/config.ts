@@ -7,7 +7,7 @@ import type { AgentDefinition } from '../../shared/agents/config/types.js';
 export type AgentConfig = AgentDefinition & {
   name: string;
   description?: string;
-  promptPath?: string;
+  promptPath?: string | string[];
 };
 
 /**
@@ -55,13 +55,23 @@ export async function loadAgentTemplate(agentId: string, projectRoot?: string): 
   const resolvedRoot = resolveProjectRoot(lookupBase);
 
   // Use config.promptPath if provided, otherwise generate default path from agent ID
-  const configuredPath = config.promptPath || getDefaultPromptPath(agentId);
+  const configuredPath = config.promptPath ?? getDefaultPromptPath(agentId);
+  const promptSources = Array.isArray(configuredPath) ? configuredPath : [configuredPath];
+
+  if (promptSources.length === 0) {
+    throw new Error(`Agent ${agentId} has an empty promptPath configuration`);
+  }
+  if (promptSources.some(p => typeof p !== 'string' || p.trim() === '')) {
+    throw new Error(`Agent ${agentId} has an invalid promptPath configuration`);
+  }
 
   // If path is absolute, use it directly; otherwise resolve relative to project root
-  const promptPath = path.isAbsolute(configuredPath)
-    ? configuredPath
-    : path.resolve(resolvedRoot, configuredPath);
+  const resolvedPromptPaths = promptSources.map(p =>
+    path.isAbsolute(p) ? p : path.resolve(resolvedRoot, p),
+  );
 
-  const content = await fs.readFile(promptPath, 'utf-8');
-  return content;
+  const contentParts = await Promise.all(
+    resolvedPromptPaths.map(promptPath => fs.readFile(promptPath, 'utf-8')),
+  );
+  return contentParts.join('\n\n');
 }
