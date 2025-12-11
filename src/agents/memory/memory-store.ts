@@ -17,6 +17,10 @@ export class MemoryStore {
 
   async append(entry: MemoryEntry): Promise<void> {
     const normalized = this.normalizeEntry(entry);
+    // Skip empty content silently - allows real errors to propagate
+    if (!normalized.content.trim()) {
+      return;
+    }
     this.ensureRequiredFields(normalized);
     await this.adapter.append(normalized);
     this.adapter.analytics?.onAppend?.({ agentId: normalized.agentId, entry: normalized, source: this.storeSource });

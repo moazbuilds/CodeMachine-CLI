@@ -190,6 +190,8 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
 
   const telemetryCapture = createTelemetryCapture('opencode', model, prompt, workingDir);
   let jsonBuffer = '';
+  let stderrBuffer = '';
+  let capturedError: string | null = null;
   let isFirstStep = true;
   let sessionIdCaptured = false;
 
@@ -266,6 +268,14 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
       }
       case 'error':
         formatted = formatErrorEvent(parsedObj.error, plainLogs);
+        // Capture error for later (OpenCode may exit 0 even on errors)
+        if (!capturedError && parsedObj.error) {
+          const errorObj = parsedObj.error as Record<string, unknown>;
+          capturedError = (errorObj.data as Record<string, unknown>)?.message as string
+            ?? errorObj.message as string
+            ?? errorObj.name as string
+            ?? 'Unknown error';
+        }
         break;
       default:
         break;
@@ -320,6 +330,7 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
       onStderr: (chunk) => {
         const normalized = normalizeChunk(chunk);
         const cleaned = cleanAnsi(normalized, plainLogs);
+        stderrBuffer += cleaned;
         onErrorData?.(cleaned);
       },
       signal: abortSignal,
@@ -355,9 +366,14 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
     jsonBuffer = '';
   }
 
-  if (result.exitCode !== 0) {
-    const stderr = result.stderr.trim();
-    const stdout = result.stdout.trim();
+  const stderr = stderrBuffer.trim() || result.stderr.trim();
+  const stdout = result.stdout.trim();
+
+  // OpenCode may exit with code 0 even on errors (e.g., invalid model)
+  // Detect: 1) JSON error event captured, 2) no stdout but has stderr = startup failure
+  const isStartupError = !stdout && stderr;
+
+  if (result.exitCode !== 0 || capturedError || isStartupError) {
     const sample = (stderr || stdout || 'no error output').split('\n').slice(0, 10).join('\n');
 
     logger.error('OpenCode CLI execution failed', {
@@ -366,7 +382,9 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
       command: `${command} ${args.join(' ')}`,
     });
 
-    throw new Error(`OpenCode CLI exited with code ${result.exitCode}`);
+    // Use captured JSON error, fall back to stderr
+    const errorMessage = capturedError || stderr || `exited with code ${result.exitCode}`;
+    throw new Error(errorMessage);
   }
 
   telemetryCapture.logCapturedTelemetry(result.exitCode);

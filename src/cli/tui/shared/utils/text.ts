@@ -11,14 +11,12 @@ export function truncate(str: string, maxLength: number): string {
 }
 
 /**
- * Wrap text to fit within a specified width
- *
- * @param text - Text to wrap
- * @param width - Maximum line width
- * @returns Array of wrapped lines
+ * Wrap a single line of text to fit within a specified width
  */
-export function wrapText(text: string, width: number): string[] {
-  const words = text.split(" ")
+function wrapLine(line: string, width: number): string[] {
+  if (line.length <= width) return [line]
+
+  const words = line.split(" ")
   const lines: string[] = []
   let currentLine = ""
 
@@ -32,6 +30,29 @@ export function wrapText(text: string, width: number): string[] {
   }
   if (currentLine) lines.push(currentLine)
   return lines
+}
+
+/**
+ * Wrap text to fit within a specified width
+ *
+ * @param text - Text to wrap
+ * @param width - Maximum line width
+ * @returns Array of wrapped lines
+ */
+export function wrapText(text: string, width: number): string[] {
+  // First split by newlines to preserve line structure
+  const inputLines = text.split("\n")
+  const result: string[] = []
+
+  for (const line of inputLines) {
+    if (line === "") {
+      result.push("")
+    } else {
+      result.push(...wrapLine(line, width))
+    }
+  }
+
+  return result
 }
 
 /**

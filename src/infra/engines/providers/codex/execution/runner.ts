@@ -161,6 +161,9 @@ export async function runCodex(options: RunCodexOptions): Promise<RunCodexResult
   // Create telemetry capture instance
   const telemetryCapture = createTelemetryCapture('codex', model, prompt, workingDir);
 
+  // Track JSON error events (Codex may exit 0 even on errors)
+  let capturedError: string | null = null;
+
   let result;
   try {
     result = await spawnProcess({
@@ -182,7 +185,7 @@ export async function runCodex(options: RunCodexOptions): Promise<RunCodexResult
             // Capture telemetry data
             telemetryCapture.captureFromStreamJson(line);
 
-            // Capture session_id from thread.started event
+            // Capture session_id from thread.started event and check for errors
             try {
               const json = JSON.parse(line);
               if (json.type === 'thread.started' && json.thread_id) {
@@ -190,6 +193,13 @@ export async function runCodex(options: RunCodexOptions): Promise<RunCodexResult
                 if (onSessionId) {
                   onSessionId(json.thread_id);
                 }
+              }
+              // Capture error events (Codex exits 0 even on errors like invalid model)
+              if (json.type === 'error' && json.message && !capturedError) {
+                capturedError = json.message;
+              }
+              if (json.type === 'turn.failed' && json.error?.message && !capturedError) {
+                capturedError = json.error.message;
               }
             } catch {
               // Ignore parse errors
@@ -233,27 +243,19 @@ export async function runCodex(options: RunCodexOptions): Promise<RunCodexResult
     const message = err?.message ?? '';
     const notFound = err?.code === 'ENOENT' || /not recognized as an internal or external command/i.test(message) || /command not found/i.test(message);
     if (notFound) {
-      const full = `${command} ${args.join(' ')}`.trim();
       const install = metadata.installCommand;
       const name = metadata.name;
-      console.error(`[ERROR] ${name} CLI not found when executing: ${full}`);
       throw new Error(`'${command}' is not available on this system. Please install ${name} first:\n  ${install}`);
     }
     throw error;
   }
 
-  if (result.exitCode !== 0) {
-    const errorOutput = result.stderr.trim() || result.stdout.trim() || 'no error output';
+  // Check for errors - Codex may exit with code 0 even on errors (e.g., invalid model)
+  if (result.exitCode !== 0 || capturedError) {
+    const errorOutput = capturedError || result.stderr.trim() || result.stdout.trim() || 'no error output';
     const lines = errorOutput.split('\n').slice(0, 10);
     const preview = lines.join('\n');
-
-    console.error('[ERROR] Codex CLI execution failed', {
-      exitCode: result.exitCode,
-      error: preview,
-      command: `${command} ${args.join(' ')}`,
-    });
-
-    throw new Error(`Codex CLI exited with code ${result.exitCode}\n\n${preview}`);
+    throw new Error(preview);
   }
 
   // Log captured telemetry

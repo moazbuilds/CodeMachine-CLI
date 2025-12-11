@@ -173,17 +173,11 @@ export async function runClaude(options: RunClaudeOptions): Promise<RunClaudeRes
 
   const { command, args } = buildClaudeExecCommand({ workingDir, prompt, model });
 
-  // Debug logging when LOG_LEVEL=debug
-  if (process.env.LOG_LEVEL === 'debug') {
-    console.error(`[DEBUG] Claude runner - prompt length: ${prompt.length}, lines: ${prompt.split('\n').length}`);
-    console.error(`[DEBUG] Claude runner - args: ${args.join(' ')}, model: ${model ?? 'default'}`);
-    console.error(`[DEBUG] Claude runner - command: ${command} ${args.join(' ')}`);
-    console.error(`[DEBUG] Claude runner - working dir: ${workingDir}`);
-    console.error(`[DEBUG] Claude runner - prompt preview: ${prompt.substring(0, 200)}...`);
-  }
-
   // Create telemetry capture instance
   const telemetryCapture = createTelemetryCapture('claude', model, prompt, workingDir);
+
+  // Track JSON error events (Claude may exit 0 even on errors)
+  let capturedError: string | null = null;
 
   let result;
   try {
@@ -205,6 +199,22 @@ export async function runClaude(options: RunClaudeOptions): Promise<RunClaudeRes
 
             // Capture telemetry data
             telemetryCapture.captureFromStreamJson(line);
+
+            // Check for error events (Claude may exit 0 even on errors like invalid model)
+            try {
+              const json = JSON.parse(line);
+              // Check for error in result type
+              if (json.type === 'result' && json.is_error && json.result && !capturedError) {
+                capturedError = json.result;
+              }
+              // Check for error in assistant message
+              if (json.type === 'assistant' && json.error && !capturedError) {
+                const messageText = json.message?.content?.[0]?.text;
+                capturedError = messageText || json.error;
+              }
+            } catch {
+              // Ignore parse errors
+            }
 
             // Emit telemetry event if captured and callback provided
             if (onTelemetry) {
@@ -244,52 +254,53 @@ export async function runClaude(options: RunClaudeOptions): Promise<RunClaudeRes
     const message = err?.message ?? '';
     const notFound = err?.code === 'ENOENT' || /not recognized as an internal or external command/i.test(message) || /command not found/i.test(message);
     if (notFound) {
-      const full = `${command} ${args.join(' ')}`.trim();
       const install = metadata.installCommand;
       const name = metadata.name;
-      console.error(`[ERROR] ${name} CLI not found when executing: ${full}`);
       throw new Error(`'${command}' is not available on this system. Please install ${name} first:\n  ${install}`);
     }
     throw error;
   }
 
-  if (result.exitCode !== 0) {
-    const errorOutput = result.stderr.trim() || result.stdout.trim() || 'no error output';
+  // Check for errors - Claude may exit with code 0 even on errors (e.g., invalid model)
+  if (result.exitCode !== 0 || capturedError) {
+    // Use captured error from streaming, or fall back to parsing output
+    let errorMessage = capturedError || `Claude CLI exited with code ${result.exitCode}`;
 
-    // Parse the error to provide a user-friendly message
-    let errorMessage = `Claude CLI exited with code ${result.exitCode}`;
-    try {
-      // Try to parse stream-json output for specific error messages
-      const lines = errorOutput.split('\n');
-      for (const line of lines) {
-        if (line.trim() && line.startsWith('{')) {
-          const json = JSON.parse(line);
+    if (!capturedError) {
+      const errorOutput = result.stderr.trim() || result.stdout.trim() || 'no error output';
+      try {
+        // Try to parse stream-json output for specific error messages
+        const lines = errorOutput.split('\n');
+        for (const line of lines) {
+          if (line.trim() && line.startsWith('{')) {
+            const json = JSON.parse(line);
 
-          // Check for error in result type
-          if (json.type === 'result' && json.is_error && json.result) {
-            errorMessage = json.result;
-            break;
-          }
-
-          // Check for error in assistant message
-          if (json.type === 'assistant' && json.error) {
-            const messageText = json.message?.content?.[0]?.text;
-            if (messageText) {
-              errorMessage = messageText;
-            } else if (json.error === 'rate_limit') {
-              errorMessage = 'Rate limit reached. Please try again later.';
-            } else {
-              errorMessage = json.error;
+            // Check for error in result type
+            if (json.type === 'result' && json.is_error && json.result) {
+              errorMessage = json.result;
+              break;
             }
-            break;
+
+            // Check for error in assistant message
+            if (json.type === 'assistant' && json.error) {
+              const messageText = json.message?.content?.[0]?.text;
+              if (messageText) {
+                errorMessage = messageText;
+              } else if (json.error === 'rate_limit') {
+                errorMessage = 'Rate limit reached. Please try again later.';
+              } else {
+                errorMessage = json.error;
+              }
+              break;
+            }
           }
         }
-      }
-    } catch {
-      // If parsing fails, use the raw error output
-      const lines = errorOutput.split('\n').slice(0, 10);
-      if (lines.length > 0 && lines[0]) {
-        errorMessage = lines.join('\n');
+      } catch {
+        // If parsing fails, use the raw error output
+        const lines = errorOutput.split('\n').slice(0, 10);
+        if (lines.length > 0 && lines[0]) {
+          errorMessage = lines.join('\n');
+        }
       }
     }
 

@@ -241,10 +241,8 @@ export async function runCursor(options: RunCursorOptions): Promise<RunCursorRes
     const message = err?.message ?? '';
     const notFound = err?.code === 'ENOENT' || /not recognized as an internal or external command/i.test(message) || /command not found/i.test(message);
     if (notFound) {
-      const full = `${command} ${args.join(' ')}`.trim();
       const install = metadata.installCommand;
       const name = metadata.name;
-      console.error(`[ERROR] ${name} CLI not found when executing: ${full}`);
       throw new Error(`'${command}' is not available on this system. Please install ${name} first:\n  ${install}`);
     }
     throw error;
@@ -253,14 +251,8 @@ export async function runCursor(options: RunCursorOptions): Promise<RunCursorRes
   if (result.exitCode !== 0) {
     const errorOutput = result.stderr.trim() || result.stdout.trim() || 'no error output';
     const lines = errorOutput.split('\n').slice(0, 10);
-
-    console.error('[ERROR] Cursor CLI execution failed', {
-      exitCode: result.exitCode,
-      error: lines.join('\n'),
-      command: `${command} ${args.join(' ')}`,
-    });
-
-    throw new Error(`Cursor CLI exited with code ${result.exitCode}`);
+    const preview = lines.join('\n');
+    throw new Error(preview);
   }
 
   return {

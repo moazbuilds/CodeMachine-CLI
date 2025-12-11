@@ -19,13 +19,8 @@ export function ErrorModal(props: ErrorModalProps) {
   const dimensions = useTerminalDimensions()
 
   const modalWidth = () => {
-    const safeWidth = Math.max(50, (dimensions()?.width ?? 80) - 8)
-    return Math.min(safeWidth, 80)
-  }
-
-  const modalHeight = () => {
-    const safeHeight = Math.max(15, (dimensions()?.height ?? 30) - 6)
-    return Math.min(safeHeight, 25)
+    const safeWidth = Math.max(40, (dimensions()?.width ?? 80) - 8)
+    return Math.min(safeWidth, 70)
   }
 
   useKeyboard((evt) => {
@@ -36,9 +31,6 @@ export function ErrorModal(props: ErrorModalProps) {
     }
   })
 
-  // Calculate content height (modal height minus header, footer, padding)
-  const contentHeight = () => modalHeight() - 7
-
   return (
     <ModalBase width={modalWidth()}>
       <ModalHeader title="Workflow Error" icon="!" iconColor={themeCtx.theme.error} />
@@ -47,10 +39,9 @@ export function ErrorModal(props: ErrorModalProps) {
         paddingRight={2}
         paddingTop={1}
         paddingBottom={1}
-        height={contentHeight()}
-        overflow="scroll"
       >
         <text fg={themeCtx.theme.error}>{props.message}</text>
+        <text>{"\n\n"}Report issues: https://github.com/moazbuilds/CodeMachine-CLI/issues</text>
       </box>
       <box flexDirection="row" justifyContent="center" paddingBottom={1}>
         <box

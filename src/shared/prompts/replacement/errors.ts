@@ -23,28 +23,9 @@ export function createRequiredFileError(
   placeholderName: string,
   filePath: string,
 ): PlaceholderError {
-  const message = `
-❌ Error: {${placeholderName}} is required to complete this stage and provide high-quality results.
+  const message = `Required file not found: {${placeholderName}}
 
-Expected file: ${filePath}
-
-If you want to step back and skip this stage:
-1. Edit .codemachine/template.json
-2. Remove the step number from "completedSteps" array
-
-Example:
-"completedSteps": [0, 1, 2]  ← Remove the last number to re-run that step
-
-To disable resume from last step (start workflow from beginning):
-1. Edit .codemachine/template.json
-2. Check if "notCompletedSteps" array is empty: []
-3. If not empty, remove all numbers from "notCompletedSteps" array
-4. Or set "resumeFromLastStep": false to disable this feature
-
-Example:
-"notCompletedSteps": []  ← Empty array means no incomplete steps to resume
-"resumeFromLastStep": false  ← Disables the resume feature entirely
-`.trim();
+Expected file: ${filePath}`;
 
   return new PlaceholderError(message, placeholderName, filePath);
 }

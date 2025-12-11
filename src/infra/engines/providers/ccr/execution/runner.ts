@@ -161,6 +161,9 @@ export async function runCcr(options: RunCcrOptions): Promise<RunCcrResult> {
   // Create telemetry capture instance
   const telemetryCapture = createTelemetryCapture('claude', model, prompt, workingDir); // Using 'claude' for telemetry since API is the same
 
+  // Track JSON error events (CCR may exit 0 even on errors)
+  let capturedError: string | null = null;
+
   let result;
   try {
     result = await spawnProcess({
@@ -181,6 +184,22 @@ export async function runCcr(options: RunCcrOptions): Promise<RunCcrResult> {
 
               // Capture telemetry data
               telemetryCapture.captureFromStreamJson(line);
+
+              // Check for error events (CCR may exit 0 even on errors like invalid model)
+              try {
+                const json = JSON.parse(line);
+                // Check for error in result type
+                if (json.type === 'result' && json.is_error && json.result && !capturedError) {
+                  capturedError = json.result;
+                }
+                // Check for error in assistant message
+                if (json.type === 'assistant' && json.error && !capturedError) {
+                  const messageText = json.message?.content?.[0]?.text;
+                  capturedError = messageText || json.error;
+                }
+              } catch {
+                // Ignore parse errors
+              }
 
               const formatted = formatStreamJsonLine(line);
               if (formatted) {
@@ -212,7 +231,7 @@ export async function runCcr(options: RunCcrOptions): Promise<RunCcrResult> {
     throw error;
   }
 
-  if (result.exitCode !== 0) {
+  if (result.exitCode !== 0 || capturedError) {
     const errorOutput = result.stderr.trim() || result.stdout.trim() || 'no error output';
     const lines = errorOutput.split('\n').slice(0, 10);
 
@@ -222,7 +241,9 @@ export async function runCcr(options: RunCcrOptions): Promise<RunCcrResult> {
       command: `${command} ${args.join(' ')}`,
     });
 
-    throw new Error(`CCR CLI exited with code ${result.exitCode}`);
+    // Use captured JSON error if available, otherwise fall back to generic message
+    const errorMessage = capturedError || `CCR CLI exited with code ${result.exitCode}`;
+    throw new Error(errorMessage);
   }
 
   // Log captured telemetry

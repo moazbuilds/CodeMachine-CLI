@@ -84,7 +84,10 @@ export async function handleStepError(options: HandleStepErrorOptions): Promise<
   debug(`[DEBUG workflow] isFileNotFoundError=${isFileNotFoundError}`);
 
   if (isFileNotFoundError) {
-    const errorMsg = `CRITICAL ERROR: ${step.agentName} failed - required file not found:\n${errorMessage}`;
+    const engine = step.engine ?? 'unknown';
+    const errorMsg = `[CM-E101] ${step.agentName} failed to start
+
+${engine}: ${errorMessage}`;
     debug(`[DEBUG workflow] isFileNotFoundError=true, emitting workflow:error`);
     debug(`[DEBUG workflow] errorMsg=${errorMsg}`);
     emitter.updateAgentStatus(uniqueAgentId, 'failed');
@@ -100,7 +103,10 @@ export async function handleStepError(options: HandleStepErrorOptions): Promise<
   }
 
   // Generic error - log and stop
-  const errorMsg = `${step.agentName} failed: ${error instanceof Error ? error.message : String(error)}`;
+  const engine = step.engine ?? 'unknown';
+  const errorMsg = `[CM-E100] ${step.agentName} failed
+
+${engine}: ${error instanceof Error ? error.message : String(error)}`;
   debug(`[DEBUG workflow] Generic error path`);
   debug(`[DEBUG workflow] errorMsg=${errorMsg}`);
   emitter.logMessage(uniqueAgentId, errorMsg);
