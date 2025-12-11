@@ -22,5 +22,6 @@ module.exports = {
     smart_anchor: path.join('prompts', 'templates', 'codemachine', 'shared-instructions', 'smart-anchor.md'),
     command_constraints: path.join('prompts', 'templates', 'codemachine', 'shared-instructions', 'command-constraints.md'),
     atomic_generation: path.join('prompts', 'templates', 'codemachine', 'shared-instructions', 'atomic-generation.md'),
+    error_escalation: path.join('prompts', 'templates', 'codemachine', 'shared-instructions', 'error-escalation.md'),
   }
 };

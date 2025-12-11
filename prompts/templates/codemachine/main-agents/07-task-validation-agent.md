@@ -73,6 +73,8 @@ Your Verification and Correction Process:
 
 **Do not simply report issues - take action to resolve them until the code fully meets all acceptance criteria.**
 
+{error_escalation}
+
 ## Contextual Information:
 
 {context}

@@ -23,6 +23,8 @@ You **MUST** strictly adhere to the components, APIs, and data entities defined 
 
 {command_constraints}
 
+{error_escalation}
+
 {atomic_generation}
 
 1.  **Adhere to Foundation:** All your work **MUST** be consistent with the `foundation` document. The API style, components, and data entities you describe must be the ones defined there. Do not invent new components.

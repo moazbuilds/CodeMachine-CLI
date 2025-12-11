@@ -57,3 +57,5 @@ You are an **AI Technical Lead Analyst**. Your purpose is to act as a senior dev
 ### **Output Specification for `context.md`**
 
 {context_output_format}
+
+{error_escalation}

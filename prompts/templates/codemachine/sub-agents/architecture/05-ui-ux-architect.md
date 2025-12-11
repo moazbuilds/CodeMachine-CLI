@@ -23,6 +23,8 @@ You **MUST** strictly adhere to the decisions made in the `foundation` document,
 
 {command_constraints}
 
+{error_escalation}
+
 {atomic_generation}
 
 1.  **Context-Aware Execution:** First, analyze the inputs to determine if a UI is required.

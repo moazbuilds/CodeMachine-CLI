@@ -19,6 +19,8 @@ You are **not** a file reader or an analyst. You are a **command executor and te
 
 {command_constraints}
 
+{error_escalation}
+
 {atomic_generation}
 
 You **MUST** follow this three-step process exactly. Do not deviate, add steps, or use alternative methods.

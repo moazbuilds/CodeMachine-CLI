@@ -17,3 +17,5 @@
     ```
 
 **Constraint:** All commands must be safe to run in any repository state, including a newly initialized repository with no commits (an "unborn branch") or a repository in a "detached HEAD" state.
+
+{error_escalation}

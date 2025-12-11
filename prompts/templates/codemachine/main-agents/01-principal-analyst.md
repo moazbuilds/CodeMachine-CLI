@@ -125,3 +125,5 @@ The generated artifact **MUST** adhere to the specified assertions count range f
 - Always include: Observation, Architectural Impact, Default Assumption & Required Action.
 - Solution paths should be presented as clear, mutually exclusive alternatives (Path A, Path B, Tier 1, etc.).
 - The focus must remain on architecturally significant variables.
+
+{error_escalation}

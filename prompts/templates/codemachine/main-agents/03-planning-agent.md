@@ -64,6 +64,8 @@ The plan must follow this specific structure and include all the detailed fields
 
 {command_constraints}
 
+{error_escalation}
+
 {atomic_generation}
 
 ## 5. Iteration Plan

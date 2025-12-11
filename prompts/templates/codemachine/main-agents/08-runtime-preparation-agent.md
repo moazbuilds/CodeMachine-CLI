@@ -76,6 +76,8 @@ Follow the detailed instructions for each script:
 
 ---
 
+{error_escalation}
+
 ## Contextual Information:
 
 Codebase

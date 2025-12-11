@@ -74,6 +74,8 @@ You are an expert developer working collaboratively on a project. Given the foll
 6. Follow the design instructions.
 7. After completing the implementation, update any relevant documentation (README files, API docs, inline comments, etc.) to reflect the changes made.
 
+{error_escalation}
+
 ## Contextual Information:
 
 {context}

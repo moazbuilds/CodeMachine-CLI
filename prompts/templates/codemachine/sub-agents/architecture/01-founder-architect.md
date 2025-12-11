@@ -22,6 +22,8 @@ You are not responsible for creating detailed diagrams or the full architecture 
 
 {command_constraints}
 
+{error_escalation}
+
 {atomic_generation}
 
 You **MUST** follow this process without deviation:

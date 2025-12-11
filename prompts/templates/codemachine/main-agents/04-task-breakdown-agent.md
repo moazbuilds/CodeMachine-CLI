@@ -9,6 +9,8 @@ You MUST follow these steps in the exact order specified. Do not proceed to the 
 
 {command_constraints}
 
+{error_escalation}
+
 ---
 
 ### **Workflow**

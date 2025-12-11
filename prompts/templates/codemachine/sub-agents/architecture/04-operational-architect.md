@@ -25,6 +25,8 @@ You **MUST** strictly adhere to the decisions made in the `foundation` document,
 
 {command_constraints}
 
+{error_escalation}
+
 {atomic_generation}
 
 1.  **Adhere to Foundation:** All your work **MUST** be consistent with the `foundation` document. The Cloud Platform and Containerization choices are mandatory.

@@ -21,6 +21,8 @@ You **MUST** strictly adhere to the decisions made in the `foundation` document,
 
 {command_constraints}
 
+{error_escalation}
+
 {atomic_generation}
 
 1.  **Adhere to Foundation:** All your work **MUST** be consistent with the `foundation` document. The Architectural Style and Technology Stack you list must be copied directly from it. The components you diagram must be the ones named in the foundation.
