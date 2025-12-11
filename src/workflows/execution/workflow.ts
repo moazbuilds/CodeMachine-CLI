@@ -20,6 +20,7 @@ import {
   getResumeStartIndex,
   getSelectedTrack,
   getSelectedConditions,
+  getStepData,
 } from '../../shared/workflows/index.js';
 import { registry } from '../../infra/engines/index.js';
 import { shouldSkipStep, logSkipDebug, type ActiveLoop } from '../behaviors/skip.js';
@@ -231,6 +232,17 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
   debug(`[DEBUG workflow] startIndex=${startIndex}, template.steps.length=${template.steps.length}`);
 
+  // Load step data for session resume (when restarting after crash/kill)
+  // This enables resuming OpenCode sessions that were interrupted
+  // Note: startIndex can be 0 if the first step is incomplete
+  const stepDataForResume = notCompletedSteps.includes(startIndex)
+    ? await getStepData(cmRoot, startIndex)
+    : null;
+
+  if (stepDataForResume?.sessionId) {
+    debug(`[DEBUG workflow] Found saved session for step ${startIndex}: sessionId=${stepDataForResume.sessionId}, monitoringId=${stepDataForResume.monitoringId}`);
+  }
+
   if (startIndex > 0) {
     console.log(`Resuming workflow from step ${startIndex}...`);
   }
@@ -316,15 +328,24 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     }
 
     // Determine if this step should resume (we have monitoringId from previous pause)
-    const shouldResumeStep = inputState.stepIndex === index && inputState.monitoringId !== undefined;
-    const stepResumeMonitoringId = shouldResumeStep ? inputState.monitoringId : undefined;
-    const stepResumePrompt = shouldResumeStep ? inputState.pendingPrompt : undefined;
+    const shouldResumeFromPause = inputState.stepIndex === index && inputState.monitoringId !== undefined;
+
+    // Check for session resume after process restart (saved session data from template.json)
+    const shouldResumeFromSavedSession = !shouldResumeFromPause
+      && index === startIndex
+      && stepDataForResume?.sessionId
+      && stepDataForResume?.monitoringId;
+
+    const stepResumeMonitoringId = shouldResumeFromPause
+      ? inputState.monitoringId
+      : (shouldResumeFromSavedSession ? stepDataForResume.monitoringId : undefined);
+    const stepResumePrompt = shouldResumeFromPause ? inputState.pendingPrompt : undefined;
 
     // DEBUG
-    debug(`[DEBUG workflow] shouldResumeStep=${shouldResumeStep}, stepResumePrompt="${stepResumePrompt}"`);
+    debug(`[DEBUG workflow] shouldResumeFromPause=${shouldResumeFromPause}, shouldResumeFromSavedSession=${shouldResumeFromSavedSession}, stepResumeMonitoringId=${stepResumeMonitoringId}, stepResumePrompt="${stepResumePrompt}"`);
 
     // Reset input state after using it for resume
-    if (shouldResumeStep) {
+    if (shouldResumeFromPause) {
       inputState.stepIndex = null;
       inputState.monitoringId = undefined;
       inputState.pendingPrompt = undefined;
@@ -541,36 +562,94 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
             cwd
           );
         }
-      } else {
-        debug(`[DEBUG workflow] Normal execution path (not resuming from chain)`);
-        // Normal path - log if resuming from pause
-        if (stepResumeMonitoringId) {
-          emitter.logMessage(uniqueAgentId, `Resuming from paused session...`);
-        }
+      }
 
-        debug(`[DEBUG workflow] About to call executeStep...`);
-        // Execute the step
-        stepOutput = await executeStep(step, cwd, {
-          logger: () => {},
-          stderrLogger: () => {},
-          emitter,
-          abortSignal: abortController.signal,
-          uniqueAgentId,
-          resumeMonitoringId: stepResumeMonitoringId,
-          resumePrompt: stepResumePrompt,
-        });
+      // Track if we're resuming from saved session with chained prompts (skip first execution)
+      let isResumingFromSavedSessionWithChains = false;
 
-        debug(`[DEBUG workflow] executeStep completed. monitoringId=${stepOutput.monitoringId}`);
+      // Handle saved session resume (only if NOT already resuming from chain)
+      if (!isResumingFromChain) {
+        if (shouldResumeFromSavedSession && stepDataForResume?.monitoringId) {
+          // Resume from saved session - check if agent has chained prompts
+          debug(`[DEBUG workflow] Resuming from saved session path`);
+          const agentConfig = await loadAgentConfig(step.agentId, cwd);
+          const hasChainedPromptsConfig = !!agentConfig?.chainedPromptsPath;
 
-        // Initialize step session with session data (for resume capability)
-        // Only on fresh execution, not chain resume (session already saved)
-        if (stepOutput.monitoringId !== undefined) {
-          debug(`[DEBUG workflow] Initializing step session...`);
-          const monitor = AgentMonitorService.getInstance();
-          const agent = monitor.getAgent(stepOutput.monitoringId);
-          const sessionId = agent?.sessionId ?? '';
-          await initStepSession(cmRoot, index, sessionId, stepOutput.monitoringId);
-          debug(`[DEBUG workflow] Step session initialized`);
+          if (hasChainedPromptsConfig) {
+            // Agent has chained prompts - skip re-execution, just show existing logs
+            debug(`[DEBUG workflow] Agent has chained prompts - showing existing logs without re-running`);
+            isResumingFromSavedSessionWithChains = true;
+            emitter.registerMonitoringId(uniqueAgentId, stepDataForResume.monitoringId);
+
+            // Mark agent as running (was paused/saved)
+            const monitor = AgentMonitorService.getInstance();
+            await monitor.markRunning(stepDataForResume.monitoringId);
+
+            emitter.logMessage(uniqueAgentId, `Resuming from saved session...`);
+
+            // Create synthetic stepOutput with saved monitoringId
+            stepOutput = {
+              output: '',
+              monitoringId: stepDataForResume.monitoringId,
+              chainedPrompts: await loadChainedPrompts(agentConfig.chainedPromptsPath!, cwd),
+            };
+          } else {
+            // No chained prompts - normal resume with re-execution
+            debug(`[DEBUG workflow] No chained prompts - normal resume execution`);
+            emitter.logMessage(uniqueAgentId, `Resuming from saved session (process restart)...`);
+
+            stepOutput = await executeStep(step, cwd, {
+              logger: () => {},
+              stderrLogger: () => {},
+              emitter,
+              abortSignal: abortController.signal,
+              uniqueAgentId,
+              resumeMonitoringId: stepResumeMonitoringId,
+              resumePrompt: stepResumePrompt,
+            });
+
+            debug(`[DEBUG workflow] executeStep completed. monitoringId=${stepOutput.monitoringId}`);
+
+            if (stepOutput.monitoringId !== undefined) {
+              debug(`[DEBUG workflow] Initializing step session...`);
+              const monitor = AgentMonitorService.getInstance();
+              const agent = monitor.getAgent(stepOutput.monitoringId);
+              const sessionId = agent?.sessionId ?? '';
+              await initStepSession(cmRoot, index, sessionId, stepOutput.monitoringId);
+              debug(`[DEBUG workflow] Step session initialized`);
+            }
+          }
+        } else {
+          debug(`[DEBUG workflow] Normal execution path (fresh start or pause resume)`);
+          // Normal path - log if resuming from pause
+          if (shouldResumeFromPause) {
+            emitter.logMessage(uniqueAgentId, `Resuming from paused session...`);
+          }
+
+          debug(`[DEBUG workflow] About to call executeStep...`);
+          // Execute the step
+          stepOutput = await executeStep(step, cwd, {
+            logger: () => {},
+            stderrLogger: () => {},
+            emitter,
+            abortSignal: abortController.signal,
+            uniqueAgentId,
+            resumeMonitoringId: stepResumeMonitoringId,
+            resumePrompt: stepResumePrompt,
+          });
+
+          debug(`[DEBUG workflow] executeStep completed. monitoringId=${stepOutput.monitoringId}`);
+
+          // Initialize step session with session data (for resume capability)
+          // Only on fresh execution, not chain resume (session already saved)
+          if (stepOutput.monitoringId !== undefined) {
+            debug(`[DEBUG workflow] Initializing step session...`);
+            const monitor = AgentMonitorService.getInstance();
+            const agent = monitor.getAgent(stepOutput.monitoringId);
+            const sessionId = agent?.sessionId ?? '';
+            await initStepSession(cmRoot, index, sessionId, stepOutput.monitoringId);
+            debug(`[DEBUG workflow] Step session initialized`);
+          }
         }
       }
 
@@ -578,8 +657,8 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       // Unified input handling - activates for both:
       // 1. Resume from pause with custom prompt (steering)
       // 2. Chained prompts from workflow config
-      const hasChainedPrompts = stepOutput.chainedPrompts && stepOutput.chainedPrompts.length > 0;
-      const shouldEnterInputLoop = (stepResumePrompt && stepResumeMonitoringId) || hasChainedPrompts || isResumingFromChain;
+      const hasChainedPrompts = stepOutput!.chainedPrompts && stepOutput!.chainedPrompts.length > 0;
+      const shouldEnterInputLoop = (stepResumePrompt && stepResumeMonitoringId) || hasChainedPrompts || isResumingFromChain || isResumingFromSavedSessionWithChains;
       debug(`[DEBUG workflow] hasChainedPrompts=${hasChainedPrompts}, shouldEnterInputLoop=${shouldEnterInputLoop}`);
 
       if (shouldEnterInputLoop) {
@@ -587,8 +666,8 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         inputState.active = true;
         inputState.monitoringId = isResumingFromChain
           ? chainResumeInfo.monitoringId
-          : stepOutput.monitoringId;
-        inputState.queuedPrompts = hasChainedPrompts ? stepOutput.chainedPrompts! : [];
+          : stepOutput!.monitoringId;
+        inputState.queuedPrompts = hasChainedPrompts ? stepOutput!.chainedPrompts! : [];
         // Resume from saved chain index if available
         inputState.currentIndex = isResumingFromChain
           ? chainResumeInfo.chainIndex
@@ -735,7 +814,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       }
 
       // Check for trigger behavior first
-      const triggerResult = await handleTriggerLogic(step, stepOutput.output, cwd, emitter);
+      const triggerResult = await handleTriggerLogic(step, stepOutput!.output, cwd, emitter);
       if (triggerResult?.shouldTrigger && triggerResult.triggerAgentId) {
         const triggeredAgentId = triggerResult.triggerAgentId; // Capture for use in callbacks
         try {
@@ -777,7 +856,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
 
       // Check for checkpoint behavior first (to pause workflow for manual review)
-      const checkpointResult = await handleCheckpointLogic(step, stepOutput.output, cwd, emitter);
+      const checkpointResult = await handleCheckpointLogic(step, stepOutput!.output, cwd, emitter);
       if (checkpointResult?.shouldStopWorkflow) {
         // Wait for user action via events (Continue or Quit)
         await new Promise<void>((resolve) => {
@@ -811,7 +890,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         // Otherwise continue to next step (current step already marked complete via executeOnce)
       }
 
-      const loopResult = await handleLoopLogic(step, index, stepOutput.output, loopCounters, cwd, emitter);
+      const loopResult = await handleLoopLogic(step, index, stepOutput!.output, loopCounters, cwd, emitter);
 
       if (loopResult.decision?.shouldRepeat) {
         // Set active loop with skip list

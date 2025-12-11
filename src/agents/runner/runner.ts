@@ -275,6 +275,11 @@ export async function executeAgent(
 
       // Mark as running again (was paused)
       await monitor.markRunning(monitoringAgentId);
+
+      // Register monitoring ID with UI so it can load existing logs
+      if (ui && uniqueAgentId) {
+        ui.registerMonitoringId(uniqueAgentId, monitoringAgentId);
+      }
     } else {
       // NEW EXECUTION: Register new monitoring entry
       const promptForDisplay = displayPrompt || prompt;
@@ -404,9 +409,11 @@ export async function executeAgent(
       // Streams will be closed by cleanup handlers or monitoring service shutdown
     }
 
-    // Load chained prompts if configured (only on fresh execution, not resume)
+    // Load chained prompts if configured
+    // Always load on fresh execution; on resume, workflow.ts decides whether to use them
+    // based on chain resume state (chainResumeInfo)
     let chainedPrompts: ChainedPrompt[] | undefined;
-    if (!resumeMonitoringId && agentConfig.chainedPromptsPath) {
+    if (agentConfig.chainedPromptsPath) {
       chainedPrompts = await loadChainedPrompts(
         agentConfig.chainedPromptsPath,
         projectRoot ?? workingDir

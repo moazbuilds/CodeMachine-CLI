@@ -162,7 +162,7 @@ export function OutputWindow(props: OutputWindowProps) {
           <Show when={props.isConnecting && !props.isLoading}>
             <box flexDirection="row">
               <text fg={themeCtx.theme.text}>● </text>
-              <ShimmerText text={connectingMessage()} color={themeCtx.theme.text} bold />
+              <ShimmerText text={connectingMessage()} />
             </box>
           </Show>
 

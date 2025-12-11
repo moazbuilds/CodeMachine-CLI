@@ -62,17 +62,58 @@ export async function getActiveTemplate(cmRoot: string): Promise<string | null> 
 
 /**
  * Sets the active template name in the tracking file.
+ * Preserves existing step data if the template is the same.
  */
 export async function setActiveTemplate(cmRoot: string, templateName: string): Promise<void> {
   const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
 
-  const data: TemplateTracking = {
-    activeTemplate: templateName,
-    lastUpdated: new Date().toISOString(), // ISO 8601 UTC format (e.g., "2025-10-13T14:40:14.123Z")
-    completedSteps: {},
-    notCompletedSteps: [],
-    resumeFromLastStep: true,
-  };
+  let data: TemplateTracking;
+
+  if (existsSync(trackingPath)) {
+    try {
+      const content = await readFile(trackingPath, 'utf8');
+      const existing = JSON.parse(content) as TemplateTracking;
+
+      // If same template, preserve existing data (for resume capability)
+      if (existing.activeTemplate === templateName) {
+        data = {
+          ...existing,
+          lastUpdated: new Date().toISOString(),
+        };
+      } else {
+        // Different template - reset step tracking
+        data = {
+          activeTemplate: templateName,
+          lastUpdated: new Date().toISOString(),
+          completedSteps: {},
+          notCompletedSteps: [],
+          resumeFromLastStep: true,
+          // Preserve user preferences
+          selectedTrack: existing.selectedTrack,
+          selectedConditions: existing.selectedConditions,
+          projectName: existing.projectName,
+        };
+      }
+    } catch {
+      // File exists but failed to parse - create fresh
+      data = {
+        activeTemplate: templateName,
+        lastUpdated: new Date().toISOString(),
+        completedSteps: {},
+        notCompletedSteps: [],
+        resumeFromLastStep: true,
+      };
+    }
+  } else {
+    // No existing file - create fresh
+    data = {
+      activeTemplate: templateName,
+      lastUpdated: new Date().toISOString(),
+      completedSteps: {},
+      notCompletedSteps: [],
+      resumeFromLastStep: true,
+    };
+  }
 
   await writeFile(trackingPath, JSON.stringify(data, null, 2), 'utf8');
 }
