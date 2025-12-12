@@ -1,7 +1,7 @@
-
-## Workflow
+---
 name: create-product-brief
 description: Create comprehensive product briefs through collaborative step-by-step discovery as creative Business Analyst working with the user as peers.
+---
 
 # Product Brief Workflow
 
@@ -18,4 +18,5 @@ This uses **step-file architecture** for disciplined execution:
 ### Core Principles
 
 - **Micro-file Design**: Each step is a self contained instruction file that is a part of an overall workflow that must be followed exactly
+- **Sequential Enforcement**: Sequence within the step files must be completed in order, no skipping or optimization allowed
 - **Append-Only Building**: Build documents by appending content as directed to the output file

@@ -125,8 +125,13 @@ Prepare the following structure for document append:
 
 ### 6. Step Completion
 
-**Content Presentation:**
-"I've mapped out who {{project_name}} serves and how they'll interact with it. This helps us ensure we're building something that real people will love to use.
+**Save Content:**
+Append the generated content to the document now.
+
+**Confirmation:**
+"Content saved to document.
+
+I've mapped out who {{project_name}} serves and how they'll interact with it. This helps us ensure we're building something that real people will love to use.
 
 - If you want to **modify or add details**, just tell me what you'd like to change
 - If you're satisfied, **press Enter in the promptbox to go to the next step**"

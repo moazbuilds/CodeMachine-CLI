@@ -128,8 +128,13 @@ Prepare the following structure for document append:
 
 ### 7. Step Completion
 
-**Content Presentation:**
-"I've defined success metrics that will help us track whether {{project_name}} is creating real value for users and achieving business objectives.
+**Save Content:**
+Append the generated content to the document now.
+
+**Confirmation:**
+"Content saved to document.
+
+I've defined success metrics that will help us track whether {{project_name}} is creating real value for users and achieving business objectives.
 
 - If you want to **modify or add details**, just tell me what you'd like to change
 - If you're satisfied, **press Enter in the promptbox to go to the next step**"

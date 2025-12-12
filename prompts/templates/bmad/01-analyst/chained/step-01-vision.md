@@ -80,7 +80,17 @@ Explore the problem from multiple angles using targeted questions:
 Prepare the following structure for document append:
 
 ```markdown
-{bmad_brief_template}
+---
+title: 'Product Brief'
+project: '{project_name}'
+date: '{date}'
+author: '{agent_name}'
+status: 'draft'
+---
+
+# Product Brief: {project_name}
+
+<!-- Content will be appended sequentially through collaborative workflow steps -->
 
 ## Executive Summary
 
@@ -113,8 +123,13 @@ Prepare the following structure for document append:
 
 ### 7. Step Completion
 
-**Content Presentation:**
-"I've drafted the executive summary and core vision based on our conversation. This captures the essence of the project and what makes it special.
+**Save Content:**
+Create the document and write the generated content to `.codemachine/artifacts/product-brief-{date}.md` now.
+
+**Confirmation:**
+"Content saved to document.
+
+I've drafted the executive summary and core vision based on our conversation. This captures the essence of the project and what makes it special.
 
 - If you want to **modify or add details**, just tell me what you'd like to change
 - If you're satisfied, **press Enter in the promptbox to go to the next step**"

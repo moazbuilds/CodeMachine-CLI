@@ -82,7 +82,31 @@ module.exports = [
       path.join(promptsDir, 'bmad', '01-analyst', 'chained', 'step-01-vision.md'),
     ],
     chainedPromptsPath: [
-      path.join(promptsDir, 'bmad', '01-analyst', 'chained'),
+      path.join(promptsDir, 'bmad', '01-analyst', 'chained', 'step-02-users.md'),
+      path.join(promptsDir, 'bmad', '01-analyst', 'chained', 'step-03-metrics.md'),
+      path.join(promptsDir, 'bmad', '01-analyst', 'chained', 'step-04-scope.md'),
+      path.join(promptsDir, 'bmad', '01-analyst', 'chained', 'step-05-complete.md'),
+    ],
+  },
+  {
+    id: 'bmad-pm',
+    name: 'John the PM',
+    description: 'BMAD product manager for PRD creation workflow',
+    promptPath: [
+      path.join(promptsDir, 'bmad', '02-pm', 'john.md'),
+      path.join(promptsDir, 'bmad', '02-pm', 'workflow.md'),
+      path.join(promptsDir, 'bmad', '02-pm', '01-prd', 'chained', 'step-01-discovery.md'),
+    ],
+    chainedPromptsPath: [
+      path.join(promptsDir, 'bmad', '02-pm', '01-prd', 'chained', 'step-02-success.md'),
+      path.join(promptsDir, 'bmad', '02-pm', '01-prd', 'chained', 'step-03-journeys.md'),
+      path.join(promptsDir, 'bmad', '02-pm', '01-prd', 'chained', 'step-04-domain.md'),
+      path.join(promptsDir, 'bmad', '02-pm', '01-prd', 'chained', 'step-05-innovation.md'),
+      path.join(promptsDir, 'bmad', '02-pm', '01-prd', 'chained', 'step-06-project-type.md'),
+      path.join(promptsDir, 'bmad', '02-pm', '01-prd', 'chained', 'step-07-scoping.md'),
+      path.join(promptsDir, 'bmad', '02-pm', '01-prd', 'chained', 'step-08-functional.md'),
+      path.join(promptsDir, 'bmad', '02-pm', '01-prd', 'chained', 'step-09-nonfunctional.md'),
+      path.join(promptsDir, 'bmad', '02-pm', '01-prd', 'chained', 'step-10-complete.md'),
     ],
   },
 

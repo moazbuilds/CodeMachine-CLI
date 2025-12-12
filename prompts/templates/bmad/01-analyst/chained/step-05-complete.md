@@ -83,8 +83,13 @@ Perform final validation of the product brief:
 
 ### 5. Step Completion
 
+**Save Content:**
+Finalize the document and ensure all content is saved now.
+
 **Completion Confirmation:**
-"**Your Product Brief for {{project_name}} is now complete and ready for the next phase!**
+"Document finalized and saved.
+
+**Your Product Brief for {{project_name}} is now complete and ready for the next phase!**
 
 The brief captures everything needed to guide subsequent product development:
 

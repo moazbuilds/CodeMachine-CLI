@@ -142,8 +142,13 @@ Prepare the following structure for document append:
 
 ### 7. Step Completion
 
-**Content Presentation:**
-"I've defined the MVP scope for {{project_name}} that balances delivering real value with realistic boundaries. This gives us a clear path forward while keeping our options open for future growth.
+**Save Content:**
+Append the generated content to the document now.
+
+**Confirmation:**
+"Content saved to document.
+
+I've defined the MVP scope for {{project_name}} that balances delivering real value with realistic boundaries. This gives us a clear path forward while keeping our options open for future growth.
 
 - If you want to **modify or add details**, just tell me what you'd like to change
 - If you're satisfied, **press Enter in the promptbox to go to the next step**"

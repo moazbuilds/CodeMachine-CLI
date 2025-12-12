@@ -14,6 +14,9 @@ module.exports = {
     tasks: path.join('.codemachine', 'artifacts', 'tasks.json'),
     all_tasks_json: path.join('.codemachine', 'artifacts', 'tasks', '*.json'),
     context: path.join('.codemachine', 'prompts', 'context.md'),
+
+    // BMAD workflow artifacts
+    product_brief: path.join('.codemachine', 'artifacts', 'product-brief-*.md'),
   },
 
   // Paths relative to codemachine package root
@@ -23,5 +26,10 @@ module.exports = {
     command_constraints: path.join('prompts', 'templates', 'codemachine', 'shared-instructions', 'command-constraints.md'),
     atomic_generation: path.join('prompts', 'templates', 'codemachine', 'shared-instructions', 'atomic-generation.md'),
     error_escalation: path.join('prompts', 'templates', 'codemachine', 'shared-instructions', 'error-escalation.md'),
+
+    // BMAD PRD workflow shared files
+    domain_complexity: path.join('prompts', 'templates', 'bmad', '02-pm', '01-prd', 'shared', 'domain-complexity.csv'),
+    project_types: path.join('prompts', 'templates', 'bmad', '02-pm', '01-prd', 'shared', 'project-types.csv'),
+    prd_template: path.join('prompts', 'templates', 'bmad', '02-pm', '01-prd', 'shared', 'prd-template.md'),
   }
 };
