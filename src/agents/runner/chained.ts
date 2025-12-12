@@ -88,6 +88,34 @@ function filenameToName(filename: string): string {
 }
 
 /**
+ * Load a single chained prompt from a file
+ */
+async function loadPromptFromFile(
+  filePath: string,
+  projectRoot: string
+): Promise<ChainedPrompt | null> {
+  const absolutePath = path.isAbsolute(filePath)
+    ? filePath
+    : path.resolve(projectRoot, filePath);
+
+  try {
+    const rawContent = await fs.readFile(absolutePath, 'utf-8');
+    const { frontmatter, body } = parseFrontmatter(rawContent);
+    const filename = path.basename(absolutePath);
+
+    debug(`Loaded chained prompt from file: ${absolutePath}`);
+    return {
+      name: frontmatter.name || filenameToName(filename),
+      label: frontmatter.description || filenameToLabel(filename),
+      content: body.trim(),
+    };
+  } catch (err) {
+    debug(`Failed to read chained prompt file ${absolutePath}: ${err}`);
+    return null;
+  }
+}
+
+/**
  * Load chained prompts from a single folder
  */
 async function loadPromptsFromFolder(
@@ -145,6 +173,37 @@ async function loadPromptsFromFolder(
 }
 
 /**
+ * Load chained prompts from a path (file or folder)
+ */
+async function loadPromptsFromPath(
+  inputPath: string,
+  projectRoot: string
+): Promise<ChainedPrompt[]> {
+  const absolutePath = path.isAbsolute(inputPath)
+    ? inputPath
+    : path.resolve(projectRoot, inputPath);
+
+  try {
+    const stat = await fs.stat(absolutePath);
+
+    if (stat.isFile() && absolutePath.endsWith('.md')) {
+      // Single file
+      const prompt = await loadPromptFromFile(absolutePath, projectRoot);
+      return prompt ? [prompt] : [];
+    } else if (stat.isDirectory()) {
+      // Folder
+      return loadPromptsFromFolder(absolutePath, projectRoot);
+    } else {
+      debug(`chainedPromptsPath is neither a .md file nor directory: ${absolutePath}`);
+      return [];
+    }
+  } catch {
+    debug(`chainedPromptsPath does not exist: ${absolutePath}`);
+    return [];
+  }
+}
+
+/**
  * Type guard for conditional path entry
  */
 function isConditionalPath(entry: ChainedPathEntry): entry is ConditionalChainedPath {
@@ -168,11 +227,11 @@ function getPath(entry: ChainedPathEntry): string {
 }
 
 /**
- * Load chained prompts from one or more folders
+ * Load chained prompts from one or more paths (files or folders)
  * Files are sorted by filename within each folder (01-first.md, 02-second.md, etc.)
- * When multiple folders are provided, prompts are loaded in folder order
+ * When multiple paths are provided, prompts are loaded in path order
  *
- * @param chainedPromptsPath - Path or array of paths to folder(s) containing .md files
+ * @param chainedPromptsPath - Path or array of paths to file(s) or folder(s) containing .md files
  * @param projectRoot - Project root for resolving relative paths
  * @param selectedConditions - User-selected conditions for filtering conditional paths
  * @returns Array of ChainedPrompt objects sorted by filename within each folder
@@ -193,8 +252,8 @@ export async function loadChainedPrompts(
       continue;
     }
 
-    const folderPath = getPath(entry);
-    const prompts = await loadPromptsFromFolder(folderPath, projectRoot);
+    const inputPath = getPath(entry);
+    const prompts = await loadPromptsFromPath(inputPath, projectRoot);
     allPrompts.push(...prompts);
   }
 

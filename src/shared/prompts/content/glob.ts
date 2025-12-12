@@ -10,6 +10,46 @@ export function isGlobPattern(filePath: string): boolean {
 }
 
 /**
+ * Converts a glob pattern to a RegExp
+ * Supports: * (any chars), ? (single char), [abc] (char class)
+ * Examples:
+ *   *.md -> matches file.md
+ *   product-brief-*.md -> matches product-brief-2025-12-11.md
+ *   file?.txt -> matches file1.txt
+ */
+function globToRegex(pattern: string): RegExp {
+  let regex = '';
+  let i = 0;
+
+  while (i < pattern.length) {
+    const char = pattern[i];
+
+    if (char === '*') {
+      regex += '.*';
+    } else if (char === '?') {
+      regex += '.';
+    } else if (char === '[') {
+      // Find closing bracket
+      const closeIdx = pattern.indexOf(']', i);
+      if (closeIdx !== -1) {
+        regex += pattern.slice(i, closeIdx + 1);
+        i = closeIdx;
+      } else {
+        regex += '\\[';
+      }
+    } else if ('.^$+{}()|\\'.includes(char)) {
+      // Escape regex special chars
+      regex += '\\' + char;
+    } else {
+      regex += char;
+    }
+    i++;
+  }
+
+  return new RegExp(`^${regex}$`);
+}
+
+/**
  * Matches files against a glob pattern
  * Returns an array of absolute file paths sorted alphabetically
  */
@@ -28,6 +68,7 @@ export async function matchGlobPattern(
   try {
     const files = await readdir(directory);
     const matchedFiles: string[] = [];
+    const regex = globToRegex(filePattern);
 
     for (const file of files) {
       const fullPath = path.join(directory, file);
@@ -40,13 +81,8 @@ export async function matchGlobPattern(
         continue;
       }
 
-      // Simple pattern matching for *.ext patterns
-      if (filePattern.startsWith('*')) {
-        const extension = filePattern.substring(1); // e.g., ".md"
-        if (file.endsWith(extension)) {
-          matchedFiles.push(fullPath);
-        }
-      } else if (filePattern === file) {
+      // Match against glob pattern regex
+      if (regex.test(file)) {
         matchedFiles.push(fullPath);
       }
     }
