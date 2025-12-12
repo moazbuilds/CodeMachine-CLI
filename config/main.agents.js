@@ -81,7 +81,9 @@ module.exports = [
       path.join(promptsDir, 'bmad', '01-analyst', 'workflow.md'),
       path.join(promptsDir, 'bmad', '01-analyst', 'chained', 'step-01-vision.md'),
     ],
-    chainedPromptsPath: path.join(promptsDir, 'bmad', '01-analyst', 'chained'),
+    chainedPromptsPath: [
+      path.join(promptsDir, 'bmad', '01-analyst', 'chained'),
+    ],
   },
 
   // Test agents

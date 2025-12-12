@@ -135,6 +135,11 @@ export interface ExecuteAgentOptions {
    * Custom prompt for resume (instead of "Continue from where you left off")
    */
   resumePrompt?: string;
+
+  /**
+   * Selected conditions for filtering conditional chained prompt paths
+   */
+  selectedConditions?: string[];
 }
 
 /**
@@ -195,7 +200,7 @@ export async function executeAgent(
   prompt: string,
   options: ExecuteAgentOptions,
 ): Promise<AgentExecutionOutput> {
-  const { workingDir, projectRoot, engine: engineOverride, model: modelOverride, logger, stderrLogger, onTelemetry, abortSignal, timeout, parentId, disableMonitoring, ui, uniqueAgentId, displayPrompt, resumeMonitoringId, resumePrompt } = options;
+  const { workingDir, projectRoot, engine: engineOverride, model: modelOverride, logger, stderrLogger, onTelemetry, abortSignal, timeout, parentId, disableMonitoring, ui, uniqueAgentId, displayPrompt, resumeMonitoringId, resumePrompt, selectedConditions } = options;
 
   // If resuming, look up session info from monitor
   let resumeSessionId: string | undefined;
@@ -416,7 +421,8 @@ export async function executeAgent(
     if (agentConfig.chainedPromptsPath) {
       chainedPrompts = await loadChainedPrompts(
         agentConfig.chainedPromptsPath,
-        projectRoot ?? workingDir
+        projectRoot ?? workingDir,
+        selectedConditions ?? []
       );
       if (chainedPrompts.length > 0) {
         debug(`Loaded ${chainedPrompts.length} chained prompts for agent '${agentId}'`);

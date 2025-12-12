@@ -385,6 +385,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         shouldResumeFromPause,
         stepResumeMonitoringId,
         stepResumePrompt,
+        selectedConditions,
       });
 
       debug(`[DEBUG workflow] Checking for chained prompts...`);

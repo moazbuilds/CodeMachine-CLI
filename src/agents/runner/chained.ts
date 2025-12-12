@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 
 import { debug } from '../../shared/logging/logger.js';
+import type { ChainedPathEntry, ConditionalChainedPath } from '../../shared/agents/config/types.js';
 
 /**
  * Represents a chained prompt loaded from a .md file
@@ -87,21 +88,16 @@ function filenameToName(filename: string): string {
 }
 
 /**
- * Load chained prompts from a folder
- * Files are sorted by filename (01-first.md, 02-second.md, etc.)
- *
- * @param chainedPromptsPath - Absolute or relative path to folder containing .md files
- * @param projectRoot - Project root for resolving relative paths
- * @returns Array of ChainedPrompt objects sorted by filename
+ * Load chained prompts from a single folder
  */
-export async function loadChainedPrompts(
-  chainedPromptsPath: string,
+async function loadPromptsFromFolder(
+  folderPath: string,
   projectRoot: string
 ): Promise<ChainedPrompt[]> {
   // Resolve path
-  const absolutePath = path.isAbsolute(chainedPromptsPath)
-    ? chainedPromptsPath
-    : path.resolve(projectRoot, chainedPromptsPath);
+  const absolutePath = path.isAbsolute(folderPath)
+    ? folderPath
+    : path.resolve(projectRoot, folderPath);
 
   // Check if directory exists
   try {
@@ -146,4 +142,61 @@ export async function loadChainedPrompts(
 
   debug(`Loaded ${prompts.length} chained prompts from ${absolutePath}`);
   return prompts;
+}
+
+/**
+ * Type guard for conditional path entry
+ */
+function isConditionalPath(entry: ChainedPathEntry): entry is ConditionalChainedPath {
+  return typeof entry === 'object' && entry !== null && 'path' in entry;
+}
+
+/**
+ * Check if all conditions are met (AND logic)
+ */
+function meetsConditions(entry: ChainedPathEntry, selectedConditions: string[]): boolean {
+  if (typeof entry === 'string') return true;
+  if (!entry.conditions?.length) return true;
+  return entry.conditions.every(c => selectedConditions.includes(c));
+}
+
+/**
+ * Extract path string from entry
+ */
+function getPath(entry: ChainedPathEntry): string {
+  return typeof entry === 'string' ? entry : entry.path;
+}
+
+/**
+ * Load chained prompts from one or more folders
+ * Files are sorted by filename within each folder (01-first.md, 02-second.md, etc.)
+ * When multiple folders are provided, prompts are loaded in folder order
+ *
+ * @param chainedPromptsPath - Path or array of paths to folder(s) containing .md files
+ * @param projectRoot - Project root for resolving relative paths
+ * @param selectedConditions - User-selected conditions for filtering conditional paths
+ * @returns Array of ChainedPrompt objects sorted by filename within each folder
+ */
+export async function loadChainedPrompts(
+  chainedPromptsPath: ChainedPathEntry | ChainedPathEntry[],
+  projectRoot: string,
+  selectedConditions: string[] = []
+): Promise<ChainedPrompt[]> {
+  const entries = Array.isArray(chainedPromptsPath) ? chainedPromptsPath : [chainedPromptsPath];
+  const allPrompts: ChainedPrompt[] = [];
+
+  for (const entry of entries) {
+    if (!meetsConditions(entry, selectedConditions)) {
+      const pathStr = getPath(entry);
+      const conditions = isConditionalPath(entry) ? entry.conditions : [];
+      debug(`Skipped chained path: ${pathStr} (unmet conditions: ${conditions?.join(', ')})`);
+      continue;
+    }
+
+    const folderPath = getPath(entry);
+    const prompts = await loadPromptsFromFolder(folderPath, projectRoot);
+    allPrompts.push(...prompts);
+  }
+
+  return allPrompts;
 }

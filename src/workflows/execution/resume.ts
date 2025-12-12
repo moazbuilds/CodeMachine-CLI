@@ -41,6 +41,7 @@ interface ExecWithResumeOptions {
   shouldResumeFromPause: boolean;
   stepResumeMonitoringId: number | undefined;
   stepResumePrompt: string | undefined;
+  selectedConditions: string[];
 }
 
 interface ExecWithResumeResult {
@@ -68,6 +69,7 @@ export async function execWithResume(options: ExecWithResumeOptions): Promise<Ex
     shouldResumeFromPause,
     stepResumeMonitoringId,
     stepResumePrompt,
+    selectedConditions,
   } = options;
 
   debug(`[DEBUG workflow] Checking if fallback should execute... notCompletedSteps=${JSON.stringify(notCompletedSteps)}`);
@@ -114,7 +116,8 @@ export async function execWithResume(options: ExecWithResumeOptions): Promise<Ex
     if (agentConfig?.chainedPromptsPath) {
       stepOutput.chainedPrompts = await loadChainedPrompts(
         agentConfig.chainedPromptsPath,
-        cwd
+        cwd,
+        selectedConditions
       );
     }
   } else if (shouldResumeFromSavedSession && stepDataForResume?.monitoringId) {
@@ -139,7 +142,7 @@ export async function execWithResume(options: ExecWithResumeOptions): Promise<Ex
       stepOutput = {
         output: '',
         monitoringId: stepDataForResume.monitoringId,
-        chainedPrompts: await loadChainedPrompts(agentConfig.chainedPromptsPath!, cwd),
+        chainedPrompts: await loadChainedPrompts(agentConfig.chainedPromptsPath!, cwd, selectedConditions),
       };
     } else {
       // No chained prompts - normal resume with re-execution
@@ -154,6 +157,7 @@ export async function execWithResume(options: ExecWithResumeOptions): Promise<Ex
         uniqueAgentId,
         resumeMonitoringId: stepResumeMonitoringId,
         resumePrompt: stepResumePrompt,
+        selectedConditions,
       });
 
       debug(`[DEBUG workflow] executeStep completed. monitoringId=${stepOutput.monitoringId}`);
@@ -184,6 +188,7 @@ export async function execWithResume(options: ExecWithResumeOptions): Promise<Ex
       uniqueAgentId,
       resumeMonitoringId: stepResumeMonitoringId,
       resumePrompt: stepResumePrompt,
+      selectedConditions,
     });
 
     debug(`[DEBUG workflow] executeStep completed. monitoringId=${stepOutput.monitoringId}`);
