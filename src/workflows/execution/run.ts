@@ -15,6 +15,8 @@ import {
   getSelectedTrack,
   getSelectedConditions,
   getStepData,
+  loadControllerConfig,
+  setAutonomousMode,
 } from '../../shared/workflows/index.js';
 import { registry } from '../../infra/engines/index.js';
 import { shouldSkipStep, logSkipDebug, type ActiveLoop } from '../behaviors/skip.js';
@@ -88,6 +90,11 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
   // Load selected conditions for condition-based filtering
   const selectedConditions = await getSelectedConditions(cmRoot);
+
+  // Load controller configuration (autonomous mode)
+  const controllerState = await loadControllerConfig(cmRoot);
+  const controllerConfig = controllerState.controllerConfig ?? null;
+  let controllerEnabled = template.controller === true && controllerState.autonomousMode === true && !!controllerConfig;
 
   // Load chain resume info (for resuming mid-chain)
   const chainResumeInfo = await getChainResumeInfo(cmRoot);
@@ -236,6 +243,13 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
   process.on('workflow:pause', pauseListener);
   process.on('workflow:input', inputListener);
+  const autonomyListener = () => {
+    controllerEnabled = false;
+    setAutonomousMode(cmRoot, false).catch(() => {
+      // best-effort persistence; keep running even if it fails
+    });
+  };
+  process.on('workflow:autonomy:disable', autonomyListener);
 
   try {
     debug(`[DEBUG workflow] Entering step loop. startIndex=${startIndex}, totalSteps=${template.steps.length}, workflowShouldStop=${workflowShouldStop}`);
@@ -336,6 +350,9 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     // Mutate current step to carry the chosen engine forward
     step.engine = engineType;
 
+    // Update TUI with resolved engine (may differ from workflow file due to fallback)
+    emitter.updateAgentEngine(uniqueAgentId, engineType);
+
     debug(`[DEBUG workflow] Resolving model...`);
     // Resolve model: step override > engine default, and update UI
     const engineModule = registry.get(engineType);
@@ -406,6 +423,11 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         isResumingFromSavedSessionWithChains,
         stepResumePrompt,
         stepResumeMonitoringId,
+        controller: controllerEnabled && controllerConfig ? {
+          isEnabled: () => controllerEnabled,
+          agentId: controllerConfig.agentId,
+          sessionId: controllerConfig.sessionId,
+        } : undefined,
       });
 
       // Handle post-execution behaviors
@@ -541,5 +563,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     process.removeListener('workflow:stop', stopListener);
     process.removeListener('workflow:pause', pauseListener);
     process.removeListener('workflow:input', inputListener);
+    process.removeListener('workflow:autonomy:disable', autonomyListener);
   }
 }

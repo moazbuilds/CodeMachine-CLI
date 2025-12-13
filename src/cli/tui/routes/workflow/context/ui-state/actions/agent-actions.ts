@@ -45,6 +45,17 @@ export function createAgentActions(ctx: AgentActionsContext) {
     ctx.notifyImmediate()
   }
 
+  function updateAgentEngine(agentId: string, engine: string): void {
+    const state = ctx.getState()
+    ctx.setState({
+      ...state,
+      agents: state.agents.map((agent) =>
+        agent.id === agentId ? { ...agent, engine } : agent,
+      ),
+    })
+    ctx.notify()
+  }
+
   function updateAgentModel(agentId: string, model: string): void {
     const state = ctx.getState()
     ctx.setState({
@@ -80,6 +91,7 @@ export function createAgentActions(ctx: AgentActionsContext) {
   return {
     addAgent,
     updateAgentStatus,
+    updateAgentEngine,
     updateAgentModel,
     updateAgentTelemetry,
     registerMonitoringId,

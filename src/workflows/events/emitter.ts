@@ -140,6 +140,17 @@ export class WorkflowEventEmitter {
   }
 
   /**
+   * Emit agent engine update (called when engine is resolved at execution time)
+   */
+  updateAgentEngine(agentId: string, engine: string): void {
+    this.bus.emit({
+      type: 'agent:engine',
+      agentId,
+      engine,
+    });
+  }
+
+  /**
    * Emit agent model update (called when model is resolved at execution time)
    */
   updateAgentModel(agentId: string, model: string): void {

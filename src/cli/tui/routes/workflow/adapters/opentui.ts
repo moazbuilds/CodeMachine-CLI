@@ -30,6 +30,7 @@ export interface UIActions {
     totalSteps?: number
   }): void
   updateAgentStatus(agentId: string, status: AgentStatus): void
+  updateAgentEngine(agentId: string, engine: string): void
   updateAgentModel(agentId: string, model: string): void
   updateAgentTelemetry(
     agentId: string,
@@ -122,6 +123,10 @@ export class OpenTUIAdapter extends BaseUIAdapter {
 
       case "agent:status":
         this.actions.updateAgentStatus(event.agentId, event.status)
+        break
+
+      case "agent:engine":
+        this.actions.updateAgentEngine(event.agentId, event.engine)
         break
 
       case "agent:model":
