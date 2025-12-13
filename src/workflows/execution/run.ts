@@ -401,14 +401,23 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       if (isAutonomousMode && controllerState.controllerConfig) {
         // Autonomous mode: controller provides input instead of user
         debug(`[DEBUG workflow] Autonomous mode enabled, using controller loop`);
-        await handleControllerLoop({
+        const controllerAction = await handleControllerLoop({
           stepOutput,
           controllerConfig: controllerState.controllerConfig,
+          step,
           cwd,
           cmRoot,
           emitter,
           uniqueAgentId,
+          abortController,
         });
+
+        // Handle controller actions
+        if (controllerAction === 'stop') {
+          workflowShouldStop = true;
+          break;
+        }
+        // 'next' and 'skip' both continue to next step
       } else {
         // Manual mode: wait for user input
         await handleInputLoop({

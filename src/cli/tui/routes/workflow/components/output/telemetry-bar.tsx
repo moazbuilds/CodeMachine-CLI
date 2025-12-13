@@ -21,6 +21,7 @@ export interface TelemetryBarProps {
     tokensOut: number
     cached?: number
   }
+  autonomousMode?: boolean
 }
 
 /**
@@ -77,7 +78,7 @@ export function TelemetryBar(props: TelemetryBarProps) {
       borderStyle="rounded"
       borderColor={themeCtx.theme.border}
     >
-      {/* Left side: workflow name, runtime, status */}
+      {/* Left side: workflow name, runtime, status, autonomous mode */}
       <box flexDirection="row" flexShrink={1}>
         <text fg={themeCtx.theme.text} attributes={1}>
           {props.workflowName}
@@ -86,6 +87,10 @@ export function TelemetryBar(props: TelemetryBarProps) {
         <Show when={showStatus()}>
           <text fg={themeCtx.theme.text}> • </text>
           <text fg={statusColor()}>{statusText()}</text>
+        </Show>
+        <Show when={props.autonomousMode}>
+          <text fg={themeCtx.theme.text}> • </text>
+          <text fg={themeCtx.theme.primary}>AUTO</text>
         </Show>
       </box>
 

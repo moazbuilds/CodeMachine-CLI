@@ -48,6 +48,10 @@ export interface UseWorkflowKeyboardOptions {
   focusPromptBox?: () => void
   /** Exit prompt box focus */
   exitPromptBoxFocus?: () => void
+  /** Check if autonomous mode is enabled */
+  isAutonomousMode?: () => boolean
+  /** Disable autonomous mode */
+  disableAutonomousMode?: () => void
 }
 
 /**
@@ -56,6 +60,15 @@ export interface UseWorkflowKeyboardOptions {
 export function useWorkflowKeyboard(options: UseWorkflowKeyboardOptions) {
   useKeyboard((evt) => {
     // === GLOBAL SHORTCUTS (always work) ===
+
+    // Shift+Tab - disable autonomous mode
+    if (evt.shift && evt.name === "tab") {
+      evt.preventDefault()
+      if (options.isAutonomousMode?.()) {
+        options.disableAutonomousMode?.()
+      }
+      return
+    }
 
     // Ctrl+S - skip (ALWAYS available)
     // When waiting for input: skip remaining prompts

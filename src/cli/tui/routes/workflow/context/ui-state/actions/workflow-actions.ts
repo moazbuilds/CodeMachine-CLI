@@ -116,6 +116,13 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
     ctx.notify()
   }
 
+  function setAutonomousMode(enabled: boolean): void {
+    const state = ctx.getState()
+    if (state.autonomousMode === enabled) return
+    ctx.setState({ ...state, autonomousMode: enabled })
+    ctx.notify()
+  }
+
   return {
     setWorkflowStatus,
     setCheckpointState,
@@ -126,5 +133,6 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
     addTriggeredAgent,
     addUIElement,
     logMessage,
+    setAutonomousMode,
   }
 }

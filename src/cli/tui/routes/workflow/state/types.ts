@@ -146,6 +146,7 @@ export interface WorkflowState {
   workflowStatus: WorkflowStatus
   agentIdMapVersion: number
   agentLogs: Map<string, string[]>
+  autonomousMode: boolean
 }
 
 export type ThemeLike = {

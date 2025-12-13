@@ -255,68 +255,88 @@ export async function handleInputLoop(options: HandleInputLoopOptions): Promise<
 interface HandleControllerLoopOptions {
   stepOutput: StepOutput;
   controllerConfig: ControllerConfig;
+  step: ModuleStep;
   cwd: string;
   cmRoot: string;
   emitter: WorkflowEventEmitter;
   uniqueAgentId: string;
+  abortController: AbortController;
 }
 
 /**
  * Handle autonomous mode controller loop
  * Controller receives step output, responds with text or actions
+ * Loops until controller says ACTION: NEXT/SKIP/STOP
  */
-export async function handleControllerLoop(options: HandleControllerLoopOptions): Promise<void> {
-  const { stepOutput, controllerConfig, cwd, emitter, uniqueAgentId } = options;
+export async function handleControllerLoop(options: HandleControllerLoopOptions): Promise<'next' | 'skip' | 'stop'> {
+  const { controllerConfig, step, cwd, emitter, uniqueAgentId, abortController } = options;
 
   const loggerService = AgentLoggerService.getInstance();
+  let currentStepOutput = options.stepOutput;
+  let loopActive = true;
 
-  debug(`[CONTROLLER] Sending step output to controller agent: ${controllerConfig.agentId}`);
-  debug(`[CONTROLLER] Controller monitoringId: ${controllerConfig.monitoringId}`);
+  while (loopActive) {
+    debug(`[CONTROLLER] Sending step output to controller agent: ${controllerConfig.agentId}`);
+    debug(`[CONTROLLER] Controller sessionId: ${controllerConfig.sessionId}`);
 
-  // Execute controller agent with step output as input (resume existing session)
-  const controllerResult = await executeAgent(controllerConfig.agentId, stepOutput.output, {
-    workingDir: cwd,
-    resumeMonitoringId: controllerConfig.monitoringId,
-    resumePrompt: stepOutput.output,
-    logger: (chunk) => {
-      // Log controller output to the step's log
-      if (stepOutput.monitoringId !== undefined) {
-        loggerService.write(stepOutput.monitoringId, chunk);
+    // Determine prompt - use step output, or default resume message if empty
+    const prompt = currentStepOutput.output || 'Continue from where you left off.';
+
+    // Execute controller agent with step output as input (resume existing session)
+    const controllerResult = await executeAgent(controllerConfig.agentId, prompt, {
+      workingDir: cwd,
+      resumeSessionId: controllerConfig.sessionId,
+      resumePrompt: prompt,
+      logger: (chunk) => {
+        // Log controller output to the step's log
+        if (currentStepOutput.monitoringId !== undefined) {
+          loggerService.write(currentStepOutput.monitoringId, chunk);
+        }
+      },
+      stderrLogger: (chunk) => {
+        if (currentStepOutput.monitoringId !== undefined) {
+          loggerService.write(currentStepOutput.monitoringId, `[STDERR] ${chunk}`);
+        }
+      },
+    });
+
+    const controllerResponse = controllerResult.output;
+    debug(`[CONTROLLER] Response: ${controllerResponse.slice(0, 200)}...`);
+
+    // Parse for action commands
+    const action = parseControllerAction(controllerResponse);
+    const cleanedResponse = extractInputText(controllerResponse);
+
+    if (action) {
+      debug(`[CONTROLLER] Action detected: ${action}`);
+      loopActive = false;
+
+      switch (action) {
+        case 'NEXT':
+          return 'next';
+        case 'SKIP':
+          return 'skip';
+        case 'STOP':
+          return 'stop';
       }
-    },
-    stderrLogger: (chunk) => {
-      if (stepOutput.monitoringId !== undefined) {
-        loggerService.write(stepOutput.monitoringId, `[STDERR] ${chunk}`);
-      }
-    },
-  });
-
-  const controllerResponse = controllerResult.output;
-  debug(`[CONTROLLER] Response: ${controllerResponse.slice(0, 200)}...`);
-
-  // Parse for action commands
-  const action = parseControllerAction(controllerResponse);
-  const cleanedResponse = extractInputText(controllerResponse);
-
-  if (action) {
-    debug(`[CONTROLLER] Action detected: ${action}`);
-
-    switch (action) {
-      case 'NEXT':
-        process.emit('workflow:input', { prompt: undefined });
-        break;
-
-      case 'SKIP':
-        process.emit('workflow:skip');
-        break;
-
-      case 'STOP':
-        process.emit('workflow:stop');
-        break;
     }
-  } else {
-    // No action - send response as input to agent
-    debug(`[CONTROLLER] No action, sending as input: ${cleanedResponse.slice(0, 100)}...`);
-    process.emit('workflow:input', { prompt: cleanedResponse });
+
+    // No action - send controller response as input to the agent and continue loop
+    debug(`[CONTROLLER] No action, sending as input to agent: ${cleanedResponse.slice(0, 100)}...`);
+
+    // Resume the step agent with controller's response
+    currentStepOutput = await executeStep(step, cwd, {
+      logger: () => {},
+      stderrLogger: () => {},
+      emitter,
+      abortSignal: abortController.signal,
+      uniqueAgentId,
+      resumeMonitoringId: currentStepOutput.monitoringId,
+      resumePrompt: cleanedResponse,
+    });
+
+    // Continue loop - will send new output to controller
   }
+
+  return 'next';
 }

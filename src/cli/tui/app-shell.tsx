@@ -23,7 +23,7 @@ import { MonitoringCleanup } from "../../agents/monitoring/index.js"
 import path from "path"
 import { createRequire } from "node:module"
 import { resolvePackageJson } from "../../shared/runtime/root.js"
-import { getSelectedTrack, setSelectedTrack, hasSelectedConditions, setSelectedConditions, getProjectName, setProjectName, getControllerAgents, initControllerAgent } from "../../shared/workflows/index.js"
+import { getSelectedTrack, setSelectedTrack, hasSelectedConditions, setSelectedConditions, getProjectName, setProjectName, getControllerAgents, initControllerAgent, loadControllerConfig } from "../../shared/workflows/index.js"
 import { loadTemplate } from "../../workflows/templates/loader.js"
 import { getTemplatePathFromTracking } from "../../shared/workflows/template.js"
 import type { TrackConfig, ConditionConfig } from "../../workflows/templates/types"
@@ -158,8 +158,11 @@ export function App(props: { initialToast?: InitialToast }) {
       const needsProjectName = !existingProjectName
 
       // Check if workflow requires controller selection
+      // Skip if controller session already exists
       let controllers: AgentDefinition[] = []
-      if (template.controller === true) {
+      const existingControllerConfig = await loadControllerConfig(cmRoot)
+      const hasExistingControllerSession = existingControllerConfig?.controllerConfig?.sessionId
+      if (template.controller === true && !hasExistingControllerSession) {
         controllers = await getControllerAgents(cwd)
       }
       const needsControllerSelection = controllers.length > 0

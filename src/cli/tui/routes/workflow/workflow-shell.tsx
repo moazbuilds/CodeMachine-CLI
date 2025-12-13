@@ -22,6 +22,8 @@ import { useWorkflowModals } from "./hooks/use-workflow-modals"
 import { useWorkflowKeyboard } from "./hooks/use-workflow-keyboard"
 import { calculateVisibleItems } from "./constants"
 import type { WorkflowEventBus } from "../../../../workflows/events/index.js"
+import { setAutonomousMode as persistAutonomousMode, loadControllerConfig } from "../../../../shared/workflows/index.js"
+import path from "path"
 
 export interface WorkflowShellProps {
   version: string
@@ -103,10 +105,18 @@ export function WorkflowShell(props: WorkflowShellProps) {
     setErrorMessage(null)
   }
 
-  onMount(() => {
+  onMount(async () => {
     ;(process as NodeJS.EventEmitter).on('workflow:error', handleWorkflowError)
     ;(process as NodeJS.EventEmitter).on('workflow:stopping', handleStopping)
     ;(process as NodeJS.EventEmitter).on('workflow:user-stop', handleUserStop)
+
+    // Load initial autonomous mode state
+    const cmRoot = path.join(props.currentDir, '.codemachine')
+    const controllerState = await loadControllerConfig(cmRoot)
+    if (controllerState?.autonomousMode) {
+      ui.actions.setAutonomousMode(true)
+    }
+
     if (props.eventBus) {
       adapter = new OpenTUIAdapter({ actions: ui.actions })
       adapter.connect(props.eventBus)
@@ -274,6 +284,17 @@ export function WorkflowShell(props: WorkflowShellProps) {
     ;(process as NodeJS.EventEmitter).emit("workflow:pause")
   }
 
+  // Disable autonomous mode
+  const disableAutonomousMode = () => {
+    const cwd = props.currentDir
+    const cmRoot = path.join(cwd, '.codemachine')
+    ui.actions.setAutonomousMode(false)
+    persistAutonomousMode(cmRoot, false).catch(() => {
+      // best-effort persistence
+    })
+    toast.show({ variant: "warning", message: "Autonomous mode disabled", duration: 3000 })
+  }
+
   const getMonitoringId = (uiAgentId: string): number | undefined => {
     const s = state()
     const mainAgent = s.agents.find((a) => a.id === uiAgentId)
@@ -307,6 +328,8 @@ export function WorkflowShell(props: WorkflowShellProps) {
     canFocusPromptBox: () => isWaitingForInput() && isShowingRunningAgent() && !isPromptBoxFocused(),
     focusPromptBox: () => setIsPromptBoxFocused(true),
     exitPromptBoxFocus: () => setIsPromptBoxFocused(false),
+    isAutonomousMode: () => state().autonomousMode,
+    disableAutonomousMode,
   })
 
   return (
@@ -343,8 +366,8 @@ export function WorkflowShell(props: WorkflowShellProps) {
       </box>
 
       <box flexShrink={0} flexDirection="column">
-        <TelemetryBar workflowName={state().workflowName} runtime={runtime()} status={state().workflowStatus} total={totalTelemetry()} />
-        <StatusFooter />
+        <TelemetryBar workflowName={state().workflowName} runtime={runtime()} status={state().workflowStatus} total={totalTelemetry()} autonomousMode={state().autonomousMode} />
+        <StatusFooter autonomousMode={state().autonomousMode} />
       </box>
 
       <Show when={isCheckpointActive()}>

@@ -46,6 +46,7 @@ export type UIActions = {
   resetAgentForLoop(agentId: string, cycleNumber?: number): void
   addUIElement(element: { id: string; text: string; stepIndex: number }): void
   logMessage(agentId: string, message: string): void
+  setAutonomousMode(enabled: boolean): void
 }
 
 export type { WorkflowState, AgentStatus, LoopState, ChainedState, InputState, SubAgentState, TriggeredAgentState, WorkflowStatus }
