@@ -18,6 +18,7 @@ export type AgentDefinition = {
   model_reasoning_effort?: unknown;
   engine?: string; // Engine to use for this agent (dynamically determined from registry)
   chainedPromptsPath?: ChainedPathEntry | ChainedPathEntry[]; // Path(s) to folder(s) containing chained prompt .md files
+  role?: 'controller'; // Agent role - 'controller' agents can drive autonomous mode
   [key: string]: unknown;
 };
 

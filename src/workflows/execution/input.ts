@@ -4,11 +4,16 @@ import {
   markStepCompleted,
   updateStepSession,
   markChainCompleted,
+  loadControllerConfig,
+  parseControllerAction,
+  extractInputText,
+  type ControllerConfig,
 } from '../../shared/workflows/index.js';
 import { AgentLoggerService, AgentMonitorService } from '../../agents/monitoring/index.js';
 import type { WorkflowEventEmitter } from '../events/index.js';
 import type { ModuleStep } from '../templates/types.js';
 import { executeStep, type ChainedPrompt } from './step.js';
+import { executeAgent } from '../../agents/runner/runner.js';
 
 export interface InputState {
   active: boolean;
@@ -241,5 +246,77 @@ export async function handleInputLoop(options: HandleInputLoopOptions): Promise<
   // This ensures steps with chained prompts are marked complete even without executeOnce
   if (hasChainedPrompts) {
     await markStepCompleted(cmRoot, index);
+  }
+}
+
+/**
+ * Options for controller loop handling
+ */
+interface HandleControllerLoopOptions {
+  stepOutput: StepOutput;
+  controllerConfig: ControllerConfig;
+  cwd: string;
+  cmRoot: string;
+  emitter: WorkflowEventEmitter;
+  uniqueAgentId: string;
+}
+
+/**
+ * Handle autonomous mode controller loop
+ * Controller receives step output, responds with text or actions
+ */
+export async function handleControllerLoop(options: HandleControllerLoopOptions): Promise<void> {
+  const { stepOutput, controllerConfig, cwd, emitter, uniqueAgentId } = options;
+
+  const loggerService = AgentLoggerService.getInstance();
+
+  debug(`[CONTROLLER] Sending step output to controller agent: ${controllerConfig.agentId}`);
+  debug(`[CONTROLLER] Controller monitoringId: ${controllerConfig.monitoringId}`);
+
+  // Execute controller agent with step output as input (resume existing session)
+  const controllerResult = await executeAgent(controllerConfig.agentId, stepOutput.output, {
+    workingDir: cwd,
+    resumeMonitoringId: controllerConfig.monitoringId,
+    resumePrompt: stepOutput.output,
+    logger: (chunk) => {
+      // Log controller output to the step's log
+      if (stepOutput.monitoringId !== undefined) {
+        loggerService.write(stepOutput.monitoringId, chunk);
+      }
+    },
+    stderrLogger: (chunk) => {
+      if (stepOutput.monitoringId !== undefined) {
+        loggerService.write(stepOutput.monitoringId, `[STDERR] ${chunk}`);
+      }
+    },
+  });
+
+  const controllerResponse = controllerResult.output;
+  debug(`[CONTROLLER] Response: ${controllerResponse.slice(0, 200)}...`);
+
+  // Parse for action commands
+  const action = parseControllerAction(controllerResponse);
+  const cleanedResponse = extractInputText(controllerResponse);
+
+  if (action) {
+    debug(`[CONTROLLER] Action detected: ${action}`);
+
+    switch (action) {
+      case 'NEXT':
+        process.emit('workflow:input', { prompt: undefined });
+        break;
+
+      case 'SKIP':
+        process.emit('workflow:skip');
+        break;
+
+      case 'STOP':
+        process.emit('workflow:stop');
+        break;
+    }
+  } else {
+    // No action - send response as input to agent
+    debug(`[CONTROLLER] No action, sending as input: ${cleanedResponse.slice(0, 100)}...`);
+    process.emit('workflow:input', { prompt: cleanedResponse });
   }
 }

@@ -23,10 +23,11 @@ import { MonitoringCleanup } from "../../agents/monitoring/index.js"
 import path from "path"
 import { createRequire } from "node:module"
 import { resolvePackageJson } from "../../shared/runtime/root.js"
-import { getSelectedTrack, setSelectedTrack, hasSelectedConditions, setSelectedConditions, getProjectName, setProjectName } from "../../shared/workflows/index.js"
+import { getSelectedTrack, setSelectedTrack, hasSelectedConditions, setSelectedConditions, getProjectName, setProjectName, getControllerAgents, initControllerAgent } from "../../shared/workflows/index.js"
 import { loadTemplate } from "../../workflows/templates/loader.js"
 import { getTemplatePathFromTracking } from "../../shared/workflows/template.js"
 import type { TrackConfig, ConditionConfig } from "../../workflows/templates/types"
+import type { AgentDefinition } from "../../shared/agents/config/types"
 import type { InitialToast } from "./app"
 
 // Module-level view state for post-processing effects
@@ -127,6 +128,7 @@ export function App(props: { initialToast?: InitialToast }) {
   const [templateTracks, setTemplateTracks] = createSignal<Record<string, TrackConfig> | null>(null)
   const [templateConditions, setTemplateConditions] = createSignal<Record<string, ConditionConfig> | null>(null)
   const [initialProjectName, setInitialProjectName] = createSignal<string | null>(null)
+  const [controllerAgents, setControllerAgents] = createSignal<AgentDefinition[] | null>(null)
 
   let pendingWorkflowStart: (() => void) | null = null
 
@@ -155,10 +157,18 @@ export function App(props: { initialToast?: InitialToast }) {
       const needsConditionsSelection = hasConditions && !conditionsSelected
       const needsProjectName = !existingProjectName
 
-      // If project name, tracks or conditions need selection, show onboard view
-      if (needsProjectName || needsTrackSelection || needsConditionsSelection) {
+      // Check if workflow requires controller selection
+      let controllers: AgentDefinition[] = []
+      if (template.controller === true) {
+        controllers = await getControllerAgents(cwd)
+      }
+      const needsControllerSelection = controllers.length > 0
+
+      // If project name, tracks, conditions, or controller need selection, show onboard view
+      if (needsProjectName || needsTrackSelection || needsConditionsSelection || needsControllerSelection) {
         if (hasTracks) setTemplateTracks(template.tracks!)
         if (hasConditions) setTemplateConditions(template.conditions!)
+        if (needsControllerSelection) setControllerAgents(controllers)
         setInitialProjectName(existingProjectName) // Pass existing name if any (to skip that step)
         currentView = "onboard"
         setView("onboard")
@@ -196,7 +206,7 @@ export function App(props: { initialToast?: InitialToast }) {
     setView("workflow")
   }
 
-  const handleOnboardComplete = async (result: { projectName?: string; trackId?: string; conditions?: string[] }) => {
+  const handleOnboardComplete = async (result: { projectName?: string; trackId?: string; conditions?: string[]; controllerAgentId?: string }) => {
     const cwd = process.env.CODEMACHINE_CWD || process.cwd()
     const cmRoot = path.join(cwd, '.codemachine')
 
@@ -213,6 +223,21 @@ export function App(props: { initialToast?: InitialToast }) {
     // Always save selected conditions (even if empty array)
     if (result.conditions !== undefined) {
       await setSelectedConditions(cmRoot, result.conditions)
+    }
+
+    // Initialize controller agent if selected
+    if (result.controllerAgentId) {
+      const agent = controllerAgents()?.find(a => a.id === result.controllerAgentId)
+      if (agent) {
+        // Get prompt path from agent config (or use default)
+        const promptPath = (agent.promptPath as string) || `prompts/agents/${result.controllerAgentId}/system.md`
+        try {
+          await initControllerAgent(result.controllerAgentId, promptPath, cwd, cmRoot)
+        } catch (error) {
+          console.error("Failed to initialize controller agent:", error)
+          // Continue anyway - workflow will run without autonomous mode
+        }
+      }
     }
 
     // Start workflow
@@ -316,6 +341,7 @@ export function App(props: { initialToast?: InitialToast }) {
             <Onboard
               tracks={templateTracks() ?? undefined}
               conditions={templateConditions() ?? undefined}
+              controllerAgents={controllerAgents() ?? undefined}
               initialProjectName={initialProjectName()}
               onComplete={handleOnboardComplete}
               onCancel={handleOnboardCancel}

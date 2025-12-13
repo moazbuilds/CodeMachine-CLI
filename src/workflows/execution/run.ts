@@ -15,8 +15,6 @@ import {
   getSelectedTrack,
   getSelectedConditions,
   getStepData,
-  loadControllerConfig,
-  setAutonomousMode,
 } from '../../shared/workflows/index.js';
 import { registry } from '../../infra/engines/index.js';
 import { shouldSkipStep, logSkipDebug, type ActiveLoop } from '../behaviors/skip.js';
@@ -24,10 +22,11 @@ import { MonitoringCleanup } from '../../agents/monitoring/index.js';
 import { WorkflowEventBus, WorkflowEventEmitter } from '../events/index.js';
 
 import { selectEngine } from './auth.js';
-import { createInputState, handleInputLoop, type InputState } from './input.js';
+import { createInputState, handleInputLoop, handleControllerLoop, type InputState } from './input.js';
 import { execWithResume } from './resume.js';
 import { handlePostExec } from './post.js';
 import { handleStepError } from './errors.js';
+import { loadControllerConfig } from '../../shared/workflows/index.js';
 
 export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<void> {
   const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd();
@@ -90,11 +89,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
   // Load selected conditions for condition-based filtering
   const selectedConditions = await getSelectedConditions(cmRoot);
-
-  // Load controller configuration (autonomous mode)
-  const controllerState = await loadControllerConfig(cmRoot);
-  const controllerConfig = controllerState.controllerConfig ?? null;
-  let controllerEnabled = template.controller === true && controllerState.autonomousMode === true && !!controllerConfig;
 
   // Load chain resume info (for resuming mid-chain)
   const chainResumeInfo = await getChainResumeInfo(cmRoot);
@@ -243,13 +237,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
   process.on('workflow:pause', pauseListener);
   process.on('workflow:input', inputListener);
-  const autonomyListener = () => {
-    controllerEnabled = false;
-    setAutonomousMode(cmRoot, false).catch(() => {
-      // best-effort persistence; keep running even if it fails
-    });
-  };
-  process.on('workflow:autonomy:disable', autonomyListener);
 
   try {
     debug(`[DEBUG workflow] Entering step loop. startIndex=${startIndex}, totalSteps=${template.steps.length}, workflowShouldStop=${workflowShouldStop}`);
@@ -407,28 +394,40 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
       debug(`[DEBUG workflow] Checking for chained prompts...`);
 
-      // Handle chained prompts and input loop
-      await handleInputLoop({
-        inputState,
-        stepOutput,
-        step,
-        cwd,
-        cmRoot,
-        index,
-        emitter,
-        uniqueAgentId,
-        abortController,
-        isResumingFromChain: !!isResumingFromChain,
-        chainResumeInfo: isResumingFromChain ? chainResumeInfo : null,
-        isResumingFromSavedSessionWithChains,
-        stepResumePrompt,
-        stepResumeMonitoringId,
-        controller: controllerEnabled && controllerConfig ? {
-          isEnabled: () => controllerEnabled,
-          agentId: controllerConfig.agentId,
-          sessionId: controllerConfig.sessionId,
-        } : undefined,
-      });
+      // Check if autonomous mode is enabled
+      const controllerState = await loadControllerConfig(cmRoot);
+      const isAutonomousMode = controllerState?.autonomousMode === true && controllerState.controllerConfig !== null;
+
+      if (isAutonomousMode && controllerState.controllerConfig) {
+        // Autonomous mode: controller provides input instead of user
+        debug(`[DEBUG workflow] Autonomous mode enabled, using controller loop`);
+        await handleControllerLoop({
+          stepOutput,
+          controllerConfig: controllerState.controllerConfig,
+          cwd,
+          cmRoot,
+          emitter,
+          uniqueAgentId,
+        });
+      } else {
+        // Manual mode: wait for user input
+        await handleInputLoop({
+          inputState,
+          stepOutput,
+          step,
+          cwd,
+          cmRoot,
+          index,
+          emitter,
+          uniqueAgentId,
+          abortController,
+          isResumingFromChain: !!isResumingFromChain,
+          chainResumeInfo: isResumingFromChain ? chainResumeInfo : null,
+          isResumingFromSavedSessionWithChains,
+          stepResumePrompt,
+          stepResumeMonitoringId,
+        });
+      }
 
       // Handle post-execution behaviors
       const postResult = await handlePostExec({
@@ -563,6 +562,5 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     process.removeListener('workflow:stop', stopListener);
     process.removeListener('workflow:pause', pauseListener);
     process.removeListener('workflow:input', inputListener);
-    process.removeListener('workflow:autonomy:disable', autonomyListener);
   }
 }

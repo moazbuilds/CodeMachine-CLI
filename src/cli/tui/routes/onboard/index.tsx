@@ -9,16 +9,18 @@ import { createSignal, For, onMount, Show, createEffect } from "solid-js"
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
 import type { TrackConfig, ConditionConfig } from "../../../../workflows/templates/types"
+import type { AgentDefinition } from "../../../../shared/agents/config/types"
 
 export interface OnboardProps {
   tracks?: Record<string, TrackConfig>
   conditions?: Record<string, ConditionConfig>
+  controllerAgents?: AgentDefinition[] // Available controller agents
   initialProjectName?: string | null // If set, skip project name input
-  onComplete: (result: { projectName?: string; trackId?: string; conditions?: string[] }) => void
+  onComplete: (result: { projectName?: string; trackId?: string; conditions?: string[]; controllerAgentId?: string }) => void
   onCancel?: () => void
 }
 
-type OnboardStep = 'project_name' | 'tracks' | 'conditions'
+type OnboardStep = 'project_name' | 'tracks' | 'conditions' | 'controller'
 
 export function Onboard(props: OnboardProps) {
   const themeCtx = useTheme()
@@ -32,9 +34,11 @@ export function Onboard(props: OnboardProps) {
   const [projectName, setProjectName] = createSignal("")
   const [selectedTrackId, setSelectedTrackId] = createSignal<string | undefined>()
   const [selectedConditions, setSelectedConditions] = createSignal<Set<string>>(new Set())
+  const [selectedControllerId, setSelectedControllerId] = createSignal<string | undefined>()
 
   const hasTracks = () => props.tracks && Object.keys(props.tracks).length > 0
   const hasConditions = () => props.conditions && Object.keys(props.conditions).length > 0
+  const hasControllers = () => props.controllerAgents && props.controllerAgents.length > 0
 
   // Determine initial step - skip project_name if already set
   onMount(() => {
@@ -44,6 +48,8 @@ export function Onboard(props: OnboardProps) {
         setCurrentStep('tracks')
       } else if (hasConditions()) {
         setCurrentStep('conditions')
+      } else if (hasControllers()) {
+        setCurrentStep('controller')
       } else {
         props.onComplete({ projectName: props.initialProjectName })
       }
@@ -53,18 +59,28 @@ export function Onboard(props: OnboardProps) {
   const projectNameQuestion = "What is your project name?"
   const trackQuestion = "What is your project size?"
   const conditionsQuestion = "What features does your project have?"
+  const controllerQuestion = "Select a controller agent for autonomous mode:"
 
   const trackEntries = () => props.tracks ? Object.entries(props.tracks) : []
   const conditionEntries = () => props.conditions ? Object.entries(props.conditions) : []
+  const controllerEntries = () => props.controllerAgents ? props.controllerAgents.map(a => [a.id, a] as const) : []
 
   const currentQuestion = () => {
     switch (currentStep()) {
       case 'project_name': return projectNameQuestion
       case 'tracks': return trackQuestion
       case 'conditions': return conditionsQuestion
+      case 'controller': return controllerQuestion
     }
   }
-  const currentEntries = () => currentStep() === 'tracks' ? trackEntries() : conditionEntries()
+  const currentEntries = () => {
+    switch (currentStep()) {
+      case 'tracks': return trackEntries()
+      case 'conditions': return conditionEntries()
+      case 'controller': return controllerEntries()
+      default: return []
+    }
+  }
 
   // Typing effect - reset when step changes
   createEffect(() => {
@@ -96,6 +112,8 @@ export function Onboard(props: OnboardProps) {
       setCurrentStep('tracks')
     } else if (hasConditions()) {
       setCurrentStep('conditions')
+    } else if (hasControllers()) {
+      setCurrentStep('controller')
     } else {
       props.onComplete({ projectName: name })
     }
@@ -105,16 +123,32 @@ export function Onboard(props: OnboardProps) {
     setSelectedTrackId(trackId)
     if (hasConditions()) {
       setCurrentStep('conditions')
+    } else if (hasControllers()) {
+      setCurrentStep('controller')
     } else {
       props.onComplete({ projectName: projectName(), trackId })
     }
   }
 
   const handleConditionsComplete = () => {
+    if (hasControllers()) {
+      setCurrentStep('controller')
+    } else {
+      props.onComplete({
+        projectName: projectName(),
+        trackId: selectedTrackId(),
+        conditions: Array.from(selectedConditions())
+      })
+    }
+  }
+
+  const handleControllerSelect = (controllerId: string) => {
+    setSelectedControllerId(controllerId)
     props.onComplete({
       projectName: projectName(),
       trackId: selectedTrackId(),
-      conditions: Array.from(selectedConditions())
+      conditions: Array.from(selectedConditions()),
+      controllerAgentId: controllerId
     })
   }
 
@@ -164,11 +198,14 @@ export function Onboard(props: OnboardProps) {
       evt.preventDefault()
       if (step === 'tracks') {
         const [trackId] = entries[selectedIndex()]
-        handleTrackSelect(trackId)
+        handleTrackSelect(trackId as string)
+      } else if (step === 'controller') {
+        const [controllerId] = entries[selectedIndex()]
+        handleControllerSelect(controllerId as string)
       } else {
         // In conditions step, Enter toggles the checkbox
         const [conditionId] = entries[selectedIndex()]
-        toggleCondition(conditionId)
+        toggleCondition(conditionId as string)
       }
     } else if (evt.name === "tab" && step === 'conditions') {
       evt.preventDefault()
@@ -182,10 +219,13 @@ export function Onboard(props: OnboardProps) {
         evt.preventDefault()
         if (step === 'tracks') {
           const [trackId] = entries[num - 1]
-          handleTrackSelect(trackId)
+          handleTrackSelect(trackId as string)
+        } else if (step === 'controller') {
+          const [controllerId] = entries[num - 1]
+          handleControllerSelect(controllerId as string)
         } else {
           const [conditionId] = entries[num - 1]
-          toggleCondition(conditionId)
+          toggleCondition(conditionId as string)
         }
       }
     }
@@ -309,6 +349,29 @@ export function Onboard(props: OnboardProps) {
               }}
             </For>
           </Show>
+
+          <Show when={currentStep() === 'controller'}>
+            <For each={controllerEntries()}>
+              {([controllerId, agent], index) => {
+                const isSelected = () => index() === selectedIndex()
+                return (
+                  <box flexDirection="column">
+                    <box flexDirection="row" gap={1}>
+                      <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.textMuted}>
+                        {isSelected() ? ">" : " "}
+                      </text>
+                      <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.textMuted}>
+                        {isSelected() ? "(*)" : "( )"}
+                      </text>
+                      <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.text}>
+                        {controllerId}
+                      </text>
+                    </box>
+                  </box>
+                )
+              }}
+            </For>
+          </Show>
         </box>
 
         {/* Footer */}
@@ -326,6 +389,11 @@ export function Onboard(props: OnboardProps) {
           <Show when={currentStep() === 'conditions'}>
             <text fg={themeCtx.theme.textMuted}>
               [Up/Down] Navigate  [Enter] Toggle  [Tab] Confirm  [Esc] Cancel
+            </text>
+          </Show>
+          <Show when={currentStep() === 'controller'}>
+            <text fg={themeCtx.theme.textMuted}>
+              [Up/Down] Navigate  [Enter] Select  [Esc] Cancel
             </text>
           </Show>
         </box>
