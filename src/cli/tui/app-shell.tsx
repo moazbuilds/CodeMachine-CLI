@@ -196,8 +196,8 @@ export function App(props: { initialToast?: InitialToast }) {
     const specPath = path.join(cwd, '.codemachine', 'inputs', 'specifications.md')
 
     pendingWorkflowStart = () => {
-      import("../../workflows/execution/queue.js").then(({ runWorkflowQueue }) => {
-        runWorkflowQueue({ cwd, specificationPath: specPath }).catch((error) => {
+      import("../../workflows/execution/run.js").then(({ runWorkflow }) => {
+        runWorkflow({ cwd, specificationPath: specPath }).catch((error) => {
           // Emit error event to show toast with actual error message
           const errorMsg = error instanceof Error ? error.message : String(error)
           ;(process as NodeJS.EventEmitter).emit('app:error', { message: errorMsg })
