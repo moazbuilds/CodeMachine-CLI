@@ -12,6 +12,10 @@ import {
   parseControllerAction,
   extractInputText,
 } from '../../shared/workflows/controller.js';
+import {
+  formatControllerHeader,
+  formatControllerFooter,
+} from '../../shared/formatters/outputMarkers.js';
 import type { ControllerConfig } from '../../shared/workflows/template.js';
 import type {
   InputProvider,
@@ -87,6 +91,11 @@ export class ControllerInputProvider implements InputProvider {
       // Build prompt for controller
       const prompt = context.stepOutput.output || 'Continue from where you left off.';
 
+      // Write controller header
+      if (context.stepOutput.monitoringId !== undefined) {
+        loggerService.write(context.stepOutput.monitoringId, '\n' + formatControllerHeader('PO Agent') + '\n');
+      }
+
       // Execute controller agent (resume existing session)
       const result = await executeAgent(config.agentId, prompt, {
         workingDir: this.cwd,
@@ -94,7 +103,7 @@ export class ControllerInputProvider implements InputProvider {
         resumePrompt: prompt,
         abortSignal: this.abortController.signal,
         logger: (chunk) => {
-          // Log controller output to step's log
+          // Log controller output to step's log (preserve original formatting)
           if (context.stepOutput.monitoringId !== undefined) {
             loggerService.write(context.stepOutput.monitoringId, chunk);
           }
@@ -105,6 +114,11 @@ export class ControllerInputProvider implements InputProvider {
           }
         },
       });
+
+      // Write controller footer
+      if (context.stepOutput.monitoringId !== undefined) {
+        loggerService.write(context.stepOutput.monitoringId, '\n' + formatControllerFooter() + '\n');
+      }
 
       if (this.aborted) {
         debug('[Controller] Aborted during execution');

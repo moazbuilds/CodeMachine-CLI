@@ -420,6 +420,28 @@ export function formatUserInput(text: string): string {
 }
 
 /**
+ * Format controller agent output header (distinct visual style)
+ */
+export function formatControllerHeader(agentName?: string): string {
+  const name = agentName ?? 'Controller'
+  return addMarker('BLUE', `┌── ${name} ${'─'.repeat(30)}`, 'BOLD')
+}
+
+/**
+ * Format controller agent output footer
+ */
+export function formatControllerFooter(): string {
+  return addMarker('BLUE', `└${'─'.repeat(40)}`, 'BOLD')
+}
+
+/**
+ * Format controller agent output line (uses BLUE for distinct styling)
+ */
+export function formatControllerOutput(text: string): string {
+  return addMarker('BLUE', text)
+}
+
+/**
  * Format AI response header
  */
 export function formatAIResponse(agentName?: string): string {

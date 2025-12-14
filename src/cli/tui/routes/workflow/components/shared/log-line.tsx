@@ -148,6 +148,9 @@ export function LogLine(props: LogLineProps) {
   // Check if this is a user input line (magenta) - show with background
   const isUserInput = () => parsed().color === "magenta"
 
+  // Check if this is controller output (blue) - show with distinct background
+  const isControllerOutput = () => parsed().color === "blue"
+
   // Compute text attributes bitmask (add bold for star prefix)
   const textAttrs = createMemo(() => {
     let attrs = getTextAttributes(parsed())
@@ -189,7 +192,7 @@ export function LogLine(props: LogLineProps) {
             </Show>
             <text
               fg={lineColor()}
-              bg={isUserInput() ? themeCtx.theme.backgroundElement : undefined}
+              bg={isUserInput() ? themeCtx.theme.backgroundElement : isControllerOutput() ? '#1a365d' : undefined}
               attributes={textAttrs()}
             >
               {line}
