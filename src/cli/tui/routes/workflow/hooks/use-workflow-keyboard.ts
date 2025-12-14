@@ -6,6 +6,7 @@
  */
 
 import { useKeyboard } from "@opentui/solid"
+import { debug } from "../../../../../shared/logging/logger.js"
 import type { WorkflowState } from "../context/ui-state"
 
 export interface UseWorkflowKeyboardOptions {
@@ -50,8 +51,8 @@ export interface UseWorkflowKeyboardOptions {
   exitPromptBoxFocus?: () => void
   /** Check if autonomous mode is enabled */
   isAutonomousMode?: () => boolean
-  /** Disable autonomous mode */
-  disableAutonomousMode?: () => void
+  /** Toggle autonomous mode on/off */
+  toggleAutonomousMode?: () => void
 }
 
 /**
@@ -59,14 +60,17 @@ export interface UseWorkflowKeyboardOptions {
  */
 export function useWorkflowKeyboard(options: UseWorkflowKeyboardOptions) {
   useKeyboard((evt) => {
+    // Log all keyboard events to debug file
+    debug('Key event: %s', JSON.stringify({ name: evt.name, shift: evt.shift, ctrl: evt.ctrl, meta: evt.meta }))
+
     // === GLOBAL SHORTCUTS (always work) ===
 
-    // Shift+Tab - disable autonomous mode
+    // Shift+Tab - toggle autonomous mode
     if (evt.shift && evt.name === "tab") {
       evt.preventDefault()
-      if (options.isAutonomousMode?.()) {
-        options.disableAutonomousMode?.()
-      }
+      debug('Shift+Tab pressed - toggling autonomous mode')
+      debug('Current isAutonomousMode: %s', options.isAutonomousMode?.())
+      options.toggleAutonomousMode?.()
       return
     }
 

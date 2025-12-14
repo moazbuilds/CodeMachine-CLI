@@ -4,7 +4,6 @@ import {
   markStepCompleted,
   updateStepSession,
   markChainCompleted,
-  loadControllerConfig,
   parseControllerAction,
   extractInputText,
   type ControllerConfig,
@@ -66,10 +65,13 @@ interface HandleInputLoopOptions {
   stepResumeMonitoringId: number | undefined;
 }
 
+export type InputLoopResult = 'completed' | 'switch-to-autonomous';
+
 /**
  * Handle chained prompts and user input loop
+ * Returns 'switch-to-autonomous' if mode changed mid-loop
  */
-export async function handleInputLoop(options: HandleInputLoopOptions): Promise<void> {
+export async function handleInputLoop(options: HandleInputLoopOptions): Promise<InputLoopResult> {
   const {
     inputState,
     stepOutput,
@@ -92,8 +94,10 @@ export async function handleInputLoop(options: HandleInputLoopOptions): Promise<
   debug(`[DEBUG workflow] hasChainedPrompts=${hasChainedPrompts}, shouldEnterInputLoop=${shouldEnterInputLoop}`);
 
   if (!shouldEnterInputLoop) {
-    return;
+    debug(`[INPUT] Not entering input loop - no chained prompts or resume state`);
+    return 'completed';
   }
+  debug(`[INPUT] Entering input loop`);
 
   // Initialize input state
   inputState.active = true;
@@ -117,7 +121,7 @@ export async function handleInputLoop(options: HandleInputLoopOptions): Promise<
     inputState.queuedPrompts = [];
     inputState.currentIndex = 0;
     inputState.monitoringId = undefined;
-    return;
+    return 'completed';
   }
 
   if (isResumingFromChain && chainResumeInfo) {
@@ -136,116 +140,157 @@ export async function handleInputLoop(options: HandleInputLoopOptions): Promise<
   });
 
   let currentStepOutput = stepOutput;
+  let switchToAutonomous = false;
 
-  while (inputState.active) {
-    // Wait for user input via workflow:input event
-    await new Promise<void>((resolve) => {
-      inputState.resolver = resolve;
-    });
-
-    // Handle skip
-    if (inputState.pendingSkip) {
-      emitter.logMessage(uniqueAgentId, `Skipping remaining prompts.`);
-      inputState.active = false;
-      inputState.pendingSkip = false;
-      break;
-    }
-
-    // Determine prompt to use
-    let promptToUse = inputState.pendingPrompt;
-
-    if (!promptToUse && inputState.queuedPrompts.length > 0) {
-      // Empty input = use next queued prompt
-      if (inputState.currentIndex < inputState.queuedPrompts.length) {
-        const nextPrompt = inputState.queuedPrompts[inputState.currentIndex];
-        promptToUse = nextPrompt.content;
-        emitter.logMessage(uniqueAgentId, `Feeding chained prompt: "${nextPrompt.label}"`);
-        inputState.currentIndex += 1;
+  // Mode change listener - triggers when autonomousMode is toggled
+  const modeChangeListener = (data: { autonomousMode: boolean }) => {
+    debug(`[INPUT] Received workflow:mode-change event: autonomousMode=%s`, data.autonomousMode);
+    debug(`[INPUT] inputState.active=%s, inputState.resolver=%s`, inputState.active, !!inputState.resolver);
+    if (data.autonomousMode) {
+      debug(`[INPUT] Mode changed to autonomous, setting switchToAutonomous=true`);
+      switchToAutonomous = true;
+      // Resolve the pending input wait to break the loop
+      if (inputState.resolver) {
+        debug(`[INPUT] Resolving input wait promise`);
+        inputState.resolver();
+        inputState.resolver = null;
       } else {
-        // No more queued prompts - continue to next agent
-        emitter.logMessage(uniqueAgentId, `All chained prompts completed. Continuing to next agent.`);
+        debug(`[INPUT] No resolver to resolve - input loop may not be waiting`);
+      }
+    } else {
+      debug(`[INPUT] Mode changed to manual - no action needed in input loop`);
+    }
+  };
+  debug(`[INPUT] Registering workflow:mode-change listener`);
+  process.on('workflow:mode-change', modeChangeListener);
+
+  try {
+    while (inputState.active) {
+      debug(`[INPUT] Waiting for user input or mode change...`);
+      // Wait for user input via workflow:input event (or mode change)
+      await new Promise<void>((resolve) => {
+        inputState.resolver = resolve;
+      });
+      debug(`[INPUT] Promise resolved, switchToAutonomous=%s`, switchToAutonomous);
+
+      // Check if we should switch to autonomous mode
+      if (switchToAutonomous) {
+        debug(`[INPUT] Breaking out of input loop to switch to autonomous mode`);
+        break;
+      }
+
+      // Handle skip
+      if (inputState.pendingSkip) {
+        emitter.logMessage(uniqueAgentId, `Skipping remaining prompts.`);
+        inputState.active = false;
+        inputState.pendingSkip = false;
+        break;
+      }
+
+      // Determine prompt to use
+      let promptToUse = inputState.pendingPrompt;
+
+      if (!promptToUse && inputState.queuedPrompts.length > 0) {
+        // Empty input = use next queued prompt
+        if (inputState.currentIndex < inputState.queuedPrompts.length) {
+          const nextPrompt = inputState.queuedPrompts[inputState.currentIndex];
+          promptToUse = nextPrompt.content;
+          emitter.logMessage(uniqueAgentId, `Feeding chained prompt: "${nextPrompt.label}"`);
+          inputState.currentIndex += 1;
+        } else {
+          // No more queued prompts - continue to next agent
+          emitter.logMessage(uniqueAgentId, `All chained prompts completed. Continuing to next agent.`);
+          inputState.active = false;
+          break;
+        }
+      }
+
+      if (!promptToUse) {
+        // Empty input with no queue = continue to next agent
+        emitter.setWorkflowStatus('running');
         inputState.active = false;
         break;
       }
-    }
 
-    if (!promptToUse) {
-      // Empty input with no queue = continue to next agent
-      emitter.setWorkflowStatus('running');
-      inputState.active = false;
-      break;
-    }
+      // User sent a prompt - log it and resume
+      if (inputState.pendingPrompt) {
+        // Only log user input for custom prompts (not queued ones)
+        const userInputLog = formatUserInput(promptToUse);
+        emitter.logMessage(uniqueAgentId, userInputLog);
 
-    // User sent a prompt - log it and resume
-    if (inputState.pendingPrompt) {
-      // Only log user input for custom prompts (not queued ones)
-      const userInputLog = formatUserInput(promptToUse);
-      emitter.logMessage(uniqueAgentId, userInputLog);
-
-      // Write to agent log file
-      if (inputState.monitoringId !== undefined) {
-        const loggerService = AgentLoggerService.getInstance();
-        loggerService.write(inputState.monitoringId, `\n${userInputLog}\n`);
+        // Write to agent log file
+        if (inputState.monitoringId !== undefined) {
+          const loggerService = AgentLoggerService.getInstance();
+          loggerService.write(inputState.monitoringId, `\n${userInputLog}\n`);
+        }
       }
+
+      // Clear pending prompt
+      inputState.pendingPrompt = undefined;
+
+      // Set status back to running
+      emitter.updateAgentStatus(uniqueAgentId, 'running');
+      emitter.setWorkflowStatus('running');
+
+      // Resume with the prompt
+      currentStepOutput = await executeStep(step, cwd, {
+        logger: () => {},
+        stderrLogger: () => {},
+        emitter,
+        abortSignal: abortController.signal,
+        uniqueAgentId,
+        resumeMonitoringId: inputState.monitoringId,
+        resumePrompt: promptToUse,
+      });
+
+      // Update monitoring ID for next iteration
+      inputState.monitoringId = currentStepOutput.monitoringId;
+
+      // Update session data if changed
+      if (inputState.monitoringId !== undefined) {
+        const monitor = AgentMonitorService.getInstance();
+        const agent = monitor.getAgent(inputState.monitoringId);
+        const sessionId = agent?.sessionId ?? '';
+        await updateStepSession(cmRoot, index, sessionId, inputState.monitoringId);
+      }
+
+      // Mark the chain we just completed (currentIndex was incremented before execution)
+      const completedChainIndex = inputState.currentIndex - 1;
+      if (completedChainIndex >= 0) {
+        await markChainCompleted(cmRoot, index, completedChainIndex);
+      }
+
+      // Update UI with new state
+      emitter.setInputState({
+        active: true,
+        queuedPrompts: inputState.queuedPrompts.map(p => ({ name: p.name, label: p.label, content: p.content })),
+        currentIndex: inputState.currentIndex,
+        monitoringId: inputState.monitoringId,
+      });
     }
 
-    // Clear pending prompt
+    // Clear input state
+    inputState.active = false;
+    inputState.queuedPrompts = [];
+    inputState.currentIndex = 0;
+    inputState.monitoringId = undefined;
     inputState.pendingPrompt = undefined;
+    inputState.pendingSkip = false;
+    emitter.setInputState(null);
 
-    // Set status back to running
-    emitter.updateAgentStatus(uniqueAgentId, 'running');
-    emitter.setWorkflowStatus('running');
-
-    // Resume with the prompt
-    currentStepOutput = await executeStep(step, cwd, {
-      logger: () => {},
-      stderrLogger: () => {},
-      emitter,
-      abortSignal: abortController.signal,
-      uniqueAgentId,
-      resumeMonitoringId: inputState.monitoringId,
-      resumePrompt: promptToUse,
-    });
-
-    // Update monitoring ID for next iteration
-    inputState.monitoringId = currentStepOutput.monitoringId;
-
-    // Update session data if changed
-    if (inputState.monitoringId !== undefined) {
-      const monitor = AgentMonitorService.getInstance();
-      const agent = monitor.getAgent(inputState.monitoringId);
-      const sessionId = agent?.sessionId ?? '';
-      await updateStepSession(cmRoot, index, sessionId, inputState.monitoringId);
+    // Mark step as completed after all chained prompts are done
+    // This ensures steps with chained prompts are marked complete even without executeOnce
+    if (hasChainedPrompts && !switchToAutonomous) {
+      await markStepCompleted(cmRoot, index);
     }
 
-    // Mark the chain we just completed (currentIndex was incremented before execution)
-    const completedChainIndex = inputState.currentIndex - 1;
-    if (completedChainIndex >= 0) {
-      await markChainCompleted(cmRoot, index, completedChainIndex);
-    }
-
-    // Update UI with new state
-    emitter.setInputState({
-      active: true,
-      queuedPrompts: inputState.queuedPrompts.map(p => ({ name: p.name, label: p.label, content: p.content })),
-      currentIndex: inputState.currentIndex,
-      monitoringId: inputState.monitoringId,
-    });
-  }
-
-  // Clear input state
-  inputState.active = false;
-  inputState.queuedPrompts = [];
-  inputState.currentIndex = 0;
-  inputState.monitoringId = undefined;
-  inputState.pendingPrompt = undefined;
-  inputState.pendingSkip = false;
-  emitter.setInputState(null);
-
-  // Mark step as completed after all chained prompts are done
-  // This ensures steps with chained prompts are marked complete even without executeOnce
-  if (hasChainedPrompts) {
-    await markStepCompleted(cmRoot, index);
+    const result = switchToAutonomous ? 'switch-to-autonomous' : 'completed';
+    debug(`[INPUT] handleInputLoop returning: %s`, result);
+    return result;
+  } finally {
+    // Always clean up mode change listener
+    debug(`[INPUT] Cleaning up workflow:mode-change listener`);
+    process.removeListener('workflow:mode-change', modeChangeListener);
   }
 }
 
@@ -263,18 +308,33 @@ interface HandleControllerLoopOptions {
   abortController: AbortController;
 }
 
+export type ControllerLoopResult = 'next' | 'skip' | 'stop' | 'switch-to-manual';
+
 /**
  * Handle autonomous mode controller loop
  * Controller receives step output, responds with text or actions
- * Loops until controller says ACTION: NEXT/SKIP/STOP
+ * Loops until controller says ACTION: NEXT/SKIP/STOP or mode switches to manual
  */
-export async function handleControllerLoop(options: HandleControllerLoopOptions): Promise<'next' | 'skip' | 'stop'> {
+export async function handleControllerLoop(options: HandleControllerLoopOptions): Promise<ControllerLoopResult> {
   const { controllerConfig, step, cwd, emitter, uniqueAgentId, abortController } = options;
 
   const loggerService = AgentLoggerService.getInstance();
   let currentStepOutput = options.stepOutput;
   let loopActive = true;
+  let switchToManual = false;
 
+  // Mode change listener - flag to switch to manual after current execution completes
+  const modeChangeListener = (data: { autonomousMode: boolean }) => {
+    if (!data.autonomousMode) {
+      debug(`[CONTROLLER] Mode change to manual requested, will switch after current execution`);
+      switchToManual = true;
+      loopActive = false;
+      // Don't abort - let current execution complete, then switch
+    }
+  };
+  process.on('workflow:mode-change', modeChangeListener);
+
+  try {
   while (loopActive) {
     debug(`[CONTROLLER] Sending step output to controller agent: ${controllerConfig.agentId}`);
     debug(`[CONTROLLER] Controller sessionId: ${controllerConfig.sessionId}`);
@@ -338,5 +398,9 @@ export async function handleControllerLoop(options: HandleControllerLoopOptions)
     // Continue loop - will send new output to controller
   }
 
-  return 'next';
+  debug(`[CONTROLLER] Loop ended, switchToManual=%s`, switchToManual);
+  return switchToManual ? 'switch-to-manual' : 'next';
+  } finally {
+    process.removeListener('workflow:mode-change', modeChangeListener);
+  }
 }

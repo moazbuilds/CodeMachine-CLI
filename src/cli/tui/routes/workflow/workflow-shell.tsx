@@ -23,7 +23,12 @@ import { useWorkflowKeyboard } from "./hooks/use-workflow-keyboard"
 import { calculateVisibleItems } from "./constants"
 import type { WorkflowEventBus } from "../../../../workflows/events/index.js"
 import { setAutonomousMode as persistAutonomousMode, loadControllerConfig } from "../../../../shared/workflows/index.js"
+import { debug } from "../../../../shared/logging/logger.js"
 import path from "path"
+
+/** Expand ~ to home directory if present */
+const resolvePath = (dir: string): string =>
+  dir.startsWith('~') ? dir.replace('~', process.env.HOME || '') : dir
 
 export interface WorkflowShellProps {
   version: string
@@ -105,16 +110,28 @@ export function WorkflowShell(props: WorkflowShellProps) {
     setErrorMessage(null)
   }
 
+  // Mode change listener - syncs UI state when autonomousMode changes
+  const handleModeChange = (data: { autonomousMode: boolean }) => {
+    debug('[MODE-CHANGE] Received event: autonomousMode=%s', data.autonomousMode)
+    ui.actions.setAutonomousMode(data.autonomousMode)
+  }
+
   onMount(async () => {
     ;(process as NodeJS.EventEmitter).on('workflow:error', handleWorkflowError)
     ;(process as NodeJS.EventEmitter).on('workflow:stopping', handleStopping)
     ;(process as NodeJS.EventEmitter).on('workflow:user-stop', handleUserStop)
+    ;(process as NodeJS.EventEmitter).on('workflow:mode-change', handleModeChange)
 
     // Load initial autonomous mode state
-    const cmRoot = path.join(props.currentDir, '.codemachine')
+    const cmRoot = path.join(resolvePath(props.currentDir), '.codemachine')
+    debug('onMount - loading controller config from: %s', cmRoot)
     const controllerState = await loadControllerConfig(cmRoot)
+    debug('onMount - controllerState: %s', JSON.stringify(controllerState))
     if (controllerState?.autonomousMode) {
+      debug('onMount - setting autonomousMode to true')
       ui.actions.setAutonomousMode(true)
+    } else {
+      debug('onMount - autonomousMode not enabled in config')
     }
 
     if (props.eventBus) {
@@ -129,6 +146,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
     ;(process as NodeJS.EventEmitter).off('workflow:error', handleWorkflowError)
     ;(process as NodeJS.EventEmitter).off('workflow:stopping', handleStopping)
     ;(process as NodeJS.EventEmitter).off('workflow:user-stop', handleUserStop)
+    ;(process as NodeJS.EventEmitter).off('workflow:mode-change', handleModeChange)
     if (adapter) {
       adapter.stop()
       adapter.disconnect()
@@ -284,15 +302,43 @@ export function WorkflowShell(props: WorkflowShellProps) {
     ;(process as NodeJS.EventEmitter).emit("workflow:pause")
   }
 
-  // Disable autonomous mode
-  const disableAutonomousMode = () => {
-    const cwd = props.currentDir
-    const cmRoot = path.join(cwd, '.codemachine')
-    ui.actions.setAutonomousMode(false)
-    persistAutonomousMode(cmRoot, false).catch(() => {
-      // best-effort persistence
-    })
-    toast.show({ variant: "warning", message: "Autonomous mode disabled", duration: 3000 })
+  // Toggle autonomous mode on/off
+  const toggleAutonomousMode = async () => {
+    const cmRoot = path.join(resolvePath(props.currentDir), '.codemachine')
+
+    // Read current state from file (source of truth)
+    const controllerState = await loadControllerConfig(cmRoot)
+    debug('[TOGGLE] controllerState: %s', JSON.stringify(controllerState))
+    const currentMode = controllerState?.autonomousMode ?? false
+    const newMode = !currentMode
+
+    debug('[TOGGLE] Current mode from file: %s, new mode: %s', currentMode, newMode)
+
+    // Check if controller is configured (required for autonomous mode)
+    if (newMode && !controllerState?.controllerConfig) {
+      debug('[TOGGLE] Cannot enable autonomous mode - no controller configured')
+      toast.show({ variant: "error", message: "Cannot enable: No controller configured", duration: 3000 })
+      return
+    }
+
+    // Update UI state
+    ui.actions.setAutonomousMode(newMode)
+
+    // Persist to file (this also emits workflow:mode-change event)
+    try {
+      await persistAutonomousMode(cmRoot, newMode)
+      debug('[TOGGLE] Successfully persisted autonomousMode=%s', newMode)
+      toast.show({
+        variant: newMode ? "success" : "warning",
+        message: newMode ? "Autonomous mode enabled" : "Autonomous mode disabled",
+        duration: 3000
+      })
+    } catch (err) {
+      debug('[TOGGLE] Failed to persist autonomousMode: %s', err)
+      // Revert UI state on error
+      ui.actions.setAutonomousMode(currentMode)
+      toast.show({ variant: "error", message: "Failed to toggle autonomous mode", duration: 3000 })
+    }
   }
 
   const getMonitoringId = (uiAgentId: string): number | undefined => {
@@ -329,7 +375,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
     focusPromptBox: () => setIsPromptBoxFocused(true),
     exitPromptBoxFocus: () => setIsPromptBoxFocused(false),
     isAutonomousMode: () => state().autonomousMode,
-    disableAutonomousMode,
+    toggleAutonomousMode,
   })
 
   return (

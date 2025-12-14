@@ -120,6 +120,7 @@ export async function saveControllerConfig(
 
 /**
  * Set autonomous mode on/off
+ * Emits workflow:mode-change event for real-time reactivity
  */
 export async function setAutonomousMode(cmRoot: string, enabled: boolean): Promise<void> {
   const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
@@ -139,6 +140,12 @@ export async function setAutonomousMode(cmRoot: string, enabled: boolean): Promi
   data.lastUpdated = new Date().toISOString();
 
   await writeFile(trackingPath, JSON.stringify(data, null, 2), 'utf8');
+
+  // Emit mode change event for real-time reactivity
+  const { debug } = await import('../logging/logger.js');
+  debug('[MODE-CHANGE] Emitting workflow:mode-change event with autonomousMode=%s', enabled);
+  (process as NodeJS.EventEmitter).emit('workflow:mode-change', { autonomousMode: enabled });
+  debug('[MODE-CHANGE] Event emitted');
 }
 
 /**
