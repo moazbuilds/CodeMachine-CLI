@@ -34,7 +34,7 @@ export interface InputContext {
  * Result from an input provider
  */
 export type InputResult =
-  | { type: 'input'; value: string; resumeMonitoringId?: number }
+  | { type: 'input'; value: string; resumeMonitoringId?: number; source?: 'user' | 'controller' }
   | { type: 'skip' }
   | { type: 'stop' };
 

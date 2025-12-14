@@ -150,6 +150,14 @@ export class WorkflowRunner {
     // Mode change listener
     const modeChangeHandler = async (data: { autonomousMode: boolean }) => {
       debug('[Runner] Mode change: autoMode=%s', data.autonomousMode);
+      // If in waiting state, let the provider's listener handle it
+      // The provider will return __SWITCH_TO_AUTO__ or __SWITCH_TO_MANUAL__
+      // and handleWaiting() will call setAutoMode()
+      if (this.machine.state === 'waiting') {
+        debug('[Runner] In waiting state, provider will handle mode switch');
+        return;
+      }
+      // In other states (running, idle), set auto mode directly
       await this.setAutoMode(data.autonomousMode);
     };
     process.on('workflow:mode-change', modeChangeHandler);
@@ -402,6 +410,14 @@ export class WorkflowRunner {
       return;
     }
 
+    // Handle special switch-to-auto signal
+    if (result.type === 'input' && result.value === '__SWITCH_TO_AUTO__') {
+      debug('[Runner] Switching to autonomous mode');
+      await this.setAutoMode(true);
+      // Re-run waiting with controller input
+      return;
+    }
+
     // Handle result
     const step = this.moduleSteps[ctx.currentStepIndex];
     const uniqueAgentId = `${step.agentId}-step-${ctx.currentStepIndex}`;
@@ -419,7 +435,7 @@ export class WorkflowRunner {
           this.machine.send({ type: 'INPUT_RECEIVED', input: '' });
         } else {
           // Has input = resume current step with input, then wait again
-          await this.resumeWithInput(result.value, result.resumeMonitoringId);
+          await this.resumeWithInput(result.value, result.resumeMonitoringId, result.source);
         }
         break;
 
@@ -442,12 +458,12 @@ export class WorkflowRunner {
   /**
    * Resume current step with input (for chained prompts or steering)
    */
-  private async resumeWithInput(input: string, monitoringId?: number): Promise<void> {
+  private async resumeWithInput(input: string, monitoringId?: number, source?: 'user' | 'controller'): Promise<void> {
     const ctx = this.machine.context;
     const step = this.moduleSteps[ctx.currentStepIndex];
     const uniqueAgentId = `${step.agentId}-step-${ctx.currentStepIndex}`;
 
-    debug('[Runner] Resuming step with input: %s...', input.slice(0, 50));
+    debug('[Runner] Resuming step with input: %s... (source=%s)', input.slice(0, 50), source ?? 'user');
 
     // Get sessionId from step data for resume
     const stepData = await getStepData(this.cmRoot, ctx.currentStepIndex);
@@ -467,8 +483,8 @@ export class WorkflowRunner {
       }
     }
 
-    // Log custom user input (magenta)
-    if (!isQueuedPrompt) {
+    // Log custom user input (magenta) - skip for controller input (already logged during streaming)
+    if (!isQueuedPrompt && source !== 'controller') {
       const formatted = formatUserInput(input);
       this.emitter.logMessage(uniqueAgentId, formatted);
       if (monitoringId !== undefined) {
@@ -479,6 +495,16 @@ export class WorkflowRunner {
     this.abortController = new AbortController();
     this.emitter.updateAgentStatus(uniqueAgentId, 'running');
     this.emitter.setWorkflowStatus('running');
+
+    // Track if mode switch was requested during execution
+    let modeSwitchRequested: 'manual' | 'auto' | null = null;
+    const modeChangeHandler = (data: { autonomousMode: boolean }) => {
+      debug('[Runner] Mode change during resumeWithInput: autoMode=%s', data.autonomousMode);
+      modeSwitchRequested = data.autonomousMode ? 'auto' : 'manual';
+      // Abort the current step execution
+      this.abortController?.abort();
+    };
+    process.on('workflow:mode-change', modeChangeHandler);
 
     try {
       const output = await executeStep(step, this.cwd, {
@@ -508,11 +534,21 @@ export class WorkflowRunner {
       if (error instanceof Error && error.name === 'AbortError') {
         if (this.pauseRequested) {
           this.machine.send({ type: 'PAUSE' });
+          return;
+        }
+        // Handle mode switch during execution
+        if (modeSwitchRequested) {
+          debug('[Runner] Step aborted due to mode switch to %s', modeSwitchRequested);
+          this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
+          await this.setAutoMode(modeSwitchRequested === 'auto');
+          // Return to let handleWaiting loop with new provider
+          return;
         }
         return;
       }
       this.machine.send({ type: 'STEP_ERROR', error: error as Error });
     } finally {
+      process.removeListener('workflow:mode-change', modeChangeHandler);
       this.abortController = null;
     }
   }

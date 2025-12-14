@@ -46,6 +46,7 @@ export class ControllerInputProvider implements InputProvider {
   private getControllerConfig: () => Promise<ControllerConfig | null>;
   private cwd: string;
   private aborted = false;
+  private abortController: AbortController | null = null;
   private modeChangeListener: ((data: { autonomousMode: boolean }) => void) | null = null;
 
   constructor(options: ControllerInputProviderOptions) {
@@ -67,13 +68,17 @@ export class ControllerInputProvider implements InputProvider {
 
     const loggerService = AgentLoggerService.getInstance();
 
+    // Set up abort controller for this execution
+    this.abortController = new AbortController();
+
     // Listen for mode change (user switches to manual)
     let switchToManual = false;
     this.modeChangeListener = (data) => {
       if (!data.autonomousMode) {
-        debug('[Controller] Mode change to manual requested');
+        debug('[Controller] Mode change to manual requested, aborting execution');
         switchToManual = true;
-        // Note: We don't abort here - let current execution complete
+        // Abort the current execution immediately
+        this.abortController?.abort();
       }
     };
     process.on('workflow:mode-change', this.modeChangeListener);
@@ -87,6 +92,7 @@ export class ControllerInputProvider implements InputProvider {
         workingDir: this.cwd,
         resumeSessionId: config.sessionId,
         resumePrompt: prompt,
+        abortSignal: this.abortController.signal,
         logger: (chunk) => {
           // Log controller output to step's log
           if (context.stepOutput.monitoringId !== undefined) {
@@ -105,7 +111,7 @@ export class ControllerInputProvider implements InputProvider {
         return { type: 'stop' };
       }
 
-      // Check if user switched to manual mode
+      // Check if user switched to manual mode (shouldn't reach here if aborted, but just in case)
       if (switchToManual) {
         debug('[Controller] Switching to manual mode');
         this.emitter.emitCanceled();
@@ -144,9 +150,24 @@ export class ControllerInputProvider implements InputProvider {
         type: 'input',
         value: cleanedResponse,
         resumeMonitoringId: context.stepOutput.monitoringId,
+        source: 'controller',
       };
+    } catch (error) {
+      // Handle abort (mode switch to manual)
+      if (error instanceof Error && error.name === 'AbortError') {
+        if (switchToManual) {
+          debug('[Controller] Aborted due to mode switch to manual');
+          this.emitter.emitCanceled();
+          return { type: 'input', value: '__SWITCH_TO_MANUAL__' };
+        }
+        // General abort (stop workflow)
+        debug('[Controller] Aborted');
+        return { type: 'stop' };
+      }
+      throw error;
     } finally {
-      // Clean up listener
+      // Clean up
+      this.abortController = null;
       if (this.modeChangeListener) {
         process.removeListener('workflow:mode-change', this.modeChangeListener);
         this.modeChangeListener = null;
@@ -167,6 +188,10 @@ export class ControllerInputProvider implements InputProvider {
   abort(): void {
     debug('[Controller] Aborting');
     this.aborted = true;
+
+    // Abort any running execution
+    this.abortController?.abort();
+    this.abortController = null;
 
     if (this.modeChangeListener) {
       process.removeListener('workflow:mode-change', this.modeChangeListener);

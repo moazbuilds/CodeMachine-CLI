@@ -33,6 +33,7 @@ export class UserInputProvider implements InputProvider {
   private resolver: ((result: InputResult) => void) | null = null;
   private currentContext: InputContext | null = null;
   private inputListener: ((data?: { prompt?: string; skip?: boolean }) => void) | null = null;
+  private modeChangeListener: ((data: { autonomousMode: boolean }) => void) | null = null;
 
   constructor(options: UserInputProviderOptions) {
     this.emitter = options.emitter;
@@ -57,15 +58,31 @@ export class UserInputProvider implements InputProvider {
     };
     process.on('workflow:input', this.inputListener);
 
+    // Set up listener for mode change (switch to autonomous)
+    this.modeChangeListener = (data) => {
+      if (data.autonomousMode && this.resolver) {
+        debug('[UserInput] Mode change to autonomous, signaling switch');
+        this.emitter.emitCanceled();
+        this.resolver({ type: 'input', value: '__SWITCH_TO_AUTO__' });
+        this.resolver = null;
+        this.currentContext = null;
+      }
+    };
+    process.on('workflow:mode-change', this.modeChangeListener);
+
     try {
       return await new Promise<InputResult>((resolve) => {
         this.resolver = resolve;
       });
     } finally {
-      // Clean up listener
+      // Clean up listeners
       if (this.inputListener) {
         process.removeListener('workflow:input', this.inputListener);
         this.inputListener = null;
+      }
+      if (this.modeChangeListener) {
+        process.removeListener('workflow:mode-change', this.modeChangeListener);
+        this.modeChangeListener = null;
       }
     }
   }
@@ -139,6 +156,11 @@ export class UserInputProvider implements InputProvider {
     if (this.inputListener) {
       process.removeListener('workflow:input', this.inputListener);
       this.inputListener = null;
+    }
+
+    if (this.modeChangeListener) {
+      process.removeListener('workflow:mode-change', this.modeChangeListener);
+      this.modeChangeListener = null;
     }
 
     if (this.resolver) {
