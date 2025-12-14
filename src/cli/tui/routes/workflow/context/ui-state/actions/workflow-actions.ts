@@ -39,7 +39,12 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
     const state = ctx.getState()
     ctx.setState({ ...state, inputState })
     if (inputState && inputState.active) {
-      setWorkflowStatus("paused")
+      // Only show "Paused" for manual pause (no queue), not for chained prompts
+      const hasQueue = inputState.queuedPrompts && inputState.queuedPrompts.length > 0
+      if (!hasQueue) {
+        setWorkflowStatus("paused")
+      }
+      // With queue (chained prompts), keep current status
     } else {
       setWorkflowStatus("running")
     }

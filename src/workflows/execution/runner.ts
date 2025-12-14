@@ -11,7 +11,8 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 
 import { debug } from '../../shared/logging/logger.js';
-import { formatAgentLog } from '../../shared/logging/index.js';
+import { formatUserInput } from '../../shared/formatters/outputMarkers.js';
+import { AgentLoggerService, AgentMonitorService } from '../../agents/monitoring/index.js';
 import type { ModuleStep, WorkflowTemplate } from '../templates/types.js';
 import type { WorkflowEventEmitter } from '../events/index.js';
 import {
@@ -32,6 +33,14 @@ import { executeStep } from './step.js';
 import { selectEngine } from './engine.js';
 import { loadControllerConfig } from '../../shared/workflows/controller.js';
 import { registry } from '../../infra/engines/index.js';
+import {
+  markStepStarted,
+  initStepSession,
+  markChainCompleted,
+  markStepCompleted,
+  getStepData,
+  getChainResumeInfo,
+} from '../../shared/workflows/steps.js';
 
 /**
  * Runner options
@@ -123,6 +132,13 @@ export class WorkflowRunner {
     };
     process.on('workflow:pause', pauseHandler);
 
+    // Skip listener (Ctrl+S while agent running)
+    const skipHandler = () => {
+      debug('[Runner] Skip requested');
+      this.abortController?.abort();
+    };
+    process.on('workflow:skip', skipHandler);
+
     // Stop listener
     const stopHandler = () => {
       debug('[Runner] Stop requested');
@@ -142,6 +158,7 @@ export class WorkflowRunner {
     this.machine.subscribe((state) => {
       if (this.machine.isFinal) {
         process.removeListener('workflow:pause', pauseHandler);
+        process.removeListener('workflow:skip', skipHandler);
         process.removeListener('workflow:stop', stopHandler);
         process.removeListener('workflow:mode-change', modeChangeHandler);
       }
@@ -205,6 +222,41 @@ export class WorkflowRunner {
 
     debug('[Runner] Executing step %d: %s', ctx.currentStepIndex, step.agentName);
 
+    // Check for resume data (existing session from previous run)
+    const stepData = await getStepData(this.cmRoot, ctx.currentStepIndex);
+    const isResuming = stepData?.sessionId && !stepData.completedAt;
+
+    // If resuming, skip execution and go directly to waiting state
+    if (isResuming) {
+      debug('[Runner] Resuming step %d - going to waiting state', ctx.currentStepIndex);
+
+      // Register monitoring ID so TUI loads existing logs
+      if (stepData.monitoringId !== undefined) {
+        this.emitter.registerMonitoringId(uniqueAgentId, stepData.monitoringId);
+      }
+
+      this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
+      this.emitter.logMessage(uniqueAgentId, '═'.repeat(80));
+      this.emitter.logMessage(uniqueAgentId, `${step.agentName} resumed - waiting for input.`);
+
+      // Set context with saved data
+      ctx.currentMonitoringId = stepData.monitoringId;
+      ctx.currentOutput = {
+        output: '',
+        monitoringId: stepData.monitoringId,
+      };
+
+      // Go to waiting state
+      this.machine.send({
+        type: 'STEP_COMPLETE',
+        output: { output: '', monitoringId: stepData.monitoringId },
+      });
+      return;
+    }
+
+    // Track step start for resume
+    await markStepStarted(this.cmRoot, ctx.currentStepIndex);
+
     // Reset pause flag
     this.pauseRequested = false;
 
@@ -214,7 +266,7 @@ export class WorkflowRunner {
     // Update UI
     this.emitter.updateAgentStatus(uniqueAgentId, 'running');
     this.emitter.logMessage(uniqueAgentId, '═'.repeat(80));
-    this.emitter.logMessage(uniqueAgentId, `${step.agentName} started to work.`);
+    this.emitter.logMessage(uniqueAgentId, `${step.agentName} ${isResuming ? 'resumed work.' : 'started to work.'}`);
 
     // Reset behavior file
     const behaviorFile = path.join(this.cwd, '.codemachine/memory/behavior.json');
@@ -237,13 +289,16 @@ export class WorkflowRunner {
     }
 
     try {
-      // Execute the step
+      // Execute the step (with resume data if available)
       const output = await executeStep(step, this.cwd, {
         logger: () => {},
         stderrLogger: () => {},
         emitter: this.emitter,
         abortSignal: this.abortController.signal,
         uniqueAgentId,
+        resumeMonitoringId: isResuming ? stepData.monitoringId : undefined,
+        resumeSessionId: isResuming ? stepData.sessionId : undefined,
+        resumePrompt: isResuming ? 'Continue from where you left off.' : undefined,
       });
 
       // Check if paused
@@ -256,7 +311,14 @@ export class WorkflowRunner {
 
       // Step completed
       debug('[Runner] Step completed');
-      this.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+
+      // Track session info for resume
+      if (output.monitoringId !== undefined) {
+        const monitor = AgentMonitorService.getInstance();
+        const agentInfo = monitor.getAgent(output.monitoringId);
+        const sessionId = agentInfo?.sessionId ?? '';
+        await initStepSession(this.cmRoot, ctx.currentStepIndex, sessionId, output.monitoringId);
+      }
 
       const stepOutput: StepOutput = {
         output: output.output,
@@ -264,10 +326,18 @@ export class WorkflowRunner {
       };
 
       // Update context with chained prompts if any
+      debug('[Runner] chainedPrompts from output: %d items', output.chainedPrompts?.length ?? 0);
       if (output.chainedPrompts && output.chainedPrompts.length > 0) {
+        debug('[Runner] Setting promptQueue with %d chained prompts:', output.chainedPrompts.length);
+        output.chainedPrompts.forEach((p, i) => debug('[Runner]   [%d] %s: %s', i, p.name, p.label));
         this.machine.context.promptQueue = output.chainedPrompts;
         this.machine.context.promptQueueIndex = 0;
+        // Show checkpoint status while waiting for chained prompt input
+        this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
+        debug('[Runner] Agent at checkpoint, waiting for chained prompt input');
       } else {
+        debug('[Runner] No chained prompts, marking agent completed');
+        this.emitter.updateAgentStatus(uniqueAgentId, 'completed');
         this.machine.context.promptQueue = [];
         this.machine.context.promptQueueIndex = 0;
       }
@@ -284,11 +354,9 @@ export class WorkflowRunner {
           debug('[Runner] Step aborted (skip)');
           this.emitter.updateAgentStatus(uniqueAgentId, 'skipped');
           this.emitter.logMessage(uniqueAgentId, `${step.agentName} was skipped.`);
-          // Treat skip as completing the step with empty output
-          this.machine.send({
-            type: 'STEP_COMPLETE',
-            output: { output: '', monitoringId: undefined },
-          });
+          // Track step completion for resume
+          await markStepCompleted(this.cmRoot, ctx.currentStepIndex);
+          this.machine.send({ type: 'SKIP' });
         }
         return;
       }
@@ -308,7 +376,8 @@ export class WorkflowRunner {
   private async handleWaiting(): Promise<void> {
     const ctx = this.machine.context;
 
-    debug('[Runner] Handling waiting state, autoMode=%s', ctx.autoMode);
+    debug('[Runner] Handling waiting state, autoMode=%s, promptQueue=%d items, queueIndex=%d',
+      ctx.autoMode, ctx.promptQueue.length, ctx.promptQueueIndex);
 
     // Build input context
     const inputContext: InputContext = {
@@ -334,10 +403,19 @@ export class WorkflowRunner {
     }
 
     // Handle result
+    const step = this.moduleSteps[ctx.currentStepIndex];
+    const uniqueAgentId = `${step.agentId}-step-${ctx.currentStepIndex}`;
+
     switch (result.type) {
       case 'input':
         if (result.value === '') {
           // Empty input = advance to next step
+          debug('[Runner] Empty input, marking agent completed and advancing');
+          this.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+          this.emitter.logMessage(uniqueAgentId, `${step.agentName} has completed their work.`);
+          this.emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
+          // Track step completion for resume
+          await markStepCompleted(this.cmRoot, ctx.currentStepIndex);
           this.machine.send({ type: 'INPUT_RECEIVED', input: '' });
         } else {
           // Has input = resume current step with input, then wait again
@@ -346,6 +424,12 @@ export class WorkflowRunner {
         break;
 
       case 'skip':
+        debug('[Runner] Skip requested, marking agent skipped');
+        this.emitter.updateAgentStatus(uniqueAgentId, 'skipped');
+        this.emitter.logMessage(uniqueAgentId, `${step.agentName} was skipped.`);
+        this.emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
+        // Track step completion for resume
+        await markStepCompleted(this.cmRoot, ctx.currentStepIndex);
         this.machine.send({ type: 'SKIP' });
         break;
 
@@ -365,12 +449,30 @@ export class WorkflowRunner {
 
     debug('[Runner] Resuming step with input: %s...', input.slice(0, 50));
 
-    // Update queue index if using queued prompt
+    // Get sessionId from step data for resume
+    const stepData = await getStepData(this.cmRoot, ctx.currentStepIndex);
+    const sessionId = stepData?.sessionId;
+
+    // Detect queued vs custom input
+    let isQueuedPrompt = false;
     if (ctx.promptQueue.length > 0 && ctx.promptQueueIndex < ctx.promptQueue.length) {
       const queuedPrompt = ctx.promptQueue[ctx.promptQueueIndex];
       if (input === queuedPrompt.content) {
+        isQueuedPrompt = true;
+        const chainIndex = ctx.promptQueueIndex;
         ctx.promptQueueIndex += 1;
         debug('[Runner] Advanced queue to index %d', ctx.promptQueueIndex);
+        // Track chain completion for resume
+        await markChainCompleted(this.cmRoot, ctx.currentStepIndex, chainIndex);
+      }
+    }
+
+    // Log custom user input (magenta)
+    if (!isQueuedPrompt) {
+      const formatted = formatUserInput(input);
+      this.emitter.logMessage(uniqueAgentId, formatted);
+      if (monitoringId !== undefined) {
+        AgentLoggerService.getInstance().write(monitoringId, `\n${formatted}\n`);
       }
     }
 
@@ -386,6 +488,7 @@ export class WorkflowRunner {
         abortSignal: this.abortController.signal,
         uniqueAgentId,
         resumeMonitoringId: monitoringId,
+        resumeSessionId: sessionId,
         resumePrompt: input,
       });
 
@@ -395,6 +498,9 @@ export class WorkflowRunner {
         monitoringId: output.monitoringId,
       };
       ctx.currentMonitoringId = output.monitoringId;
+
+      // Back to checkpoint while waiting for next input
+      this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
 
       // Stay in waiting state - will get more input
       // (The waiting handler will be called again)

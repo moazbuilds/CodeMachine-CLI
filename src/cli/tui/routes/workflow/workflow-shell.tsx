@@ -248,15 +248,15 @@ export function WorkflowShell(props: WorkflowShellProps) {
   // Prompt box focus state (for inline prompt box)
   const [isPromptBoxFocused, setIsPromptBoxFocused] = createSignal(true)
 
-  // Check if output window is showing the running agent (not a manually selected one)
+  // Check if output window is showing the active agent (running or at checkpoint)
   const isShowingRunningAgent = createMemo(() => {
     const s = state()
-    const running = s.agents.find((a) => a.status === "running")
-    if (!running) return false
-    // If no explicit selection, we're showing the running agent
+    const active = s.agents.find((a) => a.status === "running" || a.status === "checkpoint")
+    if (!active) return false
+    // If no explicit selection, we're showing the active agent
     if (!s.selectedAgentId) return true
-    // If selected agent is the running agent
-    return s.selectedAgentId === running.id && s.selectedItemType !== "sub"
+    // If selected agent is the active agent
+    return s.selectedAgentId === active.id && s.selectedItemType !== "sub"
   })
 
   // Auto-focus prompt box when input waiting becomes active

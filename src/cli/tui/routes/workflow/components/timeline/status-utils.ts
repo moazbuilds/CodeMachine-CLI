@@ -25,6 +25,10 @@ export function getStatusIcon(status: AgentStatus): string {
       return "●" // Filled circle
     case "retrying":
       return "⟳" // Retry symbol
+    case "checkpoint":
+      return "◉" // Waiting for input
+    case "paused":
+      return "॥" // Paused
     default:
       return "?"
   }
@@ -44,6 +48,10 @@ export function getStatusColor(status: AgentStatus, theme: Theme): RGBA {
       return theme.error // red for failed
     case "skipped":
       return theme.textMuted // gray/muted for skipped
+    case "checkpoint":
+      return theme.warning // yellow for waiting
+    case "paused":
+      return theme.warning // yellow for paused
     default:
       return theme.text // white
   }

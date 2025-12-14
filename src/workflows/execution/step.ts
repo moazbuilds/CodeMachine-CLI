@@ -35,6 +35,8 @@ export interface StepExecutorOptions {
   resumeMonitoringId?: number;
   /** Custom prompt for resume (instead of "Continue from where you left off") */
   resumePrompt?: string;
+  /** Session ID for resuming (direct, for when monitoringId lookup fails) */
+  resumeSessionId?: string;
   /** Selected conditions for filtering conditional chained prompt paths */
   selectedConditions?: string[];
 }
@@ -135,6 +137,7 @@ export async function executeStep(
     uniqueAgentId: options.uniqueAgentId,
     resumeMonitoringId: options.resumeMonitoringId,
     resumePrompt: options.resumePrompt,
+    resumeSessionId: options.resumeSessionId,
     selectedConditions: options.selectedConditions,
     // Pass emitter as UI so runner can register monitoring ID immediately
     ui: options.emitter,

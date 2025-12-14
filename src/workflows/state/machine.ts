@@ -167,6 +167,24 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
               }
             },
           },
+          SKIP: [
+            // Skip while running - advance to next step
+            {
+              target: 'running',
+              guard: (ctx) => ctx.currentStepIndex < ctx.totalSteps - 1,
+              action: (ctx) => {
+                ctx.currentStepIndex += 1;
+                ctx.promptQueue = [];
+                ctx.promptQueueIndex = 0;
+                debug('[FSM] Skipped during run, advancing to step %d', ctx.currentStepIndex + 1);
+              },
+            },
+            // If last step, complete
+            {
+              target: 'completed',
+              guard: (ctx) => ctx.currentStepIndex >= ctx.totalSteps - 1,
+            },
+          ],
           PAUSE: {
             target: 'waiting',
             action: (ctx) => {

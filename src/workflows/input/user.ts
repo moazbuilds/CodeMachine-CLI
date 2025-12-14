@@ -77,6 +77,8 @@ export class UserInputProvider implements InputProvider {
     }
 
     debug('[UserInput] Received input: prompt=%s, skip=%s', data?.prompt, data?.skip);
+    debug('[UserInput] Context: promptQueue=%d items, queueIndex=%d',
+      this.currentContext.promptQueue.length, this.currentContext.promptQueueIndex);
 
     // Handle skip
     if (data?.skip) {
@@ -93,10 +95,13 @@ export class UserInputProvider implements InputProvider {
     // If no input provided, check queue
     if (!input && this.currentContext.promptQueue.length > 0) {
       const queueIndex = this.currentContext.promptQueueIndex;
+      debug('[UserInput] Checking queue: queueIndex=%d, queueLength=%d', queueIndex, this.currentContext.promptQueue.length);
       if (queueIndex < this.currentContext.promptQueue.length) {
         const queuedPrompt = this.currentContext.promptQueue[queueIndex];
         input = queuedPrompt.content;
-        debug('[UserInput] Using queued prompt: %s', queuedPrompt.label);
+        debug('[UserInput] Using queued prompt [%d]: %s - "%s"', queueIndex, queuedPrompt.label, input?.slice(0, 50));
+      } else {
+        debug('[UserInput] Queue exhausted (index %d >= length %d)', queueIndex, this.currentContext.promptQueue.length);
       }
     }
 
