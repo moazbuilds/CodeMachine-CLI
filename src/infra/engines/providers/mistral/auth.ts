@@ -1,6 +1,8 @@
 import { stat, rm, writeFile, mkdir } from 'node:fs/promises';
 import * as path from 'node:path';
 import { homedir } from 'node:os';
+import { createInterface } from 'node:readline/promises';
+import { stdin as input, stdout as output } from 'node:process';
 
 import { expandHomeDir } from '../../../../shared/utils/index.js';
 import { metadata } from './metadata.js';
@@ -77,6 +79,18 @@ export function getCredentialsPath(configDir: string): string {
   return path.join(vibeDir, '.env');
 }
 
+async function promptForApiKey(): Promise<string | null> {
+  try {
+    const rl = createInterface({ input, output });
+    const answer = await rl.question('Enter MISTRAL_API_KEY: ');
+    rl.close();
+    const key = answer.trim();
+    return key ? key : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Gets paths to all Mistral-related files that need to be cleaned up
  * CodeMachine should not manage Vibe's credentials - it only checks if they exist.
@@ -150,24 +164,31 @@ export async function ensureAuth(options?: MistralAuthOptions): Promise<boolean>
     throw new Error(`${metadata.name} CLI is not installed.`);
   }
 
-  // Mistral Vibe CLI manages its own authentication
-  // We should not interfere with its credentials file (~/.vibe/.env)
-  // Instead, guide the user to authenticate via Vibe CLI directly
+  // CLI is present but no API key - prompt user and persist to ~/.vibe/.env
   console.log(`\n────────────────────────────────────────────────────────────`);
   console.log(`  🔐 ${metadata.name} Authentication`);
   console.log(`────────────────────────────────────────────────────────────`);
-  console.log(`\n${metadata.name} CLI manages its own authentication.`);
-  console.log(`\nTo authenticate with ${metadata.name}:\n`);
-  console.log(`1. Run the Vibe CLI directly to set up your API key:`);
-  console.log(`   vibe\n`);
-  console.log(`2. When prompted, enter your API key from: https://console.mistral.ai/api-keys`);
-  console.log(`3. Vibe will store your credentials at ~/.vibe/.env`);
-  console.log(`4. After authentication, CodeMachine will automatically detect it.\n`);
-  console.log(`Alternatively, you can set the MISTRAL_API_KEY environment variable:\n`);
-  console.log(`   export MISTRAL_API_KEY=<your-api-key>\n`);
+  console.log(`\n${metadata.name} CLI requires the MISTRAL_API_KEY.`);
+  console.log(`You can paste it here and we'll save it to ~/.vibe/.env for you.\n`);
+
+  const apiKey = await promptForApiKey();
+  if (apiKey) {
+    const vibeDir = path.join(homedir(), '.vibe');
+    await mkdir(vibeDir, { recursive: true });
+    const envPath = path.join(vibeDir, '.env');
+    await writeFile(envPath, `MISTRAL_API_KEY=${apiKey}\n`, { encoding: 'utf8' });
+    process.env.MISTRAL_API_KEY = apiKey; // make available for this process
+    console.log(`\nSaved API key to ${envPath}\n`);
+    return true;
+  }
+
+  console.log(`\nNo API key provided. You can also set it manually:\n`);
+  console.log(`  export MISTRAL_API_KEY=<your-api-key>\n`);
+  console.log(`or create ~/.vibe/.env with:\n`);
+  console.log(`  MISTRAL_API_KEY=<your-api-key>\n`);
   console.log(`────────────────────────────────────────────────────────────\n`);
 
-  throw new Error('Authentication incomplete. Please authenticate via Vibe CLI or set MISTRAL_API_KEY environment variable.');
+  throw new Error('Authentication incomplete. Please set MISTRAL_API_KEY.');
 }
 
 /**
