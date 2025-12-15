@@ -143,9 +143,22 @@ export class ControllerInputProvider implements InputProvider {
         debug('[Controller] Action detected: %s', action);
 
         switch (action) {
-          case 'NEXT':
-            this.emitter.emitReceived({ input: '', source: 'controller' });
-            return { type: 'input', value: '' };
+          case 'NEXT': {
+            // Use next queued prompt content to advance
+            const hasQueuedPrompt = context.promptQueue.length > 0 &&
+              context.promptQueueIndex < context.promptQueue.length;
+            const nextPrompt = hasQueuedPrompt
+              ? context.promptQueue[context.promptQueueIndex].content
+              : '';
+            debug('[Controller] ACTION: NEXT with prompt: %s', nextPrompt ? nextPrompt.slice(0, 50) + '...' : '(empty)');
+            this.emitter.emitReceived({ input: nextPrompt, source: 'controller' });
+            return {
+              type: 'input',
+              value: nextPrompt,
+              resumeMonitoringId: context.stepOutput.monitoringId,
+              source: 'controller',
+            };
+          }
           case 'SKIP':
             this.emitter.emitReceived({ input: '', source: 'controller' });
             return { type: 'skip' };

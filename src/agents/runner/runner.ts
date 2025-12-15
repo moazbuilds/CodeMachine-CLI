@@ -407,7 +407,8 @@ export async function executeAgent(
     });
 
     // Store output in memory
-    const stdout = result.stdout || totalStdout;
+    // Prefer totalStdout (formatted text from onData) over result.stdout (raw JSON)
+    const stdout = totalStdout || result.stdout;
     const slice = stdout.slice(-2000);
     await store.append({
       agentId,
@@ -426,15 +427,16 @@ export async function executeAgent(
     // Always load on fresh execution; on resume, workflow.ts decides whether to use them
     // based on chain resume state (chainResumeInfo)
     let chainedPrompts: ChainedPrompt[] | undefined;
+    debug(`[ChainedPrompts] agentConfig.chainedPromptsPath: ${agentConfig.chainedPromptsPath}`);
     if (agentConfig.chainedPromptsPath) {
       chainedPrompts = await loadChainedPrompts(
         agentConfig.chainedPromptsPath,
         projectRoot ?? workingDir,
         selectedConditions ?? []
       );
-      if (chainedPrompts.length > 0) {
-        debug(`Loaded ${chainedPrompts.length} chained prompts for agent '${agentId}'`);
-      }
+      debug(`[ChainedPrompts] Loaded ${chainedPrompts.length} chained prompts for agent '${agentId}'`);
+    } else {
+      debug(`[ChainedPrompts] No chainedPromptsPath for agent '${agentId}'`);
     }
 
     return {

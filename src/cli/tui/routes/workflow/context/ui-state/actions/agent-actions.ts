@@ -53,7 +53,7 @@ export function createAgentActions(ctx: AgentActionsContext) {
         agent.id === agentId ? { ...agent, engine } : agent,
       ),
     })
-    ctx.notify()
+    ctx.notifyImmediate()
   }
 
   function updateAgentModel(agentId: string, model: string): void {
@@ -64,7 +64,7 @@ export function createAgentActions(ctx: AgentActionsContext) {
         agent.id === agentId ? { ...agent, model } : agent,
       ),
     })
-    ctx.notify()
+    ctx.notifyImmediate()
   }
 
   function updateAgentTelemetry(
