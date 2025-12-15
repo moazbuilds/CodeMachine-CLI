@@ -57,6 +57,7 @@ export interface MistralAuthOptions {
 }
 
 export function resolveMistralConfigDir(options?: MistralAuthOptions): string {
+  // Keep for backward compatibility; prefer resolveVibeHome below
   if (options?.mistralConfigDir) {
     return expandHomeDir(options.mistralConfigDir);
   }
@@ -65,8 +66,18 @@ export function resolveMistralConfigDir(options?: MistralAuthOptions): string {
     return expandHomeDir(process.env.MISTRAL_CONFIG_DIR);
   }
 
-  // Authentication is shared globally
   return path.join(homedir(), '.codemachine', 'mistral');
+}
+
+function resolveVibeHome(options?: MistralAuthOptions): string {
+  if (options?.mistralConfigDir) {
+    return expandHomeDir(options.mistralConfigDir);
+  }
+  if (process.env.VIBE_HOME) {
+    return expandHomeDir(process.env.VIBE_HOME);
+  }
+  // default under codemachine
+  return path.join(homedir(), '.codemachine', 'vibe');
 }
 
 /**
@@ -74,8 +85,8 @@ export function resolveMistralConfigDir(options?: MistralAuthOptions): string {
  * Mistral Vibe stores it at ~/.vibe/.env
  */
 export function getCredentialsPath(configDir: string): string {
-  // Mistral Vibe uses ~/.vibe/.env for API key
-  const vibeDir = path.join(homedir(), '.vibe');
+  // Use VIBE_HOME override or fallback to ~/.codemachine/vibe/.env
+  const vibeDir = resolveVibeHome({ mistralConfigDir: configDir });
   return path.join(vibeDir, '.env');
 }
 
@@ -113,7 +124,7 @@ export async function isAuthenticated(options?: MistralAuthOptions): Promise<boo
     return true;
   }
 
-  const credPath = getCredentialsPath(resolveMistralConfigDir(options));
+  const credPath = getCredentialsPath(resolveVibeHome(options));
 
   try {
     await stat(credPath);
@@ -133,7 +144,8 @@ export async function ensureAuth(options?: MistralAuthOptions): Promise<boolean>
   }
 
   const configDir = resolveMistralConfigDir(options);
-  const credPath = getCredentialsPath(configDir);
+  const vibeHome = resolveVibeHome(options);
+  const credPath = getCredentialsPath(vibeHome);
 
   // If already authenticated, nothing to do
   try {
@@ -145,8 +157,7 @@ export async function ensureAuth(options?: MistralAuthOptions): Promise<boolean>
 
   if (process.env.CODEMACHINE_SKIP_AUTH === '1') {
     // Create a placeholder for testing/dry-run mode
-    const vibeDir = path.dirname(credPath);
-    await mkdir(vibeDir, { recursive: true });
+    await mkdir(vibeHome, { recursive: true });
     await writeFile(credPath, 'MISTRAL_API_KEY=placeholder', { encoding: 'utf8' });
     return true;
   }
@@ -164,18 +175,39 @@ export async function ensureAuth(options?: MistralAuthOptions): Promise<boolean>
     throw new Error(`${metadata.name} CLI is not installed.`);
   }
 
-  // CLI is present but no API key - prompt user and persist to ~/.vibe/.env
+  // CLI is present but no API key - run setup or prompt and persist to VIBE_HOME/.env
   console.log(`\n────────────────────────────────────────────────────────────`);
   console.log(`  🔐 ${metadata.name} Authentication`);
   console.log(`────────────────────────────────────────────────────────────`);
   console.log(`\n${metadata.name} CLI requires the MISTRAL_API_KEY.`);
-  console.log(`You can paste it here and we'll save it to ~/.vibe/.env for you.\n`);
+  console.log(`VIBE_HOME will be used to store credentials: ${vibeHome}`);
+  console.log(`(override with VIBE_HOME env)\n`);
+
+  // Try interactive setup via vibe-acp --setup with VIBE_HOME set
+  try {
+    const resolvedSetup = Bun.which('vibe-acp') ?? 'vibe-acp';
+    const proc = Bun.spawn([resolvedSetup, '--setup'], {
+      env: { ...process.env, VIBE_HOME: vibeHome },
+      stdio: ['inherit', 'inherit', 'inherit'],
+    });
+    await proc.exited;
+    // After setup, check again
+    try {
+      await stat(credPath);
+      return true;
+    } catch {
+      // fall through to manual prompt
+    }
+  } catch {
+    // ignore and fall back to manual prompt
+  }
+
+  console.log(`You can paste the API key here and we'll save it to ${path.join(vibeHome, '.env')} for you.\n`);
 
   const apiKey = await promptForApiKey();
   if (apiKey) {
-    const vibeDir = path.join(homedir(), '.vibe');
-    await mkdir(vibeDir, { recursive: true });
-    const envPath = path.join(vibeDir, '.env');
+    await mkdir(vibeHome, { recursive: true });
+    const envPath = path.join(vibeHome, '.env');
     await writeFile(envPath, `MISTRAL_API_KEY=${apiKey}\n`, { encoding: 'utf8' });
     process.env.MISTRAL_API_KEY = apiKey; // make available for this process
     console.log(`\nSaved API key to ${envPath}\n`);
@@ -198,10 +230,10 @@ export async function ensureAuth(options?: MistralAuthOptions): Promise<boolean>
  */
 export async function clearAuth(options?: MistralAuthOptions): Promise<void> {
   const configDir = resolveMistralConfigDir(options);
+  const vibeHome = resolveVibeHome(options);
   const authPaths = getMistralAuthPaths(configDir);
 
-  // Remove only CodeMachine-specific auth files (if any)
-  // We do NOT delete ~/.vibe/.env as that belongs to Mistral Vibe CLI
+  // Remove CodeMachine-specific auth files (if any)
   await Promise.all(
     authPaths.map(async (authPath) => {
       try {
@@ -211,6 +243,14 @@ export async function clearAuth(options?: MistralAuthOptions): Promise<void> {
       }
     }),
   );
+
+  // Also remove the Vibe credentials file to fully sign out
+  const vibeEnv = path.join(vibeHome, '.env');
+  try {
+    await rm(vibeEnv, { force: true });
+  } catch (_error) {
+    // Ignore removal errors
+  }
 }
 
 /**

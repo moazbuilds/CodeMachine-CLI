@@ -149,15 +149,18 @@ export async function runMistral(options: RunMistralOptions): Promise<RunMistral
     throw new Error('runMistral requires a working directory.');
   }
 
-  // Set up MISTRAL_CONFIG_DIR for authentication
-  const mistralConfigDir = process.env.MISTRAL_CONFIG_DIR
-    ? expandHomeDir(process.env.MISTRAL_CONFIG_DIR)
-    : path.join(homedir(), '.codemachine', 'mistral');
+  // Set up VIBE_HOME / MISTRAL_CONFIG_DIR for authentication (prefer VIBE_HOME)
+  const vibeHome = process.env.VIBE_HOME
+    ? expandHomeDir(process.env.VIBE_HOME)
+    : process.env.MISTRAL_CONFIG_DIR
+      ? expandHomeDir(process.env.MISTRAL_CONFIG_DIR)
+      : path.join(homedir(), '.codemachine', 'vibe');
 
   const mergedEnv = {
     ...process.env,
     ...(env ?? {}),
-    MISTRAL_CONFIG_DIR: mistralConfigDir,
+    VIBE_HOME: vibeHome,
+    MISTRAL_CONFIG_DIR: vibeHome,
   };
 
   const plainLogs = (process.env.CODEMACHINE_PLAIN_LOGS || '').toString() === '1';
