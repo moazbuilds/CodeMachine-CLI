@@ -71,6 +71,15 @@ module.exports = [
     promptPath: path.join(promptsDir, 'codemachine', 'fallback-agents', 'planning-fallback.md'),
   },
 
+  // BMAD controller (Product Owner)
+  {
+    id: 'bmad-po',
+    name: 'PO - Product Owner',
+    description: 'BMAD product owner controller for autonomous mode',
+    role: 'controller',
+    promptPath: path.join(promptsDir, 'bmad', 'controller', 'system.md'),
+  },
+
   // BMAD agents
   {
     id: 'bmad-analyst',

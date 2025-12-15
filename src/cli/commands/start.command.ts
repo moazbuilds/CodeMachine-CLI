@@ -28,11 +28,11 @@ export function registerStartCommand(program: Command): void {
       // Comprehensive terminal clearing
       clearTerminal();
 
-      const { runWorkflowQueue } = await import('../../workflows/index.js');
+      const { runWorkflow } = await import('../../workflows/index.js');
       const { ValidationError } = await import('../../runtime/services/validation.js');
 
       try {
-        await runWorkflowQueue({ cwd, specificationPath });
+        await runWorkflow({ cwd, specificationPath });
         console.log('\n✓ Workflow completed successfully');
         process.exit(0);
       } catch (error) {

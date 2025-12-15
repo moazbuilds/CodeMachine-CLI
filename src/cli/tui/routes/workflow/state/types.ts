@@ -8,6 +8,7 @@ export type AgentStatus =
   | "skipped"
   | "retrying"
   | "paused"
+  | "checkpoint"
 
 export interface AgentTelemetry {
   tokensIn: number
@@ -146,6 +147,7 @@ export interface WorkflowState {
   workflowStatus: WorkflowStatus
   agentIdMapVersion: number
   agentLogs: Map<string, string[]>
+  autonomousMode: boolean
 }
 
 export type ThemeLike = {

@@ -23,6 +23,15 @@ export interface StepData {
   completedAt?: string;
 }
 
+/**
+ * Controller configuration for autonomous mode
+ */
+export interface ControllerConfig {
+  agentId: string;
+  sessionId: string;
+  monitoringId: number;
+}
+
 interface TemplateTracking {
   activeTemplate: string;
   /**
@@ -38,6 +47,8 @@ interface TemplateTracking {
   selectedTrack?: string; // Selected workflow track (e.g., 'bmad', 'quick', 'enterprise')
   selectedConditions?: string[]; // Selected conditions (e.g., ['has_ui', 'has_api'])
   projectName?: string; // User-provided project name for placeholder replacement
+  autonomousMode?: boolean; // Whether autonomous mode is enabled
+  controllerConfig?: ControllerConfig; // Controller agent config for autonomous mode
 }
 
 /**

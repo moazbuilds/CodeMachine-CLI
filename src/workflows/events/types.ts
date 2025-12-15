@@ -46,6 +46,7 @@ export type WorkflowEvent =
   // Agent lifecycle events
   | { type: 'agent:added'; agent: AgentInfo }
   | { type: 'agent:status'; agentId: string; status: AgentStatus }
+  | { type: 'agent:engine'; agentId: string; engine: string }
   | { type: 'agent:model'; agentId: string; model: string }
   | { type: 'agent:telemetry'; agentId: string; telemetry: Partial<AgentTelemetry> }
   | { type: 'agent:reset'; agentId: string; cycleNumber?: number }

@@ -137,6 +137,11 @@ export interface ExecuteAgentOptions {
   resumePrompt?: string;
 
   /**
+   * Session ID for resuming (direct, for when monitoringId is not available)
+   */
+  resumeSessionId?: string;
+
+  /**
    * Selected conditions for filtering conditional chained prompt paths
    */
   selectedConditions?: string[];
@@ -200,17 +205,20 @@ export async function executeAgent(
   prompt: string,
   options: ExecuteAgentOptions,
 ): Promise<AgentExecutionOutput> {
-  const { workingDir, projectRoot, engine: engineOverride, model: modelOverride, logger, stderrLogger, onTelemetry, abortSignal, timeout, parentId, disableMonitoring, ui, uniqueAgentId, displayPrompt, resumeMonitoringId, resumePrompt, selectedConditions } = options;
+  const { workingDir, projectRoot, engine: engineOverride, model: modelOverride, logger, stderrLogger, onTelemetry, abortSignal, timeout, parentId, disableMonitoring, ui, uniqueAgentId, displayPrompt, resumeMonitoringId, resumePrompt, resumeSessionId: resumeSessionIdOption, selectedConditions } = options;
 
-  // If resuming, look up session info from monitor
-  let resumeSessionId: string | undefined;
-  if (resumeMonitoringId !== undefined) {
+  // If resuming, use direct sessionId or look up from monitor
+  let resumeSessionId: string | undefined = resumeSessionIdOption;
+  if (!resumeSessionId && resumeMonitoringId !== undefined) {
     const monitor = AgentMonitorService.getInstance();
     const resumeAgent = monitor.getAgent(resumeMonitoringId);
     if (resumeAgent?.sessionId) {
       resumeSessionId = resumeAgent.sessionId;
       debug(`[RESUME] Using sessionId ${resumeSessionId} from monitoringId ${resumeMonitoringId}`);
     }
+  }
+  if (resumeSessionId) {
+    debug(`[RESUME] Resuming with sessionId: ${resumeSessionId}`);
   }
 
   // Load agent config to determine engine and model

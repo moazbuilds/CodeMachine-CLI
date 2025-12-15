@@ -63,7 +63,7 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
     const specPath = getAbsoluteSpecPath()
 
     try {
-      const { validateSpecification } = await import("../../../../../workflows/execution/queue.js")
+      const { validateSpecification } = await import("../../../../../workflows/execution/run.js")
       await validateSpecification(specPath)
     } catch (error) {
       if (error instanceof Error) {

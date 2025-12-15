@@ -72,6 +72,7 @@ export interface WorkflowTemplate {
   subAgentIds?: string[];
   tracks?: Record<string, TrackConfig>;
   conditions?: Record<string, ConditionConfig>;
+  controller?: boolean; // Enables autonomous mode with controller agent selection
 }
 
 export type ModuleName = ModuleStep['agentId'];

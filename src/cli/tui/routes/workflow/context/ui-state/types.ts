@@ -20,6 +20,7 @@ export type UIActions = {
   subscribe(fn: Listener): () => void
   addAgent(agent: WorkflowState["agents"][number]): void
   updateAgentStatus(agentId: string, status: AgentStatus): void
+  updateAgentEngine(agentId: string, engine: string): void
   updateAgentModel(agentId: string, model: string): void
   updateAgentTelemetry(agentId: string, telemetry: Partial<WorkflowState["agents"][number]["telemetry"]>): void
   setLoopState(loopState: LoopState | null): void
@@ -45,6 +46,7 @@ export type UIActions = {
   resetAgentForLoop(agentId: string, cycleNumber?: number): void
   addUIElement(element: { id: string; text: string; stepIndex: number }): void
   logMessage(agentId: string, message: string): void
+  setAutonomousMode(enabled: boolean): void
 }
 
 export type { WorkflowState, AgentStatus, LoopState, ChainedState, InputState, SubAgentState, TriggeredAgentState, WorkflowStatus }

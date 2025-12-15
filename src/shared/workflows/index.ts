@@ -14,7 +14,19 @@ export {
 } from './template.js';
 
 // Types
-export type { StepData } from './template.js';
+export type { StepData, ControllerConfig } from './template.js';
+
+// Controller functions
+export {
+  getControllerAgents,
+  initControllerAgent,
+  loadControllerConfig,
+  saveControllerConfig,
+  setAutonomousMode,
+  clearControllerConfig,
+  parseControllerAction,
+  extractInputText,
+} from './controller.js';
 
 // Step tracking functions
 export {
