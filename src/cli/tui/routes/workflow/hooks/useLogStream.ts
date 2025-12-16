@@ -10,6 +10,18 @@ import { AgentMonitorService } from "../../../../../agents/monitoring/monitor.js
 import type { AgentRecord } from "../../../../../agents/monitoring/types.js"
 import { readFileSync, existsSync, statSync } from "fs"
 
+// Debug logging (writes to tui-debug.log when DEBUG is enabled)
+const DEBUG_ENABLED = process.env.DEBUG &&
+  process.env.DEBUG.trim() !== '' &&
+  process.env.DEBUG !== '0' &&
+  process.env.DEBUG.toLowerCase() !== 'false'
+
+function logDebug(message: string, ...args: unknown[]) {
+  if (DEBUG_ENABLED) {
+    console.log(`[LogStream] ${message}`, ...args)
+  }
+}
+
 export interface LogStreamResult {
   lines: string[]
   isLoading: boolean
@@ -67,7 +79,10 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
   createEffect(() => {
     const agentId = monitoringAgentId()
 
+    logDebug('Effect triggered, agentId=%s', agentId)
+
     if (agentId === undefined) {
+      logDebug('No agentId, resetting state')
       setIsLoading(true)
       setIsConnecting(false)
       setError(null)
@@ -87,17 +102,23 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
       // agentId is guaranteed to be defined here because we return early if undefined
       const id = agentId as number
 
+      logDebug('getAgentWithRetry id=%d attempts=%d', id, attempts)
+
       for (let i = 0; i < attempts; i++) {
         const agentRecord = monitor.getAgent(id)
         if (agentRecord) {
+          logDebug('Found agent on attempt %d: name=%s status=%s logPath=%s',
+            i + 1, agentRecord.name, agentRecord.status, agentRecord.logPath)
           return agentRecord
         }
 
+        logDebug('Agent not found on attempt %d/%d', i + 1, attempts)
         if (i < attempts - 1) {
           await new Promise((resolve) => setTimeout(resolve, delay))
         }
       }
 
+      logDebug('Agent not found after %d attempts', attempts)
       return null
     }
 
@@ -146,6 +167,7 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
 
       try {
         if (!existsSync(logPath)) {
+          logDebug('updateLogs: file does not exist: %s', logPath)
           return false
         }
 
@@ -158,10 +180,11 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
           setFileSize(getFileSize(logPath))
           setIsConnecting(false)
           setError(null)
+          logDebug('updateLogs: success, lines=%d size=%d', filteredLines.length, getFileSize(logPath))
           return true
         }
-      } catch {
-        // Silently fail - file might not exist yet
+      } catch (err) {
+        logDebug('updateLogs: error reading file: %s', err)
       }
       return false
     }
@@ -170,9 +193,11 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
      * Initialize log streaming
      */
     async function initialize(): Promise<void> {
+      logDebug('initialize: starting')
       const agentRecord = await getAgentWithRetry()
 
       if (!agentRecord) {
+        logDebug('initialize: agent not found, setting error')
         if (mounted) {
           setError("Agent not found in monitoring registry")
           setIsLoading(false)
@@ -183,11 +208,13 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
 
       if (!mounted) return
 
+      logDebug('initialize: agent found, logPath=%s', agentRecord.logPath)
       setAgent(agentRecord)
       setError(null)
 
       // Initial log read
       const success = updateLogs(agentRecord.logPath)
+      logDebug('initialize: initial updateLogs success=%s', success)
 
       if (mounted) {
         setIsLoading(false)
@@ -195,6 +222,7 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
 
       // If file doesn't exist yet, set up retry polling
       if (!success && mounted) {
+        logDebug('initialize: file not ready, starting retry polling')
         setIsConnecting(true)
         const MAX_RETRIES = 240 // 120 seconds
         let currentRetry = 0
@@ -208,6 +236,7 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
           currentRetry++
 
           if (currentRetry >= MAX_RETRIES) {
+            logDebug('initialize: max retries reached (%d), giving up', MAX_RETRIES)
             clearInterval(retryInterval)
             setIsConnecting(false)
             setError("Can't connect to agent after 120 sec")
@@ -217,6 +246,7 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
           const retrySuccess = updateLogs(agentRecord.logPath)
 
           if (retrySuccess) {
+            logDebug('initialize: retry %d succeeded, starting polling', currentRetry)
             clearInterval(retryInterval)
             // Always start polling after successful connection
             if (mounted) {
@@ -230,6 +260,7 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
 
       // Always start polling for log updates
       if (success) {
+        logDebug('initialize: starting polling immediately')
         startPolling(agentRecord.logPath)
       }
     }
@@ -238,6 +269,7 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
      * Start polling for log updates
      */
     function startPolling(logPath: string): void {
+      logDebug('startPolling: path=%s', logPath)
       if (pollInterval) {
         clearInterval(pollInterval)
       }
@@ -254,6 +286,7 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
 
     // Cleanup
     onCleanup(() => {
+      logDebug('cleanup: unmounting, clearing intervals')
       mounted = false
       if (pollInterval) {
         clearInterval(pollInterval)

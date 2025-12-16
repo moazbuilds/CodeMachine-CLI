@@ -7,11 +7,13 @@
 
 import { debug } from '../../shared/logging/logger.js';
 import { executeAgent } from '../../agents/runner/runner.js';
-import { AgentLoggerService } from '../../agents/monitoring/index.js';
+import { AgentLoggerService, AgentMonitorService } from '../../agents/monitoring/index.js';
 import {
   parseControllerAction,
   extractInputText,
+  saveControllerConfig,
 } from '../../shared/workflows/controller.js';
+import { stripColorMarkers } from '../../shared/formatters/logFileFormatter.js';
 import {
   formatControllerHeader,
   formatControllerFooter,
@@ -31,6 +33,7 @@ export interface ControllerInputProviderOptions {
   emitter: InputEventEmitter;
   getControllerConfig: () => Promise<ControllerConfig | null>;
   cwd: string;
+  cmRoot: string;
 }
 
 /**
@@ -49,6 +52,7 @@ export class ControllerInputProvider implements InputProvider {
   private emitter: InputEventEmitter;
   private getControllerConfig: () => Promise<ControllerConfig | null>;
   private cwd: string;
+  private cmRoot: string;
   private aborted = false;
   private abortController: AbortController | null = null;
   private modeChangeListener: ((data: { autonomousMode: boolean }) => void) | null = null;
@@ -57,6 +61,7 @@ export class ControllerInputProvider implements InputProvider {
     this.emitter = options.emitter;
     this.getControllerConfig = options.getControllerConfig;
     this.cwd = options.cwd;
+    this.cmRoot = options.cmRoot;
   }
 
   async getInput(context: InputContext): Promise<InputResult> {
@@ -88,8 +93,18 @@ export class ControllerInputProvider implements InputProvider {
     process.on('workflow:mode-change', this.modeChangeListener);
 
     try {
-      // Build prompt for controller
-      const prompt = context.stepOutput.output || 'Continue from where you left off.';
+      // Build prompt for controller with cleaned step output
+      const cleanOutput = stripColorMarkers(context.stepOutput.output || '').trim();
+      const prompt = cleanOutput
+        ? `REMINDER: Always follow your system prompt instructions.
+
+CURRENT STEP OUTPUT:
+---
+${cleanOutput}
+---
+
+Review the output above and respond appropriately, or use ACTION: NEXT to proceed.`
+        : 'REMINDER: Always follow the rules and instructions given in your first message - that is your system prompt. Now continue.';
 
       // Write controller header
       if (context.stepOutput.monitoringId !== undefined) {
@@ -118,6 +133,21 @@ export class ControllerInputProvider implements InputProvider {
       // Write controller footer
       if (context.stepOutput.monitoringId !== undefined) {
         loggerService.write(context.stepOutput.monitoringId, '\n' + formatControllerFooter() + '\n');
+      }
+
+      // Update sessionId if a new one was created (important for session persistence)
+      if (result.agentId !== undefined) {
+        const monitor = AgentMonitorService.getInstance();
+        const agentInfo = monitor.getAgent(result.agentId);
+        if (agentInfo?.sessionId && agentInfo.sessionId !== config.sessionId) {
+          debug('[Controller] Session ID changed: %s -> %s', config.sessionId, agentInfo.sessionId);
+          // Update the config with new sessionId
+          await saveControllerConfig(this.cmRoot, {
+            agentId: config.agentId,
+            sessionId: agentInfo.sessionId,
+            monitoringId: result.agentId,
+          });
+        }
       }
 
       if (this.aborted) {

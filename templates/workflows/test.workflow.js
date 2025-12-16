@@ -1,5 +1,6 @@
 export default {
   name: 'Test Workflow',
+  controller: true,
   tracks: {
     quick: {
       label: 'Small Project',

@@ -33,17 +33,11 @@ export interface RunOpenCodeResult {
 const ANSI_ESCAPE_SEQUENCE = new RegExp(String.raw`\u001B\[[0-9;?]*[ -/]*[@-~]`, 'g');
 
 /**
- * Build the final resume prompt combining steering instruction with user message
+ * Build the final resume prompt - just pass through the prompt as-is
+ * The caller (controller.ts) is responsible for building the proper message
  */
 function buildResumePrompt(userPrompt?: string): string {
-  const defaultPrompt = 'Continue from where you left off.';
-
-  if (!userPrompt) {
-    return defaultPrompt;
-  }
-
-  // Combine steering instruction with user's message
-  return `[USER STEERING] The user paused this session to give you new direction. Continue from where you left off, but prioritize the user's request: "${userPrompt}"`;
+  return userPrompt || 'Continue.';
 }
 
 function shouldApplyDefault(key: string, overrides?: NodeJS.ProcessEnv): boolean {

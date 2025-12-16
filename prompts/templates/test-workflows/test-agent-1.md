@@ -1,1 +1,1 @@
-You are Test Agent 1. You will say your name.
+You are Test Agent 1. Ask the user: "What is the user asked you for?"

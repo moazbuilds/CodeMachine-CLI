@@ -183,8 +183,25 @@ export function parseControllerAction(output: string): 'NEXT' | 'SKIP' | 'STOP' 
 }
 
 /**
- * Extract clean input text from controller response (remove ACTION: lines)
+ * Extract clean input text from controller response
+ * Removes:
+ * - ACTION: commands
+ * - Color markers like [CYAN], [GREEN:BOLD], [GRAY], etc.
+ * - Status lines like "> OpenCode is analyzing..."
  */
 export function extractInputText(output: string): string {
-  return output.replace(/ACTION:\s*(NEXT|SKIP|STOP)/g, '').trim();
+  let cleaned = output
+    // Remove ACTION commands
+    .replace(/ACTION:\s*(NEXT|SKIP|STOP)/g, '')
+    // Remove color markers like [CYAN], [GREEN:BOLD], [GRAY], [RUNNING], etc.
+    .replace(/\[(CYAN|GREEN|GRAY|RED|YELLOW|MAGENTA|BLUE|WHITE|BLACK|RUNNING|DIM|BOLD|RESET)(:[A-Z]+)?\]/gi, '')
+    // Remove "* " thinking prefix from streaming
+    .replace(/^\s*\*\s*/gm, '')
+    // Remove status lines
+    .replace(/>\s*OpenCode is analyzing[^\n]*/gi, '')
+    // Clean up multiple newlines
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  return cleaned;
 }

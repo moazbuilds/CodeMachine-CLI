@@ -96,6 +96,7 @@ export class WorkflowRunner {
       emitter: this.inputEmitter,
       getControllerConfig: () => this.getControllerConfig(),
       cwd: this.cwd,
+      cmRoot: this.cmRoot,
     });
 
     // Default to user input

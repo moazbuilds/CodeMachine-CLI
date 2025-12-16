@@ -207,18 +207,26 @@ export async function executeAgent(
 ): Promise<AgentExecutionOutput> {
   const { workingDir, projectRoot, engine: engineOverride, model: modelOverride, logger, stderrLogger, onTelemetry, abortSignal, timeout, parentId, disableMonitoring, ui, uniqueAgentId, displayPrompt, resumeMonitoringId, resumePrompt, resumeSessionId: resumeSessionIdOption, selectedConditions } = options;
 
+  debug(`[AgentRunner] executeAgent called: agentId=%s promptLength=%d`, agentId, prompt.length);
+  debug(`[AgentRunner] Options: workingDir=%s engineOverride=%s modelOverride=%s parentId=%s`,
+    workingDir, engineOverride ?? '(none)', modelOverride ?? '(none)', parentId ?? '(none)');
+  debug(`[AgentRunner] Resume options: resumeMonitoringId=%s resumeSessionId=%s resumePrompt=%s`,
+    resumeMonitoringId ?? '(none)', resumeSessionIdOption ?? '(none)', resumePrompt ? resumePrompt.slice(0, 50) + '...' : '(none)');
+
   // If resuming, use direct sessionId or look up from monitor
   let resumeSessionId: string | undefined = resumeSessionIdOption;
   if (!resumeSessionId && resumeMonitoringId !== undefined) {
     const monitor = AgentMonitorService.getInstance();
     const resumeAgent = monitor.getAgent(resumeMonitoringId);
+    debug(`[AgentRunner] Looking up sessionId from monitoringId=%d, found agent=%s`,
+      resumeMonitoringId, resumeAgent ? 'yes' : 'no');
     if (resumeAgent?.sessionId) {
       resumeSessionId = resumeAgent.sessionId;
-      debug(`[RESUME] Using sessionId ${resumeSessionId} from monitoringId ${resumeMonitoringId}`);
+      debug(`[AgentRunner] Using sessionId %s from monitoringId %d`, resumeSessionId, resumeMonitoringId);
     }
   }
   if (resumeSessionId) {
-    debug(`[RESUME] Resuming with sessionId: ${resumeSessionId}`);
+    debug(`[AgentRunner] Will resume with sessionId: %s`, resumeSessionId);
   }
 
   // Load agent config to determine engine and model
@@ -284,18 +292,21 @@ export async function executeAgent(
     if (resumeMonitoringId !== undefined) {
       // RESUME: Use existing monitoring entry (skip registration, use existing log file)
       monitoringAgentId = resumeMonitoringId;
-      debug(`[RESUME] Using existing monitoringId ${monitoringAgentId}, skipping registration`);
+      debug(`[AgentRunner] RESUME: Using existing monitoringId=%d, skipping registration`, monitoringAgentId);
 
       // Mark as running again (was paused)
       await monitor.markRunning(monitoringAgentId);
+      debug(`[AgentRunner] RESUME: Marked agent as running`);
 
       // Register monitoring ID with UI so it can load existing logs
       if (ui && uniqueAgentId) {
+        debug(`[AgentRunner] RESUME: Registering monitoringId=%d with UI (uniqueAgentId=%s)`, monitoringAgentId, uniqueAgentId);
         ui.registerMonitoringId(uniqueAgentId, monitoringAgentId);
       }
     } else {
       // NEW EXECUTION: Register new monitoring entry
       const promptForDisplay = displayPrompt || prompt;
+      debug(`[AgentRunner] NEW: Registering new monitoring entry for agentId=%s`, agentId);
       monitoringAgentId = await monitor.register({
         name: agentId,
         prompt: promptForDisplay, // This gets truncated in monitor for memory efficiency
@@ -304,6 +315,7 @@ export async function executeAgent(
         engineProvider: engineType,
         modelName: model,
       });
+      debug(`[AgentRunner] NEW: Registered with monitoringId=%d`, monitoringAgentId);
 
       // Store FULL prompt for debug mode logging (not the display prompt)
       // In debug mode, we want to see the complete composite prompt with template + input files
@@ -311,6 +323,7 @@ export async function executeAgent(
 
       // Register monitoring ID with UI immediately so it can load logs
       if (ui && uniqueAgentId && monitoringAgentId !== undefined) {
+        debug(`[AgentRunner] NEW: Registering monitoringId=%d with UI (uniqueAgentId=%s)`, monitoringAgentId, uniqueAgentId);
         ui.registerMonitoringId(uniqueAgentId, monitoringAgentId);
       }
     }
@@ -324,6 +337,8 @@ export async function executeAgent(
   // Get engine and execute
   // NOTE: Prompt is already complete - no template loading or building here
   const engine = getEngine(engineType);
+  debug(`[AgentRunner] Starting engine execution: engine=%s model=%s resumeSessionId=%s`,
+    engineType, model, resumeSessionId ?? '(new session)');
 
   let totalStdout = '';
 
@@ -416,8 +431,11 @@ export async function executeAgent(
       timestamp: new Date().toISOString(),
     });
 
+    debug(`[AgentRunner] Engine execution completed, outputLength=%d`, totalStdout.length);
+
     // Mark agent as completed
     if (monitor && monitoringAgentId !== undefined) {
+      debug(`[AgentRunner] Marking agent %d as completed`, monitoringAgentId);
       await monitor.complete(monitoringAgentId);
       // Note: Don't close stream here - workflow may write more messages
       // Streams will be closed by cleanup handlers or monitoring service shutdown
@@ -427,7 +445,7 @@ export async function executeAgent(
     // Always load on fresh execution; on resume, workflow.ts decides whether to use them
     // based on chain resume state (chainResumeInfo)
     let chainedPrompts: ChainedPrompt[] | undefined;
-    debug(`[ChainedPrompts] agentConfig.chainedPromptsPath: ${agentConfig.chainedPromptsPath}`);
+    debug(`[AgentRunner] ChainedPrompts path: %s`, agentConfig.chainedPromptsPath ?? '(none)');
     if (agentConfig.chainedPromptsPath) {
       chainedPrompts = await loadChainedPrompts(
         agentConfig.chainedPromptsPath,
@@ -439,21 +457,30 @@ export async function executeAgent(
       debug(`[ChainedPrompts] No chainedPromptsPath for agent '${agentId}'`);
     }
 
+    debug(`[AgentRunner] Returning result: monitoringAgentId=%d chainedPrompts=%d`,
+      monitoringAgentId ?? -1, chainedPrompts?.length ?? 0);
+
     return {
       output: stdout,
       agentId: monitoringAgentId,
       chainedPrompts,
     };
-  } catch (error) {
+  } catch (err) {
+    debug(`[AgentRunner] Error during execution: %s`, (err as Error).message);
+
     // Mark agent as failed (unless already paused - that means intentional abort)
     if (monitor && monitoringAgentId !== undefined) {
       const agent = monitor.getAgent(monitoringAgentId);
+      debug(`[AgentRunner] Agent status: %s`, agent?.status ?? '(not found)');
       if (agent?.status !== 'paused') {
-        await monitor.fail(monitoringAgentId, error as Error);
+        debug(`[AgentRunner] Marking agent %d as failed`, monitoringAgentId);
+        await monitor.fail(monitoringAgentId, err as Error);
+      } else {
+        debug(`[AgentRunner] Agent is paused, not marking as failed`);
       }
       // Note: Don't close stream here - workflow may write more messages
       // Streams will be closed by cleanup handlers or monitoring service shutdown
     }
-    throw error;
+    throw err;
   }
 }

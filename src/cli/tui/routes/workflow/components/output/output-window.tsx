@@ -112,6 +112,19 @@ export function OutputWindow(props: OutputWindowProps) {
 
     // Running but not waiting for input
     if (status === "running" || status === "stopping") {
+      // Preserve chained step info even when agent is working
+      if (inputState?.queuedPrompts && inputState.queuedPrompts.length > 0) {
+        const idx = inputState.currentIndex ?? 0
+        const prompt = inputState.queuedPrompts[idx]
+        return {
+          mode: "passive",
+          chainedStep: {
+            name: prompt?.name ?? "next step",
+            index: idx + 1,
+            total: inputState.queuedPrompts.length,
+          },
+        }
+      }
       return { mode: "passive" }
     }
 

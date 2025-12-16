@@ -9,6 +9,7 @@
  * - New code: emitter.addMainAgent(...) // emits event
  */
 
+import { debug } from '../../shared/logging/logger.js';
 import type { WorkflowEventBus } from './event-bus.js';
 import type {
   AgentInfo,
@@ -64,6 +65,7 @@ export class WorkflowEventEmitter {
    * Emit workflow started event
    */
   workflowStarted(workflowName: string, totalSteps: number): void {
+    debug('[Emitter] workflow:started name=%s totalSteps=%d', workflowName, totalSteps);
     this.bus.emit({
       type: 'workflow:started',
       workflowName,
@@ -75,6 +77,7 @@ export class WorkflowEventEmitter {
    * Emit workflow status change
    */
   setWorkflowStatus(status: WorkflowStatus): void {
+    debug('[Emitter] workflow:status status=%s', status);
     this.bus.emit({
       type: 'workflow:status',
       status,
@@ -85,6 +88,7 @@ export class WorkflowEventEmitter {
    * Emit workflow stopped event
    */
   workflowStopped(reason?: string): void {
+    debug('[Emitter] workflow:stopped reason=%s', reason ?? '(none)');
     this.bus.emit({
       type: 'workflow:stopped',
       reason,
@@ -108,6 +112,9 @@ export class WorkflowEventEmitter {
     status: AgentStatus = 'pending',
     model?: string
   ): void {
+    debug('[Emitter] agent:added id=%s name=%s engine=%s step=%d/%d status=%s',
+      agentId, name, engine, stepIndex, totalSteps, status);
+
     // Track step info for this agent
     this.agentStepMap.set(agentId, { stepIndex, totalSteps });
 
@@ -132,6 +139,7 @@ export class WorkflowEventEmitter {
    * Mirrors: ui.updateAgentStatus(agentId, status)
    */
   updateAgentStatus(agentId: string, status: AgentStatus): void {
+    debug('[Emitter] agent:status id=%s status=%s', agentId, status);
     this.bus.emit({
       type: 'agent:status',
       agentId,
@@ -311,6 +319,12 @@ export class WorkflowEventEmitter {
    * Mirrors: ui.setInputState(inputState)
    */
   setInputState(inputState: InputState | null): void {
+    if (inputState) {
+      debug('[Emitter] input:state active=%s queuedPrompts=%d currentIndex=%d monitoringId=%s',
+        inputState.active, inputState.queuedPrompts?.length ?? 0, inputState.currentIndex ?? 0, inputState.monitoringId ?? '(none)');
+    } else {
+      debug('[Emitter] input:state cleared (null)');
+    }
     this.bus.emit({
       type: 'input:state',
       inputState,
@@ -375,6 +389,7 @@ export class WorkflowEventEmitter {
    * Mirrors: ui.registerMonitoringId(uiAgentId, monitoringId)
    */
   registerMonitoringId(uiAgentId: string, monitoringId: number): void {
+    debug('[Emitter] monitoring:register uiAgentId=%s monitoringId=%d', uiAgentId, monitoringId);
     this.bus.emit({
       type: 'monitoring:register',
       uiAgentId,

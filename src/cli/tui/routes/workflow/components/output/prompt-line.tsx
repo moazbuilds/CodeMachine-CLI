@@ -22,7 +22,7 @@ type PendingPaste = { placeholder: string; content: string }
 
 export type PromptLineState =
   | { mode: "disabled" }
-  | { mode: "passive" }
+  | { mode: "passive"; chainedStep?: { name: string; index: number; total: number } }
   | { mode: "active"; reason?: "paused" | "chaining" }
   | { mode: "chained"; name: string; description: string; index: number; total: number }
 
@@ -306,6 +306,11 @@ export function PromptLine(props: PromptLineProps) {
   }
 
   const getHint = () => {
+    // Show chained step info even in passive mode
+    if (props.state.mode === "passive" && props.state.chainedStep) {
+      const step = props.state.chainedStep
+      return `Step ${step.index}/${step.total}: ${step.name}`
+    }
     if (!isInteractive()) return null
     if (props.state.mode === "chained") {
       return `Step ${props.state.index}/${props.state.total}: ${props.state.name}`
