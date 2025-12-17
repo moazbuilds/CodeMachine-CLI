@@ -34,7 +34,7 @@ export interface UIActions {
   updateAgentModel(agentId: string, model: string): void
   updateAgentTelemetry(
     agentId: string,
-    telemetry: { tokensIn?: number; tokensOut?: number; cached?: number; cost?: number }
+    telemetry: { tokensIn?: number; tokensOut?: number; cached?: number; cost?: number; duration?: number }
   ): void
   setLoopState(loopState: LoopState | null): void
   clearLoopRound(agentId: string): void
@@ -139,6 +139,7 @@ export class OpenTUIAdapter extends BaseUIAdapter {
           tokensOut: event.telemetry.tokensOut,
           cached: event.telemetry.cached,
           cost: event.telemetry.cost,
+          duration: event.telemetry.duration,
         })
         break
 

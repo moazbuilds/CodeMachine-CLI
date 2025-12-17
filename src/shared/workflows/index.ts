@@ -14,19 +14,29 @@ export {
 } from './template.js';
 
 // Types
-export type { StepData, ControllerConfig } from './template.js';
+export type { StepData, AutopilotConfig, ControllerConfig, AccumulatedTelemetry } from './template.js';
 
-// Controller functions
+// Autopilot functions (primary exports)
 export {
+  getAutopilotAgents,
+  initAutopilotAgent,
+  loadAutopilotConfig,
+  saveAutopilotConfig,
+  setAutonomousMode,
+  clearAutopilotConfig,
+  parseAutopilotAction,
+  extractInputText,
+  // Legacy aliases
   getControllerAgents,
   initControllerAgent,
   loadControllerConfig,
   saveControllerConfig,
-  setAutonomousMode,
   clearControllerConfig,
   parseControllerAction,
-  extractInputText,
-} from './controller.js';
+} from './autopilot.js';
+
+// Export action type
+export type { AutopilotAction } from './autopilot.js';
 
 // Step tracking functions
 export {
@@ -44,4 +54,8 @@ export {
   removeFromNotCompleted,
   clearNotCompletedSteps,
   getResumeStartIndex,
+  updateStepDuration,
+  updateStepTelemetry,
+  getStepDuration,
+  getStepTelemetry,
 } from './steps.js';

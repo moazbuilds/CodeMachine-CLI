@@ -295,6 +295,76 @@ export async function clearNotCompletedSteps(cmRoot: string): Promise<void> {
 }
 
 /**
+ * Updates accumulated duration for a step.
+ * Adds the given duration to any existing accumulated duration.
+ */
+export async function updateStepDuration(
+  cmRoot: string,
+  stepIndex: number,
+  additionalDuration: number
+): Promise<void> {
+  const { data, trackingPath } = await readTrackingData(cmRoot);
+  const completedSteps = data.completedSteps as Record<string, StepData>;
+  const key = String(stepIndex);
+
+  const existing = completedSteps[key];
+  if (existing) {
+    existing.accumulatedDuration = (existing.accumulatedDuration ?? 0) + additionalDuration;
+    await writeTrackingData(trackingPath, data);
+  }
+}
+
+/**
+ * Updates accumulated telemetry for a step.
+ * Adds the given telemetry to any existing accumulated telemetry.
+ */
+export async function updateStepTelemetry(
+  cmRoot: string,
+  stepIndex: number,
+  telemetry: { tokensIn: number; tokensOut: number; cost: number; cached?: number }
+): Promise<void> {
+  const { data, trackingPath } = await readTrackingData(cmRoot);
+  const completedSteps = data.completedSteps as Record<string, StepData>;
+  const key = String(stepIndex);
+
+  const existing = completedSteps[key];
+  if (existing) {
+    const prev = existing.accumulatedTelemetry;
+    existing.accumulatedTelemetry = {
+      tokensIn: (prev?.tokensIn ?? 0) + telemetry.tokensIn,
+      tokensOut: (prev?.tokensOut ?? 0) + telemetry.tokensOut,
+      cost: (prev?.cost ?? 0) + telemetry.cost,
+      cached: (prev?.cached ?? 0) + (telemetry.cached ?? 0),
+    };
+    await writeTrackingData(trackingPath, data);
+  }
+}
+
+/**
+ * Gets accumulated duration for a step.
+ * Returns 0 if no duration is stored.
+ */
+export async function getStepDuration(
+  cmRoot: string,
+  stepIndex: number
+): Promise<number> {
+  const stepData = await getStepData(cmRoot, stepIndex);
+  return stepData?.accumulatedDuration ?? 0;
+}
+
+/**
+ * Gets accumulated telemetry for a step.
+ * Returns null if no telemetry is stored.
+ */
+export async function getStepTelemetry(
+  cmRoot: string,
+  stepIndex: number
+): Promise<{ tokensIn: number; tokensOut: number; cost: number; cached?: number } | null> {
+  const stepData = await getStepData(cmRoot, stepIndex);
+  return stepData?.accumulatedTelemetry ?? null;
+}
+
+/**
  * Gets the resume starting index.
  * First checks for incomplete chains, then falls back to notCompletedSteps.
  */

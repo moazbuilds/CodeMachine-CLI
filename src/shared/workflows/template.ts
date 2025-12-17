@@ -10,6 +10,16 @@ const packageRoot = resolvePackageRoot(import.meta.url, 'workflows template trac
 const templatesDir = path.resolve(packageRoot, 'templates', 'workflows');
 
 /**
+ * Accumulated telemetry data for a step across resume sessions
+ */
+export interface AccumulatedTelemetry {
+  tokensIn: number;
+  tokensOut: number;
+  cost: number;
+  cached?: number;
+}
+
+/**
  * Data stored for each workflow step
  */
 export interface StepData {
@@ -21,16 +31,25 @@ export interface StepData {
   completedChains?: number[];
   /** ISO timestamp when step fully completed (presence indicates step is done) */
   completedAt?: string;
+  /** Accumulated duration across resume sessions (in milliseconds) */
+  accumulatedDuration?: number;
+  /** Accumulated telemetry (tokens/cost) across resume sessions */
+  accumulatedTelemetry?: AccumulatedTelemetry;
 }
 
 /**
- * Controller configuration for autonomous mode
+ * Autopilot configuration for autonomous mode
  */
-export interface ControllerConfig {
+export interface AutopilotConfig {
   agentId: string;
   sessionId: string;
   monitoringId: number;
 }
+
+/**
+ * @deprecated Use AutopilotConfig instead
+ */
+export type ControllerConfig = AutopilotConfig;
 
 interface TemplateTracking {
   activeTemplate: string;
@@ -48,7 +67,9 @@ interface TemplateTracking {
   selectedConditions?: string[]; // Selected conditions (e.g., ['has_ui', 'has_api'])
   projectName?: string; // User-provided project name for placeholder replacement
   autonomousMode?: boolean; // Whether autonomous mode is enabled
-  controllerConfig?: ControllerConfig; // Controller agent config for autonomous mode
+  autopilotConfig?: AutopilotConfig; // Autopilot agent config for autonomous mode
+  /** @deprecated Use autopilotConfig instead - kept for migration */
+  controllerConfig?: AutopilotConfig; // Legacy field for migration
 }
 
 /**

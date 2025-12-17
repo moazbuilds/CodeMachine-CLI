@@ -27,6 +27,23 @@ export interface ModuleMetadata {
   behavior?: ModuleBehavior;
 }
 
+/**
+ * Step-level autopilot configuration
+ * Allows customizing autopilot behavior per-step
+ */
+export interface StepAutopilotConfig {
+  /** Skip this step when in autopilot mode */
+  skip?: boolean;
+  /** Use a different autopilot agent for this step */
+  agent?: string;
+  /** Extra context/hints to pass to autopilot agent */
+  hints?: string;
+  /** Maximum iterations autopilot can loop on this step */
+  maxIterations?: number;
+  /** Default action if autopilot doesn't respond */
+  defaultAction?: 'next' | 'continue' | 'wait';
+}
+
 export interface ModuleStep {
   type: 'module';
   agentId: string;
@@ -40,6 +57,7 @@ export interface ModuleStep {
   notCompletedFallback?: string; // Agent ID to run if step is in notCompletedSteps
   tracks?: string[]; // Track names this step belongs to (e.g., ['bmad', 'enterprise'])
   conditions?: string[]; // Conditions required for this step (e.g., ['has_ui', 'has_api'])
+  autopilot?: StepAutopilotConfig; // Step-level autopilot configuration
 }
 
 export interface UIStep {
@@ -66,13 +84,31 @@ export interface ConditionConfig {
   description?: string;
 }
 
+/**
+ * Template-level autopilot configuration
+ * Applied to all steps unless overridden by step-level config
+ */
+export interface TemplateAutopilotConfig {
+  /** Enable autopilot agent selection during onboarding */
+  enabled?: boolean;
+  /** Agent IDs to skip when in autopilot mode */
+  skipSteps?: string[];
+  /** Default action if autopilot doesn't respond */
+  defaultAction?: 'next' | 'continue' | 'wait';
+  /** Maximum iterations autopilot can loop on any step */
+  maxStepIterations?: number;
+}
+
 export interface WorkflowTemplate {
   name: string;
   steps: WorkflowStep[];
   subAgentIds?: string[];
   tracks?: Record<string, TrackConfig>;
   conditions?: Record<string, ConditionConfig>;
-  controller?: boolean; // Enables autonomous mode with controller agent selection
+  /** Autopilot configuration for autonomous mode */
+  autopilot?: TemplateAutopilotConfig;
+  /** @deprecated Use autopilot.enabled instead */
+  controller?: boolean; // Legacy field for backwards compatibility
 }
 
 export type ModuleName = ModuleStep['agentId'];

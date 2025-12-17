@@ -1,493 +1,496 @@
-# Customizing Workflows
+# CodeMachine Workflow Customization Guide
 
-Complete guide to customizing CodeMachine workflows, agents, and configurations.
+CodeMachine CLI provides a powerful, flexible workflow system that can be completely customized to fit your specific development needs. This guide covers everything from basic modifications to advanced workflow orchestration patterns.
 
-## Overview
+## Quick Start: Customizing Your First Workflow
 
-CodeMachine workflows are highly customizable through configuration files and workflow templates. This guide covers everything you need to create, customize, and optimize workflows for your specific use cases.
+### 1. Understanding the Core Components
 
-**What You Can Customize:**
-- Agent definitions and roles
-- Workflow step sequences
-- AI engines and models per step
-- Loop and trigger behaviors
-- Fallback handling
-- Execution policies
+CodeMachine workflows consist of three main configurable parts:
 
----
+- **Main Agents** (`config/main.agents.js`): Primary workflow steps that execute sequentially
+- **Sub-Agents** (`config/sub.agents.js`): Specialized agents that can be called dynamically by main agents
+- **Workflow Modules** (`config/modules.js`): Special behaviors like loops and triggers
+- **Workflow Templates** (`templates/workflows/`): Define the sequence and configuration of steps
 
-## Configuration Files
+### 2. Basic Workflow Customization
 
-All configuration files are located in the `config/` directory at the project root.
+#### Creating a Custom Workflow Template
 
-### Directory Structure
-
-```
-config/
-├── main.agents.js      # Primary workflow agents
-├── sub.agents.js       # Sub-agents for orchestration
-├── modules.js          # Workflow modules (loop/trigger behaviors)
-├── placeholders.js     # Path placeholder definitions
-└── package.json        # Config package metadata
-```
-
----
-
-## Main Agents Configuration
-
-**File:** `config/main.agents.js`
-
-Main agents represent the primary steps in your workflow execution. These are the agents that appear in workflow templates and execute sequentially.
-
-### Structure
+Create a new workflow file in `templates/workflows/my-custom-workflow.js`:
 
 ```javascript
 export default {
-  agents: [
-    {
-      id: 'agent-identifier',           // Required: Unique ID
-      name: 'Human Readable Name',      // Required: Display name
-      description: 'Agent role...',     // Required: Purpose description
-      promptPath: 'path/to/prompt.md'   // Required: Prompt template path
-    }
-  ]
-};
-```
+  name: "My Custom Workflow",
 
-### Real Example: CodeMachine Main Agents
+  steps: [
+    // Basic step resolution
+    resolveStep("init", { executeOnce: true }),
 
-```javascript
-export default {
-  agents: [
-    {
-      id: 'arch-agent',
-      name: 'Architecture Agent',
-      description: 'Defines the system architecture and technical decisions',
-      promptPath: 'prompts/templates/codemachine/agents/01-architecture-agent.md'
-    },
-    {
-      id: 'plan-agent',
-      name: 'Plan Agent',
-      description: 'Generates comprehensive development plans',
-      promptPath: 'prompts/templates/codemachine/agents/02-planning-agent.md'
-    },
-    {
-      id: 'task-breakdown',
-      name: 'Task Breakdown Agent',
-      description: 'Structures work into discrete, executable tasks (JSON format)',
-      promptPath: 'prompts/templates/codemachine/agents/03-task-breakdown-agent.md'
-    }
-  ]
-};
-```
----
+    // With custom engine and model
+    resolveStep("principal-analyst", {
+      executeOnce: true,
+      engine: "claude",
+      model: "opus",
+      modelReasoningEffort: "high",
+    }),
 
-## Sub-Agents Configuration
+    // Using UI separators
+    resolveUI("🔧 Custom Development Phase"),
 
-**File:** `config/sub.agents.js`
+    // Custom step with fallback
+    resolveStep("code-generation", {
+      engine: "codex",
+      model: "gpt-5-codex",
+      notCompletedFallback: "plan-fallback",
+    }),
 
-Sub-agents are specialized agents that can be invoked by main agents for specific tasks. They're useful for domain-specific expertise and parallel execution patterns.
-
-### Structure
-
-```javascript
-export default {
-  agents: [
-    {
-      id: 'sub-agent-id',
-      name: 'Display Name',
-      description: 'Specialized role description',
-      promptPath: 'path/to/prompt.md'
-    }
-  ]
-};
-```
-
-### Real Example: CodeMachine Sub-Agents
-
-```javascript
-export default {
-  agents: [
-    {
-      id: 'uxui-designer',
-      name: 'UX/UI Designer',
-      description: 'Specializes in user experience and interface design',
-      promptPath: 'prompts/templates/codemachine/sub-agents/uxui-designer.md'
-    },
-    {
-      id: 'frontend-dev',
-      name: 'Frontend Developer',
-      description: 'Frontend development specialist',
-      promptPath: 'prompts/templates/codemachine/sub-agents/frontend-developer.md'
-    },
-    {
-      id: 'backend-dev',
-      name: 'Backend Developer',
-      description: 'Backend development specialist',
-      promptPath: 'prompts/templates/codemachine/sub-agents/backend-developer.md'
-    },
-    {
-      id: 'solution-architect',
-      name: 'Solution Architect',
-      description: 'Solution architecture specialist',
-      promptPath: 'prompts/templates/codemachine/sub-agents/solution-architect.md'
-    },
-    {
-      id: 'technical-writer',
-      name: 'Technical Writer',
-      description: 'Documentation specialist',
-      promptPath: 'prompts/templates/codemachine/sub-agents/technical-writer.md'
-    }
-  ]
-};
-```
-
-### When to Use Sub-Agents
-
-- **Specialized expertise:** Domain-specific tasks (frontend, backend, QA)
-- **Parallel execution:** Multiple sub-agents working simultaneously
-- **Dynamic orchestration:** Main agent decides which sub-agents to invoke
-- **Context isolation:** Each sub-agent works in its own context
-
----
-
-## Workflow Modules Configuration
-
-**File:** `config/modules.js`
-
-Modules are special agents that trigger specific workflow behaviors like loops and conditional agent calls.
-
-### Module Types
-
-#### 1. Loop Behavior
-
-Allows workflows to repeat previous steps based on validation results.
-
-**Structure:**
-```javascript
-{
-  id: 'module-id',
-  name: 'Module Name',
-  promptPath: 'path/to/prompt.md',
-  behavior: {
-    type: 'loop',
-    action: 'stepBack',
-    steps: number,              // How many steps to go back
-    maxIterations: number,      // Maximum loop count
-    skip: ['agent-id']          // Agent IDs to skip when looping
-  }
-}
-```
-
-**Real Example:**
-```javascript
-{
-  id: 'check-task',
-  name: 'Check Task',
-  promptPath: 'prompts/templates/codemachine/workflows/task-verification-workflow.md',
-  behavior: {
-    type: 'loop',
-    action: 'stepBack',
-    steps: 6,                   // Go back 6 steps
-    maxIterations: 20,          // Maximum 20 iterations
-    skip: ['runtime-prep']      // Skip runtime-prep when looping
-  }
-}
-```
-
-**Use Cases:**
-- Task validation with retry logic
-- Code review loops until approval
-- Iterative refinement workflows
-- Quality gates with re-execution
-
-#### 2. Trigger Behavior
-
-Allows workflows to dynamically call specific agents based on runtime conditions.
-
-**Structure:**
-```javascript
-{
-  id: 'module-id',
-  name: 'Module Name',
-  promptPath: 'path/to/prompt.md',
-  behavior: {
-    type: 'trigger',
-    action: 'mainAgentCall',
-    triggerAgentId: 'default-agent-id'  // Default agent to trigger
-  }
-}
-```
-
-**Real Example:**
-```javascript
-{
-  id: 'iteration-checker',
-  name: 'Iteration Checker',
-  promptPath: 'prompts/templates/codemachine/workflows/iteration-verification-workflow.md',
-  behavior: {
-    type: 'trigger',
-    action: 'mainAgentCall',
-    triggerAgentId: 'context-manager'   // Default trigger
-  }
-}
-```
-
-**Use Cases:**
-- Conditional workflow branching
-- Dynamic agent selection
-- Context-aware routing
-- Adaptive workflows
-
----
-
-## Path Placeholders Configuration
-
-**File:** `config/placeholders.js`
-
-Defines reusable path placeholders for prompt templates and workflow artifacts.
-
-### User Directory Paths
-
-Paths within the user's `.codemachine/` workspace:
-
-```javascript
-export const userDir = {
-  specifications: '.codemachine/inputs/specifications.md',
-  architecture: '.codemachine/artifacts/architecture/*.md',
-  architecture_manifest_json: '.codemachine/artifacts/architecture/architecture_manifest.json',
-  plan: '.codemachine/artifacts/plan/*.md',
-  plan_manifest_json: '.codemachine/artifacts/plan/plan_manifest.json',
-  plan_fallback: '.codemachine/prompts/plan_fallback.md',
-  tasks: '.codemachine/artifacts/tasks.json',
-  all_tasks_json: '.codemachine/artifacts/tasks/*.json',
-  task_fallback: '.codemachine/prompts/task_fallback.md',
-  context: '.codemachine/prompts/context.md',
-  code_fallback: '.codemachine/prompts/code_fallback.md'
-};
-```
-
-### Package Directory Paths
-
-Paths within the CodeMachine package:
-
-```javascript
-export const packageDir = {
-  orchestration_guide: 'prompts/orchestration/guide.md',
-  arch_output_format: 'prompts/templates/codemachine/output-formats/architecture-output.md',
-  plan_output_format: 'prompts/templates/codemachine/output-formats/planning-output.md',
-  task_output_format: 'prompts/templates/codemachine/output-formats/task-breakdown-output.md',
-  context_output_format: 'prompts/templates/codemachine/output-formats/context-output.md',
-  task_validation_output_format: 'prompts/templates/codemachine/output-formats/task-validation-output.md'
-};
-```
-
-### Using Placeholders in Prompts
-
-Placeholders are automatically resolved when prompts are loaded:
-
-```markdown
-<!-- In your prompt template -->
-Read the specifications from: {{userDir.specifications}}
-Follow the format in: {{packageDir.plan_output_format}}
-```
-
----
-
-## Workflow Templates
-
-**Location:** `templates/workflows/`
-
-Workflow templates define the sequence of agent steps and their configurations.
-
-### Template Structure
-
-```javascript
-export default {
-  name: 'Workflow Name',      // Required: Display name
-
-  steps: [                    // Required: Array of workflow steps
-    // Step definitions...
+    // Loop behavior
+    resolveModule("check-task", {
+      loopSteps: 4,
+      loopMaxIterations: 10,
+      loopSkip: ["runtime-prep"],
+    }),
   ],
 
-  subAgentIds: [              // Optional: Available sub-agents
-    'sub-agent-id'
+  subAgentIds: ["founder-architect", "structural-data-architect", "behavior-architect"],
+};
+```
+
+## Advanced Customization Patterns
+
+### 1. Multi-Engine Workflow Strategy
+
+Different AI engines excel at different tasks. Here's how to optimize workflow performance:
+
+```javascript
+export default {
+  name: "Optimized Multi-Engine Workflow",
+  steps: [
+    // Strategic planning with Claude
+    resolveStep("blueprint-orchestrator", {
+      executeOnce: true,
+      engine: "claude",
+      model: "opus",
+      modelReasoningEffort: "high",
+    }),
+
+    // Code generation with specialized models
+    resolveStep("code-generation", {
+      engine: "codex",
+      model: "gpt-5-codex",
+    }),
+
+    // Analysis and review with Claude
+    resolveStep("task-sanity-check", {
+      engine: "claude",
+      model: "sonnet",
+    }),
+
+    // Git operations with Cursor
+    resolveStep("git-commit", {
+      engine: "cursor",
+    }),
+  ],
+};
+```
+
+### 2. Conditional Workflow Branching
+
+Use trigger modules to create adaptive workflows:
+
+```javascript
+// First, create a custom trigger module in config/modules.js
+{
+  id: 'quality-gate',
+  name: 'Quality Gate',
+  promptPath: 'prompts/templates/custom/quality-check.md',
+  behavior: {
+    type: 'trigger',
+    action: 'mainAgentCall',
+    triggerAgentId: 'code-refinement' // Default agent to call
+  }
+}
+
+// Then use it in your workflow
+export default {
+  name: 'Quality-Driven Workflow',
+  steps: [
+    resolveStep('code-generation'),
+    resolveStep('task-sanity-check'),
+    resolveModule('quality-gate'), // Will trigger different agents based on quality
+    resolveStep('git-commit')
   ]
 };
 ```
 
-### Step Resolution Functions
+### 3. Parallel Execution Patterns
 
-#### `resolveStep(agentId, overrides?)`
+Leverage sub-agents for parallel processing:
 
-Resolves a single agent step with optional configuration overrides.
-
-**Basic Usage:**
 ```javascript
-resolveStep('arch-agent')
+export default {
+  name: "Parallel Architecture Workflow",
+  steps: [
+    resolveStep("blueprint-orchestrator", {
+      executeOnce: true,
+      // This agent can call multiple sub-agents in parallel
+      engine: "claude",
+      model: "opus",
+    }),
+  ],
+
+  subAgentIds: [
+    "founder-architect", // Works on foundation
+    "structural-data-architect", // Works on structure
+    "behavior-architect", // Works on behavior
+    "ui-ux-architect", // Works on UI/UX
+    "operational-architect", // Works on operations
+    // All can execute in parallel when called by blueprint-orchestrator
+  ],
+};
 ```
 
-**With Overrides:**
+## Creating Custom Agents
+
+### 1. Adding Main Agents
+
+Edit `config/main.agents.js` to add new workflow steps:
+
 ```javascript
-resolveStep('plan-agent', {
+{
+  id: 'security-review',
+  name: 'Security Review Agent',
+  description: 'Conducts comprehensive security analysis of generated code',
+  promptPath: path.join(promptsDir, 'custom', 'security-review.md'),
+  // Optional: Custom chain of prompts
+  chainedPromptsPath: [
+    path.join(promptsDir, 'custom', 'security', 'vulnerability-scan.md'),
+    path.join(promptsDir, 'custom', 'security', 'dependency-check.md'),
+    path.join(promptsDir, 'custom', 'security', 'final-report.md')
+  ]
+}
+```
+
+### 2. Adding Sub-Agents
+
+Edit `config/sub.agents.js` for specialized expertise:
+
+```javascript
+{
+  id: 'performance-optimizer',
+  name: 'Performance Optimizer',
+  description: 'Specializes in code performance optimization and profiling',
+  mirrorPath: 'prompts/templates/custom/sub-agents/performance-optimizer.md'
+},
+{
+  id: 'accessibility-expert',
+  name: 'Accessibility Expert',
+  description: 'Ensures code meets accessibility standards and best practices',
+  mirrorPath: 'prompts/templates/custom/sub-agents/accessibility-expert.md'
+}
+```
+
+### 3. Creating Custom Modules
+
+Edit `config/modules.js` for special behaviors:
+
+#### Loop Module with Custom Logic
+
+```javascript
+{
+  id: 'iterative-refinement',
+  name: 'Iterative Refinement',
+  promptPath: 'prompts/templates/custom/workflows/iterative-refinement.md',
+  behavior: {
+    type: 'loop',
+    action: 'stepBack',
+    steps: 3,              // Go back 3 steps
+    maxIterations: 15,     // Maximum 15 iterations
+    skip: ['git-commit']  // Skip git commits during loops
+  }
+}
+```
+
+#### Trigger Module with Dynamic Agent Selection
+
+```javascript
+{
+  id: 'adaptive-router',
+  name: 'Adaptive Router',
+  promptPath: 'prompts/templates/custom/workflows/adaptive-routing.md',
+  behavior: {
+    type: 'trigger',
+    action: 'mainAgentCall',
+    triggerAgentId: 'context-manager' // Default, can be overridden by prompt
+  }
+}
+```
+
+## Workflow Configuration Options
+
+### Complete Override Reference
+
+| Option                 | Type    | Description                     | Example                                                  |
+| ---------------------- | ------- | ------------------------------- | -------------------------------------------------------- |
+| `executeOnce`          | boolean | Run step only once per workflow | `true`                                                   |
+| `engine`               | string  | AI engine to use                | `'claude'`, `'codex'`, `'cursor'`, `'ccr'`, `'opencode'` |
+| `model`                | string  | Specific AI model               | `'gpt-5-codex'`, `'opus'`, `'gpt-4'`                     |
+| `modelReasoningEffort` | string  | Reasoning depth                 | `'low'`, `'medium'`, `'high'`                            |
+| `agentName`            | string  | Custom display name             | `'Senior Architect'`                                     |
+| `promptPath`           | string  | Custom prompt path              | `'./prompts/custom.md'`                                  |
+| `notCompletedFallback` | string  | Fallback agent ID               | `'plan-fallback'`                                        |
+
+### Engine-Specific Recommendations
+
+#### Claude Models (Best for: Planning, Analysis, Review)
+
+- `opus`: Complex architecture, strategic decisions
+- `sonnet`: Balanced performance for most tasks
+- `haiku`: Fast, simple tasks
+
+#### Codex Models (Best for: Code Generation)
+
+- `gpt-5-codex`: Latest code-specialized model
+- `gpt-5`: General purpose with good coding
+- `gpt-4`: Stable, reliable code generation
+
+#### Cursor (Best for: Git Operations, File Management)
+
+- Engine-specific models, good for tool usage
+
+#### OpenCode (Provider-Agnostic)
+
+- Use your existing OpenCode configuration
+- Examples: `anthropic/claude-3.5-sonnet`, `openai/gpt-4o`
+
+## Real-World Workflow Examples
+
+### 1. E-Commerce Development Workflow
+
+```javascript
+export default {
+  name: "E-Commerce Platform Workflow",
+  steps: [
+    resolveUI("🏗️ Architecture Phase"),
+    resolveStep("init", { executeOnce: true }),
+    resolveStep("principal-analyst", {
+      executeOnce: true,
+      engine: "claude",
+      model: "opus",
+    }),
+    resolveStep("blueprint-orchestrator", {
+      executeOnce: true,
+      engine: "claude",
+      model: "opus",
+    }),
+
+    resolveUI("📋 Planning & Scoping"),
+    resolveStep("plan-agent", {
+      executeOnce: true,
+      engine: "claude",
+      model: "sonnet",
+    }),
+    resolveStep("task-breakdown", { executeOnce: true }),
+
+    resolveUI("🛒 Feature Development"),
+    resolveStep("context-manager"),
+    resolveStep("code-generation", {
+      engine: "codex",
+      model: "gpt-5-codex",
+    }),
+    resolveStep("runtime-prep", { executeOnce: true }),
+    resolveStep("task-sanity-check"),
+
+    resolveUI("🔒 Quality Assurance"),
+    resolveModule("check-task", {
+      loopSteps: 6,
+      loopMaxIterations: 15,
+      loopSkip: ["runtime-prep"],
+    }),
+  ],
+
+  subAgentIds: ["founder-architect", "structural-data-architect", "behavior-architect", "ui-ux-architect", "operational-architect"],
+};
+```
+
+### 2. API-First Development Workflow
+
+```javascript
+export default {
+  name: "API-First Development Workflow",
+  steps: [
+    resolveStep("init", { executeOnce: true }),
+
+    // API specification and design
+    resolveStep("blueprint-orchestrator", {
+      executeOnce: true,
+      engine: "claude",
+      model: "opus",
+      agentName: "API Architect",
+    }),
+
+    // Implementation with code-first approach
+    resolveStep("code-generation", {
+      engine: "codex",
+      model: "gpt-5-codex",
+      agentName: "API Developer",
+    }),
+
+    // API testing and validation
+    resolveStep("task-sanity-check", {
+      engine: "claude",
+      model: "sonnet",
+      agentName: "API Tester",
+    }),
+
+    // Documentation generation
+    resolveStep("runtime-prep", { executeOnce: true }),
+    resolveModule("check-task", { loopSteps: 3, loopMaxIterations: 10 }),
+  ],
+
+  subAgentIds: ["founder-architect", "structural-data-architect", "behavior-architect", "operational-architect"],
+};
+```
+
+### 3. Microservices Workflow with Parallel Processing
+
+```javascript
+export default {
+  name: "Microservices Development Workflow",
+  steps: [
+    resolveStep("init", { executeOnce: true }),
+    resolveStep("principal-analyst", {
+      executeOnce: true,
+      engine: "claude",
+      model: "opus",
+    }),
+
+    // Distributed system architecture
+    resolveStep("blueprint-orchestrator", {
+      executeOnce: true,
+      engine: "claude",
+      model: "opus",
+    }),
+
+    // Individual service development
+    resolveStep("code-generation", {
+      engine: "codex",
+      model: "gpt-5-codex",
+    }),
+
+    // Integration testing
+    resolveStep("task-sanity-check", {
+      engine: "claude",
+      model: "sonnet",
+    }),
+
+    // Container and deployment setup
+    resolveStep("runtime-prep", { executeOnce: true }),
+    resolveModule("check-task", { loopSteps: 4, loopMaxIterations: 12 }),
+  ],
+
+  subAgentIds: [
+    "founder-architect",
+    "structural-data-architect",
+    "behavior-architect",
+    "operational-architect",
+    // These will work in parallel on different services
+  ],
+};
+```
+
+## Testing and Debugging Workflows
+
+### 1. Creating Test Workflows
+
+Use the test workflow template for experimentation:
+
+```javascript
+// templates/workflows/my-test-workflow.js
+export default {
+  name: "Test Workflow",
+  steps: [resolveStep("test-agent-1"), resolveStep("test-agent-2"), resolveModule("auto-loop", { loopSteps: 1, loopMaxIterations: 3 })],
+  subAgentIds: [],
+};
+```
+
+### 2. Workflow Validation
+
+Run workflows in test mode first:
+
+```bash
+# Test your custom workflow
+codemachine --workflow my-test-workflow
+
+# Run with debug output
+DEBUG=true codemachine --workflow my-custom-workflow
+```
+
+### 3. Common Issues and Solutions
+
+#### Issue: Workflow Stuck in Loop
+
+**Solution**: Check `loopMaxIterations` and ensure your loop module has proper exit conditions.
+
+#### Issue: Agent Not Found
+
+**Solution**: Verify agent IDs in `main.agents.js` and `sub.agents.js` match workflow references.
+
+#### Issue: Engine Not Available
+
+**Solution**: Ensure the specified AI engine is installed and configured in your environment.
+
+## Best Practices
+
+### 1. Workflow Design Principles
+
+- **Single Responsibility**: Each agent should have one clear purpose
+- **Fail Fast**: Use `notCompletedFallback` for critical steps
+- **Iterative Development**: Start simple, add complexity gradually
+- **Engine Optimization**: Match engines to task types
+
+### 2. Performance Optimization
+
+```javascript
+// Good: Use appropriate engines for each task
+(resolveStep("planning", { engine: "claude", model: "opus" }), resolveStep("coding", { engine: "codex", model: "gpt-5-codex" }), resolveStep("review", { engine: "claude", model: "sonnet" }));
+
+// Avoid: Using expensive models for simple tasks
+resolveStep("git-commit", { engine: "claude", model: "opus" }); // Overkill
+```
+
+### 3. Error Handling
+
+```javascript
+// Robust configuration with fallbacks
+(resolveStep("plan-agent", {
   executeOnce: true,
-  engine: 'claude',
-  model: 'opus',
-  modelReasoningEffort: 'high',
-  agentName: 'Senior Architect',
-  promptPath: './custom/prompt.md',
-  notCompletedFallback: 'plan-fallback'
-})
+  notCompletedFallback: "plan-fallback",
+}),
+  resolveModule("check-task", {
+    loopSteps: 4,
+    loopMaxIterations: 10, // Prevent infinite loops
+    loopSkip: ["git-commit"], // Skip expensive operations in loops
+  }));
 ```
 
-#### `resolveModule(moduleId, overrides?)`
+### 4. Maintenability
 
-Resolves a workflow module with behavior configuration.
+- Use descriptive agent names and descriptions
+- Comment complex workflow logic
+- Version control your custom workflows
+- Document custom prompt templates
 
-**Usage:**
-```javascript
-resolveModule('check-task', {
-  loopSteps: 6,
-  loopMaxIterations: 20,
-  loopSkip: ['runtime-prep'],
-  engine: 'cursor'
-})
-```
+## Conclusion
 
-#### `resolveFolder(folderName, overrides?)`
+CodeMachine's workflow system is designed for maximum flexibility while maintaining simplicity. Start with the existing templates, modify incrementally, and gradually build up to complex multi-engine, parallel workflows tailored to your specific development needs.
 
-Loads multiple numbered agent files from a folder.
+The key is understanding that:
 
-**Usage:**
-```javascript
-...resolveFolder('codemachine', {
-  engine: 'claude',
-  model: 'opus',
-  modelReasoningEffort: 'medium'
-})
-```
+1. **Main agents** define the primary workflow sequence
+2. **Sub-agents** provide specialized, callable expertise
+3. **Modules** add dynamic behaviors like loops and triggers
+4. **Workflow templates** orchestrate everything together
 
-**Folder Structure:**
-```
-prompts/templates/codemachine/agents/
-├── 01-architecture-agent.md
-├── 02-planning-agent.md
-├── 03-task-breakdown-agent.md
-└── ...
-```
-
-Files are loaded in numerical order (0-*, 1-*, 2-*, etc.).
-
----
-
-## Complete Override Options Reference
-
-### Step Overrides
-
-All overrides available for `resolveStep()` and `resolveModule()`:
-
-| Option | Type | Description | Example |
-|--------|------|-------------|---------|
-| `executeOnce` | `boolean` | Run step only once per workflow | `true` |
-| `engine` | `string` | AI engine to use | `'claude'`, `'codex'`, `'cursor'`, `'ccr'`, `'opencode'` |
-| `model` | `string` | Specific AI model | `'gpt-5-codex'`, `'opus'`, `'gpt-4'` |
-| `modelReasoningEffort` | `string` | Reasoning depth level | `'low'`, `'medium'`, `'high'` |
-| `agentName` | `string` | Custom display name | `'Senior Architect'` |
-| `promptPath` | `string` | Custom prompt template path | `'./prompts/custom.md'` |
-| `notCompletedFallback` | `string` | Fallback agent ID on failure | `'plan-fallback'` |
-
-### Module-Specific Overrides
-
-Additional options for `resolveModule()`:
-
-| Option | Type | Description | Example |
-|--------|------|-------------|---------|
-| `loopSteps` | `number` | Steps to go back when looping | `6` |
-| `loopMaxIterations` | `number` | Maximum loop iterations | `20` |
-| `loopSkip` | `string[]` | Agent IDs to skip in loop | `['runtime-prep']` |
-
----
-
-## Engine & Model Configuration
-
-### Available Engines
-
-CodeMachine supports the following AI engines:
-
-1. **claude** - Anthropic Claude models
-2. **codex** - OpenAI Codex models
-3. **cursor** - Cursor AI models
-4. **ccr** - Claude Code Router CLI (brings your locally configured providers)
-5. **opencode** - OpenCode CLI (provider-agnostic; supply `provider/model` strings such as `anthropic/claude-3.7-sonnet`)
-
-### Engine Selection Strategy
-
-**By Task Type:**
-```javascript
-steps: [
-  resolveStep('planning', { engine: 'claude' }),      // Strategic thinking
-  resolveStep('code-gen', { engine: 'codex' }),       // Code generation
-  resolveStep('review', { engine: 'claude' }),        // Analysis & review
-  resolveStep('docs', { engine: 'claude' }),          // Documentation
-  resolveStep('commit', { engine: 'cursor' })         // Git operations
-]
-```
-
-**Mixed Engine Workflow:**
-```javascript
-steps: [
-  resolveStep('arch-agent', { engine: 'claude', model: 'opus' }),
-  resolveStep('code-generation', { engine: 'codex', model: 'gpt-5-codex' }),
-  resolveStep('task-sanity-check', { engine: 'codex', model: 'gpt-5' }),
-  resolveStep('git-commit', { engine: 'cursor' })
-]
-```
-
-### Model Options
-
-**Claude Models:**
-- `opus` - Most capable, best for complex reasoning
-- `sonnet` - Balanced performance
-- `haiku` - Fast, efficient
-
-**Codex Models:**
-- `gpt-5-codex` - Latest code-specialized model
-- `gpt-5` - General purpose GPT-5
-- `gpt-4` - Stable, reliable
-
-**Cursor Models:**
-- Engine-specific models (check Cursor documentation)
-
-**OpenCode Models:**
-- Provide the CLI-formatted `provider/model` name directly (e.g., `anthropic/claude-3.7-sonnet`, `openai/gpt-4.1`); CodeMachine passes the value through so you can mirror your OpenCode config.
-
-### Reasoning Effort Levels
-
-Controls how much "thinking" the model does:
-
-- `'low'` - Fast, direct responses
-- `'medium'` - Balanced thinking and speed (default)
-- `'high'` - Deep reasoning, longer processing
-
-**Example:**
-```javascript
-resolveStep('complex-analysis', {
-  engine: 'claude',
-  model: 'sonnet',
-  modelReasoningEffort: 'high'  // Maximum reasoning depth
-})
-```
----
-
-### Engine Selection
-
-```javascript
-// Planning & Analysis
-{ engine: 'claude', model: 'sonnet' }
-
-// Code Generation
-{ engine: 'codex', model: 'gpt-5-codex' }
-
-// Git Operations
-{ engine: 'cursor' }
-```
+With these building blocks, you can create workflows ranging from simple linear processes to complex, adaptive, multi-agent systems that can handle any development challenge.

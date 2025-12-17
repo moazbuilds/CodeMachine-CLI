@@ -23,7 +23,7 @@ import { MonitoringCleanup } from "../../agents/monitoring/index.js"
 import path from "path"
 import { createRequire } from "node:module"
 import { resolvePackageJson } from "../../shared/runtime/root.js"
-import { getSelectedTrack, setSelectedTrack, hasSelectedConditions, setSelectedConditions, getProjectName, setProjectName, getControllerAgents, initControllerAgent, loadControllerConfig } from "../../shared/workflows/index.js"
+import { getSelectedTrack, setSelectedTrack, hasSelectedConditions, setSelectedConditions, getProjectName, setProjectName, getAutopilotAgents, initAutopilotAgent, loadAutopilotConfig } from "../../shared/workflows/index.js"
 import { loadTemplate } from "../../workflows/templates/loader.js"
 import { getTemplatePathFromTracking } from "../../shared/workflows/template.js"
 import type { TrackConfig, ConditionConfig } from "../../workflows/templates/types"
@@ -128,7 +128,7 @@ export function App(props: { initialToast?: InitialToast }) {
   const [templateTracks, setTemplateTracks] = createSignal<Record<string, TrackConfig> | null>(null)
   const [templateConditions, setTemplateConditions] = createSignal<Record<string, ConditionConfig> | null>(null)
   const [initialProjectName, setInitialProjectName] = createSignal<string | null>(null)
-  const [controllerAgents, setControllerAgents] = createSignal<AgentDefinition[] | null>(null)
+  const [autopilotAgents, setAutopilotAgents] = createSignal<AgentDefinition[] | null>(null)
 
   let pendingWorkflowStart: (() => void) | null = null
 
@@ -157,21 +157,22 @@ export function App(props: { initialToast?: InitialToast }) {
       const needsConditionsSelection = hasConditions && !conditionsSelected
       const needsProjectName = !existingProjectName
 
-      // Check if workflow requires controller selection
-      // Skip if controller session already exists
-      let controllers: AgentDefinition[] = []
-      const existingControllerConfig = await loadControllerConfig(cmRoot)
-      const hasExistingControllerSession = existingControllerConfig?.controllerConfig?.sessionId
-      if (template.controller === true && !hasExistingControllerSession) {
-        controllers = await getControllerAgents(cwd)
+      // Check if workflow requires autopilot selection
+      // Skip if autopilot session already exists
+      let autopilots: AgentDefinition[] = []
+      const existingAutopilotConfig = await loadAutopilotConfig(cmRoot)
+      const hasExistingAutopilotSession = existingAutopilotConfig?.autopilotConfig?.sessionId
+      const autopilotEnabled = template.autopilot?.enabled ?? template.controller === true
+      if (autopilotEnabled && !hasExistingAutopilotSession) {
+        autopilots = await getAutopilotAgents(cwd)
       }
-      const needsControllerSelection = controllers.length > 0
+      const needsAutopilotSelection = autopilots.length > 0
 
-      // If project name, tracks, conditions, or controller need selection, show onboard view
-      if (needsProjectName || needsTrackSelection || needsConditionsSelection || needsControllerSelection) {
+      // If project name, tracks, conditions, or autopilot need selection, show onboard view
+      if (needsProjectName || needsTrackSelection || needsConditionsSelection || needsAutopilotSelection) {
         if (hasTracks) setTemplateTracks(template.tracks!)
         if (hasConditions) setTemplateConditions(template.conditions!)
-        if (needsControllerSelection) setControllerAgents(controllers)
+        if (needsAutopilotSelection) setAutopilotAgents(autopilots)
         setInitialProjectName(existingProjectName) // Pass existing name if any (to skip that step)
         currentView = "onboard"
         setView("onboard")
@@ -209,7 +210,7 @@ export function App(props: { initialToast?: InitialToast }) {
     setView("workflow")
   }
 
-  const handleOnboardComplete = async (result: { projectName?: string; trackId?: string; conditions?: string[]; controllerAgentId?: string }) => {
+  const handleOnboardComplete = async (result: { projectName?: string; trackId?: string; conditions?: string[]; autopilotAgentId?: string }) => {
     const cwd = process.env.CODEMACHINE_CWD || process.cwd()
     const cmRoot = path.join(cwd, '.codemachine')
 
@@ -228,16 +229,16 @@ export function App(props: { initialToast?: InitialToast }) {
       await setSelectedConditions(cmRoot, result.conditions)
     }
 
-    // Initialize controller agent if selected
-    if (result.controllerAgentId) {
-      const agent = controllerAgents()?.find(a => a.id === result.controllerAgentId)
+    // Initialize autopilot agent if selected
+    if (result.autopilotAgentId) {
+      const agent = autopilotAgents()?.find(a => a.id === result.autopilotAgentId)
       if (agent) {
         // Get prompt path from agent config (or use default)
-        const promptPath = (agent.promptPath as string) || `prompts/agents/${result.controllerAgentId}/system.md`
+        const promptPath = (agent.promptPath as string) || `prompts/agents/${result.autopilotAgentId}/system.md`
         try {
-          await initControllerAgent(result.controllerAgentId, promptPath, cwd, cmRoot)
+          await initAutopilotAgent(result.autopilotAgentId, promptPath, cwd, cmRoot)
         } catch (error) {
-          console.error("Failed to initialize controller agent:", error)
+          console.error("Failed to initialize autopilot agent:", error)
           // Continue anyway - workflow will run without autonomous mode
         }
       }
@@ -344,7 +345,7 @@ export function App(props: { initialToast?: InitialToast }) {
             <Onboard
               tracks={templateTracks() ?? undefined}
               conditions={templateConditions() ?? undefined}
-              controllerAgents={controllerAgents() ?? undefined}
+              autopilotAgents={autopilotAgents() ?? undefined}
               initialProjectName={initialProjectName()}
               onComplete={handleOnboardComplete}
               onCancel={handleOnboardCancel}

@@ -34,9 +34,10 @@ export interface InputContext {
  * Result from an input provider
  */
 export type InputResult =
-  | { type: 'input'; value: string; resumeMonitoringId?: number; source?: 'user' | 'controller' }
+  | { type: 'input'; value: string; resumeMonitoringId?: number; source?: 'user' | 'autopilot' | 'controller' }
   | { type: 'skip' }
-  | { type: 'stop' };
+  | { type: 'stop' }
+  | { type: 'loop' };
 
 /**
  * Input provider interface
@@ -118,5 +119,5 @@ export interface WaitingEventData {
  */
 export interface ReceivedEventData {
   input: string;
-  source: 'user' | 'controller' | 'queue';
+  source: 'user' | 'autopilot' | 'controller' | 'queue';
 }

@@ -14,13 +14,13 @@ import type { AgentDefinition } from "../../../../shared/agents/config/types"
 export interface OnboardProps {
   tracks?: Record<string, TrackConfig>
   conditions?: Record<string, ConditionConfig>
-  controllerAgents?: AgentDefinition[] // Available controller agents
+  autopilotAgents?: AgentDefinition[] // Available autopilot agents
   initialProjectName?: string | null // If set, skip project name input
-  onComplete: (result: { projectName?: string; trackId?: string; conditions?: string[]; controllerAgentId?: string }) => void
+  onComplete: (result: { projectName?: string; trackId?: string; conditions?: string[]; autopilotAgentId?: string }) => void
   onCancel?: () => void
 }
 
-type OnboardStep = 'project_name' | 'tracks' | 'conditions' | 'controller'
+type OnboardStep = 'project_name' | 'tracks' | 'conditions' | 'autopilot'
 
 export function Onboard(props: OnboardProps) {
   const themeCtx = useTheme()
@@ -34,11 +34,11 @@ export function Onboard(props: OnboardProps) {
   const [projectName, setProjectName] = createSignal("")
   const [selectedTrackId, setSelectedTrackId] = createSignal<string | undefined>()
   const [selectedConditions, setSelectedConditions] = createSignal<Set<string>>(new Set())
-  const [selectedControllerId, setSelectedControllerId] = createSignal<string | undefined>()
+  const [selectedAutopilotId, setSelectedAutopilotId] = createSignal<string | undefined>()
 
   const hasTracks = () => props.tracks && Object.keys(props.tracks).length > 0
   const hasConditions = () => props.conditions && Object.keys(props.conditions).length > 0
-  const hasControllers = () => props.controllerAgents && props.controllerAgents.length > 0
+  const hasAutopilots = () => props.autopilotAgents && props.autopilotAgents.length > 0
 
   // Determine initial step - skip project_name if already set
   onMount(() => {
@@ -48,8 +48,8 @@ export function Onboard(props: OnboardProps) {
         setCurrentStep('tracks')
       } else if (hasConditions()) {
         setCurrentStep('conditions')
-      } else if (hasControllers()) {
-        setCurrentStep('controller')
+      } else if (hasAutopilots()) {
+        setCurrentStep('autopilot')
       } else {
         props.onComplete({ projectName: props.initialProjectName })
       }
@@ -59,25 +59,25 @@ export function Onboard(props: OnboardProps) {
   const projectNameQuestion = "What is your project name?"
   const trackQuestion = "What is your project size?"
   const conditionsQuestion = "What features does your project have?"
-  const controllerQuestion = "Select a controller agent for autonomous mode:"
+  const autopilotQuestion = "Select an autopilot agent for autonomous mode:"
 
   const trackEntries = () => props.tracks ? Object.entries(props.tracks) : []
   const conditionEntries = () => props.conditions ? Object.entries(props.conditions) : []
-  const controllerEntries = () => props.controllerAgents ? props.controllerAgents.map(a => [a.id, a] as const) : []
+  const autopilotEntries = () => props.autopilotAgents ? props.autopilotAgents.map(a => [a.id, a] as const) : []
 
   const currentQuestion = () => {
     switch (currentStep()) {
       case 'project_name': return projectNameQuestion
       case 'tracks': return trackQuestion
       case 'conditions': return conditionsQuestion
-      case 'controller': return controllerQuestion
+      case 'autopilot': return autopilotQuestion
     }
   }
   const currentEntries = () => {
     switch (currentStep()) {
       case 'tracks': return trackEntries()
       case 'conditions': return conditionEntries()
-      case 'controller': return controllerEntries()
+      case 'autopilot': return autopilotEntries()
       default: return []
     }
   }
@@ -112,8 +112,8 @@ export function Onboard(props: OnboardProps) {
       setCurrentStep('tracks')
     } else if (hasConditions()) {
       setCurrentStep('conditions')
-    } else if (hasControllers()) {
-      setCurrentStep('controller')
+    } else if (hasAutopilots()) {
+      setCurrentStep('autopilot')
     } else {
       props.onComplete({ projectName: name })
     }
@@ -123,16 +123,16 @@ export function Onboard(props: OnboardProps) {
     setSelectedTrackId(trackId)
     if (hasConditions()) {
       setCurrentStep('conditions')
-    } else if (hasControllers()) {
-      setCurrentStep('controller')
+    } else if (hasAutopilots()) {
+      setCurrentStep('autopilot')
     } else {
       props.onComplete({ projectName: projectName(), trackId })
     }
   }
 
   const handleConditionsComplete = () => {
-    if (hasControllers()) {
-      setCurrentStep('controller')
+    if (hasAutopilots()) {
+      setCurrentStep('autopilot')
     } else {
       props.onComplete({
         projectName: projectName(),
@@ -142,13 +142,13 @@ export function Onboard(props: OnboardProps) {
     }
   }
 
-  const handleControllerSelect = (controllerId: string) => {
-    setSelectedControllerId(controllerId)
+  const handleAutopilotSelect = (autopilotId: string) => {
+    setSelectedAutopilotId(autopilotId)
     props.onComplete({
       projectName: projectName(),
       trackId: selectedTrackId(),
       conditions: Array.from(selectedConditions()),
-      controllerAgentId: controllerId
+      autopilotAgentId: autopilotId
     })
   }
 
@@ -199,9 +199,9 @@ export function Onboard(props: OnboardProps) {
       if (step === 'tracks') {
         const [trackId] = entries[selectedIndex()]
         handleTrackSelect(trackId as string)
-      } else if (step === 'controller') {
-        const [controllerId] = entries[selectedIndex()]
-        handleControllerSelect(controllerId as string)
+      } else if (step === 'autopilot') {
+        const [autopilotId] = entries[selectedIndex()]
+        handleAutopilotSelect(autopilotId as string)
       } else {
         // In conditions step, Enter toggles the checkbox
         const [conditionId] = entries[selectedIndex()]
@@ -220,9 +220,9 @@ export function Onboard(props: OnboardProps) {
         if (step === 'tracks') {
           const [trackId] = entries[num - 1]
           handleTrackSelect(trackId as string)
-        } else if (step === 'controller') {
-          const [controllerId] = entries[num - 1]
-          handleControllerSelect(controllerId as string)
+        } else if (step === 'autopilot') {
+          const [autopilotId] = entries[num - 1]
+          handleAutopilotSelect(autopilotId as string)
         } else {
           const [conditionId] = entries[num - 1]
           toggleCondition(conditionId as string)
@@ -350,9 +350,9 @@ export function Onboard(props: OnboardProps) {
             </For>
           </Show>
 
-          <Show when={currentStep() === 'controller'}>
-            <For each={controllerEntries()}>
-              {([controllerId, agent], index) => {
+          <Show when={currentStep() === 'autopilot'}>
+            <For each={autopilotEntries()}>
+              {([autopilotId, agent], index) => {
                 const isSelected = () => index() === selectedIndex()
                 return (
                   <box flexDirection="column">
@@ -364,7 +364,7 @@ export function Onboard(props: OnboardProps) {
                         {isSelected() ? "(*)" : "( )"}
                       </text>
                       <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.text}>
-                        {controllerId}
+                        {autopilotId}
                       </text>
                     </box>
                   </box>
@@ -391,7 +391,7 @@ export function Onboard(props: OnboardProps) {
               [Up/Down] Navigate  [Enter] Toggle  [Tab] Confirm  [Esc] Cancel
             </text>
           </Show>
-          <Show when={currentStep() === 'controller'}>
+          <Show when={currentStep() === 'autopilot'}>
             <text fg={themeCtx.theme.textMuted}>
               [Up/Down] Navigate  [Enter] Select  [Esc] Cancel
             </text>

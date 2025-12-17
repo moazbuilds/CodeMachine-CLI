@@ -23,7 +23,7 @@ import {
 } from '../state/index.js';
 import {
   UserInputProvider,
-  ControllerInputProvider,
+  AutopilotInputProvider,
   createInputEmitter,
   type InputProvider,
   type InputEventEmitter,
@@ -31,7 +31,7 @@ import {
 } from '../input/index.js';
 import { executeStep } from './step.js';
 import { selectEngine } from './engine.js';
-import { loadControllerConfig } from '../../shared/workflows/controller.js';
+import { loadAutopilotConfig } from '../../shared/workflows/autopilot.js';
 import { registry } from '../../infra/engines/index.js';
 import {
   markStepStarted,
@@ -40,7 +40,14 @@ import {
   markStepCompleted,
   getStepData,
   getChainResumeInfo,
+  updateStepDuration,
+  updateStepTelemetry,
+  getStepDuration,
+  getStepTelemetry,
 } from '../../shared/workflows/steps.js';
+import { getSelectedConditions } from '../../shared/workflows/index.js';
+import { loadAgentConfig } from '../../agents/runner/config.js';
+import { loadChainedPrompts } from '../../agents/runner/chained.js';
 
 /**
  * Runner options
@@ -62,7 +69,7 @@ export class WorkflowRunner {
   private inputEmitter: InputEventEmitter;
 
   private userInput: UserInputProvider;
-  private controllerInput: ControllerInputProvider;
+  private autopilotInput: AutopilotInputProvider;
   private activeProvider: InputProvider;
 
   private cwd: string;
@@ -92,9 +99,9 @@ export class WorkflowRunner {
       emitter: this.inputEmitter,
     });
 
-    this.controllerInput = new ControllerInputProvider({
+    this.autopilotInput = new AutopilotInputProvider({
       emitter: this.inputEmitter,
-      getControllerConfig: () => this.getControllerConfig(),
+      getAutopilotConfig: () => this.getAutopilotConfig(),
       cwd: this.cwd,
       cmRoot: this.cmRoot,
     });
@@ -119,9 +126,9 @@ export class WorkflowRunner {
     this.setupListeners();
   }
 
-  private async getControllerConfig() {
-    const state = await loadControllerConfig(this.cmRoot);
-    return state?.controllerConfig ?? null;
+  private async getAutopilotConfig() {
+    const state = await loadAutopilotConfig(this.cmRoot);
+    return state?.autopilotConfig ?? null;
   }
 
   private setupListeners(): void {
@@ -181,8 +188,8 @@ export class WorkflowRunner {
     debug('[Runner] Starting workflow: %s', this.template.name);
 
     // Load initial auto mode state
-    const controllerState = await loadControllerConfig(this.cmRoot);
-    if (controllerState?.autonomousMode && controllerState.controllerConfig) {
+    const autopilotState = await loadAutopilotConfig(this.cmRoot);
+    if (autopilotState?.autonomousMode && autopilotState.autopilotConfig) {
       await this.setAutoMode(true);
     }
 
@@ -244,6 +251,46 @@ export class WorkflowRunner {
         this.emitter.registerMonitoringId(uniqueAgentId, stepData.monitoringId);
       }
 
+      // Load and emit accumulated duration and telemetry from previous sessions
+      const previousDuration = await getStepDuration(this.cmRoot, ctx.currentStepIndex);
+      const previousTelemetry = await getStepTelemetry(this.cmRoot, ctx.currentStepIndex);
+      if (previousDuration > 0 || previousTelemetry) {
+        this.emitter.updateAgentTelemetry(uniqueAgentId, {
+          duration: previousDuration > 0 ? previousDuration : undefined,
+          tokensIn: previousTelemetry?.tokensIn,
+          tokensOut: previousTelemetry?.tokensOut,
+          cost: previousTelemetry?.cost,
+          cached: previousTelemetry?.cached,
+        });
+      }
+
+      // Load chained prompts for this step if agent has them configured
+      try {
+        const agentConfig = await loadAgentConfig(step.agentId, this.cwd);
+        if (agentConfig?.chainedPromptsPath) {
+          const selectedConditions = await getSelectedConditions(this.cmRoot);
+          const allChainedPrompts = await loadChainedPrompts(
+            agentConfig.chainedPromptsPath,
+            this.cwd,
+            selectedConditions
+          );
+
+          // Filter out already completed chains
+          const completedChains = new Set(stepData.completedChains ?? []);
+          const remainingPrompts = allChainedPrompts.filter(
+            (_, index) => !completedChains.has(index)
+          );
+
+          if (remainingPrompts.length > 0) {
+            ctx.promptQueue = remainingPrompts;
+            ctx.promptQueueIndex = 0;
+            debug('[Runner] Loaded %d remaining chained prompts for resume', remainingPrompts.length);
+          }
+        }
+      } catch (err) {
+        debug('[Runner] Failed to load chained prompts for resume: %s', err instanceof Error ? err.message : String(err));
+      }
+
       this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
       this.emitter.logMessage(uniqueAgentId, '═'.repeat(80));
       this.emitter.logMessage(uniqueAgentId, `${step.agentName} resumed - waiting for input.`);
@@ -265,6 +312,9 @@ export class WorkflowRunner {
 
     // Track step start for resume
     await markStepStarted(this.cmRoot, ctx.currentStepIndex);
+
+    // Track step start time for duration accumulation
+    const stepStartTime = Date.now();
 
     // Reset pause flag
     this.pauseRequested = false;
@@ -327,6 +377,20 @@ export class WorkflowRunner {
         const agentInfo = monitor.getAgent(output.monitoringId);
         const sessionId = agentInfo?.sessionId ?? '';
         await initStepSession(this.cmRoot, ctx.currentStepIndex, sessionId, output.monitoringId);
+
+        // Save accumulated duration
+        const stepDuration = Date.now() - stepStartTime;
+        await updateStepDuration(this.cmRoot, ctx.currentStepIndex, stepDuration);
+
+        // Save accumulated telemetry
+        if (agentInfo?.telemetry) {
+          await updateStepTelemetry(this.cmRoot, ctx.currentStepIndex, {
+            tokensIn: agentInfo.telemetry.tokensIn ?? 0,
+            tokensOut: agentInfo.telemetry.tokensOut ?? 0,
+            cost: agentInfo.telemetry.cost ?? 0,
+            cached: agentInfo.telemetry.cached,
+          });
+        }
       }
 
       const stepOutput: StepOutput = {
@@ -355,6 +419,24 @@ export class WorkflowRunner {
     } catch (error) {
       // Handle abort
       if (error instanceof Error && error.name === 'AbortError') {
+        // Save accumulated duration for the time spent before abort
+        const stepDuration = Date.now() - stepStartTime;
+        await updateStepDuration(this.cmRoot, ctx.currentStepIndex, stepDuration);
+
+        // Try to save telemetry if we have a monitoring ID
+        if (ctx.currentMonitoringId !== undefined) {
+          const monitor = AgentMonitorService.getInstance();
+          const agentInfo = monitor.getAgent(ctx.currentMonitoringId);
+          if (agentInfo?.telemetry) {
+            await updateStepTelemetry(this.cmRoot, ctx.currentStepIndex, {
+              tokensIn: agentInfo.telemetry.tokensIn ?? 0,
+              tokensOut: agentInfo.telemetry.tokensOut ?? 0,
+              cost: agentInfo.telemetry.cost ?? 0,
+              cached: agentInfo.telemetry.cached,
+            });
+          }
+        }
+
         if (this.pauseRequested) {
           debug('[Runner] Step aborted due to pause');
           this.emitter.logMessage(uniqueAgentId, `${step.agentName} paused.`);
@@ -459,7 +541,7 @@ export class WorkflowRunner {
   /**
    * Resume current step with input (for chained prompts or steering)
    */
-  private async resumeWithInput(input: string, monitoringId?: number, source?: 'user' | 'controller'): Promise<void> {
+  private async resumeWithInput(input: string, monitoringId?: number, source?: 'user' | 'autopilot' | 'controller'): Promise<void> {
     const ctx = this.machine.context;
     const step = this.moduleSteps[ctx.currentStepIndex];
     const uniqueAgentId = `${step.agentId}-step-${ctx.currentStepIndex}`;
@@ -484,14 +566,17 @@ export class WorkflowRunner {
       }
     }
 
-    // Log custom user input (magenta) - skip for controller input (already logged during streaming)
-    if (!isQueuedPrompt && source !== 'controller') {
+    // Log custom user input (magenta) - skip for autopilot input (already logged during streaming)
+    if (!isQueuedPrompt && source !== 'autopilot' && source !== 'controller') {
       const formatted = formatUserInput(input);
       this.emitter.logMessage(uniqueAgentId, formatted);
       if (monitoringId !== undefined) {
         AgentLoggerService.getInstance().write(monitoringId, `\n${formatted}\n`);
       }
     }
+
+    // Track step start time for duration accumulation
+    const stepStartTime = Date.now();
 
     this.abortController = new AbortController();
     this.emitter.updateAgentStatus(uniqueAgentId, 'running');
@@ -526,6 +611,24 @@ export class WorkflowRunner {
       };
       ctx.currentMonitoringId = output.monitoringId;
 
+      // Save accumulated duration
+      const stepDuration = Date.now() - stepStartTime;
+      await updateStepDuration(this.cmRoot, ctx.currentStepIndex, stepDuration);
+
+      // Save accumulated telemetry
+      if (output.monitoringId !== undefined) {
+        const monitor = AgentMonitorService.getInstance();
+        const agentInfo = monitor.getAgent(output.monitoringId);
+        if (agentInfo?.telemetry) {
+          await updateStepTelemetry(this.cmRoot, ctx.currentStepIndex, {
+            tokensIn: agentInfo.telemetry.tokensIn ?? 0,
+            tokensOut: agentInfo.telemetry.tokensOut ?? 0,
+            cost: agentInfo.telemetry.cost ?? 0,
+            cached: agentInfo.telemetry.cached,
+          });
+        }
+      }
+
       // Back to checkpoint while waiting for next input
       this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
 
@@ -533,6 +636,24 @@ export class WorkflowRunner {
       // (The waiting handler will be called again)
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
+        // Save accumulated duration for the time spent before abort
+        const stepDuration = Date.now() - stepStartTime;
+        await updateStepDuration(this.cmRoot, ctx.currentStepIndex, stepDuration);
+
+        // Try to save telemetry if we have a monitoring ID
+        if (ctx.currentMonitoringId !== undefined) {
+          const monitor = AgentMonitorService.getInstance();
+          const agentInfo = monitor.getAgent(ctx.currentMonitoringId);
+          if (agentInfo?.telemetry) {
+            await updateStepTelemetry(this.cmRoot, ctx.currentStepIndex, {
+              tokensIn: agentInfo.telemetry.tokensIn ?? 0,
+              tokensOut: agentInfo.telemetry.tokensOut ?? 0,
+              cost: agentInfo.telemetry.cost ?? 0,
+              cached: agentInfo.telemetry.cached,
+            });
+          }
+        }
+
         if (this.pauseRequested) {
           this.machine.send({ type: 'PAUSE' });
           return;
@@ -574,7 +695,7 @@ export class WorkflowRunner {
 
     // Activate new provider
     if (enabled) {
-      this.activeProvider = this.controllerInput;
+      this.activeProvider = this.autopilotInput;
     } else {
       this.activeProvider = this.userInput;
     }

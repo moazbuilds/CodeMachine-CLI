@@ -22,7 +22,7 @@ import { useWorkflowModals } from "./hooks/use-workflow-modals"
 import { useWorkflowKeyboard } from "./hooks/use-workflow-keyboard"
 import { calculateVisibleItems } from "./constants"
 import type { WorkflowEventBus } from "../../../../workflows/events/index.js"
-import { setAutonomousMode as persistAutonomousMode, loadControllerConfig } from "../../../../shared/workflows/index.js"
+import { setAutonomousMode as persistAutonomousMode, loadAutopilotConfig } from "../../../../shared/workflows/index.js"
 import { debug } from "../../../../shared/logging/logger.js"
 import path from "path"
 
@@ -124,10 +124,10 @@ export function WorkflowShell(props: WorkflowShellProps) {
 
     // Load initial autonomous mode state
     const cmRoot = path.join(resolvePath(props.currentDir), '.codemachine')
-    debug('onMount - loading controller config from: %s', cmRoot)
-    const controllerState = await loadControllerConfig(cmRoot)
-    debug('onMount - controllerState: %s', JSON.stringify(controllerState))
-    if (controllerState?.autonomousMode) {
+    debug('onMount - loading autopilot config from: %s', cmRoot)
+    const autopilotState = await loadAutopilotConfig(cmRoot)
+    debug('onMount - autopilotState: %s', JSON.stringify(autopilotState))
+    if (autopilotState?.autonomousMode) {
       debug('onMount - setting autonomousMode to true')
       ui.actions.setAutonomousMode(true)
     } else {
@@ -307,17 +307,17 @@ export function WorkflowShell(props: WorkflowShellProps) {
     const cmRoot = path.join(resolvePath(props.currentDir), '.codemachine')
 
     // Read current state from file (source of truth)
-    const controllerState = await loadControllerConfig(cmRoot)
-    debug('[TOGGLE] controllerState: %s', JSON.stringify(controllerState))
-    const currentMode = controllerState?.autonomousMode ?? false
+    const autopilotState = await loadAutopilotConfig(cmRoot)
+    debug('[TOGGLE] autopilotState: %s', JSON.stringify(autopilotState))
+    const currentMode = autopilotState?.autonomousMode ?? false
     const newMode = !currentMode
 
     debug('[TOGGLE] Current mode from file: %s, new mode: %s', currentMode, newMode)
 
-    // Check if controller is configured (required for autonomous mode)
-    if (newMode && !controllerState?.controllerConfig) {
-      debug('[TOGGLE] Cannot enable autonomous mode - no controller configured')
-      toast.show({ variant: "error", message: "Cannot enable: No controller configured", duration: 3000 })
+    // Check if autopilot is configured (required for autonomous mode)
+    if (newMode && !autopilotState?.autopilotConfig) {
+      debug('[TOGGLE] Cannot enable autonomous mode - no autopilot configured')
+      toast.show({ variant: "error", message: "Cannot enable: No autopilot configured", duration: 3000 })
       return
     }
 
