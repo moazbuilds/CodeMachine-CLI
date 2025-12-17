@@ -15,6 +15,8 @@ import { debug, setDebugLogFile } from '../../shared/logging/logger.js';
 import {
   getTemplatePathFromTracking,
   getResumeStartIndex,
+  getSelectedTrack,
+  getSelectedConditions,
 } from '../../shared/workflows/index.js';
 import { registry } from '../../infra/engines/index.js';
 import { MonitoringCleanup } from '../../agents/monitoring/index.js';
@@ -98,15 +100,30 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   // Get start index
   const startIndex = await getResumeStartIndex(cmRoot);
 
+  // Load track and conditions selections
+  const selectedTrack = await getSelectedTrack(cmRoot);
+  const selectedConditions = await getSelectedConditions(cmRoot);
+
+  // Filter steps by track and conditions
+  const visibleSteps = template.steps.filter(step => {
+    if (step.type !== 'module') return true;
+    if (step.tracks?.length && selectedTrack && !step.tracks.includes(selectedTrack)) return false;
+    if (step.conditions?.length) {
+      const missing = step.conditions.filter(c => !(selectedConditions ?? []).includes(c));
+      if (missing.length > 0) return false;
+    }
+    return true;
+  });
+
   // Count module steps for total
-  const moduleSteps = template.steps.filter(s => s.type === 'module');
+  const moduleSteps = visibleSteps.filter(s => s.type === 'module');
 
   // Emit workflow started
   emitter.workflowStarted(template.name, moduleSteps.length);
 
   // Pre-populate timeline
   let moduleIndex = 0;
-  template.steps.forEach((step, stepIndex) => {
+  visibleSteps.forEach((step, stepIndex) => {
     if (step.type === 'module') {
       const defaultEngine = registry.getDefault();
       const engineType = step.engine ?? defaultEngine?.metadata.id ?? 'unknown';
@@ -131,7 +148,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   const runner = new WorkflowRunner({
     cwd,
     cmRoot,
-    template,
+    template: { ...template, steps: visibleSteps },
     emitter,
     startIndex,
   });
