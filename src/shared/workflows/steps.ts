@@ -296,7 +296,7 @@ export async function clearNotCompletedSteps(cmRoot: string): Promise<void> {
 
 /**
  * Gets the resume starting index.
- * First checks for incomplete chains, then falls back to notCompletedSteps.
+ * Priority: incomplete chains > notCompletedSteps > after last completed step > 0
  */
 export async function getResumeStartIndex(cmRoot: string): Promise<number> {
   const { data } = await readTrackingData(cmRoot);
@@ -312,9 +312,22 @@ export async function getResumeStartIndex(cmRoot: string): Promise<number> {
     return chainResumeInfo.stepIndex;
   }
 
-  // Fall back to notCompletedSteps
+  // Check notCompletedSteps (crash recovery)
   if (data.notCompletedSteps && data.notCompletedSteps.length > 0) {
     return Math.min(...data.notCompletedSteps);
+  }
+
+  // Check completedSteps - if all steps done, start after the last one
+  const completedSteps = data.completedSteps as Record<string, StepData>;
+  if (completedSteps && typeof completedSteps === 'object') {
+    const completedIndices = Object.entries(completedSteps)
+      .filter(([, stepData]) => stepData.completedAt !== undefined)
+      .map(([key]) => parseInt(key, 10));
+
+    if (completedIndices.length > 0) {
+      // Return index after the highest completed step
+      return Math.max(...completedIndices) + 1;
+    }
   }
 
   return 0;
