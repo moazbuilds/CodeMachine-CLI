@@ -11,16 +11,18 @@ description: Work with a peer UX Design expert to plan your applications UX patt
 
 ## WORKFLOW ARCHITECTURE
 
-This uses **micro-file architecture** for disciplined execution:
+This uses **step-file architecture** for disciplined execution:
 
-- Each step is a self-contained file with embedded rules
-- Sequential progression with user control at each step
-- Document state tracked in frontmatter
-- Append-only document building through conversation
+### Core Principles
 
----
+- **Micro-file Design**: Each step is a self contained instruction file that is a part of an overall workflow that must be followed exactly
+- **Sequential Enforcement**: Sequence within the step files must be completed in order, no skipping or optimization allowed
+- **Append-Only Building**: Build documents by appending content as directed to the output file
 
-### Output Files
+## PRODUCT BRIEF
 
-- Color themes: `{output_folder}/ux-color-themes.html`
-- Design directions: `{output_folder}/ux-design-directions.html`
+{!product_brief}
+
+## PRD
+
+{prd}

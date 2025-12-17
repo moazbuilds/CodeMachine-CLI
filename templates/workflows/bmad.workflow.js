@@ -13,5 +13,6 @@ export default {
     resolveStep('bmad-analyst', {model: 'opencode/grok-code'}),
     resolveStep('bmad-pm', {model: 'opencode/grok-code'}),
     resolveStep('bmad-ux', {model: 'opencode/grok-code', conditions: ['has_ui']}),
+    resolveStep('bmad-architect', {model: 'opencode/grok-code'}),
   ],
 };

@@ -17,6 +17,8 @@ module.exports = {
 
     // BMAD workflow artifacts
     product_brief: path.join('.codemachine', 'artifacts', 'product-brief-*.md'),
+    prd: path.join('.codemachine', 'artifacts', 'prd-*.md'),
+    ux_design_spec: path.join('.codemachine', 'artifacts', 'ux-design-spec-*.md'),
   },
 
   // Paths relative to codemachine package root

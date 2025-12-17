@@ -142,6 +142,24 @@ module.exports = [
       path.join(promptsDir, 'bmad', '03-ux-designer', 'chained', 'step-13-complete.md'),
     ],
   },
+  {
+    id: 'bmad-architect',
+    name: 'Winston the Architect',
+    description: 'BMAD architect for architecture decision workflow',
+    promptPath: [
+      path.join(promptsDir, 'bmad', '04-architect', 'winston.md'),
+      path.join(promptsDir, 'bmad', '04-architect', 'workflow.md'),
+      path.join(promptsDir, 'bmad', '04-architect', 'chained', 'step-01-context.md'),
+    ],
+    chainedPromptsPath: [
+      path.join(promptsDir, 'bmad', '04-architect', 'chained', 'step-02-starter.md'),
+      path.join(promptsDir, 'bmad', '04-architect', 'chained', 'step-03-decisions.md'),
+      path.join(promptsDir, 'bmad', '04-architect', 'chained', 'step-04-patterns.md'),
+      path.join(promptsDir, 'bmad', '04-architect', 'chained', 'step-05-structure.md'),
+      path.join(promptsDir, 'bmad', '04-architect', 'chained', 'step-06-validation.md'),
+      path.join(promptsDir, 'bmad', '04-architect', 'chained', 'step-07-complete.md'),
+    ],
+  },
 
   // Test agents
   {
