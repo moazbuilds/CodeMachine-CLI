@@ -19,6 +19,7 @@ module.exports = {
     product_brief: path.join('.codemachine', 'artifacts', 'product-brief-*.md'),
     prd: path.join('.codemachine', 'artifacts', 'prd-*.md'),
     ux_design_spec: path.join('.codemachine', 'artifacts', 'ux-design-spec-*.md'),
+    architecture: path.join('.codemachine', 'artifacts', 'architecture-*.md'),
   },
 
   // Paths relative to codemachine package root

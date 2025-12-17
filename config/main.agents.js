@@ -103,7 +103,7 @@ module.exports = [
     description: 'BMAD product manager for PRD creation workflow',
     promptPath: [
       path.join(promptsDir, 'bmad', '02-pm', 'john.md'),
-      path.join(promptsDir, 'bmad', '02-pm', 'workflow.md'),
+      path.join(promptsDir, 'bmad', '02-pm', '01-prd', 'workflow.md'),
       path.join(promptsDir, 'bmad', '02-pm', '01-prd', 'chained', 'step-01-discovery.md'),
     ],
     chainedPromptsPath: [
@@ -158,6 +158,21 @@ module.exports = [
       path.join(promptsDir, 'bmad', '04-architect', 'chained', 'step-05-structure.md'),
       path.join(promptsDir, 'bmad', '04-architect', 'chained', 'step-06-validation.md'),
       path.join(promptsDir, 'bmad', '04-architect', 'chained', 'step-07-complete.md'),
+    ],
+  },
+  {
+    id: 'bmad-epics',
+    name: 'John the PM - Epics',
+    description: 'BMAD PM for epics and stories creation workflow',
+    promptPath: [
+      path.join(promptsDir, 'bmad', '02-pm', 'john.md'),
+      path.join(promptsDir, 'bmad', '02-pm', '02-epics', 'workflow.md'),
+      path.join(promptsDir, 'bmad', '02-pm', '02-epics', 'chained', 'step-01-validate-prerequisites.md'),
+    ],
+    chainedPromptsPath: [
+      path.join(promptsDir, 'bmad', '02-pm', '02-epics', 'chained', 'step-02-design-epics.md'),
+      path.join(promptsDir, 'bmad', '02-pm', '02-epics', 'chained', 'step-03-create-stories.md'),
+      path.join(promptsDir, 'bmad', '02-pm', '02-epics', 'chained', 'step-04-final-validation.md'),
     ],
   },
 
