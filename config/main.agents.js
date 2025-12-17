@@ -118,6 +118,30 @@ module.exports = [
       path.join(promptsDir, 'bmad', '02-pm', '01-prd', 'chained', 'step-10-complete.md'),
     ],
   },
+  {
+    id: 'bmad-ux',
+    name: 'Sally the UX Designer',
+    description: 'BMAD UX designer for UX design specification workflow',
+    promptPath: [
+      path.join(promptsDir, 'bmad', '03-ux-designer', 'sally.md'),
+      path.join(promptsDir, 'bmad', '03-ux-designer', 'workflow.md'),
+      path.join(promptsDir, 'bmad', '03-ux-designer', 'chained', 'step-01-discovery.md'),
+    ],
+    chainedPromptsPath: [
+      path.join(promptsDir, 'bmad', '03-ux-designer', 'chained', 'step-02-core-experience.md'),
+      path.join(promptsDir, 'bmad', '03-ux-designer', 'chained', 'step-03-emotional-response.md'),
+      path.join(promptsDir, 'bmad', '03-ux-designer', 'chained', 'step-04-inspiration.md'),
+      path.join(promptsDir, 'bmad', '03-ux-designer', 'chained', 'step-05-design-system.md'),
+      path.join(promptsDir, 'bmad', '03-ux-designer', 'chained', 'step-06-defining-experience.md'),
+      path.join(promptsDir, 'bmad', '03-ux-designer', 'chained', 'step-07-visual-foundation.md'),
+      path.join(promptsDir, 'bmad', '03-ux-designer', 'chained', 'step-08-design-directions.md'),
+      path.join(promptsDir, 'bmad', '03-ux-designer', 'chained', 'step-09-user-journeys.md'),
+      path.join(promptsDir, 'bmad', '03-ux-designer', 'chained', 'step-10-component-strategy.md'),
+      path.join(promptsDir, 'bmad', '03-ux-designer', 'chained', 'step-11-ux-patterns.md'),
+      path.join(promptsDir, 'bmad', '03-ux-designer', 'chained', 'step-12-responsive-accessibility.md'),
+      path.join(promptsDir, 'bmad', '03-ux-designer', 'chained', 'step-13-complete.md'),
+    ],
+  },
 
   // Test agents
   {
