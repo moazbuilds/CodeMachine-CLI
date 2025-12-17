@@ -15,6 +15,7 @@ import { debug, setDebugLogFile } from '../../shared/logging/logger.js';
 import {
   getTemplatePathFromTracking,
   getResumeStartIndex,
+  getStepData,
 } from '../../shared/workflows/index.js';
 import { registry } from '../../infra/engines/index.js';
 import { MonitoringCleanup } from '../../agents/monitoring/index.js';
@@ -106,11 +107,12 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
   // Pre-populate timeline
   let moduleIndex = 0;
-  template.steps.forEach((step, stepIndex) => {
+  for (const step of template.steps) {
     if (step.type === 'module') {
       const defaultEngine = registry.getDefault();
       const engineType = step.engine ?? defaultEngine?.metadata.id ?? 'unknown';
       const uniqueAgentId = `${step.agentId}-step-${moduleIndex}`;
+      const isCompleted = moduleIndex < startIndex;
 
       emitter.addMainAgent(
         uniqueAgentId,
@@ -118,14 +120,26 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         engineType,
         moduleIndex,
         moduleSteps.length,
-        moduleIndex < startIndex ? 'completed' : 'pending',
+        isCompleted ? 'completed' : 'pending',
         step.model
       );
+
+      // For completed steps, register their monitoringId from template.json
+      // This allows the UI to load logs for completed steps after restart
+      if (isCompleted) {
+        const stepData = await getStepData(cmRoot, moduleIndex);
+        if (stepData?.monitoringId && stepData.monitoringId > 0) {
+          emitter.registerMonitoringId(uniqueAgentId, stepData.monitoringId);
+          debug('[Workflow] Registered monitoringId %d for completed step %s', stepData.monitoringId, uniqueAgentId);
+        }
+      }
+
       moduleIndex++;
     } else if (step.type === 'ui') {
+      const stepIndex = template.steps.indexOf(step);
       emitter.addUIElement(step.text, stepIndex);
     }
-  });
+  }
 
   // Create and run workflow
   const runner = new WorkflowRunner({

@@ -291,7 +291,10 @@ export class WorkflowRunner {
         debug('[Runner] Failed to load chained prompts for resume: %s', err instanceof Error ? err.message : String(err));
       }
 
-      this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
+      // Only show checkpoint status in manual mode - in auto mode, autopilot will handle it
+      if (!ctx.autoMode) {
+        this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
+      }
       this.emitter.logMessage(uniqueAgentId, '═'.repeat(80));
       this.emitter.logMessage(uniqueAgentId, `${step.agentName} resumed - waiting for input.`);
 
@@ -405,9 +408,13 @@ export class WorkflowRunner {
         output.chainedPrompts.forEach((p, i) => debug('[Runner]   [%d] %s: %s', i, p.name, p.label));
         this.machine.context.promptQueue = output.chainedPrompts;
         this.machine.context.promptQueueIndex = 0;
-        // Show checkpoint status while waiting for chained prompt input
-        this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
-        debug('[Runner] Agent at checkpoint, waiting for chained prompt input');
+        // Show checkpoint status only in manual mode - in auto mode, keep running status
+        if (!ctx.autoMode) {
+          this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
+          debug('[Runner] Agent at checkpoint, waiting for chained prompt input');
+        } else {
+          debug('[Runner] Auto mode - keeping running status for autopilot processing');
+        }
       } else {
         debug('[Runner] No chained prompts, marking agent completed');
         this.emitter.updateAgentStatus(uniqueAgentId, 'completed');
@@ -629,8 +636,10 @@ export class WorkflowRunner {
         }
       }
 
-      // Back to checkpoint while waiting for next input
-      this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
+      // Back to checkpoint only in manual mode - in auto mode, keep running status
+      if (!ctx.autoMode) {
+        this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
+      }
 
       // Stay in waiting state - will get more input
       // (The waiting handler will be called again)
