@@ -35,6 +35,8 @@ export interface StepData {
   accumulatedDuration?: number;
   /** Accumulated telemetry (tokens/cost) across resume sessions */
   accumulatedTelemetry?: AccumulatedTelemetry;
+  /** True if step was skipped without executing (no log file exists) */
+  skipped?: boolean;
 }
 
 /**

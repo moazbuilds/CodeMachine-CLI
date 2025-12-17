@@ -59,3 +59,5 @@ export {
   getStepDuration,
   getStepTelemetry,
 } from './steps.js';
+
+export type { MarkStepCompletedOptions } from './steps.js';

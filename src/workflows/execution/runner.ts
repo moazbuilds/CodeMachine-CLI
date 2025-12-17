@@ -445,8 +445,8 @@ export class WorkflowRunner {
           debug('[Runner] Step aborted (skip)');
           this.emitter.updateAgentStatus(uniqueAgentId, 'skipped');
           this.emitter.logMessage(uniqueAgentId, `${step.agentName} was skipped.`);
-          // Track step completion for resume
-          await markStepCompleted(this.cmRoot, ctx.currentStepIndex);
+          // Track step completion for resume - mark as skipped since no agent ran to completion
+          await markStepCompleted(this.cmRoot, ctx.currentStepIndex, { skipped: true });
           this.machine.send({ type: 'SKIP' });
         }
         return;
@@ -527,8 +527,8 @@ export class WorkflowRunner {
         this.emitter.updateAgentStatus(uniqueAgentId, 'skipped');
         this.emitter.logMessage(uniqueAgentId, `${step.agentName} was skipped.`);
         this.emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
-        // Track step completion for resume
-        await markStepCompleted(this.cmRoot, ctx.currentStepIndex);
+        // Track step completion for resume - mark as skipped since user skipped it
+        await markStepCompleted(this.cmRoot, ctx.currentStepIndex, { skipped: true });
         this.machine.send({ type: 'SKIP' });
         break;
 

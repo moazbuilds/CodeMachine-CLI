@@ -198,20 +198,38 @@ export async function markChainCompleted(
 }
 
 /**
+ * Options for marking a step as completed
+ */
+export interface MarkStepCompletedOptions {
+  /** True if step was skipped without executing (no agent ran, no log file) */
+  skipped?: boolean;
+}
+
+/**
  * Marks a step as fully completed.
  * Sets completedAt timestamp and removes completedChains.
+ * If step was skipped (no session initialized), marks it with skipped: true.
  */
-export async function markStepCompleted(cmRoot: string, stepIndex: number): Promise<void> {
+export async function markStepCompleted(
+  cmRoot: string,
+  stepIndex: number,
+  options?: MarkStepCompletedOptions
+): Promise<void> {
   const { data, trackingPath } = await readTrackingData(cmRoot);
   const completedSteps = data.completedSteps as Record<string, StepData>;
   const key = String(stepIndex);
 
   // Get or create step data
   if (!completedSteps[key]) {
+    // No session was initialized - this step was skipped
     completedSteps[key] = {
       sessionId: '',
       monitoringId: 0,
+      skipped: options?.skipped ?? true, // Default to skipped if no session exists
     };
+  } else if (options?.skipped) {
+    // Explicitly mark as skipped even if session data exists
+    completedSteps[key].skipped = true;
   }
 
   // Mark as completed
