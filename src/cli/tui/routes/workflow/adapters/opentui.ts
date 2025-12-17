@@ -113,7 +113,8 @@ export class OpenTUIAdapter extends BaseUIAdapter {
           model: event.agent.model,
           status: event.agent.status,
           telemetry: { tokensIn: 0, tokensOut: 0 },
-          startTime: Date.now(),
+          // Only set startTime if agent is already running (not for pending agents)
+          startTime: event.agent.status === "running" ? Date.now() : 0,
           toolCount: 0,
           thinkingCount: 0,
           stepIndex: event.agent.stepIndex,

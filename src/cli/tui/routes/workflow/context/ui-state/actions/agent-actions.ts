@@ -19,25 +19,33 @@ export function createAgentActions(ctx: AgentActionsContext) {
   function addAgent(agent: WorkflowState["agents"][number]): void {
     const state = ctx.getState()
     ctx.setState({ ...state, agents: [...state.agents, agent] })
+
+    // Auto-select if this agent is running (handles resume case)
+    if (agent.status === "running") {
+      ctx.selectItem(agent.id, "main", undefined, true)
+    }
+
     ctx.notify()
   }
 
   function updateAgentStatus(agentId: string, status: AgentStatus): void {
     const state = ctx.getState()
     const shouldSetEndTime = status === "completed" || status === "failed" || status === "skipped"
-    const shouldSetStartTime = status === "running"
     ctx.setState({
       ...state,
-      agents: state.agents.map((agent) =>
-        agent.id === agentId
-          ? {
-              ...agent,
-              status,
-              startTime: shouldSetStartTime ? Date.now() : agent.startTime,
-              endTime: shouldSetEndTime ? Date.now() : agent.endTime,
-            }
-          : agent,
-      ),
+      agents: state.agents.map((agent) => {
+        if (agent.id !== agentId) return agent
+
+        // Only set startTime on FIRST "running" transition (prevents timer reset on resume/step transitions)
+        const shouldSetStartTime = status === "running" && !agent.startTime
+
+        return {
+          ...agent,
+          status,
+          startTime: shouldSetStartTime ? Date.now() : agent.startTime,
+          endTime: shouldSetEndTime ? Date.now() : agent.endTime,
+        }
+      }),
     })
     if (status === "running") {
       ctx.selectItem(agentId, "main", undefined, true)

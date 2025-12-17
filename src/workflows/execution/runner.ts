@@ -328,7 +328,7 @@ export class WorkflowRunner {
     // Update UI
     this.emitter.updateAgentStatus(uniqueAgentId, 'running');
     this.emitter.logMessage(uniqueAgentId, '═'.repeat(80));
-    this.emitter.logMessage(uniqueAgentId, `${step.agentName} ${isResuming ? 'resumed work.' : 'started to work.'}`);
+    this.emitter.logMessage(uniqueAgentId, `[Step ${ctx.currentStepIndex + 1}/${this.moduleSteps.length}] ${step.agentName} ${isResuming ? 'resumed work.' : 'started to work.'}`);
 
     // Reset behavior file
     const behaviorFile = path.join(this.cwd, '.codemachine/memory/behavior.json');
@@ -384,6 +384,12 @@ export class WorkflowRunner {
         // Save accumulated duration
         const stepDuration = Date.now() - stepStartTime;
         await updateStepDuration(this.cmRoot, ctx.currentStepIndex, stepDuration);
+
+        // Log step completion with duration
+        const durationSec = Math.floor(stepDuration / 1000);
+        const durationMin = Math.floor(durationSec / 60);
+        const durationStr = durationMin > 0 ? `${durationMin}m ${durationSec % 60}s` : `${durationSec}s`;
+        this.emitter.logMessage(uniqueAgentId, `[Step ${ctx.currentStepIndex + 1}/${this.moduleSteps.length}] Completed in ${durationStr}`);
 
         // Save accumulated telemetry
         if (agentInfo?.telemetry) {
