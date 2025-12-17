@@ -395,12 +395,14 @@ export async function executeAgent(
           }
         }
       },
-      onTelemetry: (telemetry) => {
-        // Update telemetry in monitoring (fire and forget - don't block streaming)
+      onTelemetry: async (telemetry) => {
+        // Update telemetry synchronously - ensure it's persisted
         if (monitor && monitoringAgentId !== undefined) {
-          monitor.updateTelemetry(monitoringAgentId, telemetry).catch(err =>
-            error(`Failed to update telemetry: ${err}`)
-          );
+          try {
+            await monitor.updateTelemetry(monitoringAgentId, telemetry);
+          } catch (err) {
+            error(`Failed to update telemetry: ${err}`);
+          }
         }
 
         // Forward to caller's telemetry callback (for UI updates)
@@ -408,13 +410,15 @@ export async function executeAgent(
           onTelemetry(telemetry);
         }
       },
-      onSessionId: (sessionId) => {
-        // Store session ID for resume capability
+      onSessionId: async (sessionId) => {
+        // Store session ID synchronously - ensure it's persisted for resume
         debug(`[onSessionId callback] sessionId=${sessionId}, monitor=${!!monitor}, monitoringAgentId=${monitoringAgentId}`);
         if (monitor && monitoringAgentId !== undefined) {
-          monitor.setSessionId(monitoringAgentId, sessionId).catch(err =>
-            error(`Failed to set session ID: ${err}`)
-          );
+          try {
+            await monitor.setSessionId(monitoringAgentId, sessionId);
+          } catch (err) {
+            error(`Failed to set session ID: ${err}`);
+          }
         }
       },
       abortSignal,

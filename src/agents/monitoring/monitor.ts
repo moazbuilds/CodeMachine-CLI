@@ -1,6 +1,7 @@
 import type { ParsedTelemetry } from '../../shared/telemetry/index.js';
 import { getDB } from './db/connection.js';
 import { AgentRepository } from './db/repository.js';
+import { DurationTimerService } from './duration-timer.js';
 import type { AgentRecord, AgentQueryFilters, AgentStatus, RegisterAgentInput } from './types.js';
 import * as logger from '../../shared/logging/logger.js';
 
@@ -41,6 +42,10 @@ export class AgentMonitorService {
       this.repository.update(id, { logPath: finalLogPath });
     }
 
+    // Start duration timer immediately
+    const timerService = DurationTimerService.getInstance();
+    timerService.startTimer(id, 0);
+
     logger.debug(`Registered agent ${id} (${input.name})`);
     return id;
   }
@@ -55,13 +60,17 @@ export class AgentMonitorService {
       return;
     }
 
+    // Stop timer and get final accumulated duration
+    const timerService = DurationTimerService.getInstance();
+    const duration = timerService.stopTimer(id);
+
     const endTime = new Date().toISOString();
-    const duration = new Date(endTime).getTime() - new Date(agent.startTime).getTime();
 
     const updates: Partial<AgentRecord> = {
       status: 'completed',
       endTime,
       duration,
+      accumulatedDuration: duration,
     };
 
     // Only update telemetry if provided (preserve existing telemetry otherwise)
@@ -84,8 +93,17 @@ export class AgentMonitorService {
       return;
     }
 
+    const timerService = DurationTimerService.getInstance();
+
+    // Only resume timer if not already running (prevents timer reset on autopilot interactions)
+    if (!timerService.hasActiveTimer(id)) {
+      const priorDuration = agent.accumulatedDuration ?? 0;
+      timerService.resumeTimer(id, priorDuration);
+      logger.debug(`Agent ${id} (${agent.name}) resumed timer with ${priorDuration}ms prior duration`);
+    }
+
     this.repository.update(id, { status: 'running' });
-    logger.debug(`Agent ${id} (${agent.name}) marked as running (resumed)`);
+    logger.debug(`Agent ${id} (${agent.name}) marked as running`);
   }
 
   /**
@@ -98,8 +116,17 @@ export class AgentMonitorService {
       return;
     }
 
-    this.repository.update(id, { status: 'paused' });
-    logger.debug(`Agent ${id} (${agent.name}) marked as paused`);
+    // Stop timer and capture accumulated duration
+    const timerService = DurationTimerService.getInstance();
+    const accumulatedDuration = timerService.pauseTimer(id);
+
+    this.repository.update(id, {
+      status: 'paused',
+      accumulatedDuration,
+      pauseCount: (agent.pauseCount ?? 0) + 1,
+    });
+
+    logger.debug(`Agent ${id} (${agent.name}) paused with ${accumulatedDuration}ms accumulated`);
   }
 
   /**
@@ -112,8 +139,11 @@ export class AgentMonitorService {
       return;
     }
 
+    // Stop timer and get final accumulated duration
+    const timerService = DurationTimerService.getInstance();
+    const duration = timerService.stopTimer(id);
+
     const endTime = new Date().toISOString();
-    const duration = new Date(endTime).getTime() - new Date(agent.startTime).getTime();
     const errorMessage = error instanceof Error ? error.message : error;
 
     // Preserve existing telemetry when failing
@@ -121,6 +151,7 @@ export class AgentMonitorService {
       status: 'failed',
       endTime,
       duration,
+      accumulatedDuration: duration,
       error: errorMessage
       // Note: telemetry is NOT included here, so existing telemetry is preserved
     });

@@ -60,6 +60,15 @@ export interface AgentRecord {
 
   /** Session/thread ID for resume capability (engine-specific) */
   sessionId?: string;
+
+  /** Accumulated duration across pause/resume cycles (milliseconds) */
+  accumulatedDuration?: number;
+
+  /** Timestamp of last duration persistence */
+  lastDurationUpdate?: string;
+
+  /** Number of times this agent was paused */
+  pauseCount?: number;
 }
 
 /**

@@ -16,6 +16,9 @@ type AgentRow = {
   engine_provider: string | null;
   model_name: string | null;
   session_id: string | null;
+  accumulated_duration: number | null;
+  last_duration_update: string | null;
+  pause_count: number | null;
   tokens_in: number | null;
   tokens_out: number | null;
   cached_tokens: number | null;
@@ -114,6 +117,18 @@ export class AgentRepository {
       fields.push('session_id = ?');
       values.push(updates.sessionId);
     }
+    if (updates.accumulatedDuration !== undefined) {
+      fields.push('accumulated_duration = ?');
+      values.push(updates.accumulatedDuration);
+    }
+    if (updates.lastDurationUpdate) {
+      fields.push('last_duration_update = ?');
+      values.push(updates.lastDurationUpdate);
+    }
+    if (updates.pauseCount !== undefined) {
+      fields.push('pause_count = ?');
+      values.push(updates.pauseCount);
+    }
 
     if (fields.length > 0) {
       fields.push('updated_at = CURRENT_TIMESTAMP');
@@ -143,6 +158,20 @@ export class AgentRepository {
         updates.telemetry.cacheReadTokens ?? null
       );
     }
+  }
+
+  /**
+   * Persist duration atomically (called every second by timer)
+   * This is a hot path - optimized for minimal overhead
+   */
+  persistDuration(id: number, duration: number): void {
+    this.db.prepare(`
+      UPDATE agents
+      SET accumulated_duration = ?,
+          last_duration_update = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(duration, id);
   }
 
   delete(id: number): void {
@@ -208,6 +237,9 @@ export class AgentRepository {
       engineProvider: row.engine_provider ?? undefined,
       modelName: row.model_name ?? undefined,
       sessionId: row.session_id ?? undefined,
+      accumulatedDuration: row.accumulated_duration ?? undefined,
+      lastDurationUpdate: row.last_duration_update ?? undefined,
+      pauseCount: row.pause_count ?? undefined,
       children,
       telemetry: row.tokens_in !== null && row.tokens_out !== null
         ? {

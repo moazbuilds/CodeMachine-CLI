@@ -1,5 +1,6 @@
 import { AgentMonitorService } from './monitor.js';
 import { AgentLoggerService } from './logger.js';
+import { DurationTimerService } from './duration-timer.js';
 import * as logger from '../../shared/logging/logger.js';
 import { killAllActiveProcesses } from '../../infra/process/spawn.js';
 
@@ -40,14 +41,14 @@ export class MonitoringCleanup {
   }
 
   /**
-   * Terminate any running agent processes and mark them as aborted without
+   * Terminate any running agent processes and mark them as paused without
    * exiting the CLI. This is invoked on the first Ctrl+C so that the workflow
    * actually stops executing while we keep the UI alive.
    */
   private static async stopActiveAgents(): Promise<void> {
     logger.debug('Stopping active agents after first Ctrl+C...');
     killAllActiveProcesses();
-    await this.cleanup('aborted', new Error('User interrupted (Ctrl+C)'));
+    await this.cleanup('paused', new Error('User interrupted (Ctrl+C)'));
   }
 
   /**
@@ -172,7 +173,7 @@ export class MonitoringCleanup {
   /**
    * Clean up all running agents
    */
-  private static async cleanup(reason: 'failed' | 'aborted', error?: Error): Promise<void> {
+  private static async cleanup(reason: 'failed' | 'aborted' | 'paused', error?: Error): Promise<void> {
     if (this.isCleaningUp) {
       return; // Already cleaning up, avoid recursion
     }
@@ -182,26 +183,35 @@ export class MonitoringCleanup {
     try {
       const monitor = AgentMonitorService.getInstance();
       const loggerService = AgentLoggerService.getInstance();
+      const timerService = DurationTimerService.getInstance();
 
       const runningAgents = monitor.getActiveAgents();
 
       if (runningAgents.length > 0) {
-        logger.debug(`Cleaning up ${runningAgents.length} running agent(s)...`);
+        logger.debug(`Cleaning up ${runningAgents.length} running agent(s) with reason: ${reason}`);
 
         for (const agent of runningAgents) {
           try {
-            // Mark agent as failed with appropriate error
-            const errorMsg = error || new Error(`Agent ${reason}: ${agent.name}`);
-            await monitor.fail(agent.id, errorMsg);
+            if (reason === 'paused') {
+              // Mark as paused - preserves state for resume
+              await monitor.markPaused(agent.id);
+              logger.debug(`Marked agent ${agent.id} (${agent.name}) as paused`);
+            } else {
+              // Mark as failed
+              const errorMsg = error || new Error(`Agent ${reason}: ${agent.name}`);
+              await monitor.fail(agent.id, errorMsg);
+              logger.debug(`Marked agent ${agent.id} (${agent.name}) as ${reason}`);
+            }
 
             // Close log stream (now async)
             await loggerService.closeStream(agent.id);
-
-            logger.debug(`Marked agent ${agent.id} (${agent.name}) as ${reason}`);
           } catch (cleanupError) {
             logger.error(`Failed to cleanup agent ${agent.id}:`, cleanupError);
           }
         }
+
+        // Stop all remaining timers
+        timerService.stopAllTimers();
 
         // Release any remaining locks
         await loggerService.releaseAllLocks();

@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS agents (
   engine_provider TEXT,
   model_name TEXT,
   session_id TEXT,
+  accumulated_duration INTEGER DEFAULT 0,
+  last_duration_update TEXT,
+  pause_count INTEGER DEFAULT 0,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -38,12 +41,22 @@ CREATE TABLE IF NOT EXISTS telemetry (
 export function initSchema(db: Database): void {
   db.exec(SCHEMA);
 
-  // Migration: Add session_id column if it doesn't exist (for existing databases)
+  // Migration: Add columns if they don't exist (for existing databases)
   try {
     const tableInfo = db.prepare('PRAGMA table_info(agents)').all() as { name: string }[];
-    const hasSessionId = tableInfo.some(col => col.name === 'session_id');
-    if (!hasSessionId) {
+    const columnNames = new Set(tableInfo.map(col => col.name));
+
+    if (!columnNames.has('session_id')) {
       db.exec('ALTER TABLE agents ADD COLUMN session_id TEXT');
+    }
+    if (!columnNames.has('accumulated_duration')) {
+      db.exec('ALTER TABLE agents ADD COLUMN accumulated_duration INTEGER DEFAULT 0');
+    }
+    if (!columnNames.has('last_duration_update')) {
+      db.exec('ALTER TABLE agents ADD COLUMN last_duration_update TEXT');
+    }
+    if (!columnNames.has('pause_count')) {
+      db.exec('ALTER TABLE agents ADD COLUMN pause_count INTEGER DEFAULT 0');
     }
   } catch {
     // Ignore errors - table might not exist yet (will be created by SCHEMA)

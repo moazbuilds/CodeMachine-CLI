@@ -117,11 +117,11 @@ Available actions: ACTION: NEXT (advance to next step), ACTION: CONTINUE (let ag
       }
 
       // Execute autopilot agent (resume existing session)
-      // IMPORTANT: Pass both resumeSessionId AND resumeMonitoringId to reuse the same log file
+      // IMPORTANT: Use step's monitoring ID to avoid resetting the step's timer
       const result = await executeAgent(config.agentId, prompt, {
         workingDir: this.cwd,
         resumeSessionId: config.sessionId,
-        resumeMonitoringId: config.monitoringId,
+        resumeMonitoringId: context.stepOutput.monitoringId,
         resumePrompt: prompt,
         abortSignal: this.abortController.signal,
         logger: (chunk) => {
