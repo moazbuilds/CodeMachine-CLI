@@ -62,7 +62,7 @@ export type WorkflowEvent =
 
   // Workflow state events
   | { type: 'workflow:status'; status: WorkflowStatus }
-  | { type: 'workflow:started'; workflowName: string; totalSteps: number }
+  | { type: 'workflow:started'; workflowName: string; totalSteps: number; startTime?: number }
   | { type: 'workflow:stopped'; reason?: string }
 
   // Loop events

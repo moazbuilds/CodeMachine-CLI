@@ -17,6 +17,10 @@ import {
   getResumeStartIndex,
   getStepData,
 } from '../../shared/workflows/index.js';
+import {
+  getWorkflowStartTime,
+  saveWorkflowStartTime,
+} from '../../shared/workflows/steps.js';
 import { registry } from '../../infra/engines/index.js';
 import { MonitoringCleanup } from '../../agents/monitoring/index.js';
 import { WorkflowEventBus, WorkflowEventEmitter } from '../events/index.js';
@@ -102,8 +106,18 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   // Count module steps for total
   const moduleSteps = template.steps.filter(s => s.type === 'module');
 
-  // Emit workflow started
-  emitter.workflowStarted(template.name, moduleSteps.length);
+  // Load or create workflow start time for resume persistence
+  let workflowStartTime = await getWorkflowStartTime(cmRoot);
+  if (!workflowStartTime) {
+    workflowStartTime = Date.now();
+    await saveWorkflowStartTime(cmRoot, workflowStartTime);
+    debug('[Workflow] Saved new workflow start time: %d', workflowStartTime);
+  } else {
+    debug('[Workflow] Loaded existing workflow start time: %d', workflowStartTime);
+  }
+
+  // Emit workflow started with persisted start time
+  emitter.workflowStarted(template.name, moduleSteps.length, workflowStartTime);
 
   // Pre-populate timeline
   let moduleIndex = 0;

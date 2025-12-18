@@ -128,6 +128,12 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
     ctx.notify()
   }
 
+  function setWorkflowStartTime(startTime: number): void {
+    const state = ctx.getState()
+    ctx.setState({ ...state, startTime })
+    ctx.notify()
+  }
+
   return {
     setWorkflowStatus,
     setCheckpointState,
@@ -139,5 +145,6 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
     addUIElement,
     logMessage,
     setAutonomousMode,
+    setWorkflowStartTime,
   }
 }

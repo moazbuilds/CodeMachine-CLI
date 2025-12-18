@@ -5,7 +5,6 @@
  */
 
 import type { WorkflowState, AgentStatus } from "../types"
-import { updateAgentTelemetryInList } from "../../../state/utils"
 
 export type AgentActionsContext = {
   getState(): WorkflowState
@@ -20,8 +19,8 @@ export function createAgentActions(ctx: AgentActionsContext) {
     const state = ctx.getState()
     ctx.setState({ ...state, agents: [...state.agents, agent] })
 
-    // Auto-select if this agent is running (handles resume case)
-    if (agent.status === "running") {
+    // Auto-select if this agent is running or initializing (handles resume case)
+    if (agent.status === "running" || agent.status === "initializing") {
       ctx.selectItem(agent.id, "main", undefined, true)
     }
 
@@ -36,8 +35,8 @@ export function createAgentActions(ctx: AgentActionsContext) {
       agents: state.agents.map((agent) => {
         if (agent.id !== agentId) return agent
 
-        // Only set startTime on FIRST "running" transition (prevents timer reset on resume/step transitions)
-        const shouldSetStartTime = status === "running" && !agent.startTime
+        // Only set startTime on FIRST "running" or "initializing" transition (prevents timer reset on resume/step transitions)
+        const shouldSetStartTime = (status === "running" || status === "initializing") && !agent.startTime
 
         return {
           ...agent,
@@ -47,7 +46,7 @@ export function createAgentActions(ctx: AgentActionsContext) {
         }
       }),
     })
-    if (status === "running") {
+    if (status === "running" || status === "initializing") {
       ctx.selectItem(agentId, "main", undefined, true)
     }
     ctx.notifyImmediate()
@@ -80,7 +79,30 @@ export function createAgentActions(ctx: AgentActionsContext) {
     telemetry: Partial<WorkflowState["agents"][number]["telemetry"]>,
   ): void {
     const state = ctx.getState()
-    ctx.setState({ ...state, agents: updateAgentTelemetryInList(state.agents, agentId, telemetry) })
+
+    // Update telemetry and also set baseDuration if duration is provided for an unstarted agent (resume case)
+    const updatedAgents = state.agents.map((agent) => {
+      if (agent.id !== agentId) return agent
+
+      const updatedTelemetry = {
+        tokensIn: agent.telemetry.tokensIn + (telemetry.tokensIn ?? 0),
+        tokensOut: agent.telemetry.tokensOut + (telemetry.tokensOut ?? 0),
+        cached: (agent.telemetry.cached ?? 0) + (telemetry.cached ?? 0) || undefined,
+        cost: (agent.telemetry.cost ?? 0) + (telemetry.cost ?? 0) || undefined,
+        duration: (agent.telemetry.duration ?? 0) + (telemetry.duration ?? 0) || undefined,
+      }
+
+      // Store duration as baseDuration if not already set (resume case)
+      // Note: We check baseDuration instead of startTime because status events
+      // are emitted before telemetry events, so startTime is already set
+      const baseDuration = telemetry.duration !== undefined && !agent.baseDuration
+        ? telemetry.duration
+        : agent.baseDuration
+
+      return { ...agent, telemetry: updatedTelemetry, baseDuration }
+    })
+
+    ctx.setState({ ...state, agents: updatedAgents })
     ctx.notify()
   }
 

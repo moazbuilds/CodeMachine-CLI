@@ -3,6 +3,7 @@ import { AgentLoggerService } from './logger.js';
 import { DurationTimerService } from './duration-timer.js';
 import * as logger from '../../shared/logging/logger.js';
 import { killAllActiveProcesses } from '../../infra/process/spawn.js';
+import { saveAutopilotModeState } from '../../shared/workflows/steps.js';
 
 /**
  * Handles graceful cleanup of monitoring state on process termination
@@ -19,6 +20,10 @@ export class MonitoringCleanup {
     onStop?: () => void;
     onExit?: () => void;
   } = {};
+  private static workflowState: {
+    cmRoot?: string;
+    getAutoMode?: () => boolean;
+  } = {};
 
   /**
    * Register callbacks invoked during the two-stage Ctrl+C flow.
@@ -29,6 +34,18 @@ export class MonitoringCleanup {
 
   static clearWorkflowHandlers(): void {
     this.workflowHandlers = {};
+  }
+
+  /**
+   * Register workflow state for persistence on cleanup.
+   * This allows saving auto mode state when pausing.
+   */
+  static registerWorkflowState(state: { cmRoot: string; getAutoMode: () => boolean }): void {
+    this.workflowState = state;
+  }
+
+  static clearWorkflowState(): void {
+    this.workflowState = {};
   }
 
   /**
@@ -181,6 +198,17 @@ export class MonitoringCleanup {
     this.isCleaningUp = true;
 
     try {
+      // Save autopilot mode state if pausing (for resume)
+      if (reason === 'paused' && this.workflowState.cmRoot && this.workflowState.getAutoMode) {
+        try {
+          const isAutoMode = this.workflowState.getAutoMode();
+          await saveAutopilotModeState(this.workflowState.cmRoot, isAutoMode);
+          logger.debug(`Saved autopilot mode state: ${isAutoMode}`);
+        } catch (err) {
+          logger.warn('Failed to save autopilot mode state:', err);
+        }
+      }
+
       const monitor = AgentMonitorService.getInstance();
       const loggerService = AgentLoggerService.getInstance();
       const timerService = DurationTimerService.getInstance();

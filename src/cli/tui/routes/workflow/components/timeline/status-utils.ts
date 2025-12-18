@@ -15,6 +15,8 @@ export function getStatusIcon(status: AgentStatus): string {
   switch (status) {
     case "pending":
       return "○" // Empty circle
+    case "initializing":
+      return "◐" // Fallback (animated by Spinner component)
     case "running":
       return "◐" // Fallback (animated by Spinner component)
     case "completed":
@@ -42,6 +44,8 @@ export function getStatusColor(status: AgentStatus, theme: Theme): RGBA {
   switch (status) {
     case "completed":
       return theme.success // green
+    case "initializing":
+      return theme.warning // yellow for initializing (loading)
     case "running":
       return theme.primary // blue
     case "failed":

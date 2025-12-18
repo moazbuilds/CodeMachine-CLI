@@ -129,6 +129,8 @@ export function App(props: { initialToast?: InitialToast }) {
   const [templateConditions, setTemplateConditions] = createSignal<Record<string, ConditionConfig> | null>(null)
   const [initialProjectName, setInitialProjectName] = createSignal<string | null>(null)
   const [autopilotAgents, setAutopilotAgents] = createSignal<AgentDefinition[] | null>(null)
+  const [onboardLoading, setOnboardLoading] = createSignal(false)
+  const [onboardLoadingMessage, setOnboardLoadingMessage] = createSignal("")
 
   let pendingWorkflowStart: (() => void) | null = null
 
@@ -235,11 +237,18 @@ export function App(props: { initialToast?: InitialToast }) {
       if (agent) {
         // Get prompt path from agent config (or use default)
         const promptPath = (agent.promptPath as string) || `prompts/agents/${result.autopilotAgentId}/system.md`
+
+        // Show loading indicator while initializing autopilot agent
+        setOnboardLoading(true)
+        setOnboardLoadingMessage("Initializing autopilot agent...")
+
         try {
           await initAutopilotAgent(result.autopilotAgentId, promptPath, cwd, cmRoot)
         } catch (error) {
           console.error("Failed to initialize autopilot agent:", error)
           // Continue anyway - workflow will run without autonomous mode
+        } finally {
+          setOnboardLoading(false)
         }
       }
     }
@@ -349,6 +358,8 @@ export function App(props: { initialToast?: InitialToast }) {
               initialProjectName={initialProjectName()}
               onComplete={handleOnboardComplete}
               onCancel={handleOnboardCancel}
+              isLoading={onboardLoading()}
+              loadingMessage={onboardLoadingMessage()}
             />
           </Match>
           <Match when={view() === "workflow"}>

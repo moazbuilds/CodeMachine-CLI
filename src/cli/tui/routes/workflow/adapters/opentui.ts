@@ -52,6 +52,7 @@ export interface UIActions {
   resetAgentForLoop(agentId: string, cycleNumber?: number): void
   addUIElement(element: { id: string; text: string; stepIndex: number }): void
   logMessage(agentId: string, message: string): void
+  setWorkflowStartTime(startTime: number): void
 }
 
 export interface OpenTUIAdapterOptions extends UIAdapterOptions {
@@ -93,6 +94,9 @@ export class OpenTUIAdapter extends BaseUIAdapter {
       // Workflow events
       case "workflow:started":
         this.actions.setWorkflowStatus("running")
+        if (event.startTime) {
+          this.actions.setWorkflowStartTime(event.startTime)
+        }
         break
 
       case "workflow:status":

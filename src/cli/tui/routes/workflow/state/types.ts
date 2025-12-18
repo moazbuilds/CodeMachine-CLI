@@ -2,6 +2,7 @@ import type { RGBA } from "@opentui/core"
 
 export type AgentStatus =
   | "pending"
+  | "initializing"
   | "running"
   | "completed"
   | "failed"
@@ -35,6 +36,7 @@ export interface AgentState {
   stepIndex?: number
   totalSteps?: number
   monitoringId?: number // Maps to AgentMonitorService registry ID for log file access
+  baseDuration?: number // Prior accumulated duration (ms) from previous sessions
 }
 
 export interface SubAgentState extends AgentState {

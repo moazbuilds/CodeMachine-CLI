@@ -407,3 +407,41 @@ export async function getResumeStartIndex(cmRoot: string): Promise<number> {
 
   return 0;
 }
+
+/**
+ * Saves the autopilot mode state for resume.
+ * This is persisted when workflow is paused/stopped.
+ */
+export async function saveAutopilotModeState(cmRoot: string, isAutoMode: boolean): Promise<void> {
+  const { data, trackingPath } = await readTrackingData(cmRoot);
+  (data as TemplateTracking & { autopilotModeOnPause?: boolean }).autopilotModeOnPause = isAutoMode;
+  await writeTrackingData(trackingPath, data);
+}
+
+/**
+ * Gets the saved autopilot mode state.
+ * Returns undefined if no state was saved.
+ */
+export async function getAutopilotModeState(cmRoot: string): Promise<boolean | undefined> {
+  const { data } = await readTrackingData(cmRoot);
+  return (data as TemplateTracking & { autopilotModeOnPause?: boolean }).autopilotModeOnPause;
+}
+
+/**
+ * Saves the workflow start time for resume.
+ * Only saves if no start time exists (first run).
+ */
+export async function saveWorkflowStartTime(cmRoot: string, startTime: number): Promise<void> {
+  const { data, trackingPath } = await readTrackingData(cmRoot);
+  (data as TemplateTracking & { workflowStartTime?: number }).workflowStartTime = startTime;
+  await writeTrackingData(trackingPath, data);
+}
+
+/**
+ * Gets the saved workflow start time.
+ * Returns undefined if no start time was saved.
+ */
+export async function getWorkflowStartTime(cmRoot: string): Promise<number | undefined> {
+  const { data } = await readTrackingData(cmRoot);
+  return (data as TemplateTracking & { workflowStartTime?: number }).workflowStartTime;
+}

@@ -8,6 +8,7 @@
 import { createSignal, For, onMount, Show, createEffect } from "solid-js"
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
+import { Spinner } from "@tui/shared/components/spinner"
 import type { TrackConfig, ConditionConfig } from "../../../../workflows/templates/types"
 import type { AgentDefinition } from "../../../../shared/agents/config/types"
 
@@ -18,6 +19,8 @@ export interface OnboardProps {
   initialProjectName?: string | null // If set, skip project name input
   onComplete: (result: { projectName?: string; trackId?: string; conditions?: string[]; autopilotAgentId?: string }) => void
   onCancel?: () => void
+  isLoading?: boolean // Show loading indicator
+  loadingMessage?: string // Message to show during loading
 }
 
 type OnboardStep = 'project_name' | 'tracks' | 'conditions' | 'autopilot'
@@ -165,6 +168,9 @@ export function Onboard(props: OnboardProps) {
   }
 
   useKeyboard((evt) => {
+    // Disable keyboard input when loading
+    if (props.isLoading) return
+
     const entries = currentEntries()
     const step = currentStep()
 
@@ -268,16 +274,27 @@ export function Onboard(props: OnboardProps) {
           <text fg={themeCtx.theme.textMuted}>PO</text>
         </box>
 
-        {/* Typing question */}
-        <box marginBottom={1}>
-          <text fg={themeCtx.theme.text}>
-            "{typedText()}{typingDone() ? "" : "_"}"
-          </text>
-        </box>
+        {/* Loading state */}
+        <Show when={props.isLoading}>
+          <box flexDirection="row" gap={1} marginBottom={1}>
+            <Spinner color={themeCtx.theme.primary} />
+            <text fg={themeCtx.theme.text}>{props.loadingMessage || "Loading..."}</text>
+          </box>
+        </Show>
 
-        {/* Options */}
-        <box flexDirection="column" gap={1} marginTop={1}>
-          <Show when={currentStep() === 'project_name'}>
+        {/* Typing question */}
+        <Show when={!props.isLoading}>
+          <box marginBottom={1}>
+            <text fg={themeCtx.theme.text}>
+              "{typedText()}{typingDone() ? "" : "_"}"
+            </text>
+          </box>
+        </Show>
+
+        {/* Options - hidden when loading */}
+        <Show when={!props.isLoading}>
+          <box flexDirection="column" gap={1} marginTop={1}>
+            <Show when={currentStep() === 'project_name'}>
             <box flexDirection="row" gap={1}>
               <text fg={themeCtx.theme.primary}>{">"}</text>
               <box
@@ -372,10 +389,12 @@ export function Onboard(props: OnboardProps) {
               }}
             </For>
           </Show>
-        </box>
+          </box>
+        </Show>
 
-        {/* Footer */}
-        <box marginTop={2}>
+        {/* Footer - hidden when loading */}
+        <Show when={!props.isLoading}>
+          <box marginTop={2}>
           <Show when={currentStep() === 'project_name'}>
             <text fg={themeCtx.theme.textMuted}>
               [Enter] Confirm  [Esc] Cancel
@@ -396,7 +415,8 @@ export function Onboard(props: OnboardProps) {
               [Up/Down] Navigate  [Enter] Select  [Esc] Cancel
             </text>
           </Show>
-        </box>
+          </box>
+        </Show>
       </box>
     </box>
   )

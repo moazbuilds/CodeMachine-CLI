@@ -44,7 +44,9 @@ import {
   updateStepTelemetry,
   getStepDuration,
   getStepTelemetry,
+  getAutopilotModeState,
 } from '../../shared/workflows/steps.js';
+import { MonitoringCleanup } from '../../agents/monitoring/cleanup.js';
 import { getSelectedConditions } from '../../shared/workflows/index.js';
 import { loadAgentConfig } from '../../agents/runner/config.js';
 import { loadChainedPrompts } from '../../agents/runner/chained.js';
@@ -187,10 +189,24 @@ export class WorkflowRunner {
   async run(): Promise<void> {
     debug('[Runner] Starting workflow: %s', this.template.name);
 
+    // Register workflow state with MonitoringCleanup for persistence on pause
+    MonitoringCleanup.registerWorkflowState({
+      cmRoot: this.cmRoot,
+      getAutoMode: () => this.machine.context.autoMode,
+    });
+
     // Load initial auto mode state
     const autopilotState = await loadAutopilotConfig(this.cmRoot);
     if (autopilotState?.autonomousMode && autopilotState.autopilotConfig) {
       await this.setAutoMode(true);
+    }
+
+    // Check for saved autopilot mode state (from previous pause)
+    // This takes precedence over the initial state when resuming
+    const savedAutoMode = await getAutopilotModeState(this.cmRoot);
+    if (savedAutoMode !== undefined) {
+      debug('[Runner] Restoring saved autopilot mode: %s', savedAutoMode);
+      await this.setAutoMode(savedAutoMode);
     }
 
     // Start the machine
@@ -245,6 +261,9 @@ export class WorkflowRunner {
     // If resuming, skip execution and go directly to waiting state
     if (isResuming) {
       debug('[Runner] Resuming step %d - going to waiting state', ctx.currentStepIndex);
+
+      // Show initializing status while loading resume data
+      this.emitter.updateAgentStatus(uniqueAgentId, 'initializing');
 
       // Register monitoring ID so TUI loads existing logs
       if (stepData.monitoringId !== undefined) {
@@ -325,8 +344,8 @@ export class WorkflowRunner {
     // Set up abort controller
     this.abortController = new AbortController();
 
-    // Update UI
-    this.emitter.updateAgentStatus(uniqueAgentId, 'running');
+    // Update UI - show initializing while setting up agent
+    this.emitter.updateAgentStatus(uniqueAgentId, 'initializing');
     this.emitter.logMessage(uniqueAgentId, '═'.repeat(80));
     this.emitter.logMessage(uniqueAgentId, `[Step ${ctx.currentStepIndex + 1}/${this.moduleSteps.length}] ${step.agentName} ${isResuming ? 'resumed work.' : 'started to work.'}`);
 
@@ -349,6 +368,9 @@ export class WorkflowRunner {
     if (resolvedModel) {
       this.emitter.updateAgentModel(uniqueAgentId, resolvedModel);
     }
+
+    // Initialization complete - now running
+    this.emitter.updateAgentStatus(uniqueAgentId, 'running');
 
     try {
       // Execute the step (with resume data if available)
@@ -511,6 +533,13 @@ export class WorkflowRunner {
       debug('[Runner] Switching to autonomous mode');
       await this.setAutoMode(true);
       // Re-run waiting with controller input
+      return;
+    }
+
+    // Handle wait-for-input signal (no mode switch, just wait)
+    if (result.type === 'input' && result.value === '__WAIT_FOR_INPUT__') {
+      debug('[Runner] Waiting for user input (no mode switch)');
+      // Re-run waiting in current mode
       return;
     }
 

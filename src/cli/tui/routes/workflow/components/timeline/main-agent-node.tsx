@@ -59,13 +59,18 @@ export function MainAgentNode(props: MainAgentNodeProps) {
   ))
 
   const duration = () => {
-    const { startTime, endTime, status } = props.agent
+    const { startTime, endTime, status, baseDuration } = props.agent
+
+    // Base duration from prior sessions (resume case)
+    const baseTime = (baseDuration ?? 0) / 1000
 
     if (endTime) {
-      return formatDuration((endTime - startTime) / 1000)
+      // Completed - use total time including base duration from prior sessions
+      const sessionTime = (endTime - startTime) / 1000
+      return formatDuration(sessionTime + baseTime)
     }
 
-    if (status !== "running" || startTime <= 0) {
+    if ((status !== "running" && status !== "initializing") || startTime <= 0) {
       return ""
     }
 
@@ -75,12 +80,12 @@ export function MainAgentNode(props: MainAgentNodeProps) {
     // If currently paused, use pauseStartTime (don't call now())
     if (props.isPaused && pauseStart !== null) {
       const elapsed = (pauseStart - startTime - totalPaused) / 1000
-      return formatDuration(Math.max(0, elapsed))
+      return formatDuration(Math.max(0, elapsed + baseTime))
     }
 
-    // Running - use live time minus total paused time
+    // Running - use live time minus total paused time, plus base duration
     const elapsed = (now() - startTime - totalPaused) / 1000
-    return formatDuration(Math.max(0, elapsed))
+    return formatDuration(Math.max(0, elapsed + baseTime))
   }
 
   const hasLoopRound = () => props.agent.loopRound && props.agent.loopRound > 0
@@ -95,7 +100,7 @@ export function MainAgentNode(props: MainAgentNodeProps) {
       {/* Main line - use wrapMode="none" and overflow="hidden" to prevent text wrapping */}
       <box flexDirection="row" overflow="hidden">
         <text wrapMode="none" fg={themeCtx.theme.text}>{selectionPrefix()}</text>
-        <Show when={props.agent.status === "running"} fallback={
+        <Show when={props.agent.status === "running" || props.agent.status === "initializing"} fallback={
           <text wrapMode="none" fg={color()}>{getStatusIcon(props.agent.status)} </text>
         }>
           <Show when={props.isPaused} fallback={

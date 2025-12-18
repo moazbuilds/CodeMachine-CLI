@@ -269,10 +269,10 @@ Available actions: ACTION: NEXT (advance to next step), ACTION: CONTINUE (let ag
         return { type: 'loop' };
 
       case 'WAIT':
-        // Switch to manual mode, wait for user input
-        debug('[Autopilot] ACTION: WAIT - switching to manual mode');
+        // Wait for user input without switching modes
+        debug('[Autopilot] ACTION: WAIT - waiting for user input (staying in current mode)');
         this.emitter.emitCanceled();
-        return { type: 'input', value: '__SWITCH_TO_MANUAL__' };
+        return { type: 'input', value: '__WAIT_FOR_INPUT__' };
 
       default:
         // Exhaustive check
