@@ -13,7 +13,7 @@ import { useToast } from "@tui/shared/context/toast"
 import { useUIState } from "./context/ui-state"
 import { AgentTimeline } from "./components/timeline"
 import { OutputWindow, TelemetryBar, StatusFooter } from "./components/output"
-import { formatRuntime } from "./state/formatters"
+import { formatDuration } from "./state/formatters"
 import { CheckpointModal, LogViewer, HistoryView, StopModal, ErrorModal } from "./components/modals"
 import { OpenTUIAdapter } from "./adapters/opentui"
 import { useLogStream } from "./hooks/useLogStream"
@@ -84,11 +84,14 @@ export function WorkflowShell(props: WorkflowShellProps) {
   // Track checkpoint freeze time
   const [checkpointFreezeTime, setCheckpointFreezeTime] = createSignal<number | undefined>(undefined)
 
+  // Track when this session started (for accurate runtime calculation across resumes)
+  const sessionStartTime = Date.now()
+
   // Connect to event bus
   let adapter: OpenTUIAdapter | null = null
 
   const handleStopping = () => {
-    setCheckpointFreezeTime(Date.now())
+    // Don't freeze timer - workflow is still running, just waiting for confirmation
     ui.actions.setWorkflowStatus("stopping")
   }
 
@@ -202,8 +205,12 @@ export function WorkflowShell(props: WorkflowShellProps) {
 
   const runtime = createMemo(() => {
     tick()
+    // Use baseDuration (accumulated from prior sessions) + current session elapsed time
+    const baseDuration = state().workflowBaseDuration ?? 0
     const effectiveEndTime = checkpointFreezeTime() ?? state().endTime
-    return formatRuntime(state().startTime, effectiveEndTime)
+    const currentSessionMs = (effectiveEndTime ?? Date.now()) - sessionStartTime
+    const totalMs = baseDuration + currentSessionMs
+    return formatDuration(totalMs / 1000)
   })
 
   const totalTelemetry = createMemo(() => {

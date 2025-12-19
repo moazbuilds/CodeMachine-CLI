@@ -28,6 +28,10 @@ export interface AgentInfo {
   stepIndex: number;
   totalSteps: number;
   status: AgentStatus;
+  /** Original start time (epoch ms) - used for timer persistence on resume */
+  startTime?: number;
+  /** Accumulated prior duration (ms) from previous sessions */
+  baseDuration?: number;
 }
 
 /**
@@ -62,7 +66,7 @@ export type WorkflowEvent =
 
   // Workflow state events
   | { type: 'workflow:status'; status: WorkflowStatus }
-  | { type: 'workflow:started'; workflowName: string; totalSteps: number; startTime?: number }
+  | { type: 'workflow:started'; workflowName: string; totalSteps: number; startTime?: number; baseDuration?: number }
   | { type: 'workflow:stopped'; reason?: string }
 
   // Loop events

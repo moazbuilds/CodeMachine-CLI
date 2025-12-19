@@ -48,6 +48,7 @@ export type UIActions = {
   logMessage(agentId: string, message: string): void
   setAutonomousMode(enabled: boolean): void
   setWorkflowStartTime(startTime: number): void
+  setWorkflowBaseDuration(baseDuration: number): void
 }
 
 export type { WorkflowState, AgentStatus, LoopState, ChainedState, InputState, SubAgentState, TriggeredAgentState, WorkflowStatus }

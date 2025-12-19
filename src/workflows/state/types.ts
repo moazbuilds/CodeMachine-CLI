@@ -28,7 +28,8 @@ export type WorkflowEvent =
   | { type: 'INPUT_RECEIVED'; input: string }
   | { type: 'SKIP' }
   | { type: 'PAUSE' }
-  | { type: 'STOP' };
+  | { type: 'STOP' }
+  | { type: 'LOOP' };
 
 /**
  * Output from a completed step

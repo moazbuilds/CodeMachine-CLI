@@ -245,6 +245,16 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
           STOP: {
             target: 'stopped',
           },
+          LOOP: {
+            // Loop = restart current step from beginning
+            target: 'running',
+            action: (ctx) => {
+              ctx.promptQueue = [];
+              ctx.promptQueueIndex = 0;
+              ctx.currentOutput = null;
+              debug('[FSM] Looping - restarting step %d', ctx.currentStepIndex + 1);
+            },
+          },
         },
       },
 

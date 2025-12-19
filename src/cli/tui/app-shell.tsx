@@ -20,87 +20,16 @@ import { Onboard } from "@tui/routes/onboard"
 import { homedir } from "os"
 import { WorkflowEventBus } from "../../workflows/events/index.js"
 import { MonitoringCleanup } from "../../agents/monitoring/index.js"
-import path from "path"
 import { createRequire } from "node:module"
 import { resolvePackageJson } from "../../shared/runtime/root.js"
-import { getSelectedTrack, setSelectedTrack, hasSelectedConditions, setSelectedConditions, getProjectName, setProjectName, getAutopilotAgents, initAutopilotAgent, loadAutopilotConfig } from "../../shared/workflows/index.js"
-import { loadTemplate } from "../../workflows/templates/loader.js"
-import { getTemplatePathFromTracking } from "../../shared/workflows/template.js"
+import { copyToSystemClipboard } from "./utils/clipboard"
+import { checkOnboardRequirements, createWorkflowExecution, saveOnboardResult } from "./handlers/workflow-handlers"
 import type { TrackConfig, ConditionConfig } from "../../workflows/templates/types"
 import type { AgentDefinition } from "../../shared/agents/config/types"
 import type { InitialToast } from "./app"
 
 // Module-level view state for post-processing effects
 export let currentView: "home" | "onboard" | "workflow" = "home"
-
-/**
- * Get the clipboard copy method based on OS (lazy loaded)
- */
-function getClipboardCopyMethod(): ((text: string) => Promise<void>) | null {
-  const os = process.platform
-
-  if (os === "darwin" && Bun.which("osascript")) {
-    return async (text: string) => {
-      const escaped = text.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
-      await Bun.$`osascript -e 'set the clipboard to "${escaped}"'`.nothrow().quiet()
-    }
-  }
-
-  if (os === "linux") {
-    if (process.env.WAYLAND_DISPLAY && Bun.which("wl-copy")) {
-      return async (text: string) => {
-        const proc = Bun.spawn(["wl-copy"], { stdin: "pipe", stdout: "ignore", stderr: "ignore" })
-        proc.stdin.write(text)
-        proc.stdin.end()
-        await proc.exited.catch(() => {})
-      }
-    }
-    if (Bun.which("xclip")) {
-      return async (text: string) => {
-        const proc = Bun.spawn(["xclip", "-selection", "clipboard"], { stdin: "pipe", stdout: "ignore", stderr: "ignore" })
-        proc.stdin.write(text)
-        proc.stdin.end()
-        await proc.exited.catch(() => {})
-      }
-    }
-    if (Bun.which("xsel")) {
-      return async (text: string) => {
-        const proc = Bun.spawn(["xsel", "--clipboard", "--input"], { stdin: "pipe", stdout: "ignore", stderr: "ignore" })
-        proc.stdin.write(text)
-        proc.stdin.end()
-        await proc.exited.catch(() => {})
-      }
-    }
-    if (Bun.which("clip.exe")) {
-      return async (text: string) => {
-        const proc = Bun.spawn(["clip.exe"], { stdin: "pipe", stdout: "ignore", stderr: "ignore" })
-        proc.stdin.write(text)
-        proc.stdin.end()
-        await proc.exited.catch(() => {})
-      }
-    }
-  }
-
-  if (os === "win32" && Bun.which("powershell")) {
-    return async (text: string) => {
-      const escaped = text.replace(/"/g, '""')
-      await Bun.$`powershell -command "Set-Clipboard -Value \"${escaped}\""`.nothrow().quiet()
-    }
-  }
-
-  return null
-}
-
-let clipboardMethod: ((text: string) => Promise<void>) | null | undefined
-
-async function copyToSystemClipboard(text: string): Promise<void> {
-  if (clipboardMethod === undefined) {
-    clipboardMethod = getClipboardCopyMethod()
-  }
-  if (clipboardMethod) {
-    await clipboardMethod(text)
-  }
-}
 
 export function App(props: { initialToast?: InitialToast }) {
   const dimensions = useTerminalDimensions()
@@ -142,118 +71,38 @@ export function App(props: { initialToast?: InitialToast }) {
   }
 
   const handleStartWorkflow = async () => {
-    const cwd = process.env.CODEMACHINE_CWD || process.cwd()
-    const cmRoot = path.join(cwd, '.codemachine')
+    const requirements = await checkOnboardRequirements()
 
-    // Check if tracks/conditions exist and no selection yet
-    try {
-      const templatePath = await getTemplatePathFromTracking(cmRoot)
-      const template = await loadTemplate(cwd, templatePath)
-      const selectedTrack = await getSelectedTrack(cmRoot)
-      const conditionsSelected = await hasSelectedConditions(cmRoot)
-      const existingProjectName = await getProjectName(cmRoot)
-
-      const hasTracks = template.tracks && Object.keys(template.tracks).length > 0
-      const hasConditions = template.conditions && Object.keys(template.conditions).length > 0
-      const needsTrackSelection = hasTracks && !selectedTrack
-      const needsConditionsSelection = hasConditions && !conditionsSelected
-      const needsProjectName = !existingProjectName
-
-      // Check if workflow requires autopilot selection
-      // Skip if autopilot session already exists
-      let autopilots: AgentDefinition[] = []
-      const existingAutopilotConfig = await loadAutopilotConfig(cmRoot)
-      const hasExistingAutopilotSession = existingAutopilotConfig?.autopilotConfig?.sessionId
-      const autopilotEnabled = template.autopilot?.enabled ?? template.controller === true
-      if (autopilotEnabled && !hasExistingAutopilotSession) {
-        autopilots = await getAutopilotAgents(cwd)
-      }
-      const needsAutopilotSelection = autopilots.length > 0
-
-      // If project name, tracks, conditions, or autopilot need selection, show onboard view
-      if (needsProjectName || needsTrackSelection || needsConditionsSelection || needsAutopilotSelection) {
-        if (hasTracks) setTemplateTracks(template.tracks!)
-        if (hasConditions) setTemplateConditions(template.conditions!)
-        if (needsAutopilotSelection) setAutopilotAgents(autopilots)
-        setInitialProjectName(existingProjectName) // Pass existing name if any (to skip that step)
-        currentView = "onboard"
-        setView("onboard")
-        return
-      }
-    } catch (error) {
-      // If template loading fails, proceed to workflow anyway
-      console.error("Failed to check tracks/conditions:", error)
+    if (requirements.needsOnboard) {
+      if (requirements.tracks) setTemplateTracks(requirements.tracks)
+      if (requirements.conditions) setTemplateConditions(requirements.conditions)
+      if (requirements.autopilots) setAutopilotAgents(requirements.autopilots)
+      setInitialProjectName(requirements.existingProjectName)
+      currentView = "onboard"
+      setView("onboard")
+      return
     }
 
-    // No tracks/conditions or already selected - start workflow directly
     startWorkflowExecution()
   }
 
   const startWorkflowExecution = () => {
-    const eventBus = new WorkflowEventBus()
+    const { eventBus, startWorkflow } = createWorkflowExecution()
     setWorkflowEventBus(eventBus)
-    // @ts-expect-error - global export for workflow connection
-    globalThis.__workflowEventBus = eventBus
-
-    const cwd = process.env.CODEMACHINE_CWD || process.cwd()
-    const specPath = path.join(cwd, '.codemachine', 'inputs', 'specifications.md')
-
-    pendingWorkflowStart = () => {
-      import("../../workflows/execution/run.js").then(({ runWorkflow }) => {
-        runWorkflow({ cwd, specificationPath: specPath }).catch((error) => {
-          // Emit error event to show toast with actual error message
-          const errorMsg = error instanceof Error ? error.message : String(error)
-          ;(process as NodeJS.EventEmitter).emit('app:error', { message: errorMsg })
-        })
-      })
-    }
-
+    pendingWorkflowStart = startWorkflow
     currentView = "workflow"
     setView("workflow")
   }
 
   const handleOnboardComplete = async (result: { projectName?: string; trackId?: string; conditions?: string[]; autopilotAgentId?: string }) => {
-    const cwd = process.env.CODEMACHINE_CWD || process.cwd()
-    const cmRoot = path.join(cwd, '.codemachine')
-
-    // Save project name if provided
-    if (result.projectName) {
-      await setProjectName(cmRoot, result.projectName)
-    }
-
-    // Save selected track if provided
-    if (result.trackId) {
-      await setSelectedTrack(cmRoot, result.trackId)
-    }
-
-    // Always save selected conditions (even if empty array)
-    if (result.conditions !== undefined) {
-      await setSelectedConditions(cmRoot, result.conditions)
-    }
-
-    // Initialize autopilot agent if selected
-    if (result.autopilotAgentId) {
-      const agent = autopilotAgents()?.find(a => a.id === result.autopilotAgentId)
-      if (agent) {
-        // Get prompt path from agent config (or use default)
-        const promptPath = (agent.promptPath as string) || `prompts/agents/${result.autopilotAgentId}/system.md`
-
-        // Show loading indicator while initializing autopilot agent
-        setOnboardLoading(true)
-        setOnboardLoadingMessage("Initializing autopilot agent...")
-
-        try {
-          await initAutopilotAgent(result.autopilotAgentId, promptPath, cwd, cmRoot)
-        } catch (error) {
-          console.error("Failed to initialize autopilot agent:", error)
-          // Continue anyway - workflow will run without autonomous mode
-        } finally {
-          setOnboardLoading(false)
-        }
+    await saveOnboardResult(
+      result,
+      autopilotAgents(),
+      (loading, message) => {
+        setOnboardLoading(loading)
+        if (message) setOnboardLoadingMessage(message)
       }
-    }
-
-    // Start workflow
+    )
     startWorkflowExecution()
   }
 

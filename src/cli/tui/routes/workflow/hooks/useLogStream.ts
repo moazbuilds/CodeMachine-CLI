@@ -8,7 +8,8 @@
 import { createSignal, createEffect, onCleanup } from "solid-js"
 import { AgentMonitorService } from "../../../../../agents/monitoring/monitor.js"
 import type { AgentRecord } from "../../../../../agents/monitoring/types.js"
-import { readFileSync, existsSync, statSync } from "fs"
+import { readLogFile, getFileSize, fileExists } from "./log-file-utils"
+import { filterHeaderLines, extractLatestThinking } from "./log-parser"
 
 // Debug logging (writes to tui-debug.log when DEBUG is enabled)
 const DEBUG_ENABLED = process.env.DEBUG &&
@@ -32,35 +33,6 @@ export interface LogStreamResult {
   agentName: string
   isRunning: boolean
   latestThinking: string | null
-}
-
-/**
- * Read log file and return array of lines
- */
-function readLogFile(path: string): string[] {
-  try {
-    if (!existsSync(path)) {
-      return []
-    }
-    const content = readFileSync(path, "utf-8")
-    return content.split("\n")
-  } catch {
-    return []
-  }
-}
-
-/**
- * Get file size in bytes
- */
-function getFileSize(path: string): number {
-  try {
-    if (!existsSync(path)) {
-      return 0
-    }
-    return statSync(path).size
-  } catch {
-    return 0
-  }
 }
 
 /**
@@ -99,7 +71,6 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
      */
     async function getAgentWithRetry(attempts = 5, delay = 300): Promise<AgentRecord | null> {
       const monitor = AgentMonitorService.getInstance()
-      // agentId is guaranteed to be defined here because we return early if undefined
       const id = agentId as number
 
       logDebug('getAgentWithRetry id=%d attempts=%d', id, attempts)
@@ -123,50 +94,13 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
     }
 
     /**
-     * Filter out box-style header lines and telemetry from log display
-     * These are kept in log files for debugging but hidden from UI
-     */
-    function filterHeaderLines(fileLines: string[]): string[] {
-      const filtered = fileLines.filter((line) => {
-        if (line.includes("╭─") || line.includes("╰─")) return false
-        if (line.includes("Started:") || line.includes("Prompt:")) return false
-        // Filter out token telemetry lines (shown in telemetry bar instead)
-        if (line.includes("Tokens:") && (line.includes("in/") || line.includes("out"))) return false
-        return true
-      })
-      // Trim empty lines from start
-      while (filtered.length > 0 && !filtered[0]?.trim()) {
-        filtered.shift()
-      }
-      return filtered
-    }
-
-    /**
-     * Extract latest thinking line from logs
-     * Looks for lines with "Thinking:" pattern
-     */
-    function extractLatestThinking(fileLines: string[]): string | null {
-      for (let i = fileLines.length - 1; i >= 0; i--) {
-        const line = fileLines[i]
-        if (line && line.includes("Thinking:")) {
-          // Extract text after "Thinking:" and strip markers
-          const match = line.match(/Thinking:\s*(.+)/)
-          if (match) {
-            return match[1].trim()
-          }
-        }
-      }
-      return null
-    }
-
-    /**
      * Update log lines from file
      */
     function updateLogs(logPath: string): boolean {
       if (!mounted) return false
 
       try {
-        if (!existsSync(logPath)) {
+        if (!fileExists(logPath)) {
           logDebug('updateLogs: file does not exist: %s', logPath)
           return false
         }
@@ -187,6 +121,23 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
         logDebug('updateLogs: error reading file: %s', err)
       }
       return false
+    }
+
+    /**
+     * Start polling for log updates
+     */
+    function startPolling(logPath: string): void {
+      logDebug('startPolling: path=%s', logPath)
+      if (pollInterval) {
+        clearInterval(pollInterval)
+      }
+
+      // 500ms polling
+      pollInterval = setInterval(() => {
+        if (mounted) {
+          updateLogs(logPath)
+        }
+      }, 500)
     }
 
     /**
@@ -248,7 +199,6 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
           if (retrySuccess) {
             logDebug('initialize: retry %d succeeded, starting polling', currentRetry)
             clearInterval(retryInterval)
-            // Always start polling after successful connection
             if (mounted) {
               startPolling(agentRecord.logPath)
             }
@@ -263,23 +213,6 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
         logDebug('initialize: starting polling immediately')
         startPolling(agentRecord.logPath)
       }
-    }
-
-    /**
-     * Start polling for log updates
-     */
-    function startPolling(logPath: string): void {
-      logDebug('startPolling: path=%s', logPath)
-      if (pollInterval) {
-        clearInterval(pollInterval)
-      }
-
-      // 500ms polling
-      pollInterval = setInterval(() => {
-        if (mounted) {
-          updateLogs(logPath)
-        }
-      }, 500)
     }
 
     initialize()

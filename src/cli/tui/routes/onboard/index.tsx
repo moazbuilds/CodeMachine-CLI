@@ -3,27 +3,33 @@
  * Onboard View
  *
  * Pre-workflow onboarding flow: track selection, conditions selection, etc.
+ * Step rendering is delegated to step components in ./steps/
  */
 
-import { createSignal, For, onMount, Show, createEffect } from "solid-js"
+import { createSignal, onMount, Show, createEffect } from "solid-js"
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
 import { Spinner } from "@tui/shared/components/spinner"
 import type { TrackConfig, ConditionConfig } from "../../../../workflows/templates/types"
 import type { AgentDefinition } from "../../../../shared/agents/config/types"
+import {
+  type OnboardStep,
+  ProjectNameStep,
+  TracksStep,
+  ConditionsStep,
+  AutopilotStep,
+} from "./steps"
 
 export interface OnboardProps {
   tracks?: Record<string, TrackConfig>
   conditions?: Record<string, ConditionConfig>
-  autopilotAgents?: AgentDefinition[] // Available autopilot agents
-  initialProjectName?: string | null // If set, skip project name input
+  autopilotAgents?: AgentDefinition[]
+  initialProjectName?: string | null
   onComplete: (result: { projectName?: string; trackId?: string; conditions?: string[]; autopilotAgentId?: string }) => void
   onCancel?: () => void
-  isLoading?: boolean // Show loading indicator
-  loadingMessage?: string // Message to show during loading
+  isLoading?: boolean
+  loadingMessage?: string
 }
-
-type OnboardStep = 'project_name' | 'tracks' | 'conditions' | 'autopilot'
 
 export function Onboard(props: OnboardProps) {
   const themeCtx = useTheme()
@@ -37,7 +43,6 @@ export function Onboard(props: OnboardProps) {
   const [projectName, setProjectName] = createSignal("")
   const [selectedTrackId, setSelectedTrackId] = createSignal<string | undefined>()
   const [selectedConditions, setSelectedConditions] = createSignal<Set<string>>(new Set())
-  const [selectedAutopilotId, setSelectedAutopilotId] = createSignal<string | undefined>()
 
   const hasTracks = () => props.tracks && Object.keys(props.tracks).length > 0
   const hasConditions = () => props.conditions && Object.keys(props.conditions).length > 0
@@ -59,23 +64,18 @@ export function Onboard(props: OnboardProps) {
     }
   })
 
-  const projectNameQuestion = "What is your project name?"
-  const trackQuestion = "What is your project size?"
-  const conditionsQuestion = "What features does your project have?"
-  const autopilotQuestion = "Select an autopilot agent for autonomous mode:"
+  const questions: Record<OnboardStep, string> = {
+    project_name: "What is your project name?",
+    tracks: "What is your project size?",
+    conditions: "What features does your project have?",
+    autopilot: "Select an autopilot agent for autonomous mode:",
+  }
 
   const trackEntries = () => props.tracks ? Object.entries(props.tracks) : []
   const conditionEntries = () => props.conditions ? Object.entries(props.conditions) : []
   const autopilotEntries = () => props.autopilotAgents ? props.autopilotAgents.map(a => [a.id, a] as const) : []
 
-  const currentQuestion = () => {
-    switch (currentStep()) {
-      case 'project_name': return projectNameQuestion
-      case 'tracks': return trackQuestion
-      case 'conditions': return conditionsQuestion
-      case 'autopilot': return autopilotQuestion
-    }
-  }
+  const currentQuestion = () => questions[currentStep()]
   const currentEntries = () => {
     switch (currentStep()) {
       case 'tracks': return trackEntries()
@@ -87,7 +87,6 @@ export function Onboard(props: OnboardProps) {
 
   // Typing effect - reset when step changes
   createEffect(() => {
-    const step = currentStep()
     const question = currentQuestion()
     setTypedText("")
     setTypingDone(false)
@@ -107,30 +106,22 @@ export function Onboard(props: OnboardProps) {
     return () => clearInterval(interval)
   })
 
+  // Step navigation handlers
   const handleProjectNameSubmit = () => {
     const name = projectName().trim()
-    if (!name) return // Don't proceed with empty name
+    if (!name) return
 
-    if (hasTracks()) {
-      setCurrentStep('tracks')
-    } else if (hasConditions()) {
-      setCurrentStep('conditions')
-    } else if (hasAutopilots()) {
-      setCurrentStep('autopilot')
-    } else {
-      props.onComplete({ projectName: name })
-    }
+    if (hasTracks()) setCurrentStep('tracks')
+    else if (hasConditions()) setCurrentStep('conditions')
+    else if (hasAutopilots()) setCurrentStep('autopilot')
+    else props.onComplete({ projectName: name })
   }
 
   const handleTrackSelect = (trackId: string) => {
     setSelectedTrackId(trackId)
-    if (hasConditions()) {
-      setCurrentStep('conditions')
-    } else if (hasAutopilots()) {
-      setCurrentStep('autopilot')
-    } else {
-      props.onComplete({ projectName: projectName(), trackId })
-    }
+    if (hasConditions()) setCurrentStep('conditions')
+    else if (hasAutopilots()) setCurrentStep('autopilot')
+    else props.onComplete({ projectName: projectName(), trackId })
   }
 
   const handleConditionsComplete = () => {
@@ -146,7 +137,6 @@ export function Onboard(props: OnboardProps) {
   }
 
   const handleAutopilotSelect = (autopilotId: string) => {
-    setSelectedAutopilotId(autopilotId)
     props.onComplete({
       projectName: projectName(),
       trackId: selectedTrackId(),
@@ -158,23 +148,19 @@ export function Onboard(props: OnboardProps) {
   const toggleCondition = (conditionId: string) => {
     setSelectedConditions((prev) => {
       const next = new Set(prev)
-      if (next.has(conditionId)) {
-        next.delete(conditionId)
-      } else {
-        next.add(conditionId)
-      }
+      if (next.has(conditionId)) next.delete(conditionId)
+      else next.add(conditionId)
       return next
     })
   }
 
+  // Keyboard handling
   useKeyboard((evt) => {
-    // Disable keyboard input when loading
     if (props.isLoading) return
 
     const entries = currentEntries()
     const step = currentStep()
 
-    // Handle project_name input step
     if (step === 'project_name') {
       if (evt.name === "return") {
         evt.preventDefault()
@@ -186,14 +172,12 @@ export function Onboard(props: OnboardProps) {
         evt.preventDefault()
         props.onCancel?.()
       } else if (evt.sequence && evt.sequence.length === 1 && !evt.ctrl && !evt.meta) {
-        // Regular character input
         evt.preventDefault()
         setProjectName((prev) => prev + evt.sequence)
       }
       return
     }
 
-    // Handle tracks and conditions steps
     if (evt.name === "up") {
       evt.preventDefault()
       setSelectedIndex((prev) => Math.max(0, prev - 1))
@@ -209,7 +193,6 @@ export function Onboard(props: OnboardProps) {
         const [autopilotId] = entries[selectedIndex()]
         handleAutopilotSelect(autopilotId as string)
       } else {
-        // In conditions step, Enter toggles the checkbox
         const [conditionId] = entries[selectedIndex()]
         toggleCondition(conditionId as string)
       }
@@ -240,6 +223,20 @@ export function Onboard(props: OnboardProps) {
   const termWidth = () => dimensions()?.width ?? 80
   const termHeight = () => dimensions()?.height ?? 24
 
+  const stepTheme = () => ({
+    primary: themeCtx.theme.primary,
+    text: themeCtx.theme.text,
+    textMuted: themeCtx.theme.textMuted,
+    backgroundElement: themeCtx.theme.backgroundElement,
+  })
+
+  const footerText: Record<OnboardStep, string> = {
+    project_name: "[Enter] Confirm  [Esc] Cancel",
+    tracks: "[Up/Down] Navigate  [Enter] Select  [Esc] Cancel",
+    conditions: "[Up/Down] Navigate  [Enter] Toggle  [Tab] Confirm  [Esc] Cancel",
+    autopilot: "[Up/Down] Navigate  [Enter] Select  [Esc] Cancel",
+  }
+
   return (
     <box
       width={termWidth()}
@@ -264,11 +261,7 @@ export function Onboard(props: OnboardProps) {
       >
         {/* PO Avatar */}
         <box flexDirection="row" gap={2} marginBottom={1}>
-          <box
-            backgroundColor={themeCtx.theme.backgroundElement}
-            paddingLeft={1}
-            paddingRight={1}
-          >
+          <box backgroundColor={themeCtx.theme.backgroundElement} paddingLeft={1} paddingRight={1}>
             <text fg={themeCtx.theme.text}>[0.0]</text>
           </box>
           <text fg={themeCtx.theme.textMuted}>PO</text>
@@ -291,130 +284,48 @@ export function Onboard(props: OnboardProps) {
           </box>
         </Show>
 
-        {/* Options - hidden when loading */}
+        {/* Step-specific content */}
         <Show when={!props.isLoading}>
           <box flexDirection="column" gap={1} marginTop={1}>
             <Show when={currentStep() === 'project_name'}>
-            <box flexDirection="row" gap={1}>
-              <text fg={themeCtx.theme.primary}>{">"}</text>
-              <box
-                backgroundColor={themeCtx.theme.backgroundElement}
-                paddingLeft={1}
-                paddingRight={1}
-                minWidth={30}
-              >
-                <text fg={themeCtx.theme.text}>
-                  {projectName()}{typingDone() ? "_" : ""}
-                </text>
-              </box>
-            </box>
-          </Show>
+              <ProjectNameStep
+                theme={stepTheme()}
+                projectName={projectName()}
+                typingDone={typingDone()}
+              />
+            </Show>
 
-          <Show when={currentStep() === 'tracks'}>
-            <For each={trackEntries()}>
-              {([trackId, config], index) => {
-                const isSelected = () => index() === selectedIndex()
-                return (
-                  <box flexDirection="column">
-                    <box flexDirection="row" gap={1}>
-                      <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.textMuted}>
-                        {isSelected() ? ">" : " "}
-                      </text>
-                      <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.textMuted}>
-                        {isSelected() ? "(*)" : "( )"}
-                      </text>
-                      <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.text}>
-                        {config.label}
-                      </text>
-                    </box>
-                    {config.description && (
-                      <box marginLeft={6}>
-                        <text fg={themeCtx.theme.textMuted}>{config.description}</text>
-                      </box>
-                    )}
-                  </box>
-                )
-              }}
-            </For>
-          </Show>
+            <Show when={currentStep() === 'tracks'}>
+              <TracksStep
+                theme={stepTheme()}
+                tracks={trackEntries()}
+                selectedIndex={selectedIndex()}
+              />
+            </Show>
 
-          <Show when={currentStep() === 'conditions'}>
-            <For each={conditionEntries()}>
-              {([conditionId, config], index) => {
-                const isSelected = () => index() === selectedIndex()
-                const isChecked = () => selectedConditions().has(conditionId)
-                return (
-                  <box flexDirection="column">
-                    <box flexDirection="row" gap={1}>
-                      <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.textMuted}>
-                        {isSelected() ? ">" : " "}
-                      </text>
-                      <text fg={isChecked() ? themeCtx.theme.primary : themeCtx.theme.textMuted}>
-                        {isChecked() ? "[x]" : "[ ]"}
-                      </text>
-                      <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.text}>
-                        {config.label}
-                      </text>
-                    </box>
-                    {config.description && (
-                      <box marginLeft={6}>
-                        <text fg={themeCtx.theme.textMuted}>{config.description}</text>
-                      </box>
-                    )}
-                  </box>
-                )
-              }}
-            </For>
-          </Show>
+            <Show when={currentStep() === 'conditions'}>
+              <ConditionsStep
+                theme={stepTheme()}
+                conditions={conditionEntries()}
+                selectedIndex={selectedIndex()}
+                selectedConditions={selectedConditions()}
+              />
+            </Show>
 
-          <Show when={currentStep() === 'autopilot'}>
-            <For each={autopilotEntries()}>
-              {([autopilotId, agent], index) => {
-                const isSelected = () => index() === selectedIndex()
-                return (
-                  <box flexDirection="column">
-                    <box flexDirection="row" gap={1}>
-                      <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.textMuted}>
-                        {isSelected() ? ">" : " "}
-                      </text>
-                      <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.textMuted}>
-                        {isSelected() ? "(*)" : "( )"}
-                      </text>
-                      <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.text}>
-                        {autopilotId}
-                      </text>
-                    </box>
-                  </box>
-                )
-              }}
-            </For>
-          </Show>
+            <Show when={currentStep() === 'autopilot'}>
+              <AutopilotStep
+                theme={stepTheme()}
+                autopilots={autopilotEntries()}
+                selectedIndex={selectedIndex()}
+              />
+            </Show>
           </box>
         </Show>
 
-        {/* Footer - hidden when loading */}
+        {/* Footer */}
         <Show when={!props.isLoading}>
           <box marginTop={2}>
-          <Show when={currentStep() === 'project_name'}>
-            <text fg={themeCtx.theme.textMuted}>
-              [Enter] Confirm  [Esc] Cancel
-            </text>
-          </Show>
-          <Show when={currentStep() === 'tracks'}>
-            <text fg={themeCtx.theme.textMuted}>
-              [Up/Down] Navigate  [Enter] Select  [Esc] Cancel
-            </text>
-          </Show>
-          <Show when={currentStep() === 'conditions'}>
-            <text fg={themeCtx.theme.textMuted}>
-              [Up/Down] Navigate  [Enter] Toggle  [Tab] Confirm  [Esc] Cancel
-            </text>
-          </Show>
-          <Show when={currentStep() === 'autopilot'}>
-            <text fg={themeCtx.theme.textMuted}>
-              [Up/Down] Navigate  [Enter] Select  [Esc] Cancel
-            </text>
-          </Show>
+            <text fg={themeCtx.theme.textMuted}>{footerText[currentStep()]}</text>
           </box>
         </Show>
       </box>

@@ -127,6 +127,7 @@ export interface WorkflowState {
   packageName: string
   startTime: number
   endTime?: number
+  workflowBaseDuration?: number // Prior accumulated duration (ms) from previous sessions
   agents: AgentState[]
   subAgents: Map<string, SubAgentState[]>
   triggeredAgents: TriggeredAgentState[]

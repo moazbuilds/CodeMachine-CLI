@@ -16,7 +16,8 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
   function setWorkflowStatus(status: WorkflowStatus): void {
     const state = ctx.getState()
     if (state.workflowStatus === status) return
-    if (status === "completed" || status === "stopped" || status === "stopping") {
+    // Only set endTime for terminal states - "stopping" is not terminal (workflow still running, waiting for confirmation)
+    if (status === "completed" || status === "stopped") {
       ctx.setState({ ...state, endTime: state.endTime ?? Date.now(), workflowStatus: status })
     } else {
       ctx.setState({ ...state, workflowStatus: status })
@@ -134,6 +135,12 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
     ctx.notify()
   }
 
+  function setWorkflowBaseDuration(baseDuration: number): void {
+    const state = ctx.getState()
+    ctx.setState({ ...state, workflowBaseDuration: baseDuration })
+    ctx.notify()
+  }
+
   return {
     setWorkflowStatus,
     setCheckpointState,
@@ -146,5 +153,6 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
     logMessage,
     setAutonomousMode,
     setWorkflowStartTime,
+    setWorkflowBaseDuration,
   }
 }

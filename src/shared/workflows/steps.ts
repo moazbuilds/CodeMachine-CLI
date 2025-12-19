@@ -128,6 +128,7 @@ export async function markStepStarted(cmRoot: string, stepIndex: number): Promis
 /**
  * Initializes step data with session info.
  * Creates or updates the step entry with sessionId and monitoringId.
+ * Also sets startedAt on first initialization for wall-clock duration tracking.
  */
 export async function initStepSession(
   cmRoot: string,
@@ -139,11 +140,12 @@ export async function initStepSession(
   const completedSteps = data.completedSteps as Record<string, StepData>;
   const key = String(stepIndex);
 
-  // Create or update step data (preserve completedChains if exists)
+  // Create or update step data (preserve completedChains and startedAt if exists)
   const existing = completedSteps[key];
   completedSteps[key] = {
     sessionId,
     monitoringId,
+    startedAt: existing?.startedAt ?? new Date().toISOString(), // Preserve or create
     completedChains: existing?.completedChains,
     // Don't set completedAt - step is not done yet
   };
@@ -333,6 +335,26 @@ export async function updateStepDuration(
 }
 
 /**
+ * Sets the accumulated duration for a step.
+ * Replaces any existing duration with the given value (for syncing from SQLite).
+ */
+export async function setStepDuration(
+  cmRoot: string,
+  stepIndex: number,
+  totalDuration: number
+): Promise<void> {
+  const { data, trackingPath } = await readTrackingData(cmRoot);
+  const completedSteps = data.completedSteps as Record<string, StepData>;
+  const key = String(stepIndex);
+
+  const existing = completedSteps[key];
+  if (existing) {
+    existing.accumulatedDuration = totalDuration;
+    await writeTrackingData(trackingPath, data);
+  }
+}
+
+/**
  * Updates accumulated telemetry for a step.
  * Adds the given telemetry to any existing accumulated telemetry.
  */
@@ -444,4 +466,27 @@ export async function saveWorkflowStartTime(cmRoot: string, startTime: number): 
 export async function getWorkflowStartTime(cmRoot: string): Promise<number | undefined> {
   const { data } = await readTrackingData(cmRoot);
   return (data as TemplateTracking & { workflowStartTime?: number }).workflowStartTime;
+}
+
+/**
+ * Gets the accumulated workflow duration (actual runtime in ms).
+ * Returns 0 if no duration was saved.
+ */
+export async function getWorkflowAccumulatedDuration(cmRoot: string): Promise<number> {
+  const { data } = await readTrackingData(cmRoot);
+  return (data as TemplateTracking & { workflowAccumulatedDuration?: number }).workflowAccumulatedDuration ?? 0;
+}
+
+/**
+ * Updates the accumulated workflow duration.
+ * Adds the given duration to any existing accumulated duration.
+ */
+export async function updateWorkflowAccumulatedDuration(
+  cmRoot: string,
+  additionalDuration: number
+): Promise<void> {
+  const { data, trackingPath } = await readTrackingData(cmRoot);
+  const current = (data as TemplateTracking & { workflowAccumulatedDuration?: number }).workflowAccumulatedDuration ?? 0;
+  (data as TemplateTracking & { workflowAccumulatedDuration?: number }).workflowAccumulatedDuration = current + additionalDuration;
+  await writeTrackingData(trackingPath, data);
 }

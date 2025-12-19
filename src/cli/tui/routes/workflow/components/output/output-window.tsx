@@ -72,6 +72,7 @@ export function OutputWindow(props: OutputWindowProps) {
   const statusColor = () => {
     const status = props.currentAgent?.status
     if (status === "completed") return themeCtx.theme.success
+    if (status === "running") return themeCtx.theme.success
     if (status === "failed") return themeCtx.theme.error
     return themeCtx.theme.warning
   }

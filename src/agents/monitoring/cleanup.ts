@@ -3,7 +3,11 @@ import { AgentLoggerService } from './logger.js';
 import { DurationTimerService } from './duration-timer.js';
 import * as logger from '../../shared/logging/logger.js';
 import { killAllActiveProcesses } from '../../infra/process/spawn.js';
-import { saveAutopilotModeState } from '../../shared/workflows/steps.js';
+import {
+  saveAutopilotModeState,
+  setStepDuration,
+  updateWorkflowAccumulatedDuration,
+} from '../../shared/workflows/steps.js';
 
 /**
  * Handles graceful cleanup of monitoring state on process termination
@@ -23,6 +27,8 @@ export class MonitoringCleanup {
   private static workflowState: {
     cmRoot?: string;
     getAutoMode?: () => boolean;
+    getCurrentStepIndex?: () => number;
+    getSessionStartTime?: () => number;
   } = {};
 
   /**
@@ -38,9 +44,14 @@ export class MonitoringCleanup {
 
   /**
    * Register workflow state for persistence on cleanup.
-   * This allows saving auto mode state when pausing.
+   * This allows saving auto mode state when pausing and syncing durations.
    */
-  static registerWorkflowState(state: { cmRoot: string; getAutoMode: () => boolean }): void {
+  static registerWorkflowState(state: {
+    cmRoot: string;
+    getAutoMode: () => boolean;
+    getCurrentStepIndex?: () => number;
+    getSessionStartTime?: () => number;
+  }): void {
     this.workflowState = state;
   }
 
@@ -240,6 +251,39 @@ export class MonitoringCleanup {
 
         // Stop all remaining timers
         timerService.stopAllTimers();
+
+        // Sync agent duration to template.json for resume
+        if (reason === 'paused' && this.workflowState.cmRoot && this.workflowState.getCurrentStepIndex) {
+          try {
+            const stepIndex = this.workflowState.getCurrentStepIndex();
+            // Get the agent for the current step (should be one of the paused agents)
+            // After markPaused, the agent record has the correct accumulatedDuration from SQLite
+            for (const agent of runningAgents) {
+              const agentRecord = monitor.getAgent(agent.id);
+              if (agentRecord?.accumulatedDuration !== undefined) {
+                // Use setStepDuration (not updateStepDuration) because we're syncing the TOTAL
+                // accumulated duration from SQLite, not adding to it
+                await setStepDuration(this.workflowState.cmRoot, stepIndex, agentRecord.accumulatedDuration);
+                logger.debug(`Synced agent ${agent.id} duration (${agentRecord.accumulatedDuration}ms) to template.json step ${stepIndex}`);
+                break; // Only one running agent per step
+              }
+            }
+          } catch (err) {
+            logger.warn('Failed to sync agent duration to template.json:', err);
+          }
+        }
+
+        // Save workflow accumulated duration for resume
+        if (reason === 'paused' && this.workflowState.cmRoot && this.workflowState.getSessionStartTime) {
+          try {
+            const sessionStartTime = this.workflowState.getSessionStartTime();
+            const sessionDuration = Date.now() - sessionStartTime;
+            await updateWorkflowAccumulatedDuration(this.workflowState.cmRoot, sessionDuration);
+            logger.debug(`Saved workflow session duration: ${sessionDuration}ms`);
+          } catch (err) {
+            logger.warn('Failed to save workflow accumulated duration:', err);
+          }
+        }
 
         // Release any remaining locks
         await loggerService.releaseAllLocks();

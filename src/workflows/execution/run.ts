@@ -20,6 +20,7 @@ import {
 import {
   getWorkflowStartTime,
   saveWorkflowStartTime,
+  getWorkflowAccumulatedDuration,
 } from '../../shared/workflows/steps.js';
 import { registry } from '../../infra/engines/index.js';
 import { MonitoringCleanup } from '../../agents/monitoring/index.js';
@@ -116,8 +117,12 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     debug('[Workflow] Loaded existing workflow start time: %d', workflowStartTime);
   }
 
-  // Emit workflow started with persisted start time
-  emitter.workflowStarted(template.name, moduleSteps.length, workflowStartTime);
+  // Load accumulated workflow duration (actual runtime from previous sessions)
+  const workflowBaseDuration = await getWorkflowAccumulatedDuration(cmRoot);
+  debug('[Workflow] Loaded workflow base duration: %d ms', workflowBaseDuration);
+
+  // Emit workflow started with persisted start time and accumulated duration
+  emitter.workflowStarted(template.name, moduleSteps.length, workflowStartTime, workflowBaseDuration);
 
   // Pre-populate timeline
   let moduleIndex = 0;
@@ -127,6 +132,35 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       const engineType = step.engine ?? defaultEngine?.metadata.id ?? 'unknown';
       const uniqueAgentId = `${step.agentId}-step-${moduleIndex}`;
       const isCompleted = moduleIndex < startIndex;
+      const isResuming = moduleIndex === startIndex && startIndex > 0;
+
+      // Load step data for timing info (completed and resuming steps)
+      let timing: { startTime?: number; baseDuration?: number } | undefined;
+      if (isCompleted || isResuming) {
+        const stepData = await getStepData(cmRoot, moduleIndex);
+        if (stepData) {
+          if (isCompleted && stepData.startedAt && stepData.completedAt) {
+            // For completed steps: duration = completedAt - startedAt
+            const stepStartTime = new Date(stepData.startedAt).getTime();
+            const completedTime = new Date(stepData.completedAt).getTime();
+            timing = {
+              startTime: stepStartTime,
+              baseDuration: completedTime - stepStartTime,
+            };
+          } else if (isResuming) {
+            // For resuming steps: use accumulatedDuration (actual runtime, not wall-clock time)
+            // This avoids counting offline periods when the workflow was stopped
+            timing = {
+              baseDuration: stepData.accumulatedDuration ?? 0,
+            };
+          } else if (stepData.accumulatedDuration) {
+            // Fallback for completed steps without timestamps
+            timing = {
+              baseDuration: stepData.accumulatedDuration,
+            };
+          }
+        }
+      }
 
       emitter.addMainAgent(
         uniqueAgentId,
@@ -135,16 +169,17 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         moduleIndex,
         moduleSteps.length,
         isCompleted ? 'completed' : 'pending',
-        step.model
+        step.model,
+        timing
       );
 
-      // For completed steps, register their monitoringId from template.json
+      // For completed/resuming steps, register their monitoringId from template.json
       // This allows the UI to load logs for completed steps after restart
-      if (isCompleted) {
+      if (isCompleted || isResuming) {
         const stepData = await getStepData(cmRoot, moduleIndex);
         if (stepData?.monitoringId && stepData.monitoringId > 0) {
           emitter.registerMonitoringId(uniqueAgentId, stepData.monitoringId);
-          debug('[Workflow] Registered monitoringId %d for completed step %s', stepData.monitoringId, uniqueAgentId);
+          debug('[Workflow] Registered monitoringId %d for %s step %s', stepData.monitoringId, isCompleted ? 'completed' : 'resuming', uniqueAgentId);
         }
       }
 

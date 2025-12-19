@@ -31,7 +31,9 @@ export interface StepData {
   completedChains?: number[];
   /** ISO timestamp when step fully completed (presence indicates step is done) */
   completedAt?: string;
-  /** Accumulated duration across resume sessions (in milliseconds) */
+  /** ISO timestamp when step first started (for wall-clock duration tracking) */
+  startedAt?: string;
+  /** Accumulated duration across resume sessions (in milliseconds) - legacy, prefer startedAt */
   accumulatedDuration?: number;
   /** Accumulated telemetry (tokens/cost) across resume sessions */
   accumulatedTelemetry?: AccumulatedTelemetry;

@@ -64,13 +64,14 @@ export class WorkflowEventEmitter {
   /**
    * Emit workflow started event
    */
-  workflowStarted(workflowName: string, totalSteps: number, startTime?: number): void {
-    debug('[Emitter] workflow:started name=%s totalSteps=%d startTime=%s', workflowName, totalSteps, startTime);
+  workflowStarted(workflowName: string, totalSteps: number, startTime?: number, baseDuration?: number): void {
+    debug('[Emitter] workflow:started name=%s totalSteps=%d startTime=%s baseDuration=%s', workflowName, totalSteps, startTime, baseDuration);
     this.bus.emit({
       type: 'workflow:started',
       workflowName,
       totalSteps,
       startTime,
+      baseDuration,
     });
   }
 
@@ -111,10 +112,11 @@ export class WorkflowEventEmitter {
     stepIndex: number,
     totalSteps: number,
     status: AgentStatus = 'pending',
-    model?: string
+    model?: string,
+    timing?: { startTime?: number; baseDuration?: number }
   ): void {
-    debug('[Emitter] agent:added id=%s name=%s engine=%s step=%d/%d status=%s',
-      agentId, name, engine, stepIndex, totalSteps, status);
+    debug('[Emitter] agent:added id=%s name=%s engine=%s step=%d/%d status=%s baseDuration=%s',
+      agentId, name, engine, stepIndex, totalSteps, status, timing?.baseDuration ?? 0);
 
     // Track step info for this agent
     this.agentStepMap.set(agentId, { stepIndex, totalSteps });
@@ -127,6 +129,8 @@ export class WorkflowEventEmitter {
       stepIndex,
       totalSteps,
       status,
+      startTime: timing?.startTime,
+      baseDuration: timing?.baseDuration,
     };
 
     this.bus.emit({

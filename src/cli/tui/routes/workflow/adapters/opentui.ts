@@ -24,6 +24,7 @@ export interface UIActions {
     status: AgentStatus
     telemetry: { tokensIn: number; tokensOut: number; cached?: number; cost?: number }
     startTime: number
+    baseDuration?: number
     toolCount: number
     thinkingCount: number
     stepIndex?: number
@@ -53,6 +54,7 @@ export interface UIActions {
   addUIElement(element: { id: string; text: string; stepIndex: number }): void
   logMessage(agentId: string, message: string): void
   setWorkflowStartTime(startTime: number): void
+  setWorkflowBaseDuration(baseDuration: number): void
 }
 
 export interface OpenTUIAdapterOptions extends UIAdapterOptions {
@@ -97,6 +99,9 @@ export class OpenTUIAdapter extends BaseUIAdapter {
         if (event.startTime) {
           this.actions.setWorkflowStartTime(event.startTime)
         }
+        if (event.baseDuration !== undefined) {
+          this.actions.setWorkflowBaseDuration(event.baseDuration)
+        }
         break
 
       case "workflow:status":
@@ -117,8 +122,9 @@ export class OpenTUIAdapter extends BaseUIAdapter {
           model: event.agent.model,
           status: event.agent.status,
           telemetry: { tokensIn: 0, tokensOut: 0 },
-          // Only set startTime if agent is already running (not for pending agents)
-          startTime: event.agent.status === "running" ? Date.now() : 0,
+          // Use event timing if provided, otherwise default based on status
+          startTime: event.agent.startTime ?? (event.agent.status === "running" ? Date.now() : 0),
+          baseDuration: event.agent.baseDuration,
           toolCount: 0,
           thinkingCount: 0,
           stepIndex: event.agent.stepIndex,

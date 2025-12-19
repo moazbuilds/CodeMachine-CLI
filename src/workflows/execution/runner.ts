@@ -3,23 +3,21 @@
  *
  * Orchestrates workflow execution using:
  * - State machine for state management
- * - Input providers for getting input (user or controller)
+ * - Input providers for getting input (user or autopilot)
  * - Step executor for running agents
+ *
+ * This file is the main orchestrator that delegates to specialized modules:
+ * - step-executor.ts: Handles step execution
+ * - input-handler.ts: Handles waiting for input and processing results
+ * - listeners.ts: Sets up event listeners for workflow control
  */
 
-import * as path from 'node:path';
-import * as fs from 'node:fs';
-
 import { debug } from '../../shared/logging/logger.js';
-import { formatUserInput } from '../../shared/formatters/outputMarkers.js';
-import { AgentLoggerService, AgentMonitorService } from '../../agents/monitoring/index.js';
 import type { ModuleStep, WorkflowTemplate } from '../templates/types.js';
 import type { WorkflowEventEmitter } from '../events/index.js';
 import {
   createWorkflowMachine,
   type StateMachine,
-  type WorkflowContext,
-  type StepOutput,
 } from '../state/index.js';
 import {
   UserInputProvider,
@@ -27,29 +25,15 @@ import {
   createInputEmitter,
   type InputProvider,
   type InputEventEmitter,
-  type InputContext,
 } from '../input/index.js';
-import { executeStep } from './step.js';
-import { selectEngine } from './engine.js';
 import { loadAutopilotConfig } from '../../shared/workflows/autopilot.js';
-import { registry } from '../../infra/engines/index.js';
-import {
-  markStepStarted,
-  initStepSession,
-  markChainCompleted,
-  markStepCompleted,
-  getStepData,
-  getChainResumeInfo,
-  updateStepDuration,
-  updateStepTelemetry,
-  getStepDuration,
-  getStepTelemetry,
-  getAutopilotModeState,
-} from '../../shared/workflows/steps.js';
+import { getAutopilotModeState } from '../../shared/workflows/steps.js';
 import { MonitoringCleanup } from '../../agents/monitoring/cleanup.js';
-import { getSelectedConditions } from '../../shared/workflows/index.js';
-import { loadAgentConfig } from '../../agents/runner/config.js';
-import { loadChainedPrompts } from '../../agents/runner/chained.js';
+
+// Import extracted modules
+import { setupListeners } from './listeners.js';
+import { executeCurrentStep } from './step-executor.js';
+import { handleWaiting } from './input-handler.js';
 
 /**
  * Runner options
@@ -64,6 +48,9 @@ export interface WorkflowRunnerOptions {
 
 /**
  * Workflow runner class
+ *
+ * Coordinates workflow execution by delegating to specialized modules.
+ * Maintains the state machine and input providers.
  */
 export class WorkflowRunner {
   private machine: StateMachine;
@@ -81,6 +68,7 @@ export class WorkflowRunner {
 
   private abortController: AbortController | null = null;
   private pauseRequested = false;
+  private sessionStartTime: number = Date.now();
 
   constructor(options: WorkflowRunnerOptions) {
     this.cwd = options.cwd;
@@ -125,62 +113,17 @@ export class WorkflowRunner {
     });
 
     // Set up event listeners
-    this.setupListeners();
+    setupListeners({
+      machine: this.machine,
+      getAbortController: () => this.abortController,
+      setPauseRequested: (value) => { this.pauseRequested = value; },
+      setAutoMode: (enabled) => this.setAutoMode(enabled),
+    });
   }
 
   private async getAutopilotConfig() {
     const state = await loadAutopilotConfig(this.cmRoot);
     return state?.autopilotConfig ?? null;
-  }
-
-  private setupListeners(): void {
-    // Pause listener
-    const pauseHandler = () => {
-      debug('[Runner] Pause requested');
-      this.pauseRequested = true;
-      this.abortController?.abort();
-    };
-    process.on('workflow:pause', pauseHandler);
-
-    // Skip listener (Ctrl+S while agent running)
-    const skipHandler = () => {
-      debug('[Runner] Skip requested');
-      this.abortController?.abort();
-    };
-    process.on('workflow:skip', skipHandler);
-
-    // Stop listener
-    const stopHandler = () => {
-      debug('[Runner] Stop requested');
-      this.abortController?.abort();
-      this.machine.send({ type: 'STOP' });
-    };
-    process.on('workflow:stop', stopHandler);
-
-    // Mode change listener
-    const modeChangeHandler = async (data: { autonomousMode: boolean }) => {
-      debug('[Runner] Mode change: autoMode=%s', data.autonomousMode);
-      // If in waiting state, let the provider's listener handle it
-      // The provider will return __SWITCH_TO_AUTO__ or __SWITCH_TO_MANUAL__
-      // and handleWaiting() will call setAutoMode()
-      if (this.machine.state === 'waiting') {
-        debug('[Runner] In waiting state, provider will handle mode switch');
-        return;
-      }
-      // In other states (running, idle), set auto mode directly
-      await this.setAutoMode(data.autonomousMode);
-    };
-    process.on('workflow:mode-change', modeChangeHandler);
-
-    // Clean up on machine final state
-    this.machine.subscribe((state) => {
-      if (this.machine.isFinal) {
-        process.removeListener('workflow:pause', pauseHandler);
-        process.removeListener('workflow:skip', skipHandler);
-        process.removeListener('workflow:stop', stopHandler);
-        process.removeListener('workflow:mode-change', modeChangeHandler);
-      }
-    });
   }
 
   /**
@@ -193,6 +136,8 @@ export class WorkflowRunner {
     MonitoringCleanup.registerWorkflowState({
       cmRoot: this.cmRoot,
       getAutoMode: () => this.machine.context.autoMode,
+      getCurrentStepIndex: () => this.machine.context.currentStepIndex,
+      getSessionStartTime: () => this.sessionStartTime,
     });
 
     // Load initial auto mode state
@@ -213,19 +158,46 @@ export class WorkflowRunner {
     this.machine.send({ type: 'START' });
     this.emitter.setWorkflowStatus('running');
 
-    // Main loop
+    // Main loop - delegates to specialized handlers
     while (!this.machine.isFinal) {
       const state = this.machine.state;
-      const ctx = this.machine.context;
 
       if (state === 'running') {
-        await this.executeCurrentStep();
+        await executeCurrentStep({
+          cwd: this.cwd,
+          cmRoot: this.cmRoot,
+          emitter: this.emitter,
+          machine: this.machine,
+          moduleSteps: this.moduleSteps,
+          getAbortController: () => this.abortController,
+          setAbortController: (c) => { this.abortController = c; },
+          isPauseRequested: () => this.pauseRequested,
+          resetPauseRequested: () => { this.pauseRequested = false; },
+        });
       } else if (state === 'waiting') {
-        await this.handleWaiting();
+        await handleWaiting({
+          cwd: this.cwd,
+          cmRoot: this.cmRoot,
+          emitter: this.emitter,
+          machine: this.machine,
+          moduleSteps: this.moduleSteps,
+          getActiveProvider: () => this.activeProvider,
+          setAutoMode: (enabled) => this.setAutoMode(enabled),
+          getAbortController: () => this.abortController,
+          setAbortController: (c) => { this.abortController = c; },
+          isPauseRequested: () => this.pauseRequested,
+        });
       }
     }
 
     // Final state handling
+    this.handleFinalState();
+  }
+
+  /**
+   * Handle final state after main loop exits
+   */
+  private handleFinalState(): void {
     const finalState = this.machine.state;
     debug('[Runner] Workflow ended in state: %s', finalState);
 
@@ -241,481 +213,6 @@ export class WorkflowRunner {
           reason: error.message,
         });
       }
-    }
-  }
-
-  /**
-   * Execute the current step
-   */
-  private async executeCurrentStep(): Promise<void> {
-    const ctx = this.machine.context;
-    const step = this.moduleSteps[ctx.currentStepIndex];
-    const uniqueAgentId = `${step.agentId}-step-${ctx.currentStepIndex}`;
-
-    debug('[Runner] Executing step %d: %s', ctx.currentStepIndex, step.agentName);
-
-    // Check for resume data (existing session from previous run)
-    const stepData = await getStepData(this.cmRoot, ctx.currentStepIndex);
-    const isResuming = stepData?.sessionId && !stepData.completedAt;
-
-    // If resuming, skip execution and go directly to waiting state
-    if (isResuming) {
-      debug('[Runner] Resuming step %d - going to waiting state', ctx.currentStepIndex);
-
-      // Show initializing status while loading resume data
-      this.emitter.updateAgentStatus(uniqueAgentId, 'initializing');
-
-      // Register monitoring ID so TUI loads existing logs
-      if (stepData.monitoringId !== undefined) {
-        this.emitter.registerMonitoringId(uniqueAgentId, stepData.monitoringId);
-      }
-
-      // Load and emit accumulated duration and telemetry from previous sessions
-      const previousDuration = await getStepDuration(this.cmRoot, ctx.currentStepIndex);
-      const previousTelemetry = await getStepTelemetry(this.cmRoot, ctx.currentStepIndex);
-      if (previousDuration > 0 || previousTelemetry) {
-        this.emitter.updateAgentTelemetry(uniqueAgentId, {
-          duration: previousDuration > 0 ? previousDuration : undefined,
-          tokensIn: previousTelemetry?.tokensIn,
-          tokensOut: previousTelemetry?.tokensOut,
-          cost: previousTelemetry?.cost,
-          cached: previousTelemetry?.cached,
-        });
-      }
-
-      // Load chained prompts for this step if agent has them configured
-      try {
-        const agentConfig = await loadAgentConfig(step.agentId, this.cwd);
-        if (agentConfig?.chainedPromptsPath) {
-          const selectedConditions = await getSelectedConditions(this.cmRoot);
-          const allChainedPrompts = await loadChainedPrompts(
-            agentConfig.chainedPromptsPath,
-            this.cwd,
-            selectedConditions
-          );
-
-          // Filter out already completed chains
-          const completedChains = new Set(stepData.completedChains ?? []);
-          const remainingPrompts = allChainedPrompts.filter(
-            (_, index) => !completedChains.has(index)
-          );
-
-          if (remainingPrompts.length > 0) {
-            ctx.promptQueue = remainingPrompts;
-            ctx.promptQueueIndex = 0;
-            debug('[Runner] Loaded %d remaining chained prompts for resume', remainingPrompts.length);
-          }
-        }
-      } catch (err) {
-        debug('[Runner] Failed to load chained prompts for resume: %s', err instanceof Error ? err.message : String(err));
-      }
-
-      // Only show checkpoint status in manual mode - in auto mode, autopilot will handle it
-      if (!ctx.autoMode) {
-        this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
-      }
-      this.emitter.logMessage(uniqueAgentId, '═'.repeat(80));
-      this.emitter.logMessage(uniqueAgentId, `${step.agentName} resumed - waiting for input.`);
-
-      // Set context with saved data
-      ctx.currentMonitoringId = stepData.monitoringId;
-      ctx.currentOutput = {
-        output: '',
-        monitoringId: stepData.monitoringId,
-      };
-
-      // Go to waiting state
-      this.machine.send({
-        type: 'STEP_COMPLETE',
-        output: { output: '', monitoringId: stepData.monitoringId },
-      });
-      return;
-    }
-
-    // Track step start for resume
-    await markStepStarted(this.cmRoot, ctx.currentStepIndex);
-
-    // Track step start time for duration accumulation
-    const stepStartTime = Date.now();
-
-    // Reset pause flag
-    this.pauseRequested = false;
-
-    // Set up abort controller
-    this.abortController = new AbortController();
-
-    // Update UI - show initializing while setting up agent
-    this.emitter.updateAgentStatus(uniqueAgentId, 'initializing');
-    this.emitter.logMessage(uniqueAgentId, '═'.repeat(80));
-    this.emitter.logMessage(uniqueAgentId, `[Step ${ctx.currentStepIndex + 1}/${this.moduleSteps.length}] ${step.agentName} ${isResuming ? 'resumed work.' : 'started to work.'}`);
-
-    // Reset behavior file
-    const behaviorFile = path.join(this.cwd, '.codemachine/memory/behavior.json');
-    const behaviorDir = path.dirname(behaviorFile);
-    if (!fs.existsSync(behaviorDir)) {
-      fs.mkdirSync(behaviorDir, { recursive: true });
-    }
-    fs.writeFileSync(behaviorFile, JSON.stringify({ action: 'continue' }, null, 2));
-
-    // Determine engine
-    const engineType = await selectEngine(step, this.emitter, uniqueAgentId);
-    step.engine = engineType;
-    this.emitter.updateAgentEngine(uniqueAgentId, engineType);
-
-    // Resolve model
-    const engineModule = registry.get(engineType);
-    const resolvedModel = step.model ?? engineModule?.metadata.defaultModel;
-    if (resolvedModel) {
-      this.emitter.updateAgentModel(uniqueAgentId, resolvedModel);
-    }
-
-    // Initialization complete - now running
-    this.emitter.updateAgentStatus(uniqueAgentId, 'running');
-
-    try {
-      // Execute the step (with resume data if available)
-      const output = await executeStep(step, this.cwd, {
-        logger: () => {},
-        stderrLogger: () => {},
-        emitter: this.emitter,
-        abortSignal: this.abortController.signal,
-        uniqueAgentId,
-        resumeMonitoringId: isResuming ? stepData.monitoringId : undefined,
-        resumeSessionId: isResuming ? stepData.sessionId : undefined,
-        resumePrompt: isResuming ? 'Continue from where you left off.' : undefined,
-      });
-
-      // Check if paused
-      if (this.pauseRequested) {
-        debug('[Runner] Step was paused');
-        this.emitter.logMessage(uniqueAgentId, `${step.agentName} paused.`);
-        this.machine.send({ type: 'PAUSE' });
-        return;
-      }
-
-      // Step completed
-      debug('[Runner] Step completed');
-
-      // Track session info for resume
-      if (output.monitoringId !== undefined) {
-        const monitor = AgentMonitorService.getInstance();
-        const agentInfo = monitor.getAgent(output.monitoringId);
-        const sessionId = agentInfo?.sessionId ?? '';
-        await initStepSession(this.cmRoot, ctx.currentStepIndex, sessionId, output.monitoringId);
-
-        // Save accumulated duration
-        const stepDuration = Date.now() - stepStartTime;
-        await updateStepDuration(this.cmRoot, ctx.currentStepIndex, stepDuration);
-
-        // Log step completion with duration
-        const durationSec = Math.floor(stepDuration / 1000);
-        const durationMin = Math.floor(durationSec / 60);
-        const durationStr = durationMin > 0 ? `${durationMin}m ${durationSec % 60}s` : `${durationSec}s`;
-        this.emitter.logMessage(uniqueAgentId, `[Step ${ctx.currentStepIndex + 1}/${this.moduleSteps.length}] Completed in ${durationStr}`);
-
-        // Save accumulated telemetry
-        if (agentInfo?.telemetry) {
-          await updateStepTelemetry(this.cmRoot, ctx.currentStepIndex, {
-            tokensIn: agentInfo.telemetry.tokensIn ?? 0,
-            tokensOut: agentInfo.telemetry.tokensOut ?? 0,
-            cost: agentInfo.telemetry.cost ?? 0,
-            cached: agentInfo.telemetry.cached,
-          });
-        }
-      }
-
-      const stepOutput: StepOutput = {
-        output: output.output,
-        monitoringId: output.monitoringId,
-      };
-
-      // Update context with chained prompts if any
-      debug('[Runner] chainedPrompts from output: %d items', output.chainedPrompts?.length ?? 0);
-      if (output.chainedPrompts && output.chainedPrompts.length > 0) {
-        debug('[Runner] Setting promptQueue with %d chained prompts:', output.chainedPrompts.length);
-        output.chainedPrompts.forEach((p, i) => debug('[Runner]   [%d] %s: %s', i, p.name, p.label));
-        this.machine.context.promptQueue = output.chainedPrompts;
-        this.machine.context.promptQueueIndex = 0;
-        // Show checkpoint status only in manual mode - in auto mode, keep running status
-        if (!ctx.autoMode) {
-          this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
-          debug('[Runner] Agent at checkpoint, waiting for chained prompt input');
-        } else {
-          debug('[Runner] Auto mode - keeping running status for autopilot processing');
-        }
-      } else {
-        debug('[Runner] No chained prompts, marking agent completed');
-        this.emitter.updateAgentStatus(uniqueAgentId, 'completed');
-        this.machine.context.promptQueue = [];
-        this.machine.context.promptQueueIndex = 0;
-      }
-
-      this.machine.send({ type: 'STEP_COMPLETE', output: stepOutput });
-    } catch (error) {
-      // Handle abort
-      if (error instanceof Error && error.name === 'AbortError') {
-        // Save accumulated duration for the time spent before abort
-        const stepDuration = Date.now() - stepStartTime;
-        await updateStepDuration(this.cmRoot, ctx.currentStepIndex, stepDuration);
-
-        // Try to save telemetry if we have a monitoring ID
-        if (ctx.currentMonitoringId !== undefined) {
-          const monitor = AgentMonitorService.getInstance();
-          const agentInfo = monitor.getAgent(ctx.currentMonitoringId);
-          if (agentInfo?.telemetry) {
-            await updateStepTelemetry(this.cmRoot, ctx.currentStepIndex, {
-              tokensIn: agentInfo.telemetry.tokensIn ?? 0,
-              tokensOut: agentInfo.telemetry.tokensOut ?? 0,
-              cost: agentInfo.telemetry.cost ?? 0,
-              cached: agentInfo.telemetry.cached,
-            });
-          }
-        }
-
-        if (this.pauseRequested) {
-          debug('[Runner] Step aborted due to pause');
-          this.emitter.logMessage(uniqueAgentId, `${step.agentName} paused.`);
-          this.machine.send({ type: 'PAUSE' });
-        } else {
-          debug('[Runner] Step aborted (skip)');
-          this.emitter.updateAgentStatus(uniqueAgentId, 'skipped');
-          this.emitter.logMessage(uniqueAgentId, `${step.agentName} was skipped.`);
-          // Track step completion for resume - mark as skipped since no agent ran to completion
-          await markStepCompleted(this.cmRoot, ctx.currentStepIndex, { skipped: true });
-          this.machine.send({ type: 'SKIP' });
-        }
-        return;
-      }
-
-      // Real error
-      debug('[Runner] Step error: %s', (error as Error).message);
-      this.emitter.updateAgentStatus(uniqueAgentId, 'failed');
-      this.machine.send({ type: 'STEP_ERROR', error: error as Error });
-    } finally {
-      this.abortController = null;
-    }
-  }
-
-  /**
-   * Handle waiting state - get input from provider
-   */
-  private async handleWaiting(): Promise<void> {
-    const ctx = this.machine.context;
-
-    debug('[Runner] Handling waiting state, autoMode=%s, promptQueue=%d items, queueIndex=%d',
-      ctx.autoMode, ctx.promptQueue.length, ctx.promptQueueIndex);
-
-    // Build input context
-    const inputContext: InputContext = {
-      stepOutput: ctx.currentOutput ?? { output: '' },
-      stepIndex: ctx.currentStepIndex,
-      totalSteps: ctx.totalSteps,
-      promptQueue: ctx.promptQueue,
-      promptQueueIndex: ctx.promptQueueIndex,
-      cwd: this.cwd,
-    };
-
-    // Get input from active provider
-    const result = await this.activeProvider.getInput(inputContext);
-
-    debug('[Runner] Got input result: type=%s', result.type);
-
-    // Handle special switch-to-manual signal
-    if (result.type === 'input' && result.value === '__SWITCH_TO_MANUAL__') {
-      debug('[Runner] Switching to manual mode');
-      await this.setAutoMode(false);
-      // Re-run waiting with user input
-      return;
-    }
-
-    // Handle special switch-to-auto signal
-    if (result.type === 'input' && result.value === '__SWITCH_TO_AUTO__') {
-      debug('[Runner] Switching to autonomous mode');
-      await this.setAutoMode(true);
-      // Re-run waiting with controller input
-      return;
-    }
-
-    // Handle wait-for-input signal (no mode switch, just wait)
-    if (result.type === 'input' && result.value === '__WAIT_FOR_INPUT__') {
-      debug('[Runner] Waiting for user input (no mode switch)');
-      // Re-run waiting in current mode
-      return;
-    }
-
-    // Handle result
-    const step = this.moduleSteps[ctx.currentStepIndex];
-    const uniqueAgentId = `${step.agentId}-step-${ctx.currentStepIndex}`;
-
-    switch (result.type) {
-      case 'input':
-        if (result.value === '') {
-          // Empty input = advance to next step
-          debug('[Runner] Empty input, marking agent completed and advancing');
-          this.emitter.updateAgentStatus(uniqueAgentId, 'completed');
-          this.emitter.logMessage(uniqueAgentId, `${step.agentName} has completed their work.`);
-          this.emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
-          // Track step completion for resume
-          await markStepCompleted(this.cmRoot, ctx.currentStepIndex);
-          this.machine.send({ type: 'INPUT_RECEIVED', input: '' });
-        } else {
-          // Has input = resume current step with input, then wait again
-          await this.resumeWithInput(result.value, result.resumeMonitoringId, result.source);
-        }
-        break;
-
-      case 'skip':
-        debug('[Runner] Skip requested, marking agent skipped');
-        this.emitter.updateAgentStatus(uniqueAgentId, 'skipped');
-        this.emitter.logMessage(uniqueAgentId, `${step.agentName} was skipped.`);
-        this.emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
-        // Track step completion for resume - mark as skipped since user skipped it
-        await markStepCompleted(this.cmRoot, ctx.currentStepIndex, { skipped: true });
-        this.machine.send({ type: 'SKIP' });
-        break;
-
-      case 'stop':
-        this.machine.send({ type: 'STOP' });
-        break;
-    }
-  }
-
-  /**
-   * Resume current step with input (for chained prompts or steering)
-   */
-  private async resumeWithInput(input: string, monitoringId?: number, source?: 'user' | 'autopilot' | 'controller'): Promise<void> {
-    const ctx = this.machine.context;
-    const step = this.moduleSteps[ctx.currentStepIndex];
-    const uniqueAgentId = `${step.agentId}-step-${ctx.currentStepIndex}`;
-
-    debug('[Runner] Resuming step with input: %s... (source=%s)', input.slice(0, 50), source ?? 'user');
-
-    // Get sessionId from step data for resume
-    const stepData = await getStepData(this.cmRoot, ctx.currentStepIndex);
-    const sessionId = stepData?.sessionId;
-
-    // Detect queued vs custom input
-    let isQueuedPrompt = false;
-    if (ctx.promptQueue.length > 0 && ctx.promptQueueIndex < ctx.promptQueue.length) {
-      const queuedPrompt = ctx.promptQueue[ctx.promptQueueIndex];
-      if (input === queuedPrompt.content) {
-        isQueuedPrompt = true;
-        const chainIndex = ctx.promptQueueIndex;
-        ctx.promptQueueIndex += 1;
-        debug('[Runner] Advanced queue to index %d', ctx.promptQueueIndex);
-        // Track chain completion for resume
-        await markChainCompleted(this.cmRoot, ctx.currentStepIndex, chainIndex);
-      }
-    }
-
-    // Log custom user input (magenta) - skip for autopilot input (already logged during streaming)
-    if (!isQueuedPrompt && source !== 'autopilot' && source !== 'controller') {
-      const formatted = formatUserInput(input);
-      this.emitter.logMessage(uniqueAgentId, formatted);
-      if (monitoringId !== undefined) {
-        AgentLoggerService.getInstance().write(monitoringId, `\n${formatted}\n`);
-      }
-    }
-
-    // Track step start time for duration accumulation
-    const stepStartTime = Date.now();
-
-    this.abortController = new AbortController();
-    this.emitter.updateAgentStatus(uniqueAgentId, 'running');
-    this.emitter.setWorkflowStatus('running');
-
-    // Track if mode switch was requested during execution
-    let modeSwitchRequested: 'manual' | 'auto' | null = null;
-    const modeChangeHandler = (data: { autonomousMode: boolean }) => {
-      debug('[Runner] Mode change during resumeWithInput: autoMode=%s', data.autonomousMode);
-      modeSwitchRequested = data.autonomousMode ? 'auto' : 'manual';
-      // Abort the current step execution
-      this.abortController?.abort();
-    };
-    process.on('workflow:mode-change', modeChangeHandler);
-
-    try {
-      const output = await executeStep(step, this.cwd, {
-        logger: () => {},
-        stderrLogger: () => {},
-        emitter: this.emitter,
-        abortSignal: this.abortController.signal,
-        uniqueAgentId,
-        resumeMonitoringId: monitoringId,
-        resumeSessionId: sessionId,
-        resumePrompt: input,
-      });
-
-      // Update context with new output
-      ctx.currentOutput = {
-        output: output.output,
-        monitoringId: output.monitoringId,
-      };
-      ctx.currentMonitoringId = output.monitoringId;
-
-      // Save accumulated duration
-      const stepDuration = Date.now() - stepStartTime;
-      await updateStepDuration(this.cmRoot, ctx.currentStepIndex, stepDuration);
-
-      // Save accumulated telemetry
-      if (output.monitoringId !== undefined) {
-        const monitor = AgentMonitorService.getInstance();
-        const agentInfo = monitor.getAgent(output.monitoringId);
-        if (agentInfo?.telemetry) {
-          await updateStepTelemetry(this.cmRoot, ctx.currentStepIndex, {
-            tokensIn: agentInfo.telemetry.tokensIn ?? 0,
-            tokensOut: agentInfo.telemetry.tokensOut ?? 0,
-            cost: agentInfo.telemetry.cost ?? 0,
-            cached: agentInfo.telemetry.cached,
-          });
-        }
-      }
-
-      // Back to checkpoint only in manual mode - in auto mode, keep running status
-      if (!ctx.autoMode) {
-        this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
-      }
-
-      // Stay in waiting state - will get more input
-      // (The waiting handler will be called again)
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        // Save accumulated duration for the time spent before abort
-        const stepDuration = Date.now() - stepStartTime;
-        await updateStepDuration(this.cmRoot, ctx.currentStepIndex, stepDuration);
-
-        // Try to save telemetry if we have a monitoring ID
-        if (ctx.currentMonitoringId !== undefined) {
-          const monitor = AgentMonitorService.getInstance();
-          const agentInfo = monitor.getAgent(ctx.currentMonitoringId);
-          if (agentInfo?.telemetry) {
-            await updateStepTelemetry(this.cmRoot, ctx.currentStepIndex, {
-              tokensIn: agentInfo.telemetry.tokensIn ?? 0,
-              tokensOut: agentInfo.telemetry.tokensOut ?? 0,
-              cost: agentInfo.telemetry.cost ?? 0,
-              cached: agentInfo.telemetry.cached,
-            });
-          }
-        }
-
-        if (this.pauseRequested) {
-          this.machine.send({ type: 'PAUSE' });
-          return;
-        }
-        // Handle mode switch during execution
-        if (modeSwitchRequested) {
-          debug('[Runner] Step aborted due to mode switch to %s', modeSwitchRequested);
-          this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
-          await this.setAutoMode(modeSwitchRequested === 'auto');
-          // Return to let handleWaiting loop with new provider
-          return;
-        }
-        return;
-      }
-      this.machine.send({ type: 'STEP_ERROR', error: error as Error });
-    } finally {
-      process.removeListener('workflow:mode-change', modeChangeHandler);
-      this.abortController = null;
     }
   }
 
