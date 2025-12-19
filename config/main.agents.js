@@ -83,7 +83,7 @@ module.exports = [
   // BMAD agents
   {
     id: 'bmad-analyst',
-    name: 'Mary the Analyst',
+    name: 'Mary [Analyst]',
     description: 'BMAD business analyst for collaborative product discovery',
     promptPath: [
       path.join(promptsDir, 'bmad', '01-analyst', 'mary.md'),
@@ -99,7 +99,7 @@ module.exports = [
   },
   {
     id: 'bmad-pm',
-    name: 'John the PM',
+    name: 'John [PM: PRD]',
     description: 'BMAD product manager for PRD creation workflow',
     promptPath: [
       path.join(promptsDir, 'bmad', '02-pm', 'john.md'),
@@ -120,7 +120,7 @@ module.exports = [
   },
   {
     id: 'bmad-ux',
-    name: 'Sally the UX Designer',
+    name: 'Sally [UX]',
     description: 'BMAD UX designer for UX design specification workflow',
     promptPath: [
       path.join(promptsDir, 'bmad', '03-ux-designer', 'sally.md'),
@@ -144,7 +144,7 @@ module.exports = [
   },
   {
     id: 'bmad-architect',
-    name: 'Winston the Architect',
+    name: 'Winston [Arch]',
     description: 'BMAD architect for architecture decision workflow',
     promptPath: [
       path.join(promptsDir, 'bmad', '04-architect', 'winston.md'),
@@ -162,7 +162,7 @@ module.exports = [
   },
   {
     id: 'bmad-epics',
-    name: 'John the PM - Epics',
+    name: 'John [PM: Epics]',
     description: 'BMAD PM for epics and stories creation workflow',
     promptPath: [
       path.join(promptsDir, 'bmad', '02-pm', 'john.md'),
@@ -173,6 +173,31 @@ module.exports = [
       path.join(promptsDir, 'bmad', '02-pm', '02-epics', 'chained', 'step-02-design-epics.md'),
       path.join(promptsDir, 'bmad', '02-pm', '02-epics', 'chained', 'step-03-create-stories.md'),
       path.join(promptsDir, 'bmad', '02-pm', '02-epics', 'chained', 'step-04-final-validation.md'),
+    ],
+  },
+  {
+    id: 'bmad-tea',
+    name: 'Murat [Test Arch]',
+    description: 'BMAD test architect for test design and risk assessment workflow',
+    promptPath: [
+      path.join(promptsDir, 'bmad', '05-tea', 'murat.md'),
+      path.join(promptsDir, 'bmad', '05-tea', '01-test-design', 'instructions.md'),
+    ],
+  },
+  {
+    id: 'bmad-readiness',
+    name: 'John [PM: Readiness]',
+    description: 'BMAD PM for implementation readiness validation workflow',
+    promptPath: [
+      path.join(promptsDir, 'bmad', '02-pm', 'john.md'),
+      path.join(promptsDir, 'bmad', '02-pm', '03-readiness', 'workflow.md'),
+      path.join(promptsDir, 'bmad', '02-pm', '03-readiness', 'chained', 'step-01-prd-analysis.md'),
+    ],
+    chainedPromptsPath: [
+      path.join(promptsDir, 'bmad', '02-pm', '03-readiness', 'chained', 'step-02-epic-coverage.md'),
+      path.join(promptsDir, 'bmad', '02-pm', '03-readiness', 'chained', 'step-03-ux-alignment.md'),
+      path.join(promptsDir, 'bmad', '02-pm', '03-readiness', 'chained', 'step-04-epic-quality.md'),
+      path.join(promptsDir, 'bmad', '02-pm', '03-readiness', 'chained', 'step-05-complete.md'),
     ],
   },
 

@@ -20,6 +20,7 @@ module.exports = {
     prd: path.join('.codemachine', 'artifacts', 'prd-*.md'),
     ux_design_spec: path.join('.codemachine', 'artifacts', 'ux-design-spec-*.md'),
     architecture: path.join('.codemachine', 'artifacts', 'architecture-*.md'),
+    epics: path.join('.codemachine', 'artifacts', 'epics-*.md'),
   },
 
   // Paths relative to codemachine package root
@@ -34,5 +35,8 @@ module.exports = {
     domain_complexity: path.join('prompts', 'templates', 'bmad', '02-pm', '01-prd', 'shared', 'domain-complexity.csv'),
     project_types: path.join('prompts', 'templates', 'bmad', '02-pm', '01-prd', 'shared', 'project-types.csv'),
     prd_template: path.join('prompts', 'templates', 'bmad', '02-pm', '01-prd', 'shared', 'prd-template.md'),
+
+    // BMAD TEA workflow shared files
+    test_design_template: path.join('prompts', 'templates', 'bmad', '05-tea', '01-test-design', 'test-design-template.md'),
   }
 };
