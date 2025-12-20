@@ -24,35 +24,12 @@ function getSentinelPath(opencodeHome: string): string {
   return path.join(opencodeHome, 'data', SENTINEL_FILE);
 }
 
-async function isCliInstalled(command: string): Promise<boolean> {
-  try {
-    // Resolve command using Bun.which() to handle Windows .cmd files
-    const resolvedCommand = Bun.which(command) ?? command;
-
-    const proc = Bun.spawn([resolvedCommand, '--version'], {
-      stdout: 'pipe',
-      stderr: 'pipe',
-      stdin: 'ignore',
-    });
-
-    // Set a timeout
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Timeout')), 3000)
-    );
-
-    const exitCode = await Promise.race([proc.exited, timeout]);
-    const stdout = await new Response(proc.stdout).text();
-    const stderr = await new Response(proc.stderr).text();
-    const out = `${stdout}\n${stderr}`;
-
-    if (typeof exitCode === 'number' && exitCode === 0) return true;
-    if (/not recognized as an internal or external command/i.test(out)) return false;
-    if (/command not found/i.test(out)) return false;
-    if (/No such file or directory/i.test(out)) return false;
-    return false;
-  } catch {
-    return false;
-  }
+/**
+ * Check if CLI binary exists in PATH (instant, no subprocess)
+ * OpenCode works with zero config - just needs to be installed
+ */
+function isCliInstalled(command: string): boolean {
+  return Bun.which(command) !== null;
 }
 
 function logInstallHelp(): void {
@@ -70,24 +47,9 @@ function logInstallHelp(): void {
 
 
 export async function isAuthenticated(): Promise<boolean> {
-  // First check if CLI is installed
-  const cliInstalled = await isCliInstalled(metadata.cliBinary);
-  if (!cliInstalled) {
-    return false;
-  }
-
-  // Check sentinel file (created after successful login via codemachine)
-  const opencodeHome = resolveOpenCodeHome();
-  const sentinelPath = getSentinelPath(opencodeHome);
-  try {
-    await stat(sentinelPath);
-    return true;
-  } catch {
-    // Sentinel not found, check OpenCode's native auth
-  }
-
-  // Check OpenCode's native credential file
-  return hasOpenCodeCredential('opencode');
+  // OpenCode works with zero config - just needs to be installed
+  // No auth check required; users can optionally login for specific APIs
+  return isCliInstalled(metadata.cliBinary);
 }
 
 /**
@@ -131,8 +93,7 @@ export async function ensureAuth(forceLogin = false): Promise<boolean> {
   await ensureDataDirExists(dataDir);
 
   // Check if CLI is installed
-  const cliInstalled = await isCliInstalled(metadata.cliBinary);
-  if (!cliInstalled) {
+  if (!isCliInstalled(metadata.cliBinary)) {
     logInstallHelp();
     throw new Error(`${metadata.name} CLI is not installed.`);
   }
