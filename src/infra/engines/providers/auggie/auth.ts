@@ -67,14 +67,14 @@ function logInstallHelp(): void {
 
 
 export async function isAuthenticated(): Promise<boolean> {
-  // Check if CLI is installed
-  const cliInstalled = await isCliInstalled(metadata.cliBinary);
-  if (!cliInstalled) {
+  // Check credential file first (fast file stat)
+  const hasCredential = await hasAuggieCredential();
+  if (!hasCredential) {
     return false;
   }
 
-  // Check if Auggie has valid session
-  return await hasAuggieCredential();
+  // Credential exists, verify CLI is installed
+  return await isCliInstalled(metadata.cliBinary);
 }
 
 /**

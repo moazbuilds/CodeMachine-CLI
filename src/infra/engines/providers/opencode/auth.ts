@@ -70,7 +70,24 @@ function logInstallHelp(): void {
 
 
 export async function isAuthenticated(): Promise<boolean> {
-  return isCliInstalled(metadata.cliBinary);
+  // First check if CLI is installed
+  const cliInstalled = await isCliInstalled(metadata.cliBinary);
+  if (!cliInstalled) {
+    return false;
+  }
+
+  // Check sentinel file (created after successful login via codemachine)
+  const opencodeHome = resolveOpenCodeHome();
+  const sentinelPath = getSentinelPath(opencodeHome);
+  try {
+    await stat(sentinelPath);
+    return true;
+  } catch {
+    // Sentinel not found, check OpenCode's native auth
+  }
+
+  // Check OpenCode's native credential file
+  return hasOpenCodeCredential('opencode');
 }
 
 /**
