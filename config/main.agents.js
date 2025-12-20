@@ -200,6 +200,45 @@ module.exports = [
       path.join(promptsDir, 'bmad', '02-pm', '03-readiness', 'chained', 'step-05-complete.md'),
     ],
   },
+  {
+    id: 'bmad-sprints',
+    name: 'Bob [SM: Sprints]',
+    description: 'BMAD SM for sprint status generation from epics',
+    promptPath: [
+      path.join(promptsDir, 'bmad', '06-sm', 'bob.md'),
+      path.join(promptsDir, 'bmad', '06-sm', '01-sprint-planning', 'instructions.md'),
+    ],
+  },
+  {
+    id: 'bmad-stories',
+    name: 'Bob [SM: Create Story]',
+    description: 'BMAD SM for creating developer-ready story files',
+    promptPath: [
+      path.join(promptsDir, 'bmad', '06-sm', 'bob.md'),
+      path.join(promptsDir, 'bmad', '06-sm', '02-create-story', 'instructions.xml'),
+      path.join(promptsDir, 'bmad', '06-sm', '02-create-story', 'checklist.md'),
+    ],
+  },
+  {
+    id: 'bmad-dev',
+    name: 'Amelia [Dev: Story]',
+    description: 'BMAD Developer for story implementation',
+    promptPath: [
+      path.join(promptsDir, 'bmad', '07-dev', 'amelia.md'),
+      path.join(promptsDir, 'bmad', '07-dev', '01-dev-story', 'instructions.xml'),
+      path.join(promptsDir, 'bmad', '07-dev', '01-dev-story', 'checklist.md'),
+    ],
+  },
+  {
+    id: 'bmad-review',
+    name: 'Amelia [Dev: Code Review]',
+    description: 'BMAD Developer for code review',
+    promptPath: [
+      path.join(promptsDir, 'bmad', '07-dev', 'amelia.md'),
+      path.join(promptsDir, 'bmad', '07-dev', '02-code-review', 'instructions.xml'),
+      path.join(promptsDir, 'bmad', '07-dev', '02-code-review', 'checklist.md'),
+    ],
+  },
 
   // Test agents
   {

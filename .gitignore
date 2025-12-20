@@ -28,3 +28,6 @@ src/shared/runtime/resource-manifest.ts
 
 # MkDocs build output
 site/
+_bmad
+_bmad-*
+.claude

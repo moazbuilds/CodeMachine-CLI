@@ -10,10 +10,11 @@ export default {
   },
 
   steps: [
-    resolveStep('bmad-analyst', {model: 'opencode/grok-code'}),
-    resolveStep('bmad-pm', {model: 'opencode/grok-code'}),
-    resolveStep('bmad-ux', {model: 'opencode/grok-code', conditions: ['has_ui']}),
-    resolveStep('bmad-architect', {model: 'opencode/grok-code'}),
-    resolveStep('bmad-epics', {model: 'opencode/grok-code'}),
+    resolveStep('bmad-analyst', {engine: 'codex'}),
+    resolveStep('bmad-pm', {engine: 'codex'}),
+    resolveStep('bmad-ux', {engine: 'codex', conditions: ['has_ui']}),
+    resolveStep('bmad-architect', {engine: 'codex'}),
+    resolveStep('bmad-epics', {engine: 'codex'}),
+    resolveStep('bmad-sprints', {engine: 'codex'}),
   ],
 };

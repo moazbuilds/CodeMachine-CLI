@@ -62,7 +62,7 @@ I've successfully collaborated with you to create a comprehensive Product Requir
 - ✅ Comprehensive Functional Requirements (capability contract)
 - ✅ Non-Functional Requirements for quality attributes
 
-**The complete PRD is now available at:** `{output_folder}/prd.md`
+**The complete PRD is now available at:** `.codemachine/artifacts/prd.md`
 
 This document is now ready to guide UX design, technical architecture, and development planning."
 

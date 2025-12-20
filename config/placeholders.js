@@ -38,5 +38,9 @@ module.exports = {
 
     // BMAD TEA workflow shared files
     test_design_template: path.join('prompts', 'templates', 'bmad', '05-tea', '01-test-design', 'test-design-template.md'),
+
+    // BMAD SM workflow shared files
+    sprint_status_template: path.join('prompts', 'templates', 'bmad', '06-sm', '01-sprint-planning', 'sprint-status-template.yaml'),
+    story_template: path.join('prompts', 'templates', 'bmad', '06-sm', '02-create-story', 'template.md'),
   }
 };
