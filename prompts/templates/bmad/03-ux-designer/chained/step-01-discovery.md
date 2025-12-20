@@ -20,7 +20,7 @@ description: 'Understand project context and user needs for UX design'
 
 ## CONTEXT BOUNDARIES:
 
-- PRD and product brief already loaded in workflow context
+- PRD and product brief content is provided above
 - This step creates the UX Design Specification document with initial content
 - **Output Path:** `.codemachine/artifacts/ux-design-spec-{date}.md`
 
@@ -30,25 +30,23 @@ Understand the project context, target users, and what makes this product specia
 
 ## PROJECT DISCOVERY SEQUENCE:
 
-### 1. Review Loaded Context
+### 1. Leverage Input Documents
 
-Start by analyzing what we know from the loaded documents:
-"Based on the project documentation we have loaded, let me confirm what I'm understanding about {{project_name}}.
+**If PRD and Product Brief exist (content visible above):**
+"Based on your project documentation, here's what I understand about {{project_name}}:
 
-**From the documents:**
-{summary of key insights from loaded PRD, briefs, and other context documents}
+**Project Vision:**
+{{extracted_vision_summary}}
 
 **Target Users:**
-{summary of user information from loaded documents}
+{{extracted_users_summary}}
 
 **Key Features/Goals:**
-{summary of main features and goals from loaded documents}
+{{extracted_features_summary}}
 
-Does this match your understanding? Are there any corrections or additions you'd like to make?"
+Does this match your understanding? Any corrections or additions?"
 
-### 2. Fill Context Gaps (If no documents or gaps exist)
-
-If no documents were loaded or key information is missing:
+**If documents are empty or missing:**
 "Since we don't have complete documentation, let's start with the essentials:
 
 **What are you building?** (Describe your product in 1-2 sentences)
@@ -59,7 +57,7 @@ If no documents were loaded or key information is missing:
 
 **What's the main thing users will do with this?** (Core user action or goal)"
 
-### 3. Explore User Context Deeper
+### 2. Explore User Context Deeper
 
 Dive into user understanding:
 "Let me understand your users better to inform the UX design:
@@ -73,7 +71,7 @@ Dive into user understanding:
 - What devices will they use most?
 - When/where will they use this product?"
 
-### 4. Identify UX Design Challenges
+### 3. Identify UX Design Challenges
 
 Surface the key UX challenges to address:
 "From what we've discussed, I'm seeing some key UX design considerations:
@@ -91,7 +89,7 @@ Surface the key UX challenges to address:
 
 Does this capture the key UX considerations we need to address?"
 
-### 5. Generate UX Design Specification Document
+### 4. Generate UX Design Specification Document
 
 Based on the conversation, prepare the content to create the document:
 
@@ -129,22 +127,22 @@ status: 'draft'
 [Design opportunities identified based on conversation]
 ```
 
-### 6. Step Completion
+### 5. Step Completion
 
-**Save Content:**
-Create the UX Design Specification document at `.codemachine/artifacts/ux-design-spec-{date}.md` using the structure from step 5 now.
+**Show Draft:**
+Present the content from step 4 to the user for review.
 
 **Confirmation:**
-"Document created and saved.
+"Here's what I'll save to the UX Design Specification document:
 
-I've documented our understanding of {{project_name}} from a UX perspective. This will guide all our design decisions moving forward.
+[Show the complete markdown content from step 4]
 
-- If you want to **modify or add details**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+- If you want to **modify or add details**, tell me what you'd like to change
+- If you're satisfied, **press Enter to confirm** - your content will be saved at the start of the next step before we continue"
 
 ## SUCCESS METRICS:
 
-✅ All available context documents reviewed and synthesized
+✅ PRD and product brief content analyzed and synthesized
 ✅ Project vision clearly articulated
 ✅ Target users well understood
 ✅ Key UX challenges identified
@@ -153,7 +151,7 @@ I've documented our understanding of {{project_name}} from a UX perspective. Thi
 
 ## FAILURE MODES:
 
-❌ Not reviewing loaded context documents thoroughly
+❌ Not analyzing the PRD and product brief content provided
 ❌ Making assumptions about users without asking
 ❌ Missing key UX challenges that will impact design
 ❌ Not identifying design opportunities

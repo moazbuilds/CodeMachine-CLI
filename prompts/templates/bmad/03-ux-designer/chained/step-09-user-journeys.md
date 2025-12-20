@@ -31,13 +31,17 @@ Design detailed user journey flows for critical user interactions.
 
 ## USER JOURNEY FLOWS SEQUENCE:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 8 to the UX Design Specification document.
+
 ### 1. Load PRD User Journeys as Foundation
 
 Start with user journeys already defined in the PRD:
 "Great! Since we have the PRD available, let's build on the user journeys already documented there.
 
 **Existing User Journeys from PRD:**
-I've already loaded these user journeys from your PRD:
+Here are the user journeys from your PRD:
 [Journey narratives from PRD input documents]
 
 These journeys tell us **who** users are and **why** they take certain actions. Now we need to design **how** those journeys work in detail.
@@ -152,16 +156,16 @@ Prepare the content to append to the document:
 
 ### 7. Step Completion
 
-**Save Content:**
-Append the content from step 6 to the UX Design Specification document now.
+**Show Draft:**
+Present the content from step 6 to the user for review.
 
 **Confirmation:**
-"Content saved to document.
+"Here's what I'll append to the UX Design Specification:
 
-I've designed detailed user journey flows for {{project_name}}. These flows will guide the detailed design of each user interaction.
+[Show the complete markdown content from step 6]
 
-- If you want to **modify or add details**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+- If you want to **modify or add details**, tell me what you'd like to change
+- If you're satisfied, **press Enter to confirm** - your content will be saved at the start of the next step before we continue"
 
 ## SUCCESS METRICS:
 

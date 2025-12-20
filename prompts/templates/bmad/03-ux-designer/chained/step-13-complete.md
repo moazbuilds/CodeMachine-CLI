@@ -32,6 +32,10 @@ Complete the UX design workflow, update status files, and suggest next steps for
 
 ## WORKFLOW COMPLETION SEQUENCE:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 12 to the UX Design Specification document.
+
 ### 1. Announce Workflow Completion
 
 Inform user that the UX design is complete:

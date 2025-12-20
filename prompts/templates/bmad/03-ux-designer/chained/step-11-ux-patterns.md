@@ -31,6 +31,10 @@ Establish UX consistency patterns for common situations like buttons, forms, nav
 
 ## UX PATTERNS SEQUENCE:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 10 to the UX Design Specification document.
+
 ### 1. Identify Pattern Categories
 
 Determine which patterns need definition for your product:
@@ -147,16 +151,16 @@ Prepare the content to append to the document:
 
 ### 7. Step Completion
 
-**Save Content:**
-Append the content from step 6 to the UX Design Specification document now.
+**Show Draft:**
+Present the content from step 6 to the user for review.
 
 **Confirmation:**
-"Content saved to document.
+"Here's what I'll append to the UX Design Specification:
 
-I've established UX consistency patterns for {{project_name}}. These patterns ensure users have a consistent, predictable experience across all interactions.
+[Show the complete markdown content from step 6]
 
-- If you want to **modify or add details**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+- If you want to **modify or add details**, tell me what you'd like to change
+- If you're satisfied, **press Enter to confirm** - your content will be saved at the start of the next step before we continue"
 
 ## SUCCESS METRICS:
 
