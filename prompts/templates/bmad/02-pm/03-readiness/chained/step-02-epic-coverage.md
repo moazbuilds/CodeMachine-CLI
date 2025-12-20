@@ -32,6 +32,10 @@ To validate that all Functional Requirements from the PRD are captured in the ep
 
 ## EPIC COVERAGE VALIDATION PROCESS:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 1 to the readiness report.
+
 ### 1. Initialize Coverage Validation
 
 "Beginning **Epic Coverage Validation**.
@@ -123,19 +127,7 @@ Append to the readiness report:
 - Coverage percentage: [percentage]
 ```
 
-### Step Completion
-
-**Confirmation:**
-"Epic coverage validation complete!
-
-- Analyzed [X] Functional Requirements
-- Coverage: [Y]% of FRs mapped to epics
-- Found [Z] missing requirements
-
-If you want to **modify the analysis**, just tell me what you'd like to change.
-If you're satisfied, **press Enter in the promptbox to go to the next step**."
-
----
+{step_completion}
 
 ## SUCCESS METRICS:
 

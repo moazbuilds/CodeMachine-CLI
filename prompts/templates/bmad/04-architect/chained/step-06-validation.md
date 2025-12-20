@@ -33,6 +33,10 @@ Validate the complete architecture for coherence, completeness, and readiness to
 
 ## VALIDATION SEQUENCE:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 5 to the Architecture document.
+
 ### 1. Coherence Validation
 
 Check that all architectural decisions work together:
@@ -263,24 +267,7 @@ Prepare the content to append to the document:
 {{starter_template_command_or_first_architectural_step}}
 ```
 
-### 7. Step Completion
-
-**Save Content:**
-Append the content from step 6 to the Architecture document now.
-
-**Confirmation:**
-"Content saved to document.
-
-I've completed a comprehensive validation of your architecture for {{project_name}}.
-
-**Validation Summary:**
-
-- ✅ Coherence: All decisions work together
-- ✅ Coverage: All requirements are supported
-- ✅ Readiness: AI agents can implement consistently
-
-- If you want to **modify or add details**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+{step_completion}
 
 ## SUCCESS METRICS:
 

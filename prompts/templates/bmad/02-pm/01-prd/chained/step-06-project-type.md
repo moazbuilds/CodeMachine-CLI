@@ -33,6 +33,10 @@ Conduct project-type specific discovery using CSV-driven guidance to define tech
 
 ## PROJECT-TYPE DISCOVERY SEQUENCE:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 5 to the PRD document.
+
 ### 1. Use Project-Type Configuration Data
 
 Use project-type specific configuration from workflow context:
@@ -126,18 +130,7 @@ When saving to document, append these Level 2 and Level 3 sections:
 [Implementation specific requirements based on conversation]
 ```
 
-### 6. Step Completion
-
-**Save Content:**
-Append the content to the document using the structure from step 5 now.
-
-**Confirmation:**
-"Content saved to document.
-
-I've documented the {project_type}-specific requirements for {{project_name}} based on our conversation and best practices for this type of product.
-
-- If you want to **modify or add details**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+{step_completion}
 
 ## SUCCESS METRICS:
 

@@ -38,6 +38,10 @@ description: 'Synthesize comprehensive functional requirements'
 
 ## FUNCTIONAL REQUIREMENTS SYNTHESIS SEQUENCE:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 7 to the PRD document.
+
 ### 1. Understand FR Purpose and Usage
 
 Start by explaining the critical role of functional requirements:
@@ -151,24 +155,7 @@ When saving to document, append these Level 2 and Level 3 sections:
 [Continue for all capability areas discovered in conversation]
 ```
 
-### 7. Step Completion
-
-**Save Content:**
-Append the content to the document using the structure from step 6 now.
-
-**Confirmation:**
-"Content saved to document.
-
-I've synthesized all our discussions into comprehensive functional requirements. This becomes the capability contract that UX designers, architects, and developers will all work from.
-
-**This is critical because:**
-
-- Every feature we build must trace back to one of these requirements
-- UX designers will ONLY design interactions for these capabilities
-- Architects will ONLY build systems to support these capabilities
-
-- If you want to **modify or add capabilities**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+{step_completion}
 
 ## SUCCESS METRICS:
 

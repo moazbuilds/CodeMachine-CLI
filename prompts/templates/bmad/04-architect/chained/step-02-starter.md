@@ -33,7 +33,11 @@ Discover technical preferences and evaluate starter template options, leveraging
 
 ## STARTER EVALUATION SEQUENCE:
 
-### 0. Check Technical Preferences & Context
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 1 to the Architecture document.
+
+### 1. Check Technical Preferences & Context
 
 **Check Project Context for Existing Technical Preferences:**
 "Before we dive into starter templates, let me check if you have any technical preferences already documented.
@@ -79,7 +83,7 @@ No existing technical preferences found in project context file. We'll establish
 
 These preferences will help me recommend the most suitable starter templates and guide our architectural decisions."
 
-### 1. Identify Primary Technology Domain
+### 2. Identify Primary Technology Domain
 
 Based on project context analysis and technical preferences, identify the primary technology stack:
 
@@ -90,7 +94,7 @@ Based on project context analysis and technical preferences, identify the primar
 - **Full-stack** → Look for T3, RedwoodJS, Blitz, Next.js starters
 - **Desktop** → Look for Electron, Tauri starters
 
-### 2. UX Requirements Consideration
+### 3. UX Requirements Consideration
 
 If UX specification was loaded, consider UX requirements when selecting starter:
 
@@ -100,7 +104,7 @@ If UX specification was loaded, consider UX requirements when selecting starter:
 - **Design system** → Storybook-enabled starter
 - **Offline capability** → Service worker or PWA configured starter
 
-### 3. Research Current Starter Options
+### 4. Research Current Starter Options
 
 Use WebSearch to find current, maintained starter templates:
 
@@ -110,7 +114,7 @@ WebSearch: {{primary_technology}} boilerplate generator latest options
 WebSearch: {{primary_technology}} production-ready starter best practices
 ```
 
-### 4. Investigate Top Starter Options
+### 5. Investigate Top Starter Options
 
 For each promising starter found, investigate details:
 
@@ -121,7 +125,7 @@ WebSearch: {{starter_name}} production deployment capabilities
 WebSearch: {{starter_name}} recent updates maintenance status
 ```
 
-### 5. Analyze What Each Starter Provides
+### 6. Analyze What Each Starter Provides
 
 For each viable starter option, document:
 
@@ -151,7 +155,7 @@ For each viable starter option, document:
 - Testing infrastructure
 - Documentation generation
 
-### 6. Present Starter Options
+### 7. Present Starter Options
 
 Based on user skill level and project needs:
 
@@ -179,7 +183,7 @@ It makes these decisions for us:
 
 This is a great starting point that follows best practices and saves us from making dozens of small technical choices. Should we use it?"
 
-### 7. Get Current CLI Commands
+### 8. Get Current CLI Commands
 
 If user shows interest in a starter, get the exact current commands:
 
@@ -188,7 +192,7 @@ WebSearch: {{starter_name}} CLI command options flags latest
 WebSearch: {{starter_name}} create new project command examples
 ```
 
-### 8. Generate Starter Template Content
+### 9. Generate Starter Template Content
 
 Prepare the content to append to the document:
 
@@ -239,18 +243,7 @@ Prepare the content to append to the document:
 **Note:** Project initialization using this command should be the first implementation story.
 ````
 
-### 9. Step Completion
-
-**Save Content:**
-Append the content from step 8 to the Architecture document now.
-
-**Confirmation:**
-"Content saved to document.
-
-I've evaluated starter templates and documented the selected foundation for {{project_name}}.
-
-- If you want to **modify or add details**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+{step_completion}
 
 ## SUCCESS METRICS:
 

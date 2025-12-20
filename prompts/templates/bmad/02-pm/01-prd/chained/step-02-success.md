@@ -33,6 +33,10 @@ Define comprehensive success criteria that cover user success, business success,
 
 ## SUCCESS DISCOVERY SEQUENCE:
 
+### 0. Save Previous Step Content
+
+**First Action:** Create the PRD document at `.codemachine/artifacts/prd-{date}.md` using the content confirmed in Step 1.
+
 ### 1. Begin Success Definition Conversation
 
 **Check Product Brief for Success Indicators:**
@@ -168,18 +172,7 @@ When saving to document, append these Level 2 and Level 3 sections:
 [Content about future vision based on conversation]
 ```
 
-### 8. Step Completion
-
-**Save Content:**
-Append the content to the document using the structure from step 7 now.
-
-**Confirmation:**
-"Content saved to document.
-
-I've drafted the Success Criteria and Scope based on our conversation. This captures what success looks like for users, business, and technical implementation.
-
-- If you want to **modify or add details**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+{step_completion}
 
 ## SUCCESS METRICS:
 

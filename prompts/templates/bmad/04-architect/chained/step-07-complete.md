@@ -34,6 +34,10 @@ Complete the architecture workflow, provide a comprehensive completion summary, 
 
 ## COMPLETION SEQUENCE:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 6 to the Architecture document.
+
 ### 1. Present Architecture Completion Summary
 
 Based on user skill level, present the completion:

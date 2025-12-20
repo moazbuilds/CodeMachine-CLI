@@ -119,19 +119,7 @@ Append to the readiness report:
 [Initial assessment of PRD completeness and clarity]
 ```
 
-### Step Completion
-
-**Confirmation:**
-"PRD analysis complete!
-
-- Extracted [X] Functional Requirements
-- Extracted [Y] Non-Functional Requirements
-- Documented additional constraints and requirements
-
-If you want to **modify the analysis**, just tell me what you'd like to change.
-If you're satisfied, **press Enter in the promptbox to go to the next step**."
-
----
+{step_completion}
 
 ## SUCCESS METRICS:
 

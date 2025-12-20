@@ -34,6 +34,10 @@ Conduct comprehensive scoping exercise to define MVP boundaries and prioritize f
 
 ## SCOPING SEQUENCE:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 6 to the PRD document.
+
 ### 1. Review Current PRD State
 
 Analyze everything documented so far:
@@ -190,18 +194,7 @@ Prepare comprehensive scoping section:
 **Resource Risks:** {{contingency_approach}}
 ```
 
-### 7. Step Completion
-
-**Save Content:**
-Append the content to the document using the structure from step 6 now.
-
-**Confirmation:**
-"Content saved to document.
-
-I've analyzed your complete PRD and created a strategic scoping plan for {{project_name}}.
-
-- If you want to **modify or adjust the scope**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+{step_completion}
 
 ## SUCCESS METRICS:
 

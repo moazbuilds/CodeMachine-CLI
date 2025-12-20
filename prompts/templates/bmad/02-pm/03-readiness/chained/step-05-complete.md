@@ -32,6 +32,10 @@ To provide a comprehensive summary of all findings and give the report a final p
 
 ## FINAL ASSESSMENT PROCESS:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 4 to the readiness report.
+
 ### 1. Initialize Final Assessment
 
 "Completing **Final Assessment**.

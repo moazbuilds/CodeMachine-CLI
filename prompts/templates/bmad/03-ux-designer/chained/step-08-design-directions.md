@@ -138,17 +138,10 @@ Prepare the content to append to the document:
 
 ### 7. Step Completion
 
-**Show Draft:**
-1. Generate HTML showcase at `.codemachine/artifacts/ux-design-directions.html`
-2. Present the content from step 6 to the user for review.
+**Generate Artifact:**
+Create HTML showcase at `.codemachine/artifacts/ux-design-directions.html`
 
-**Confirmation:**
-"Here's what I'll append to the UX Design Specification:
-
-[Show the complete markdown content from step 6]
-
-- If you want to **modify or add details**, tell me what you'd like to change
-- If you're satisfied, **press Enter to confirm** - your content will be saved at the start of the next step before we continue"
+{step_completion}
 
 ## SUCCESS METRICS:
 

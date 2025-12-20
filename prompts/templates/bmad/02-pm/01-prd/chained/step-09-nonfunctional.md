@@ -33,6 +33,10 @@ Define non-functional requirements that specify quality attributes for the produ
 
 ## NON-FUNCTIONAL REQUIREMENTS SEQUENCE:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 8 to the PRD document.
+
 ### 1. Explain NFR Purpose and Scope
 
 Start by clarifying what NFRs are and why we're selective:
@@ -155,20 +159,7 @@ When saving to document, append these Level 2 and Level 3 sections (only include
 [Integration requirements based on conversation - only include if relevant]
 ```
 
-### 6. Step Completion
-
-**Save Content:**
-Append the content to the document using the structure from step 5 now.
-
-**Confirmation:**
-"Content saved to document.
-
-I've defined the non-functional requirements that specify how well {{project_name}} needs to perform. I've only included categories that actually matter for this product.
-
-**Note:** We've skipped categories that don't apply to avoid unnecessary requirements.
-
-- If you want to **modify or add quality attributes**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+{step_completion}
 
 ## SUCCESS METRICS:
 

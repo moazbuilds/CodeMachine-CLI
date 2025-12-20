@@ -30,6 +30,10 @@ To generate all epics with their stories based on the approved epic list, follow
 
 ## STORY GENERATION PROCESS:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 2 to the epics document.
+
 ### 1. Load Approved Epic Structure
 
 Review the epics document:
@@ -192,22 +196,7 @@ The final epics document must follow this structure exactly:
      - Story title and user story
      - Acceptance Criteria using Given/When/Then format
 
-### 7. Step Completion
-
-**Save Content:**
-Save all epics and stories to the epics document following the template structure exactly.
-
-**Confirmation:**
-"All epics and stories generated!
-
-**What we've created:**
-- {{epic_count}} epics with {{total_story_count}} stories
-- All {{fr_count}} functional requirements covered
-- Each story sized for single dev agent completion
-- Complete acceptance criteria for all stories
-
-- If you want to **modify any stories**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+{step_completion}
 
 ## SUCCESS METRICS:
 

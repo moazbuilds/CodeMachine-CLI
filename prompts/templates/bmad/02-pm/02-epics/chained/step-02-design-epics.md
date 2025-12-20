@@ -30,6 +30,10 @@ To design and get approval for the epic list that will organize all requirements
 
 ## EPIC DESIGN PROCESS:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 1 to the epics document.
+
 ### 1. Review Extracted Requirements
 
 Review the epics document created in Step 1:
@@ -150,24 +154,7 @@ If user wants changes:
 - Re-present for approval
 - Repeat until approval is received
 
-### 8. Step Completion
-
-**Save Content:**
-Update the epics document with:
-1. The approved epic list
-2. The requirements coverage map
-3. Ensure all FRs are mapped to epics
-
-**Confirmation:**
-"Epic structure approved and saved!
-
-**What we've designed:**
-- {{epic_count}} epics covering all {{fr_count}} functional requirements
-- Each epic delivers standalone user value
-- Clear progression from foundation to advanced features
-
-- If you want to **modify the epic structure**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+{step_completion}
 
 ## SUCCESS METRICS:
 

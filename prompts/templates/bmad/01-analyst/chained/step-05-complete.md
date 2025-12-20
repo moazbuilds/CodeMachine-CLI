@@ -36,6 +36,10 @@ Complete the product brief workflow, update status files, and provide guidance o
 
 ## Sequence of Instructions (Do not deviate, skip, or optimize)
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 4 to the product brief document.
+
 ### 1. Announce Workflow Completion
 
 **Completion Announcement:**

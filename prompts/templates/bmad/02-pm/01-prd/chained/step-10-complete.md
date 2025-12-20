@@ -44,6 +44,10 @@ Complete the PRD workflow, update status files, and suggest next steps for the p
 
 ## WORKFLOW COMPLETION SEQUENCE:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 9 to the PRD document.
+
 ### 1. Announce Workflow Completion
 
 Inform user that the PRD is complete:

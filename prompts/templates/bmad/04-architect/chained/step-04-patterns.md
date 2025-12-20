@@ -33,6 +33,10 @@ Define implementation patterns and consistency rules that ensure multiple AI age
 
 ## PATTERNS DEFINITION SEQUENCE:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 3 to the Architecture document.
+
 ### 1. Identify Potential Conflict Points
 
 Based on the chosen technology stack and decisions, identify where AI agents could make different choices:
@@ -269,18 +273,7 @@ Prepare the content to append to the document:
 {{examples_of_what_to_avoid}}
 ```
 
-### 5. Step Completion
-
-**Save Content:**
-Append the content from step 4 to the Architecture document now.
-
-**Confirmation:**
-"Content saved to document.
-
-I've documented implementation patterns that will prevent conflicts between AI agents working on {{project_name}}.
-
-- If you want to **modify or add details**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+{step_completion}
 
 ## SUCCESS METRICS:
 

@@ -127,18 +127,7 @@ status: 'draft'
 [Design opportunities identified based on conversation]
 ```
 
-### 5. Step Completion
-
-**Show Draft:**
-Present the content from step 4 to the user for review.
-
-**Confirmation:**
-"Here's what I'll save to the UX Design Specification document:
-
-[Show the complete markdown content from step 4]
-
-- If you want to **modify or add details**, tell me what you'd like to change
-- If you're satisfied, **press Enter to confirm** - your content will be saved at the start of the next step before we continue"
+{step_completion}
 
 ## SUCCESS METRICS:
 

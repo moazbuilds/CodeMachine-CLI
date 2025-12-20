@@ -32,6 +32,10 @@ To check if UX documentation exists and validate that it aligns with PRD require
 
 ## UX ALIGNMENT PROCESS:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 2 to the readiness report.
+
 ### 1. Initialize UX Validation
 
 "Beginning **UX Alignment** validation.
@@ -86,11 +90,7 @@ Append to the readiness report:
 [Any warnings about missing UX or architectural gaps]
 ```
 
-### Step Completion
-
-UX alignment assessment complete. **Press Enter in the promptbox to go to the next step**.
-
----
+{step_completion}
 
 ## SUCCESS METRICS:
 

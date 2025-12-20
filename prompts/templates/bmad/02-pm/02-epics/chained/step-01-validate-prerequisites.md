@@ -163,23 +163,7 @@ Ask: "Do these extracted requirements accurately represent what needs to be buil
 
 Update the requirements based on user feedback until confirmation is received.
 
-### 9. Step Completion
-
-**Save Content:**
-Save the extracted requirements to the epics document now.
-
-**Confirmation:**
-"Requirements extraction complete!
-
-**What we've captured:**
-- {{fr_count}} Functional Requirements
-- {{nfr_count}} Non-Functional Requirements
-- {{additional_count}} Additional Requirements from Architecture/UX
-
-All requirements are documented and ready for epic design.
-
-- If you want to **modify or add requirements**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+{step_completion}
 
 ## SUCCESS METRICS:
 

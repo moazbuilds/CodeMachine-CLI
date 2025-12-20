@@ -34,6 +34,10 @@ Define MVP scope with clear boundaries and outline future vision through collabo
 
 ## Sequence of Instructions (Do not deviate, skip, or optimize)
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 3 to the product brief document.
+
 ### 1. Begin Scope Definition
 
 **Opening Exploration:**
@@ -140,18 +144,7 @@ Prepare the following structure for document append:
 [Future vision content based on conversation, or N/A if not discussed]
 ```
 
-### 7. Step Completion
-
-**Save Content:**
-Append the generated content to the document now.
-
-**Confirmation:**
-"Content saved to document.
-
-I've defined the MVP scope for {{project_name}} that balances delivering real value with realistic boundaries. This gives us a clear path forward while keeping our options open for future growth.
-
-- If you want to **modify or add details**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+{step_completion}
 
 ---
 

@@ -42,6 +42,10 @@ Explore domain-specific requirements for complex domains that need specialized c
 
 ## DOMAIN EXPLORATION SEQUENCE:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 3 to the PRD document.
+
 ### 1. Use Domain Configuration Data
 
 Use domain-specific configuration from workflow context:
@@ -151,18 +155,7 @@ Parse `special_sections` list from the matched CSV row. For each section name, g
 - "safety_measures" → Specify safety protocols and monitoring
 - "compliance_matrix" → Create compliance tracking matrix
 
-### 7. Step Completion
-
-**Save Content:**
-Append the content to the document using the structure from step 5 now.
-
-**Confirmation:**
-"Content saved to document.
-
-I've documented the {domain}-specific requirements that will shape {{project_name}}. These constraints are critical for success in this complex domain.
-
-- If you want to **modify or add details**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+{step_completion}
 
 ## SUCCESS METRICS:
 

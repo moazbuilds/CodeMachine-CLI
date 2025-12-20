@@ -33,6 +33,10 @@ Create compelling narrative user journeys that leverage existing personas from p
 
 ## JOURNEY MAPPING SEQUENCE:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 2 to the PRD document.
+
 ### 1. Leverage Existing Users & Identify Additional Types
 
 **Check Product Brief for Existing Personas:**
@@ -170,18 +174,7 @@ When saving to document, append these Level 2 and Level 3 sections:
 [Summary of capabilities revealed by journeys based on conversation]
 ```
 
-### 7. Step Completion
-
-**Save Content:**
-Append the content to the document using the structure from step 6 now.
-
-**Confirmation:**
-"Content saved to document.
-
-I've mapped out the user journeys based on our conversation. Each journey reveals different capabilities needed for {{project_name}}.
-
-- If you want to **modify or add journeys**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+{step_completion}
 
 ## SUCCESS METRICS:
 

@@ -33,6 +33,10 @@ Define the complete project structure and architectural boundaries based on all 
 
 ## PROJECT STRUCTURE SEQUENCE:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 4 to the Architecture document.
+
 ### 1. Analyze Requirements Mapping
 
 Map project requirements to architectural components:
@@ -286,18 +290,7 @@ Prepare the content to append to the document:
 {{how_the_project_structure_supports_deployment}}
 ```
 
-### 7. Step Completion
-
-**Save Content:**
-Append the content from step 6 to the Architecture document now.
-
-**Confirmation:**
-"Content saved to document.
-
-I've created a complete project structure based on all our architectural decisions for {{project_name}}.
-
-- If you want to **modify or add details**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+{step_completion}
 
 ## SUCCESS METRICS:
 

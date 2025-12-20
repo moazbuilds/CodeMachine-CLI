@@ -35,6 +35,10 @@ To validate complete coverage of all requirements and ensure stories are ready f
 
 ## VALIDATION PROCESS:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 3 to the epics document.
+
 ### 1. FR Coverage Validation
 
 Review the complete epic and story breakdown to ensure EVERY FR is covered:

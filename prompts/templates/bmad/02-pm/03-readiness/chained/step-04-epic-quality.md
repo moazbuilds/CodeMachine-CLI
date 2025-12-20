@@ -33,6 +33,10 @@ To validate epics and stories against best practices, focusing on user value, in
 
 ## EPIC QUALITY REVIEW PROCESS:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 3 to the readiness report.
+
 ### 1. Initialize Best Practices Validation
 
 "Beginning **Epic Quality Review** against best practices.
@@ -188,11 +192,7 @@ Document all findings by severity:
 - Minor structure deviations
 - Documentation gaps
 
-### Step Completion
-
-Epic quality review complete. **Press Enter in the promptbox to go to the next step**.
-
----
+{step_completion}
 
 ## SUCCESS METRICS:
 

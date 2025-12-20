@@ -34,6 +34,10 @@ Facilitate collaborative architectural decision making, leveraging existing tech
 
 ## DECISION MAKING SEQUENCE:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 2 to the Architecture document.
+
 ### 1. Load Decision Framework & Check Existing Preferences
 
 **Review Technical Preferences from Step 2:**
@@ -227,18 +231,7 @@ After facilitating all decision categories, prepare the content to append:
 {{how_decisions_affect_each_other}}
 ```
 
-### 6. Step Completion
-
-**Save Content:**
-Append the content from step 5 to the Architecture document now.
-
-**Confirmation:**
-"Content saved to document.
-
-I've documented all the core architectural decisions we've made together for {{project_name}}.
-
-- If you want to **modify or add details**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+{step_completion}
 
 ## SUCCESS METRICS:
 

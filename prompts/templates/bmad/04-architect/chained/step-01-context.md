@@ -133,18 +133,7 @@ Prepare the content to append to the document:
 {{concerns_that_will_affect_multiple_components}}
 ```
 
-### 5. Step Completion
-
-**Save Content:**
-Append the content from step 4 to the Architecture document now.
-
-**Confirmation:**
-"Content saved to document.
-
-I've analyzed the project context and documented the architectural implications for {{project_name}}.
-
-- If you want to **modify or add details**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+{step_completion}
 
 ## SUCCESS METRICS:
 

@@ -42,6 +42,10 @@ Detect and explore innovation patterns in the product, focusing on what makes it
 
 ## INNOVATION DISCOVERY SEQUENCE:
 
+### 0. Save Previous Step Content
+
+**First Action:** Append the confirmed content from Step 4 to the PRD document.
+
 ### 1. Use Project-Type Innovation Data
 
 Use innovation signals from workflow context:
@@ -130,18 +134,7 @@ When saving to document, append these Level 2 and Level 3 sections:
 [Innovation risks and fallbacks based on conversation]
 ```
 
-### 6. Step Completion (Only if Innovation Detected)
-
-**Save Content:**
-Append the content to the document using the structure from step 5 now.
-
-**Confirmation:**
-"Content saved to document.
-
-I've identified some innovative aspects of {{project_name}} that differentiate it from existing solutions.
-
-- If you want to **modify or add details**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+{step_completion}
 
 ## NO INNOVATION DETECTED:
 

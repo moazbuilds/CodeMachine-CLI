@@ -172,18 +172,7 @@ status: 'draft'
 {project_classification_content}
 ```
 
-### 6. Step Completion
-
-**Save Content:**
-Create the PRD document at `.codemachine/artifacts/prd-{date}.md` using the structure from step 5 now.
-
-**Confirmation:**
-"Document created and saved.
-
-I've drafted the Executive Summary based on our conversation. This will be the first section of your PRD and captures the project classification and vision.
-
-- If you want to **modify or add details**, just tell me what you'd like to change
-- If you're satisfied, **press Enter in the promptbox to go to the next step**"
+{step_completion}
 
 ## SUCCESS METRICS:
 
