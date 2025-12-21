@@ -56,9 +56,14 @@ export function isModuleStep(step: WorkflowStep): step is ModuleStep {
   return step.type === 'module';
 }
 
-export interface TrackConfig {
+export interface TrackOption {
   label: string;
   description?: string;
+}
+
+export interface TracksConfig {
+  question: string;
+  options: Record<string, TrackOption>;
 }
 
 export interface ConditionConfig {
@@ -85,7 +90,7 @@ export interface WorkflowTemplate {
   name: string;
   steps: WorkflowStep[];
   subAgentIds?: string[];
-  tracks?: Record<string, TrackConfig>;
+  tracks?: TracksConfig; // Track selection with question and options
   conditionGroups?: ConditionGroup[]; // Grouped conditions with optional nested children
   controller?: boolean; // Enables autonomous mode with controller agent selection
 }

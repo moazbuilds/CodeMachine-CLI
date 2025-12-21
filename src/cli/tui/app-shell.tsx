@@ -26,7 +26,7 @@ import { resolvePackageJson } from "../../shared/runtime/root.js"
 import { getSelectedTrack, setSelectedTrack, hasSelectedConditions, setSelectedConditions, getProjectName, setProjectName, getControllerAgents, initControllerAgent, loadControllerConfig } from "../../shared/workflows/index.js"
 import { loadTemplate } from "../../workflows/templates/loader.js"
 import { getTemplatePathFromTracking } from "../../shared/workflows/template.js"
-import type { TrackConfig, ConditionGroup } from "../../workflows/templates/types"
+import type { TracksConfig, ConditionGroup } from "../../workflows/templates/types"
 import type { AgentDefinition } from "../../shared/agents/config/types"
 import type { InitialToast } from "./app"
 
@@ -125,7 +125,7 @@ export function App(props: { initialToast?: InitialToast }) {
   let ctrlCTimeout: NodeJS.Timeout | null = null
   const [view, setView] = createSignal<"home" | "onboard" | "workflow">("home")
   const [workflowEventBus, setWorkflowEventBus] = createSignal<WorkflowEventBus | null>(null)
-  const [templateTracks, setTemplateTracks] = createSignal<Record<string, TrackConfig> | null>(null)
+  const [templateTracks, setTemplateTracks] = createSignal<TracksConfig | null>(null)
   const [templateConditionGroups, setTemplateConditionGroups] = createSignal<ConditionGroup[] | null>(null)
   const [initialProjectName, setInitialProjectName] = createSignal<string | null>(null)
   const [controllerAgents, setControllerAgents] = createSignal<AgentDefinition[] | null>(null)
@@ -151,7 +151,7 @@ export function App(props: { initialToast?: InitialToast }) {
       const conditionsSelected = await hasSelectedConditions(cmRoot)
       const existingProjectName = await getProjectName(cmRoot)
 
-      const hasTracks = template.tracks && Object.keys(template.tracks).length > 0
+      const hasTracks = template.tracks && Object.keys(template.tracks.options).length > 0
       const hasConditionGroups = template.conditionGroups && template.conditionGroups.length > 0
       const needsTrackSelection = hasTracks && !selectedTrack
       const needsConditionsSelection = hasConditionGroups && !conditionsSelected

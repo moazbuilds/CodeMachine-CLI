@@ -8,11 +8,11 @@
 import { createSignal, For, onMount, Show, createEffect, createMemo } from "solid-js"
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
-import type { TrackConfig, ConditionGroup, ConditionConfig } from "../../../../workflows/templates/types"
+import type { TracksConfig, ConditionGroup, ConditionConfig } from "../../../../workflows/templates/types"
 import type { AgentDefinition } from "../../../../shared/agents/config/types"
 
 export interface OnboardProps {
-  tracks?: Record<string, TrackConfig>
+  tracks?: TracksConfig
   conditionGroups?: ConditionGroup[]
   controllerAgents?: AgentDefinition[] // Available controller agents
   initialProjectName?: string | null // If set, skip project name input
@@ -50,7 +50,7 @@ export function Onboard(props: OnboardProps) {
   // Track selections within current group (for multi-select groups)
   const [currentGroupSelections, setCurrentGroupSelections] = createSignal<Set<string>>(new Set())
 
-  const hasTracks = () => props.tracks && Object.keys(props.tracks).length > 0
+  const hasTracks = () => props.tracks && Object.keys(props.tracks.options).length > 0
   const hasControllers = () => props.controllerAgents && props.controllerAgents.length > 0
 
   // Filter condition groups by selected track
@@ -90,10 +90,10 @@ export function Onboard(props: OnboardProps) {
   })
 
   const projectNameQuestion = "What is your project name?"
-  const trackQuestion = "What is your project size?"
+  const trackQuestion = () => props.tracks?.question ?? "Select a track:"
   const controllerQuestion = "Select a controller agent for autonomous mode:"
 
-  const trackEntries = () => props.tracks ? Object.entries(props.tracks) : []
+  const trackEntries = () => props.tracks ? Object.entries(props.tracks.options) : []
   const controllerEntries = () => props.controllerAgents ? props.controllerAgents.map(a => [a.id, a] as const) : []
 
   // Current condition entries (for group or child)
@@ -113,7 +113,7 @@ export function Onboard(props: OnboardProps) {
     const step = currentStep()
     switch (step) {
       case 'project_name': return projectNameQuestion
-      case 'tracks': return trackQuestion
+      case 'tracks': return trackQuestion()
       case 'condition_group': return currentGroup()?.question ?? ""
       case 'condition_child': return currentChildContext()?.question ?? ""
       case 'controller': return controllerQuestion

@@ -2,13 +2,16 @@ export default {
   name: 'Test Workflow',
   controller: true,
   tracks: {
-    quick: {
-      label: 'Small Project',
-      description: 'Fast iteration, minimal documentation'
-    },
-    bmad: {
-      label: 'Enterprise',
-      description: 'Full BMAD methodology with all phases'
+    question: 'What type of project workflow do you want?',
+    options: {
+      quick: {
+        label: 'Small Project',
+        description: 'Fast iteration, minimal documentation'
+      },
+      bmad: {
+        label: 'Enterprise',
+        description: 'Full BMAD methodology with all phases'
+      },
     },
   },
   conditionGroups: [
