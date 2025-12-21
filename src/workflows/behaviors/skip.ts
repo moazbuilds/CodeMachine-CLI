@@ -2,10 +2,10 @@ import type { WorkflowStep } from '../templates/index.js';
 import { isModuleStep } from '../templates/types.js';
 import type { WorkflowEventEmitter } from '../events/emitter.js';
 import { debug } from '../../shared/logging/logger.js';
+import type { ActiveLoop } from './loop/types.js';
 
-export interface ActiveLoop {
-  skip: string[];
-}
+// Re-export for backwards compatibility
+export type { ActiveLoop };
 
 export function shouldSkipStep(
   step: WorkflowStep,

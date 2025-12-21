@@ -1,12 +1,11 @@
 import { markStepCompleted, removeFromNotCompleted } from '../../shared/workflows/index.js';
-import { handleLoopLogic, createActiveLoop } from '../behaviors/loop/controller.js';
-import { handleTriggerLogic } from '../behaviors/trigger/controller.js';
-import { handleCheckpointLogic } from '../behaviors/checkpoint/controller.js';
-import { handleErrorLogic } from '../behaviors/error/controller.js';
+import { handleLoopLogic, createActiveLoop, type ActiveLoop } from '../behaviors/loop/index.js';
+import { handleTriggerLogic } from '../behaviors/trigger/index.js';
+import { handleCheckpointLogic } from '../behaviors/checkpoint/index.js';
+import { handleErrorLogic } from '../behaviors/error/index.js';
 import type { WorkflowEventEmitter } from '../events/index.js';
 import { type ModuleStep, type WorkflowTemplate, isModuleStep } from '../templates/types.js';
 import { executeTriggerAgent } from './trigger.js';
-import type { ActiveLoop } from '../behaviors/skip.js';
 
 interface HandlePostExecOptions {
   step: ModuleStep;

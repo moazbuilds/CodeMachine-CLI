@@ -2,16 +2,11 @@ import type { WorkflowStep } from '../../templates/index.js';
 import { isModuleStep } from '../../templates/types.js';
 import { evaluateLoopBehavior } from './evaluator.js';
 import { formatAgentLog } from '../../../shared/logging/index.js';
-import type { ActiveLoop } from '../skip.js';
 import type { WorkflowEventEmitter } from '../../events/emitter.js';
 import { debug } from '../../../shared/logging/logger.js';
+import type { ActiveLoop, LoopDecision } from './types.js';
 
-export interface LoopDecision {
-  shouldRepeat: boolean;
-  stepsBack: number;
-  skipList: string[];
-  reason?: string;
-}
+export type { LoopDecision };
 
 export async function handleLoopLogic(
   step: WorkflowStep,
