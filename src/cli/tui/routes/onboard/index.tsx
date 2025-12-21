@@ -2,25 +2,32 @@
 /**
  * Onboard View
  *
- * Pre-workflow onboarding flow: track selection, conditions selection, etc.
+ * Pre-workflow onboarding flow: track selection, condition groups with nested children, etc.
  */
 
-import { createSignal, For, onMount, Show, createEffect } from "solid-js"
+import { createSignal, For, onMount, Show, createEffect, createMemo } from "solid-js"
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
-import type { TrackConfig, ConditionConfig } from "../../../../workflows/templates/types"
+import type { TrackConfig, ConditionGroup, ConditionConfig } from "../../../../workflows/templates/types"
 import type { AgentDefinition } from "../../../../shared/agents/config/types"
 
 export interface OnboardProps {
   tracks?: Record<string, TrackConfig>
-  conditions?: Record<string, ConditionConfig>
+  conditionGroups?: ConditionGroup[]
   controllerAgents?: AgentDefinition[] // Available controller agents
   initialProjectName?: string | null // If set, skip project name input
   onComplete: (result: { projectName?: string; trackId?: string; conditions?: string[]; controllerAgentId?: string }) => void
   onCancel?: () => void
 }
 
-type OnboardStep = 'project_name' | 'tracks' | 'conditions' | 'controller'
+type OnboardStep = 'project_name' | 'tracks' | 'condition_group' | 'condition_child' | 'controller'
+
+interface ChildQuestionContext {
+  parentConditionId: string
+  question: string
+  multiSelect: boolean
+  conditions: Record<string, ConditionConfig>
+}
 
 export function Onboard(props: OnboardProps) {
   const themeCtx = useTheme()
@@ -34,11 +41,37 @@ export function Onboard(props: OnboardProps) {
   const [projectName, setProjectName] = createSignal("")
   const [selectedTrackId, setSelectedTrackId] = createSignal<string | undefined>()
   const [selectedConditions, setSelectedConditions] = createSignal<Set<string>>(new Set())
-  const [selectedControllerId, setSelectedControllerId] = createSignal<string | undefined>()
+  const [_selectedControllerId, setSelectedControllerId] = createSignal<string | undefined>()
+
+  // Condition group wizard state
+  const [currentGroupIndex, setCurrentGroupIndex] = createSignal(0)
+  const [pendingChildQuestions, setPendingChildQuestions] = createSignal<ChildQuestionContext[]>([])
+  const [currentChildContext, setCurrentChildContext] = createSignal<ChildQuestionContext | null>(null)
+  // Track selections within current group (for multi-select groups)
+  const [currentGroupSelections, setCurrentGroupSelections] = createSignal<Set<string>>(new Set())
 
   const hasTracks = () => props.tracks && Object.keys(props.tracks).length > 0
-  const hasConditions = () => props.conditions && Object.keys(props.conditions).length > 0
   const hasControllers = () => props.controllerAgents && props.controllerAgents.length > 0
+
+  // Filter condition groups by selected track
+  const applicableGroups = createMemo(() => {
+    if (!props.conditionGroups) return []
+    const trackId = selectedTrackId()
+    return props.conditionGroups.filter(group => {
+      // If no tracks specified, show for all tracks
+      if (!group.tracks || group.tracks.length === 0) return true
+      // If tracks specified, only show if selected track is in the list
+      return trackId ? group.tracks.includes(trackId) : true
+    })
+  })
+
+  const hasConditionGroups = () => applicableGroups().length > 0
+
+  const currentGroup = () => {
+    const groups = applicableGroups()
+    const idx = currentGroupIndex()
+    return idx < groups.length ? groups[idx] : null
+  }
 
   // Determine initial step - skip project_name if already set
   onMount(() => {
@@ -46,8 +79,8 @@ export function Onboard(props: OnboardProps) {
       setProjectName(props.initialProjectName)
       if (hasTracks()) {
         setCurrentStep('tracks')
-      } else if (hasConditions()) {
-        setCurrentStep('conditions')
+      } else if (hasConditionGroups()) {
+        setCurrentStep('condition_group')
       } else if (hasControllers()) {
         setCurrentStep('controller')
       } else {
@@ -58,37 +91,71 @@ export function Onboard(props: OnboardProps) {
 
   const projectNameQuestion = "What is your project name?"
   const trackQuestion = "What is your project size?"
-  const conditionsQuestion = "What features does your project have?"
   const controllerQuestion = "Select a controller agent for autonomous mode:"
 
   const trackEntries = () => props.tracks ? Object.entries(props.tracks) : []
-  const conditionEntries = () => props.conditions ? Object.entries(props.conditions) : []
   const controllerEntries = () => props.controllerAgents ? props.controllerAgents.map(a => [a.id, a] as const) : []
 
+  // Current condition entries (for group or child)
+  const currentConditionEntries = () => {
+    const step = currentStep()
+    if (step === 'condition_group') {
+      const group = currentGroup()
+      return group ? Object.entries(group.conditions) : []
+    } else if (step === 'condition_child') {
+      const ctx = currentChildContext()
+      return ctx ? Object.entries(ctx.conditions) : []
+    }
+    return []
+  }
+
   const currentQuestion = () => {
-    switch (currentStep()) {
+    const step = currentStep()
+    switch (step) {
       case 'project_name': return projectNameQuestion
       case 'tracks': return trackQuestion
-      case 'conditions': return conditionsQuestion
+      case 'condition_group': return currentGroup()?.question ?? ""
+      case 'condition_child': return currentChildContext()?.question ?? ""
       case 'controller': return controllerQuestion
     }
   }
+
   const currentEntries = () => {
-    switch (currentStep()) {
+    const step = currentStep()
+    switch (step) {
       case 'tracks': return trackEntries()
-      case 'conditions': return conditionEntries()
+      case 'condition_group':
+      case 'condition_child':
+        return currentConditionEntries()
       case 'controller': return controllerEntries()
       default: return []
     }
   }
 
-  // Typing effect - reset when step changes
-  createEffect(() => {
+  // Is current step a multi-select?
+  const isMultiSelect = () => {
     const step = currentStep()
+    if (step === 'condition_group') {
+      return currentGroup()?.multiSelect ?? false
+    }
+    if (step === 'condition_child') {
+      return currentChildContext()?.multiSelect ?? false
+    }
+    return false
+  }
+
+  // Typing effect - reset when step changes or question changes
+  createEffect(() => {
+    const _step = currentStep()
     const question = currentQuestion()
+    // Also track group index and child context to trigger on changes
+    const _groupIdx = currentGroupIndex()
+    const _childCtx = currentChildContext()
+
     setTypedText("")
     setTypingDone(false)
     setSelectedIndex(0)
+    setCurrentGroupSelections(new Set<string>())
 
     let i = 0
     const interval = setInterval(() => {
@@ -110,8 +177,8 @@ export function Onboard(props: OnboardProps) {
 
     if (hasTracks()) {
       setCurrentStep('tracks')
-    } else if (hasConditions()) {
-      setCurrentStep('conditions')
+    } else if (hasConditionGroups()) {
+      setCurrentStep('condition_group')
     } else if (hasControllers()) {
       setCurrentStep('controller')
     } else {
@@ -121,8 +188,10 @@ export function Onboard(props: OnboardProps) {
 
   const handleTrackSelect = (trackId: string) => {
     setSelectedTrackId(trackId)
-    if (hasConditions()) {
-      setCurrentStep('conditions')
+    // Reset group index since applicable groups may have changed
+    setCurrentGroupIndex(0)
+    if (hasConditionGroups()) {
+      setCurrentStep('condition_group')
     } else if (hasControllers()) {
       setCurrentStep('controller')
     } else {
@@ -130,8 +199,34 @@ export function Onboard(props: OnboardProps) {
     }
   }
 
-  const handleConditionsComplete = () => {
-    if (hasControllers()) {
+  // Process child questions for selected conditions
+  const queueChildQuestions = (conditionIds: string[]) => {
+    const group = currentGroup()
+    if (!group?.children) return []
+
+    const childQuestions: ChildQuestionContext[] = []
+    for (const condId of conditionIds) {
+      const childGroup = group.children[condId]
+      if (childGroup) {
+        childQuestions.push({
+          parentConditionId: condId,
+          question: childGroup.question,
+          multiSelect: childGroup.multiSelect ?? false,
+          conditions: childGroup.conditions
+        })
+      }
+    }
+    return childQuestions
+  }
+
+  const advanceToNextGroupOrComplete = () => {
+    const groups = applicableGroups()
+    const nextIdx = currentGroupIndex() + 1
+
+    if (nextIdx < groups.length) {
+      setCurrentGroupIndex(nextIdx)
+      setCurrentStep('condition_group')
+    } else if (hasControllers()) {
       setCurrentStep('controller')
     } else {
       props.onComplete({
@@ -142,6 +237,98 @@ export function Onboard(props: OnboardProps) {
     }
   }
 
+  const processNextChildQuestion = () => {
+    const pending = pendingChildQuestions()
+    if (pending.length > 0) {
+      const [next, ...rest] = pending
+      setPendingChildQuestions(rest)
+      setCurrentChildContext(next)
+      setCurrentStep('condition_child')
+    } else {
+      // No more child questions, advance to next group
+      setCurrentChildContext(null)
+      advanceToNextGroupOrComplete()
+    }
+  }
+
+  // Handle group completion (single-select: Enter selects and advances, multi-select: Tab confirms)
+  const handleGroupSelection = (conditionId: string) => {
+    const group = currentGroup()
+    if (!group) return
+
+    if (group.multiSelect) {
+      // Toggle selection in current group
+      setCurrentGroupSelections(prev => {
+        const next = new Set(prev)
+        if (next.has(conditionId)) {
+          next.delete(conditionId)
+        } else {
+          next.add(conditionId)
+        }
+        return next
+      })
+    } else {
+      // Single select: add to global selections and proceed
+      setSelectedConditions(prev => new Set([...prev, conditionId]))
+
+      // Queue child questions if any
+      const childQuestions = queueChildQuestions([conditionId])
+      if (childQuestions.length > 0) {
+        setPendingChildQuestions(childQuestions)
+        processNextChildQuestion()
+      } else {
+        advanceToNextGroupOrComplete()
+      }
+    }
+  }
+
+  const handleGroupConfirm = () => {
+    // For multi-select groups, Tab confirms
+    const selections = Array.from(currentGroupSelections())
+
+    // Add all selections to global selectedConditions
+    setSelectedConditions(prev => new Set([...prev, ...selections]))
+
+    // Queue child questions for all selected conditions
+    const childQuestions = queueChildQuestions(selections)
+    if (childQuestions.length > 0) {
+      setPendingChildQuestions(childQuestions)
+      processNextChildQuestion()
+    } else {
+      advanceToNextGroupOrComplete()
+    }
+  }
+
+  // Handle child question selection
+  const handleChildSelection = (conditionId: string) => {
+    const ctx = currentChildContext()
+    if (!ctx) return
+
+    if (ctx.multiSelect) {
+      // Toggle selection
+      setCurrentGroupSelections(prev => {
+        const next = new Set(prev)
+        if (next.has(conditionId)) {
+          next.delete(conditionId)
+        } else {
+          next.add(conditionId)
+        }
+        return next
+      })
+    } else {
+      // Single select: add and proceed
+      setSelectedConditions(prev => new Set([...prev, conditionId]))
+      processNextChildQuestion()
+    }
+  }
+
+  const handleChildConfirm = () => {
+    // For multi-select child questions
+    const selections = Array.from(currentGroupSelections())
+    setSelectedConditions(prev => new Set([...prev, ...selections]))
+    processNextChildQuestion()
+  }
+
   const handleControllerSelect = (controllerId: string) => {
     setSelectedControllerId(controllerId)
     props.onComplete({
@@ -149,18 +336,6 @@ export function Onboard(props: OnboardProps) {
       trackId: selectedTrackId(),
       conditions: Array.from(selectedConditions()),
       controllerAgentId: controllerId
-    })
-  }
-
-  const toggleCondition = (conditionId: string) => {
-    setSelectedConditions((prev) => {
-      const next = new Set(prev)
-      if (next.has(conditionId)) {
-        next.delete(conditionId)
-      } else {
-        next.add(conditionId)
-      }
-      return next
     })
   }
 
@@ -180,14 +355,13 @@ export function Onboard(props: OnboardProps) {
         evt.preventDefault()
         props.onCancel?.()
       } else if (evt.sequence && evt.sequence.length === 1 && !evt.ctrl && !evt.meta) {
-        // Regular character input
         evt.preventDefault()
         setProjectName((prev) => prev + evt.sequence)
       }
       return
     }
 
-    // Handle tracks and conditions steps
+    // Navigation
     if (evt.name === "up") {
       evt.preventDefault()
       setSelectedIndex((prev) => Math.max(0, prev - 1))
@@ -202,14 +376,20 @@ export function Onboard(props: OnboardProps) {
       } else if (step === 'controller') {
         const [controllerId] = entries[selectedIndex()]
         handleControllerSelect(controllerId as string)
-      } else {
-        // In conditions step, Enter toggles the checkbox
+      } else if (step === 'condition_group') {
         const [conditionId] = entries[selectedIndex()]
-        toggleCondition(conditionId as string)
+        handleGroupSelection(conditionId as string)
+      } else if (step === 'condition_child') {
+        const [conditionId] = entries[selectedIndex()]
+        handleChildSelection(conditionId as string)
       }
-    } else if (evt.name === "tab" && step === 'conditions') {
+    } else if (evt.name === "tab") {
       evt.preventDefault()
-      handleConditionsComplete()
+      if (step === 'condition_group' && isMultiSelect()) {
+        handleGroupConfirm()
+      } else if (step === 'condition_child' && isMultiSelect()) {
+        handleChildConfirm()
+      }
     } else if (evt.name === "escape") {
       evt.preventDefault()
       props.onCancel?.()
@@ -223,9 +403,12 @@ export function Onboard(props: OnboardProps) {
         } else if (step === 'controller') {
           const [controllerId] = entries[num - 1]
           handleControllerSelect(controllerId as string)
-        } else {
+        } else if (step === 'condition_group') {
           const [conditionId] = entries[num - 1]
-          toggleCondition(conditionId as string)
+          handleGroupSelection(conditionId as string)
+        } else if (step === 'condition_child') {
+          const [conditionId] = entries[num - 1]
+          handleChildSelection(conditionId as string)
         }
       }
     }
@@ -233,6 +416,11 @@ export function Onboard(props: OnboardProps) {
 
   const termWidth = () => dimensions()?.width ?? 80
   const termHeight = () => dimensions()?.height ?? 24
+
+  // Check if a condition is selected (for checkboxes)
+  const isConditionChecked = (conditionId: string) => {
+    return currentGroupSelections().has(conditionId)
+  }
 
   return (
     <box
@@ -295,7 +483,7 @@ export function Onboard(props: OnboardProps) {
 
           <Show when={currentStep() === 'tracks'}>
             <For each={trackEntries()}>
-              {([trackId, config], index) => {
+              {([_trackId, config], index) => {
                 const isSelected = () => index() === selectedIndex()
                 return (
                   <box flexDirection="column">
@@ -321,19 +509,20 @@ export function Onboard(props: OnboardProps) {
             </For>
           </Show>
 
-          <Show when={currentStep() === 'conditions'}>
-            <For each={conditionEntries()}>
+          <Show when={currentStep() === 'condition_group' || currentStep() === 'condition_child'}>
+            <For each={currentConditionEntries()}>
               {([conditionId, config], index) => {
                 const isSelected = () => index() === selectedIndex()
-                const isChecked = () => selectedConditions().has(conditionId)
+                const isChecked = () => isConditionChecked(conditionId)
+                const multiSelect = isMultiSelect()
                 return (
                   <box flexDirection="column">
                     <box flexDirection="row" gap={1}>
                       <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.textMuted}>
                         {isSelected() ? ">" : " "}
                       </text>
-                      <text fg={isChecked() ? themeCtx.theme.primary : themeCtx.theme.textMuted}>
-                        {isChecked() ? "[x]" : "[ ]"}
+                      <text fg={multiSelect ? (isChecked() ? themeCtx.theme.primary : themeCtx.theme.textMuted) : (isSelected() ? themeCtx.theme.primary : themeCtx.theme.textMuted)}>
+                        {multiSelect ? (isChecked() ? "[x]" : "[ ]") : (isSelected() ? "(*)" : "( )")}
                       </text>
                       <text fg={isSelected() ? themeCtx.theme.primary : themeCtx.theme.text}>
                         {config.label}
@@ -352,7 +541,7 @@ export function Onboard(props: OnboardProps) {
 
           <Show when={currentStep() === 'controller'}>
             <For each={controllerEntries()}>
-              {([controllerId, agent], index) => {
+              {([controllerId, _agent], index) => {
                 const isSelected = () => index() === selectedIndex()
                 return (
                   <box flexDirection="column">
@@ -386,9 +575,14 @@ export function Onboard(props: OnboardProps) {
               [Up/Down] Navigate  [Enter] Select  [Esc] Cancel
             </text>
           </Show>
-          <Show when={currentStep() === 'conditions'}>
+          <Show when={(currentStep() === 'condition_group' || currentStep() === 'condition_child') && isMultiSelect()}>
             <text fg={themeCtx.theme.textMuted}>
               [Up/Down] Navigate  [Enter] Toggle  [Tab] Confirm  [Esc] Cancel
+            </text>
+          </Show>
+          <Show when={(currentStep() === 'condition_group' || currentStep() === 'condition_child') && !isMultiSelect()}>
+            <text fg={themeCtx.theme.textMuted}>
+              [Up/Down] Navigate  [Enter] Select  [Esc] Cancel
             </text>
           </Show>
           <Show when={currentStep() === 'controller'}>

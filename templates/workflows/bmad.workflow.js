@@ -2,12 +2,19 @@ export default {
   name: 'BMAD Method',
   controller: true,
 
-  conditions: {
-    has_ui: {
-      label: 'Has UI',
-      description: 'Project includes a user interface'
+  conditionGroups: [
+    {
+      id: 'features',
+      question: 'What features does your project have?',
+      multiSelect: true,
+      conditions: {
+        has_ui: {
+          label: 'Has UI',
+          description: 'Project includes a user interface'
+        },
+      },
     },
-  },
+  ],
 
   steps: [
     resolveStep('bmad-analyst', {engine: 'codex'}),

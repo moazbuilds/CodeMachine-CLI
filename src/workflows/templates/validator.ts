@@ -129,6 +129,101 @@ export function validateWorkflowTemplate(value: unknown): ValidationResult {
     });
   }
 
+  // Validate conditionGroups if provided
+  const conditionGroups = (obj as { conditionGroups?: unknown }).conditionGroups;
+  if (conditionGroups !== undefined) {
+    if (!Array.isArray(conditionGroups)) {
+      errors.push('Template.conditionGroups must be an array');
+    } else {
+      conditionGroups.forEach((group, gIndex) => {
+        if (!group || typeof group !== 'object') {
+          errors.push(`conditionGroups[${gIndex}] must be an object`);
+          return;
+        }
+        const g = group as {
+          id?: unknown;
+          question?: unknown;
+          multiSelect?: unknown;
+          tracks?: unknown;
+          conditions?: unknown;
+          children?: unknown;
+        };
+
+        if (typeof g.id !== 'string' || g.id.trim().length === 0) {
+          errors.push(`conditionGroups[${gIndex}].id must be a non-empty string`);
+        }
+        if (typeof g.question !== 'string' || g.question.trim().length === 0) {
+          errors.push(`conditionGroups[${gIndex}].question must be a non-empty string`);
+        }
+        if (g.multiSelect !== undefined && typeof g.multiSelect !== 'boolean') {
+          errors.push(`conditionGroups[${gIndex}].multiSelect must be a boolean`);
+        }
+        if (g.tracks !== undefined) {
+          if (!Array.isArray(g.tracks)) {
+            errors.push(`conditionGroups[${gIndex}].tracks must be an array`);
+          } else if (!g.tracks.every(t => typeof t === 'string')) {
+            errors.push(`conditionGroups[${gIndex}].tracks must be an array of strings`);
+          }
+        }
+
+        // Validate conditions
+        if (!g.conditions || typeof g.conditions !== 'object' || Array.isArray(g.conditions)) {
+          errors.push(`conditionGroups[${gIndex}].conditions must be an object`);
+        } else {
+          Object.entries(g.conditions).forEach(([condId, config]) => {
+            if (!config || typeof config !== 'object') {
+              errors.push(`conditionGroups[${gIndex}].conditions.${condId} must be an object`);
+            } else {
+              const c = config as { label?: unknown };
+              if (typeof c.label !== 'string') {
+                errors.push(`conditionGroups[${gIndex}].conditions.${condId}.label must be a string`);
+              }
+            }
+          });
+        }
+
+        // Validate children if provided
+        if (g.children !== undefined) {
+          if (!g.children || typeof g.children !== 'object' || Array.isArray(g.children)) {
+            errors.push(`conditionGroups[${gIndex}].children must be an object`);
+          } else {
+            Object.entries(g.children).forEach(([parentCondId, childGroup]) => {
+              if (!childGroup || typeof childGroup !== 'object') {
+                errors.push(`conditionGroups[${gIndex}].children.${parentCondId} must be an object`);
+                return;
+              }
+              const child = childGroup as {
+                question?: unknown;
+                multiSelect?: unknown;
+                conditions?: unknown;
+              };
+              if (typeof child.question !== 'string' || child.question.trim().length === 0) {
+                errors.push(`conditionGroups[${gIndex}].children.${parentCondId}.question must be a non-empty string`);
+              }
+              if (child.multiSelect !== undefined && typeof child.multiSelect !== 'boolean') {
+                errors.push(`conditionGroups[${gIndex}].children.${parentCondId}.multiSelect must be a boolean`);
+              }
+              if (!child.conditions || typeof child.conditions !== 'object' || Array.isArray(child.conditions)) {
+                errors.push(`conditionGroups[${gIndex}].children.${parentCondId}.conditions must be an object`);
+              } else {
+                Object.entries(child.conditions).forEach(([condId, config]) => {
+                  if (!config || typeof config !== 'object') {
+                    errors.push(`conditionGroups[${gIndex}].children.${parentCondId}.conditions.${condId} must be an object`);
+                  } else {
+                    const c = config as { label?: unknown };
+                    if (typeof c.label !== 'string') {
+                      errors.push(`conditionGroups[${gIndex}].children.${parentCondId}.conditions.${condId}.label must be a string`);
+                    }
+                  }
+                });
+              }
+            });
+          }
+        }
+      });
+    }
+  }
+
   return { valid: errors.length === 0, errors };
 }
 

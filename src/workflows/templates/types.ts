@@ -66,12 +66,27 @@ export interface ConditionConfig {
   description?: string;
 }
 
+export interface ChildConditionGroup {
+  question: string;
+  multiSelect?: boolean; // default: false (radio buttons)
+  conditions: Record<string, ConditionConfig>;
+}
+
+export interface ConditionGroup {
+  id: string;
+  question: string;
+  multiSelect?: boolean; // default: false (radio buttons)
+  tracks?: string[]; // Track IDs this group applies to (empty/missing = all tracks)
+  conditions: Record<string, ConditionConfig>;
+  children?: Record<string, ChildConditionGroup>; // keyed by parent condition ID
+}
+
 export interface WorkflowTemplate {
   name: string;
   steps: WorkflowStep[];
   subAgentIds?: string[];
   tracks?: Record<string, TrackConfig>;
-  conditions?: Record<string, ConditionConfig>;
+  conditionGroups?: ConditionGroup[]; // Grouped conditions with optional nested children
   controller?: boolean; // Enables autonomous mode with controller agent selection
 }
 
