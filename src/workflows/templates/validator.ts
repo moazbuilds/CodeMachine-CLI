@@ -129,6 +129,33 @@ export function validateWorkflowTemplate(value: unknown): ValidationResult {
     });
   }
 
+  // Validate tracks if provided
+  const tracks = (obj as { tracks?: unknown }).tracks;
+  if (tracks !== undefined) {
+    if (!tracks || typeof tracks !== 'object' || Array.isArray(tracks)) {
+      errors.push('Template.tracks must be an object with question and options');
+    } else {
+      const t = tracks as { question?: unknown; options?: unknown };
+      if (typeof t.question !== 'string' || t.question.trim().length === 0) {
+        errors.push('Template.tracks.question must be a non-empty string');
+      }
+      if (!t.options || typeof t.options !== 'object' || Array.isArray(t.options)) {
+        errors.push('Template.tracks.options must be an object');
+      } else {
+        Object.entries(t.options).forEach(([trackId, config]) => {
+          if (!config || typeof config !== 'object') {
+            errors.push(`Template.tracks.options.${trackId} must be an object`);
+          } else {
+            const c = config as { label?: unknown };
+            if (typeof c.label !== 'string') {
+              errors.push(`Template.tracks.options.${trackId}.label must be a string`);
+            }
+          }
+        });
+      }
+    }
+  }
+
   // Validate conditionGroups if provided
   const conditionGroups = (obj as { conditionGroups?: unknown }).conditionGroups;
   if (conditionGroups !== undefined) {
