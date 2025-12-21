@@ -41,6 +41,7 @@ import {
   getStepData,
   getChainResumeInfo,
 } from '../../shared/workflows/steps.js';
+import { BehaviorManager } from '../behaviors/index.js';
 
 /**
  * Runner options
@@ -71,7 +72,7 @@ export class WorkflowRunner {
   private moduleSteps: ModuleStep[];
 
   private abortController: AbortController | null = null;
-  private pauseRequested = false;
+  private behaviorManager: BehaviorManager;
 
   constructor(options: WorkflowRunnerOptions) {
     this.cwd = options.cwd;
@@ -115,6 +116,14 @@ export class WorkflowRunner {
       currentOutput: null,
     });
 
+    // Create behavior manager (handles pause, skip, etc.)
+    this.behaviorManager = new BehaviorManager({
+      emitter: this.emitter,
+      machine: this.machine,
+      cwd: this.cwd,
+      cmRoot: this.cmRoot,
+    });
+
     // Set up event listeners
     this.setupListeners();
   }
@@ -125,13 +134,7 @@ export class WorkflowRunner {
   }
 
   private setupListeners(): void {
-    // Pause listener
-    const pauseHandler = () => {
-      debug('[Runner] Pause requested');
-      this.pauseRequested = true;
-      this.abortController?.abort();
-    };
-    process.on('workflow:pause', pauseHandler);
+    // Note: Pause listener is handled by BehaviorManager
 
     // Skip listener (Ctrl+S while agent running)
     const skipHandler = () => {
@@ -166,10 +169,10 @@ export class WorkflowRunner {
     // Clean up on machine final state
     this.machine.subscribe((state) => {
       if (this.machine.isFinal) {
-        process.removeListener('workflow:pause', pauseHandler);
         process.removeListener('workflow:skip', skipHandler);
         process.removeListener('workflow:stop', stopHandler);
         process.removeListener('workflow:mode-change', modeChangeHandler);
+        this.behaviorManager.cleanup();
       }
     });
   }
@@ -266,11 +269,19 @@ export class WorkflowRunner {
     // Track step start for resume
     await markStepStarted(this.cmRoot, ctx.currentStepIndex);
 
-    // Reset pause flag
-    this.pauseRequested = false;
+    // Reset all behaviors
+    this.behaviorManager.resetAll();
 
     // Set up abort controller
     this.abortController = new AbortController();
+    this.behaviorManager.setAbortController(this.abortController);
+
+    // Set step context for behaviors
+    this.behaviorManager.setStepContext({
+      stepIndex: ctx.currentStepIndex,
+      agentId: uniqueAgentId,
+      agentName: step.agentName,
+    });
 
     // Update UI
     this.emitter.updateAgentStatus(uniqueAgentId, 'running');
@@ -310,14 +321,6 @@ export class WorkflowRunner {
         resumePrompt: isResuming ? 'Continue from where you left off.' : undefined,
       });
 
-      // Check if paused
-      if (this.pauseRequested) {
-        debug('[Runner] Step was paused');
-        this.emitter.logMessage(uniqueAgentId, `${step.agentName} paused.`);
-        this.machine.send({ type: 'PAUSE' });
-        return;
-      }
-
       // Step completed
       debug('[Runner] Step completed');
 
@@ -341,9 +344,14 @@ export class WorkflowRunner {
         output.chainedPrompts.forEach((p, i) => debug('[Runner]   [%d] %s: %s', i, p.name, p.label));
         this.machine.context.promptQueue = output.chainedPrompts;
         this.machine.context.promptQueueIndex = 0;
-        // Show checkpoint status while waiting for chained prompt input
-        this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
-        debug('[Runner] Agent at checkpoint, waiting for chained prompt input');
+        // In auto mode, keep status as 'running' - controller will run next
+        // In manual mode, show checkpoint - waiting for user input
+        if (!this.machine.context.autoMode) {
+          this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
+          debug('[Runner] Agent at checkpoint, waiting for user input');
+        } else {
+          debug('[Runner] Auto mode - keeping status as running for controller');
+        }
       } else {
         debug('[Runner] No chained prompts, marking agent completed');
         this.emitter.updateAgentStatus(uniqueAgentId, 'completed');
@@ -353,20 +361,9 @@ export class WorkflowRunner {
 
       this.machine.send({ type: 'STEP_COMPLETE', output: stepOutput });
     } catch (error) {
-      // Handle abort
+      // Handle abort - behavior already handled everything (log, state machine)
       if (error instanceof Error && error.name === 'AbortError') {
-        if (this.pauseRequested) {
-          debug('[Runner] Step aborted due to pause');
-          this.emitter.logMessage(uniqueAgentId, `${step.agentName} paused.`);
-          this.machine.send({ type: 'PAUSE' });
-        } else {
-          debug('[Runner] Step aborted (skip)');
-          this.emitter.updateAgentStatus(uniqueAgentId, 'skipped');
-          this.emitter.logMessage(uniqueAgentId, `${step.agentName} was skipped.`);
-          // Track step completion for resume
-          await markStepCompleted(this.cmRoot, ctx.currentStepIndex);
-          this.machine.send({ type: 'SKIP' });
-        }
+        debug('[Runner] Step aborted - behavior handled it');
         return;
       }
 
@@ -376,6 +373,8 @@ export class WorkflowRunner {
       this.machine.send({ type: 'STEP_ERROR', error: error as Error });
     } finally {
       this.abortController = null;
+      this.behaviorManager.setAbortController(null);
+      // Keep stepContext - still valid during waiting state
     }
   }
 
@@ -407,6 +406,10 @@ export class WorkflowRunner {
     if (result.type === 'input' && result.value === '__SWITCH_TO_MANUAL__') {
       debug('[Runner] Switching to manual mode');
       await this.setAutoMode(false);
+      // Now show checkpoint since we're waiting for user input
+      const step = this.moduleSteps[ctx.currentStepIndex];
+      const uniqueAgentId = `${step.agentId}-step-${ctx.currentStepIndex}`;
+      this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
       // Re-run waiting with user input
       return;
     }
@@ -494,6 +497,12 @@ export class WorkflowRunner {
     }
 
     this.abortController = new AbortController();
+    this.behaviorManager.setAbortController(this.abortController);
+    this.behaviorManager.setStepContext({
+      stepIndex: ctx.currentStepIndex,
+      agentId: uniqueAgentId,
+      agentName: step.agentName,
+    });
     this.emitter.updateAgentStatus(uniqueAgentId, 'running');
     this.emitter.setWorkflowStatus('running');
 
@@ -533,24 +542,21 @@ export class WorkflowRunner {
       // (The waiting handler will be called again)
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        if (this.pauseRequested) {
-          this.machine.send({ type: 'PAUSE' });
-          return;
-        }
         // Handle mode switch during execution
         if (modeSwitchRequested) {
           debug('[Runner] Step aborted due to mode switch to %s', modeSwitchRequested);
           this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
           await this.setAutoMode(modeSwitchRequested === 'auto');
-          // Return to let handleWaiting loop with new provider
-          return;
         }
+        // Behavior (pause) already handled everything else
         return;
       }
       this.machine.send({ type: 'STEP_ERROR', error: error as Error });
     } finally {
       process.removeListener('workflow:mode-change', modeChangeHandler);
       this.abortController = null;
+      this.behaviorManager.setAbortController(null);
+      // Keep stepContext - still valid during waiting state
     }
   }
 
@@ -585,8 +591,8 @@ export class WorkflowRunner {
    * Pause the workflow
    */
   pause(): void {
-    this.pauseRequested = true;
-    this.abortController?.abort();
+    // Just emit event - behavior handles everything
+    (process as NodeJS.EventEmitter).emit('workflow:pause');
   }
 
   /**

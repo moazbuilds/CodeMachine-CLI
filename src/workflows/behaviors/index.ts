@@ -11,3 +11,5 @@ export * from './loop/index.js';
 export * from './trigger/index.js';
 export * from './checkpoint/index.js';
 export * from './error/index.js';
+export * from './manager/index.js';
+export * from './pause/index.js';
