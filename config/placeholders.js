@@ -46,9 +46,6 @@ module.exports = {
     // BMAD shared step rules
     step_completion: path.join('prompts', 'templates', 'bmad', 'shared', 'step-completion.md'),
 
-    // BMAD agent shared rules
-    bmad_analyst_rules: path.join('prompts', 'templates', 'bmad', '01-analyst', 'shared', 'shared-rules.md'),
-
     // BMAD PO controller workflow
     po_workflow: path.join('prompts', 'templates', 'bmad', 'controller', 'workflow.md'),
   }
