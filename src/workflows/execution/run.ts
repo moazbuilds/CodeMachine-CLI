@@ -22,7 +22,7 @@ import { registry } from '../../infra/engines/index.js';
 import { MonitoringCleanup } from '../../agents/monitoring/index.js';
 import { WorkflowEventBus, WorkflowEventEmitter } from '../events/index.js';
 import { validateSpecification } from '../../runtime/services/index.js';
-import { WorkflowRunner } from './runner.js';
+import { WorkflowRunner } from './runner/index.js';
 
 export { validateSpecification, ValidationError } from '../../runtime/services/index.js';
 export type { WorkflowStep, WorkflowTemplate };
