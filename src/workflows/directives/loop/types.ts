@@ -1,7 +1,7 @@
 /**
- * Loop Behavior Types
+ * Loop Directive Types
  *
- * Type definitions for loop behavior handling.
+ * Type definitions for loop directive handling.
  */
 
 /** Tracks which steps to skip during an active loop iteration */

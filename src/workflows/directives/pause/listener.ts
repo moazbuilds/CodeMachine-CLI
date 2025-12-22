@@ -1,5 +1,5 @@
 /**
- * Pause Behavior Listener
+ * Pause Directive Listener
  *
  * Sets up event listener for workflow:pause events (user keypress).
  * Handles everything: log, state machine transition, abort.

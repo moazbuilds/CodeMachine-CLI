@@ -1,5 +1,5 @@
 /**
- * Loop Behavior Module
+ * Loop Directive Module
  *
  * Handles step-back looping logic when agents request iteration.
  */

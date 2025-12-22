@@ -66,16 +66,16 @@ export async function executeCurrentStep(ctx: RunnerContext): Promise<void> {
   // Clear paused flag for new step
   machineCtx.paused = false;
 
-  // Reset all behaviors
-  ctx.behaviorManager.resetAll();
+  // Reset all directives
+  ctx.directiveManager.resetAll();
 
   // Set up abort controller
   const abortController = new AbortController();
   ctx.setAbortController(abortController);
-  ctx.behaviorManager.setAbortController(abortController);
+  ctx.directiveManager.setAbortController(abortController);
 
-  // Set step context for behaviors
-  ctx.behaviorManager.setStepContext({
+  // Set step context for directives
+  ctx.directiveManager.setStepContext({
     stepIndex: machineCtx.currentStepIndex,
     agentId: uniqueAgentId,
     agentName: step.agentName,
@@ -86,13 +86,13 @@ export async function executeCurrentStep(ctx: RunnerContext): Promise<void> {
   ctx.emitter.logMessage(uniqueAgentId, '═'.repeat(80));
   ctx.emitter.logMessage(uniqueAgentId, `${step.agentName} ${isResuming ? 'resumed work.' : 'started to work.'}`);
 
-  // Reset behavior file
-  const behaviorFile = path.join(ctx.cwd, '.codemachine/memory/behavior.json');
-  const behaviorDir = path.dirname(behaviorFile);
-  if (!fs.existsSync(behaviorDir)) {
-    fs.mkdirSync(behaviorDir, { recursive: true });
+  // Reset directive file
+  const directiveFile = path.join(ctx.cwd, '.codemachine/memory/directive.json');
+  const directiveDir = path.dirname(directiveFile);
+  if (!fs.existsSync(directiveDir)) {
+    fs.mkdirSync(directiveDir, { recursive: true });
   }
-  fs.writeFileSync(behaviorFile, JSON.stringify({ action: 'continue' }, null, 2));
+  fs.writeFileSync(directiveFile, JSON.stringify({ action: 'continue' }, null, 2));
 
   // Determine engine
   const engineType = await selectEngine(step, ctx.emitter, uniqueAgentId);
@@ -159,9 +159,9 @@ export async function executeCurrentStep(ctx: RunnerContext): Promise<void> {
 
     ctx.machine.send({ type: 'STEP_COMPLETE', output: stepOutput });
   } catch (error) {
-    // Handle abort - behavior already handled everything (log, state machine)
+    // Handle abort - directive already handled everything (log, state machine)
     if (error instanceof Error && error.name === 'AbortError') {
-      debug('[Runner] Step aborted - behavior handled it');
+      debug('[Runner] Step aborted - directive handled it');
       return;
     }
 
@@ -171,7 +171,7 @@ export async function executeCurrentStep(ctx: RunnerContext): Promise<void> {
     ctx.machine.send({ type: 'STEP_ERROR', error: error as Error });
   } finally {
     ctx.setAbortController(null);
-    ctx.behaviorManager.setAbortController(null);
+    ctx.directiveManager.setAbortController(null);
     // Keep stepContext - still valid during waiting state
   }
 }

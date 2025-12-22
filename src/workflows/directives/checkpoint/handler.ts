@@ -1,6 +1,6 @@
 import type { WorkflowStep } from '../../templates/index.js';
 import { isModuleStep } from '../../templates/types.js';
-import { evaluateCheckpointBehavior } from './evaluator.js';
+import { evaluateCheckpointDirective } from './evaluator.js';
 import { formatAgentLog } from '../../../shared/logging/index.js';
 import type { WorkflowEventEmitter } from '../../events/emitter.js';
 
@@ -20,7 +20,7 @@ export async function handleCheckpointLogic(
     return null;
   }
 
-  const checkpointDecision = await evaluateCheckpointBehavior({
+  const checkpointDecision = await evaluateCheckpointDirective({
     behavior: step.module?.behavior,
     output,
     cwd,

@@ -1,6 +1,6 @@
 import type { WorkflowStep } from '../../templates/index.js';
 import { isModuleStep } from '../../templates/types.js';
-import { evaluateErrorBehavior } from './evaluator.js';
+import { evaluateErrorDirective } from './evaluator.js';
 import { formatAgentLog } from '../../../shared/logging/index.js';
 import type { WorkflowEventEmitter } from '../../events/emitter.js';
 
@@ -20,7 +20,7 @@ export async function handleErrorLogic(
     return null;
   }
 
-  const errorDecision = await evaluateErrorBehavior({
+  const errorDecision = await evaluateErrorDirective({
     output,
     cwd,
   });

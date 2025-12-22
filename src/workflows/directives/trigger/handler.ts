@@ -1,6 +1,6 @@
 import type { WorkflowStep } from '../../templates/index.js';
 import { isModuleStep } from '../../templates/types.js';
-import { evaluateTriggerBehavior } from './evaluator.js';
+import { evaluateTriggerDirective } from './evaluator.js';
 import { formatAgentLog } from '../../../shared/logging/index.js';
 import type { WorkflowEventEmitter } from '../../events/emitter.js';
 
@@ -21,7 +21,7 @@ export async function handleTriggerLogic(
     return null;
   }
 
-  const triggerDecision = await evaluateTriggerBehavior({
+  const triggerDecision = await evaluateTriggerDirective({
     behavior: step.module?.behavior,
     output,
     cwd,

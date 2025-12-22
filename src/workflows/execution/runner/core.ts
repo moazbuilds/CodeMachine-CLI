@@ -23,7 +23,7 @@ import {
 } from '../../input/index.js';
 import { setAutoMode, createModeListener } from '../../signals/index.js';
 import { loadControllerConfig } from '../../../shared/workflows/controller.js';
-import { BehaviorManager } from '../../behaviors/index.js';
+import { DirectiveManager } from '../../directives/index.js';
 
 import type { WorkflowRunnerOptions, RunnerContext } from './types.js';
 import { setupListeners } from './listen.js';
@@ -37,7 +37,7 @@ export class WorkflowRunner implements RunnerContext {
   readonly machine: StateMachine;
   readonly emitter: WorkflowEventEmitter;
   readonly inputEmitter: InputEventEmitter;
-  readonly behaviorManager: BehaviorManager;
+  readonly directiveManager: DirectiveManager;
   readonly moduleSteps: ModuleStep[];
   readonly cwd: string;
   readonly cmRoot: string;
@@ -89,8 +89,8 @@ export class WorkflowRunner implements RunnerContext {
       currentOutput: null,
     });
 
-    // Create behavior manager (handles pause, skip, etc.)
-    this.behaviorManager = new BehaviorManager({
+    // Create directive manager (handles pause, skip, etc.)
+    this.directiveManager = new DirectiveManager({
       emitter: this.emitter,
       machine: this.machine,
       cwd: this.cwd,
@@ -193,7 +193,7 @@ export class WorkflowRunner implements RunnerContext {
    * Pause the workflow
    */
   pause(): void {
-    // Just emit event - behavior handles everything
+    // Just emit event - directive handles everything
     (process as NodeJS.EventEmitter).emit('workflow:pause');
   }
 

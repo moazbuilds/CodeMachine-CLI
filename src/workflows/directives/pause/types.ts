@@ -1,5 +1,5 @@
 /**
- * Pause Behavior Types
+ * Pause Directive Types
  */
 
 /**

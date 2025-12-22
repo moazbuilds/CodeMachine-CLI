@@ -1,6 +1,6 @@
 import type { WorkflowStep } from '../../templates/index.js';
 import { isModuleStep } from '../../templates/types.js';
-import { evaluateLoopBehavior } from './evaluator.js';
+import { evaluateLoopDirective } from './evaluator.js';
 import { formatAgentLog } from '../../../shared/logging/index.js';
 import type { WorkflowEventEmitter } from '../../events/emitter.js';
 import { debug } from '../../../shared/logging/logger.js';
@@ -23,7 +23,7 @@ export async function handleLoopLogic(
 
   const loopKey = `${step.module?.id ?? step.agentId}:${index}`;
   const iterationCount = loopCounters.get(loopKey) ?? 0;
-  const loopDecision = await evaluateLoopBehavior({
+  const loopDecision = await evaluateLoopDirective({
     behavior: step.module?.behavior,
     output,
     iterationCount,

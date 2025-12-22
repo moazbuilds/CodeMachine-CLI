@@ -1,16 +1,16 @@
 /**
- * Behavior Manager Types
+ * Directive Manager Types
  *
- * Core interfaces for the behavior system.
+ * Core interfaces for the directive system.
  */
 
 import type { WorkflowEventEmitter } from '../../events/emitter.js';
 import type { StateMachine } from '../../state/index.js';
 
 /**
- * Supported behavior types
+ * Supported directive types
  */
-export type BehaviorType = 'pause' | 'skip' | 'stop' | 'mode-change';
+export type DirectiveType = 'pause' | 'skip' | 'stop' | 'mode-change';
 
 /**
  * Current step context - set by runner before each step
@@ -22,9 +22,9 @@ export interface StepContext {
 }
 
 /**
- * Context passed to behaviors during initialization
+ * Context passed to directives during initialization
  */
-export interface BehaviorInitContext {
+export interface DirectiveInitContext {
   getAbortController: () => AbortController | null;
   getStepContext: () => StepContext | null;
   emitter: WorkflowEventEmitter;
@@ -34,9 +34,9 @@ export interface BehaviorInitContext {
 }
 
 /**
- * Context passed to behaviors when handling events
+ * Context passed to directives when handling events
  */
-export interface BehaviorContext {
+export interface DirectiveContext {
   cwd: string;
   cmRoot: string;
   stepIndex: number;
@@ -48,34 +48,34 @@ export interface BehaviorContext {
 }
 
 /**
- * Result returned from behavior handlers
+ * Result returned from directive handlers
  */
-export interface BehaviorResult {
+export interface DirectiveResult {
   handled: boolean;
   action?: 'pause' | 'skip' | 'stop' | 'continue';
   reason?: string;
 }
 
 /**
- * Behavior interface - all behaviors must implement this
+ * Directive interface - all directives must implement this
  */
-export interface Behavior {
-  /** Unique name for this behavior */
-  readonly name: BehaviorType;
+export interface Directive {
+  /** Unique name for this directive */
+  readonly name: DirectiveType;
 
-  /** Initialize behavior (setup listeners, etc.) */
-  init?(context: BehaviorInitContext): void;
+  /** Initialize directive (setup listeners, etc.) */
+  init?(context: DirectiveInitContext): void;
 
-  /** Check if behavior is active/triggered */
+  /** Check if directive is active/triggered */
   isActive?(): boolean;
 
-  /** Trigger/request the behavior */
+  /** Trigger/request the directive */
   trigger?(): void;
 
-  /** Handle the behavior event */
-  handle(context: BehaviorContext): Promise<BehaviorResult>;
+  /** Handle the directive event */
+  handle(context: DirectiveContext): Promise<DirectiveResult>;
 
-  /** Reset behavior state (called at step start) */
+  /** Reset directive state (called at step start) */
   reset?(): void;
 
   /** Cleanup resources (called on workflow end) */
@@ -83,9 +83,9 @@ export interface Behavior {
 }
 
 /**
- * Options for creating a BehaviorManager
+ * Options for creating a DirectiveManager
  */
-export interface BehaviorManagerOptions {
+export interface DirectiveManagerOptions {
   emitter: WorkflowEventEmitter;
   machine: StateMachine;
   cwd: string;

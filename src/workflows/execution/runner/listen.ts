@@ -32,7 +32,7 @@ export function setupListeners(ctx: RunnerContext): void {
     if (ctx.machine.isFinal) {
       process.removeListener('workflow:skip', skipHandler);
       process.removeListener('workflow:stop', stopHandler);
-      ctx.behaviorManager.cleanup();
+      ctx.directiveManager.cleanup();
     }
   });
 }

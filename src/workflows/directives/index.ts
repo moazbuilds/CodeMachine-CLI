@@ -1,7 +1,8 @@
 /**
- * Behaviors Module
+ * Directives Module
  *
- * Centralized exports for all workflow behavior handlers.
+ * Agent-issued instructions that control workflow execution.
+ * Agents write to directive.json to issue directives.
  */
 
 export * from './types.js';

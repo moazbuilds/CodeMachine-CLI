@@ -1,21 +1,21 @@
 /**
- * Pause Behavior Handler
+ * Pause Directive Handler
  *
- * Implements the Behavior interface for pause functionality.
+ * Implements the Directive interface for pause functionality.
  * The listener handles everything - log, state machine, abort.
  */
 
 import { debug } from '../../../shared/logging/logger.js';
 import type {
-  Behavior,
-  BehaviorContext,
-  BehaviorResult,
-  BehaviorInitContext,
+  Directive,
+  DirectiveContext,
+  DirectiveResult,
+  DirectiveInitContext,
 } from '../manager/types.js';
 import { createPauseListener } from './listener.js';
 
 /**
- * PauseBehavior - handles workflow pause events
+ * PauseDirective - handles workflow pause events
  *
  * When user presses 'p', the listener handles everything:
  * - Logs message to emitter
@@ -24,15 +24,15 @@ import { createPauseListener } from './listener.js';
  *
  * Runner just catches AbortError and returns.
  */
-export class PauseBehavior implements Behavior {
+export class PauseDirective implements Directive {
   readonly name = 'pause' as const;
   private cleanupFn: (() => void) | null = null;
 
   /**
-   * Initialize behavior - setup event listener that handles everything
+   * Initialize directive - setup event listener that handles everything
    */
-  init(context: BehaviorInitContext): void {
-    debug('[PauseBehavior] Initializing');
+  init(context: DirectiveInitContext): void {
+    debug('[PauseDirective] Initializing');
 
     this.cleanupFn = createPauseListener({
       getAbortController: context.getAbortController,
@@ -43,7 +43,7 @@ export class PauseBehavior implements Behavior {
   }
 
   /**
-   * Check if behavior is active (not used in new architecture)
+   * Check if directive is active (not used in new architecture)
    */
   isActive(): boolean {
     return false; // Listener handles everything, no need to check
@@ -58,7 +58,7 @@ export class PauseBehavior implements Behavior {
   }
 
   /**
-   * Reset behavior state (called at step start)
+   * Reset directive state (called at step start)
    */
   reset(): void {
     // Nothing to reset - listener handles everything immediately
@@ -68,16 +68,16 @@ export class PauseBehavior implements Behavior {
    * Cleanup resources
    */
   cleanup(): void {
-    debug('[PauseBehavior] Cleaning up');
+    debug('[PauseDirective] Cleaning up');
     this.cleanupFn?.();
     this.cleanupFn = null;
   }
 
   /**
-   * Handle pause behavior (legacy - not called in new architecture)
+   * Handle pause directive (legacy - not called in new architecture)
    * Kept for interface compliance
    */
-  async handle(_context: BehaviorContext): Promise<BehaviorResult> {
+  async handle(_context: DirectiveContext): Promise<DirectiveResult> {
     // In new architecture, listener handles everything
     // This is only here for interface compliance
     return { handled: true, action: 'pause' };

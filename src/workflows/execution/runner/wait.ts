@@ -167,8 +167,8 @@ async function resumeWithInput(
 
   const abortController = new AbortController();
   ctx.setAbortController(abortController);
-  ctx.behaviorManager.setAbortController(abortController);
-  ctx.behaviorManager.setStepContext({
+  ctx.directiveManager.setAbortController(abortController);
+  ctx.directiveManager.setStepContext({
     stepIndex: machineCtx.currentStepIndex,
     agentId: uniqueAgentId,
     agentName: step.agentName,
@@ -225,14 +225,14 @@ async function resumeWithInput(
         ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
         await callbacks.setAutoMode(modeSwitchRequested === 'auto');
       }
-      // Behavior (pause) already handled everything else
+      // Directive (pause) already handled everything else
       return;
     }
     ctx.machine.send({ type: 'STEP_ERROR', error: error as Error });
   } finally {
     process.removeListener('workflow:mode-change', modeChangeHandler);
     ctx.setAbortController(null);
-    ctx.behaviorManager.setAbortController(null);
+    ctx.directiveManager.setAbortController(null);
     // Keep stepContext - still valid during waiting state
   }
 }

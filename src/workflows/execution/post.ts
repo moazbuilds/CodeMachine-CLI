@@ -1,8 +1,8 @@
 import { markStepCompleted, removeFromNotCompleted } from '../../shared/workflows/index.js';
-import { handleLoopLogic, createActiveLoop, type ActiveLoop } from '../behaviors/loop/index.js';
-import { handleTriggerLogic } from '../behaviors/trigger/index.js';
-import { handleCheckpointLogic } from '../behaviors/checkpoint/index.js';
-import { handleErrorLogic } from '../behaviors/error/index.js';
+import { handleLoopLogic, createActiveLoop, type ActiveLoop } from '../directives/loop/index.js';
+import { handleTriggerLogic } from '../directives/trigger/index.js';
+import { handleCheckpointLogic } from '../directives/checkpoint/index.js';
+import { handleErrorLogic } from '../directives/error/index.js';
 import type { WorkflowEventEmitter } from '../events/index.js';
 import { type ModuleStep, type WorkflowTemplate, isModuleStep } from '../templates/types.js';
 import { executeTriggerAgent } from './trigger.js';
@@ -31,7 +31,7 @@ interface HandlePostExecResult {
 }
 
 /**
- * Handle post-execution behaviors: error → trigger → checkpoint → loop
+ * Handle post-execution directives: error → trigger → checkpoint → loop
  */
 export async function handlePostExec(options: HandlePostExecOptions): Promise<HandlePostExecResult> {
   const {
@@ -49,7 +49,7 @@ export async function handlePostExec(options: HandlePostExecOptions): Promise<Ha
     engineType,
   } = options;
 
-  // Check for error behavior first (highest priority - halts everything)
+  // Check for error directive first (highest priority - halts everything)
   const errorResult = await handleErrorLogic(step, stepOutput.output, cwd, emitter);
   if (errorResult?.shouldStopWorkflow) {
     emitter.setWorkflowStatus('error');
@@ -58,7 +58,7 @@ export async function handlePostExec(options: HandlePostExecOptions): Promise<Ha
     return { shouldBreak: true, workflowShouldStop: true };
   }
 
-  // Check for trigger behavior
+  // Check for trigger directive
   const triggerResult = await handleTriggerLogic(step, stepOutput.output, cwd, emitter);
   if (triggerResult?.shouldTrigger && triggerResult.triggerAgentId) {
     const triggeredAgentId = triggerResult.triggerAgentId; // Capture for use in callbacks
@@ -100,7 +100,7 @@ export async function handlePostExec(options: HandlePostExecOptions): Promise<Ha
   emitter.logMessage(uniqueAgentId, `${step.agentName} has completed their work.`);
   emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
 
-  // Check for checkpoint behavior first (to pause workflow for manual review)
+  // Check for checkpoint directive first (to pause workflow for manual review)
   const checkpointResult = await handleCheckpointLogic(step, stepOutput.output, cwd, emitter);
   if (checkpointResult?.shouldStopWorkflow) {
     // Wait for user action via events (Continue or Quit)

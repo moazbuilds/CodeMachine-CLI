@@ -106,7 +106,7 @@ Your primary directive is successful execution. If anomalies occur, you must fol
 
 *   **Command Execution Failures:**
     *   If the `codemachine run` command fails to execute (command not found, syntax errors, shell errors), do **NOT** attempt to debug or try alternative approaches.
-    *   **STOP IMMEDIATELY** and use the error escalation protocol. Write to behavior.json with action "error" and include the exact error message.
+    *   **STOP IMMEDIATELY** and use the error escalation protocol. Write to directive.json with action "error" and include the exact error message.
 
 <br>
 

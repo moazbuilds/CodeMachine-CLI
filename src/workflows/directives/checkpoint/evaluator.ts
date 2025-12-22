@@ -1,5 +1,5 @@
 import type { ModuleBehavior } from '../../templates/index.js';
-import { readBehaviorFile } from '../reader.js';
+import { readDirectiveFile } from '../reader.js';
 
 export interface CheckpointEvaluationOptions {
   behavior?: ModuleBehavior;
@@ -12,20 +12,20 @@ export interface CheckpointEvaluationResult {
   reason?: string;
 }
 
-export async function evaluateCheckpointBehavior(options: CheckpointEvaluationOptions): Promise<CheckpointEvaluationResult | null> {
+export async function evaluateCheckpointDirective(options: CheckpointEvaluationOptions): Promise<CheckpointEvaluationResult | null> {
   const { cwd } = options;
 
-  // Checkpoint is universal - any agent can write checkpoint to behavior.json
-  const behaviorAction = await readBehaviorFile(cwd);
-  if (!behaviorAction) {
+  // Checkpoint is universal - any agent can write checkpoint to directive.json
+  const directiveAction = await readDirectiveFile(cwd);
+  if (!directiveAction) {
     return null;
   }
 
   // Handle checkpoint action
-  if (behaviorAction.action === 'checkpoint') {
+  if (directiveAction.action === 'checkpoint') {
     return {
       shouldStopWorkflow: true,
-      reason: behaviorAction.reason,
+      reason: directiveAction.reason,
     };
   }
 

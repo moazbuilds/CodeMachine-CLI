@@ -11,7 +11,7 @@ import type {
   InputProvider,
   InputEventEmitter,
 } from '../../input/index.js';
-import type { BehaviorManager } from '../../behaviors/index.js';
+import type { DirectiveManager } from '../../directives/index.js';
 import type { ControllerConfig } from '../../../shared/workflows/index.js';
 
 /**
@@ -32,7 +32,7 @@ export interface RunnerContext {
   readonly machine: StateMachine;
   readonly emitter: WorkflowEventEmitter;
   readonly inputEmitter: InputEventEmitter;
-  readonly behaviorManager: BehaviorManager;
+  readonly directiveManager: DirectiveManager;
   readonly moduleSteps: ModuleStep[];
   readonly cwd: string;
   readonly cmRoot: string;

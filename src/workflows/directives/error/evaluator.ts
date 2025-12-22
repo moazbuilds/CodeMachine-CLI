@@ -1,4 +1,4 @@
-import { readBehaviorFile } from '../reader.js';
+import { readDirectiveFile } from '../reader.js';
 
 export interface ErrorEvaluationOptions {
   output: string;
@@ -10,19 +10,19 @@ export interface ErrorEvaluationResult {
   reason?: string;
 }
 
-export async function evaluateErrorBehavior(options: ErrorEvaluationOptions): Promise<ErrorEvaluationResult | null> {
+export async function evaluateErrorDirective(options: ErrorEvaluationOptions): Promise<ErrorEvaluationResult | null> {
   const { cwd } = options;
 
-  const behaviorAction = await readBehaviorFile(cwd);
-  if (!behaviorAction) {
+  const directiveAction = await readDirectiveFile(cwd);
+  if (!directiveAction) {
     return null;
   }
 
   // Handle error action
-  if (behaviorAction.action === 'error') {
+  if (directiveAction.action === 'error') {
     return {
       shouldStopWorkflow: true,
-      reason: behaviorAction.reason,
+      reason: directiveAction.reason,
     };
   }
 

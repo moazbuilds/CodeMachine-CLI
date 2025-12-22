@@ -1,5 +1,5 @@
 /**
- * Error Behavior Module
+ * Error Directive Module
  *
  * Handles workflow termination on error signals.
  */

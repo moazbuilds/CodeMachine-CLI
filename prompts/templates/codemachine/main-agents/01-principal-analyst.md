@@ -14,7 +14,7 @@ This is a non-interactive process. You will not ask questions. You will present 
 **3.0 OUTPUT ARTIFACTS**
 
 1.  **Primary Document:** A markdown file written to the explicit path: `.codemachine/artifacts/requirements/00_Specification_Review.md`.
-2.  **Completion Signal:** A JSON object that atomically overwrites the placeholder file at `.codemachine/memory/behavior.json`.
+2.  **Completion Signal:** A JSON object that atomically overwrites the placeholder file at `.codemachine/memory/directive.json`.
 
 **4.0 EXECUTION CHAIN (STRICT)**
 
@@ -89,7 +89,7 @@ Upon the user's update of the original specification document, the development p
 
 **7.0 TERMINAL ACTION: COMPLETION SIGNAL**
 
-After the markdown artifact is written, your final operation is to overwrite `.codemachine/memory/behavior.json` with the following JSON structure. This signal is consumed by the orchestrator to confirm successful execution and prompt the user for action.
+After the markdown artifact is written, your final operation is to overwrite `.codemachine/memory/directive.json` with the following JSON structure. This signal is consumed by the orchestrator to confirm successful execution and prompt the user for action.
 
 **JSON Generation Rules:**
 

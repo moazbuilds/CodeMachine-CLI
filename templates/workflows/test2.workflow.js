@@ -1,0 +1,14 @@
+export default {
+  name: 'Test2 Workflow',
+  steps: [
+    // No filtering - always runs
+    resolveStep('test-agent-1'),
+
+    // Human review checkpoint
+    resolveUI("❚❚ Human Review"),
+
+    // Module with conditions
+    resolveModule('auto-loop', { loopSteps: 3, loopMaxIterations: 5, conditions: ['has_api'] }),
+  ],
+  subAgentIds: ['frontend-dev'],
+};
