@@ -21,12 +21,12 @@ import {
   type InputProvider,
   type InputEventEmitter,
 } from '../../input/index.js';
+import { setAutoMode, createModeListener } from '../../signals/index.js';
 import { loadControllerConfig } from '../../../shared/workflows/controller.js';
 import { BehaviorManager } from '../../behaviors/index.js';
 
 import type { WorkflowRunnerOptions, RunnerContext } from './types.js';
 import { setupListeners } from './listen.js';
-import { setAutoMode } from './mode.js';
 import { executeCurrentStep } from './exec.js';
 import { handleWaiting } from './wait.js';
 
@@ -98,9 +98,10 @@ export class WorkflowRunner implements RunnerContext {
     });
 
     // Set up event listeners
-    setupListeners(this, {
-      setAutoMode: (enabled) => this.setAutoMode(enabled),
-    });
+    setupListeners(this);
+
+    // Set up mode listener
+    createModeListener({ ctx: this, machine: this.machine });
   }
 
   // RunnerContext implementation
