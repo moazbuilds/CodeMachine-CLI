@@ -113,6 +113,7 @@ export class WorkflowRunner {
       autoMode: false,
       promptQueue: [],
       promptQueueIndex: 0,
+      paused: false,
       currentOutput: null,
     });
 
@@ -269,6 +270,9 @@ export class WorkflowRunner {
     // Track step start for resume
     await markStepStarted(this.cmRoot, ctx.currentStepIndex);
 
+    // Clear paused flag for new step
+    ctx.paused = false;
+
     // Reset all behaviors
     this.behaviorManager.resetAll();
 
@@ -384,11 +388,17 @@ export class WorkflowRunner {
   private async handleWaiting(): Promise<void> {
     const ctx = this.machine.context;
 
-    debug('[Runner] Handling waiting state, autoMode=%s, promptQueue=%d items, queueIndex=%d',
-      ctx.autoMode, ctx.promptQueue.length, ctx.promptQueueIndex);
+    debug('[Runner] Handling waiting state, autoMode=%s, paused=%s, promptQueue=%d items, queueIndex=%d',
+      ctx.autoMode, ctx.paused, ctx.promptQueue.length, ctx.promptQueueIndex);
 
-    // No chained prompts - auto-advance to next step
-    if (ctx.promptQueue.length === 0) {
+    // If paused, force user input provider (not controller)
+    const provider = ctx.paused ? this.userInput : this.activeProvider;
+    if (ctx.paused) {
+      debug('[Runner] Workflow is paused, using user input provider');
+    }
+
+    if (!ctx.paused && ctx.promptQueue.length === 0) {
+      // No chained prompts and not paused - auto-advance to next step
       debug('[Runner] No chained prompts, auto-advancing to next step');
       const step = this.moduleSteps[ctx.currentStepIndex];
       const uniqueAgentId = `${step.agentId}-step-${ctx.currentStepIndex}`;
@@ -409,8 +419,8 @@ export class WorkflowRunner {
       cwd: this.cwd,
     };
 
-    // Get input from active provider
-    const result = await this.activeProvider.getInput(inputContext);
+    // Get input from provider (user input if paused, otherwise active provider)
+    const result = await provider.getInput(inputContext);
 
     debug('[Runner] Got input result: type=%s', result.type);
 
@@ -443,6 +453,7 @@ export class WorkflowRunner {
         if (result.value === '') {
           // Empty input = advance to next step
           debug('[Runner] Empty input, marking agent completed and advancing');
+          ctx.paused = false; // Clear paused flag
           this.emitter.updateAgentStatus(uniqueAgentId, 'completed');
           this.emitter.logMessage(uniqueAgentId, `${step.agentName} has completed their work.`);
           this.emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
@@ -457,6 +468,7 @@ export class WorkflowRunner {
 
       case 'skip':
         debug('[Runner] Skip requested, marking agent skipped');
+        ctx.paused = false; // Clear paused flag
         this.emitter.updateAgentStatus(uniqueAgentId, 'skipped');
         this.emitter.logMessage(uniqueAgentId, `${step.agentName} was skipped.`);
         this.emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
@@ -508,6 +520,9 @@ export class WorkflowRunner {
       }
     }
 
+    // Clear paused flag since we're resuming
+    ctx.paused = false;
+
     this.abortController = new AbortController();
     this.behaviorManager.setAbortController(this.abortController);
     this.behaviorManager.setStepContext({
@@ -515,6 +530,10 @@ export class WorkflowRunner {
       agentId: uniqueAgentId,
       agentName: step.agentName,
     });
+
+    // Transition state machine to running so pause works
+    this.machine.send({ type: 'RESUME' });
+
     this.emitter.updateAgentStatus(uniqueAgentId, 'running');
     this.emitter.setWorkflowStatus('running');
 
@@ -547,11 +566,14 @@ export class WorkflowRunner {
       };
       ctx.currentMonitoringId = output.monitoringId;
 
+      // Transition back to awaiting state
+      this.machine.send({
+        type: 'STEP_COMPLETE',
+        output: { output: output.output, monitoringId: output.monitoringId },
+      });
+
       // Back to checkpoint while waiting for next input
       this.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
-
-      // Stay in waiting state - will get more input
-      // (The waiting handler will be called again)
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         // Handle mode switch during execution

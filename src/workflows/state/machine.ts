@@ -122,6 +122,7 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
     autoMode: false,
     promptQueue: [],
     promptQueueIndex: 0,
+    paused: false,
     cwd: process.cwd(),
     cmRoot: '',
     ...initialContext,
@@ -188,8 +189,9 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
           PAUSE: {
             target: 'awaiting',
             action: (ctx) => {
-              // Pause forces manual mode
+              // Pause forces manual mode and sets paused flag
               ctx.autoMode = false;
+              ctx.paused = true;
               debug('[FSM] Paused - auto mode disabled');
             },
           },
@@ -204,6 +206,12 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
           debug('[FSM] Entering awaiting state, autoMode: %s', ctx.autoMode);
         },
         on: {
+          RESUME: {
+            target: 'running',
+            action: () => {
+              debug('[FSM] Resuming execution from awaiting state');
+            },
+          },
           INPUT_RECEIVED: [
             // If more steps, go to running
             {

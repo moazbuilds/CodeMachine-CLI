@@ -26,6 +26,7 @@ export type WorkflowEvent =
   | { type: 'STEP_COMPLETE'; output: StepOutput }
   | { type: 'STEP_ERROR'; error: Error }
   | { type: 'INPUT_RECEIVED'; input: string }
+  | { type: 'RESUME' }
   | { type: 'SKIP' }
   | { type: 'PAUSE' }
   | { type: 'STOP' };
@@ -56,6 +57,9 @@ export interface WorkflowContext {
   autoMode: boolean;
   promptQueue: QueuedPrompt[];
   promptQueueIndex: number;
+
+  // Pause state
+  paused: boolean;
 
   // Paths
   cwd: string;
