@@ -42,7 +42,7 @@ export interface UIActions {
   batchAddSubAgents(parentId: string, subAgents: SubAgentState[]): void
   updateSubAgentStatus(subAgentId: string, status: AgentStatus): void
   clearSubAgents(parentId: string): void
-  setWorkflowStatus(status: "running" | "stopping" | "completed" | "stopped" | "checkpoint" | "paused" | "error"): void
+  setWorkflowStatus(status: "running" | "stopping" | "completed" | "stopped" | "awaiting" | "paused" | "error"): void
   setCheckpointState(checkpoint: { active: boolean; reason?: string } | null): void
   setInputState(inputState: InputState | null): void
   /** @deprecated Use setInputState instead */

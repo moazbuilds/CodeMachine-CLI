@@ -52,7 +52,7 @@ export interface InputProvider {
 
   /**
    * Get input for the next step
-   * Called when workflow enters 'waiting' state
+   * Called when workflow enters 'awaiting' state
    */
   getInput(context: InputContext): Promise<InputResult>;
 

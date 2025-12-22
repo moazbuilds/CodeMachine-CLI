@@ -13,7 +13,7 @@ import type { ModuleStep } from '../templates/types.js';
 export type WorkflowState =
   | 'idle'              // Not started
   | 'running'           // Agent executing (input disabled)
-  | 'waiting'           // Waiting for input (input enabled)
+  | 'awaiting'          // Awaiting user input (input enabled)
   | 'completed'         // All steps done
   | 'stopped'           // User stopped
   | 'error';            // Fatal error

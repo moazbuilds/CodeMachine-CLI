@@ -50,7 +50,7 @@ export function TelemetryBar(props: TelemetryBarProps) {
     return formatTokens(newTokensIn, props.total.tokensOut)
   }
 
-  const showStatus = () => props.status === "checkpoint" || props.status === "paused" || props.status === "stopped"
+  const showStatus = () => props.status === "awaiting" || props.status === "paused" || props.status === "stopped"
 
   const statusColor = () => {
     switch (props.status) {
@@ -61,7 +61,7 @@ export function TelemetryBar(props: TelemetryBarProps) {
 
   const statusText = () => {
     switch (props.status) {
-      case "checkpoint": return "Checkpoint"
+      case "awaiting": return "Awaiting"
       case "paused": return "Paused"
       case "stopped": return "Stopped"
       default: return ""

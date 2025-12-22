@@ -28,7 +28,7 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
     const state = ctx.getState()
     ctx.setState({ ...state, checkpointState: checkpoint })
     if (checkpoint && checkpoint.active) {
-      setWorkflowStatus("checkpoint")
+      setWorkflowStatus("awaiting")
     } else {
       setWorkflowStatus("running")
     }

@@ -149,7 +149,7 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
         },
         on: {
           STEP_COMPLETE: {
-            target: 'waiting',
+            target: 'awaiting',
             action: (ctx, event) => {
               if (event.type === 'STEP_COMPLETE') {
                 ctx.currentOutput = event.output;
@@ -186,7 +186,7 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
             },
           ],
           PAUSE: {
-            target: 'waiting',
+            target: 'awaiting',
             action: (ctx) => {
               // Pause forces manual mode
               ctx.autoMode = false;
@@ -199,9 +199,9 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
         },
       },
 
-      waiting: {
+      awaiting: {
         onEnter: (ctx) => {
-          debug('[FSM] Entering waiting state, autoMode: %s', ctx.autoMode);
+          debug('[FSM] Entering awaiting state, autoMode: %s', ctx.autoMode);
         },
         on: {
           INPUT_RECEIVED: [

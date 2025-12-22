@@ -157,8 +157,8 @@ export class WorkflowRunner {
       // If in waiting state, let the provider's listener handle it
       // The provider will return __SWITCH_TO_AUTO__ or __SWITCH_TO_MANUAL__
       // and handleWaiting() will call setAutoMode()
-      if (this.machine.state === 'waiting') {
-        debug('[Runner] In waiting state, provider will handle mode switch');
+      if (this.machine.state === 'awaiting') {
+        debug('[Runner] In awaiting state, provider will handle mode switch');
         return;
       }
       // In other states (running, idle), set auto mode directly
@@ -200,7 +200,7 @@ export class WorkflowRunner {
 
       if (state === 'running') {
         await this.executeCurrentStep();
-      } else if (state === 'waiting') {
+      } else if (state === 'awaiting') {
         await this.handleWaiting();
       }
     }
@@ -247,7 +247,7 @@ export class WorkflowRunner {
         this.emitter.registerMonitoringId(uniqueAgentId, stepData.monitoringId);
       }
 
-      this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
+      this.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
       this.emitter.logMessage(uniqueAgentId, '═'.repeat(80));
       this.emitter.logMessage(uniqueAgentId, `${step.agentName} resumed - waiting for input.`);
 
@@ -347,7 +347,7 @@ export class WorkflowRunner {
         // In auto mode, keep status as 'running' - controller will run next
         // In manual mode, show checkpoint - waiting for user input
         if (!this.machine.context.autoMode) {
-          this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
+          this.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
           debug('[Runner] Agent at checkpoint, waiting for user input');
         } else {
           debug('[Runner] Auto mode - keeping status as running for controller');
@@ -387,6 +387,18 @@ export class WorkflowRunner {
     debug('[Runner] Handling waiting state, autoMode=%s, promptQueue=%d items, queueIndex=%d',
       ctx.autoMode, ctx.promptQueue.length, ctx.promptQueueIndex);
 
+    // No chained prompts - auto-advance to next step
+    if (ctx.promptQueue.length === 0) {
+      debug('[Runner] No chained prompts, auto-advancing to next step');
+      const step = this.moduleSteps[ctx.currentStepIndex];
+      const uniqueAgentId = `${step.agentId}-step-${ctx.currentStepIndex}`;
+      this.emitter.logMessage(uniqueAgentId, `${step.agentName} has completed their work.`);
+      this.emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
+      await markStepCompleted(this.cmRoot, ctx.currentStepIndex);
+      this.machine.send({ type: 'INPUT_RECEIVED', input: '' });
+      return;
+    }
+
     // Build input context
     const inputContext: InputContext = {
       stepOutput: ctx.currentOutput ?? { output: '' },
@@ -409,7 +421,7 @@ export class WorkflowRunner {
       // Now show checkpoint since we're waiting for user input
       const step = this.moduleSteps[ctx.currentStepIndex];
       const uniqueAgentId = `${step.agentId}-step-${ctx.currentStepIndex}`;
-      this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
+      this.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
       // Re-run waiting with user input
       return;
     }
@@ -536,7 +548,7 @@ export class WorkflowRunner {
       ctx.currentMonitoringId = output.monitoringId;
 
       // Back to checkpoint while waiting for next input
-      this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
+      this.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
 
       // Stay in waiting state - will get more input
       // (The waiting handler will be called again)
@@ -545,7 +557,7 @@ export class WorkflowRunner {
         // Handle mode switch during execution
         if (modeSwitchRequested) {
           debug('[Runner] Step aborted due to mode switch to %s', modeSwitchRequested);
-          this.emitter.updateAgentStatus(uniqueAgentId, 'checkpoint');
+          this.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
           await this.setAutoMode(modeSwitchRequested === 'auto');
         }
         // Behavior (pause) already handled everything else

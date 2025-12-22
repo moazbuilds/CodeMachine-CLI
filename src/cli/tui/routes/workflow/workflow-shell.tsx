@@ -61,8 +61,8 @@ export function WorkflowShell(props: WorkflowShellProps) {
         case "stopped":
           toast.show({ variant: "error", message: "Stopped by user", duration: 3000 })
           break
-        case "checkpoint":
-          toast.show({ variant: "warning", message: "Checkpoint - Review Required", duration: 5000 })
+        case "awaiting":
+          toast.show({ variant: "warning", message: "Awaiting - Input Required", duration: 5000 })
           break
       }
     }
@@ -251,7 +251,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
   // Check if output window is showing the active agent (running or at checkpoint)
   const isShowingRunningAgent = createMemo(() => {
     const s = state()
-    const active = s.agents.find((a) => a.status === "running" || a.status === "checkpoint")
+    const active = s.agents.find((a) => a.status === "running" || a.status === "awaiting")
     if (!active) return false
     // If no explicit selection, we're showing the active agent
     if (!s.selectedAgentId) return true
