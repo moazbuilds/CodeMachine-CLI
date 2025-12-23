@@ -23,6 +23,7 @@ import { MonitoringCleanup } from '../../agents/monitoring/index.js';
 import { WorkflowEventBus, WorkflowEventEmitter } from '../events/index.js';
 import { validateSpecification } from '../../runtime/services/index.js';
 import { WorkflowRunner } from './runner/index.js';
+import { getUniqueAgentId } from '../context/index.js';
 
 export { validateSpecification, ValidationError } from '../../runtime/services/index.js';
 export type { WorkflowStep, WorkflowTemplate };
@@ -127,7 +128,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     if (step.type === 'module') {
       const defaultEngine = registry.getDefault();
       const engineType = step.engine ?? defaultEngine?.metadata.id ?? 'unknown';
-      const uniqueAgentId = `${step.agentId}-step-${moduleIndex}`;
+      const uniqueAgentId = getUniqueAgentId(step, moduleIndex);
 
       emitter.addMainAgent(
         uniqueAgentId,

@@ -8,6 +8,7 @@ import * as fs from 'node:fs';
 import { debug } from '../../../shared/logging/logger.js';
 import { AgentMonitorService } from '../../../agents/monitoring/index.js';
 import type { StepOutput } from '../../state/index.js';
+import { getUniqueAgentId } from '../../context/index.js';
 import { executeStep } from '../step.js';
 import { selectEngine } from '../engine.js';
 import { registry } from '../../../infra/engines/index.js';
@@ -25,7 +26,7 @@ import type { RunnerContext } from './types.js';
 export async function executeCurrentStep(ctx: RunnerContext): Promise<void> {
   const machineCtx = ctx.machine.context;
   const step = ctx.moduleSteps[machineCtx.currentStepIndex];
-  const uniqueAgentId = `${step.agentId}-step-${machineCtx.currentStepIndex}`;
+  const uniqueAgentId = getUniqueAgentId(step, machineCtx.currentStepIndex);
 
   debug('[Runner] Executing step %d: %s', machineCtx.currentStepIndex, step.agentName);
 

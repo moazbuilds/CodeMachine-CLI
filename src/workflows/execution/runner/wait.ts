@@ -6,6 +6,7 @@ import { debug } from '../../../shared/logging/logger.js';
 import { formatUserInput } from '../../../shared/formatters/outputMarkers.js';
 import { AgentLoggerService } from '../../../agents/monitoring/index.js';
 import type { InputContext } from '../../input/index.js';
+import { getUniqueAgentId } from '../../context/index.js';
 import { executeStep } from '../step.js';
 import {
   markStepCompleted,
@@ -37,7 +38,7 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
     // No chained prompts and not paused - auto-advance to next step
     debug('[Runner] No chained prompts, auto-advancing to next step');
     const step = ctx.moduleSteps[machineCtx.currentStepIndex];
-    const uniqueAgentId = `${step.agentId}-step-${machineCtx.currentStepIndex}`;
+    const uniqueAgentId = getUniqueAgentId(step, machineCtx.currentStepIndex);
     ctx.emitter.logMessage(uniqueAgentId, `${step.agentName} has completed their work.`);
     ctx.emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
     await markStepCompleted(ctx.cmRoot, machineCtx.currentStepIndex);
@@ -47,7 +48,7 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
 
   // Build input context
   const step = ctx.moduleSteps[machineCtx.currentStepIndex];
-  const stepUniqueAgentId = `${step.agentId}-step-${machineCtx.currentStepIndex}`;
+  const stepUniqueAgentId = getUniqueAgentId(step, machineCtx.currentStepIndex);
   const inputContext: InputContext = {
     stepOutput: machineCtx.currentOutput ?? { output: '' },
     stepIndex: machineCtx.currentStepIndex,
@@ -129,7 +130,7 @@ async function resumeWithInput(
 ): Promise<void> {
   const machineCtx = ctx.machine.context;
   const step = ctx.moduleSteps[machineCtx.currentStepIndex];
-  const uniqueAgentId = `${step.agentId}-step-${machineCtx.currentStepIndex}`;
+  const uniqueAgentId = getUniqueAgentId(step, machineCtx.currentStepIndex);
 
   debug('[Runner] Resuming step with input: %s... (source=%s)', input.slice(0, 50), source ?? 'user');
 

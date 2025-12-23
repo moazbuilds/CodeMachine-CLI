@@ -6,6 +6,7 @@ import { handleErrorLogic } from '../directives/error/index.js';
 import type { WorkflowEventEmitter } from '../events/index.js';
 import { type ModuleStep, type WorkflowTemplate, isModuleStep } from '../templates/types.js';
 import { executeTriggerAgent } from './trigger.js';
+import { getUniqueAgentId } from '../context/index.js';
 
 interface HandlePostExecOptions {
   step: ModuleStep;
@@ -157,7 +158,7 @@ export async function handlePostExec(options: HandlePostExecOptions): Promise<Ha
     for (let resetIndex = loopResult.newIndex; resetIndex <= index; resetIndex += 1) {
       const resetStep = template.steps[resetIndex];
       if (resetStep && isModuleStep(resetStep)) {
-        const resetUniqueAgentId = `${resetStep.agentId}-step-${resetIndex}`;
+        const resetUniqueAgentId = getUniqueAgentId(resetStep, resetIndex);
         emitter.resetAgentForLoop(resetUniqueAgentId, iteration);
       }
     }
