@@ -16,6 +16,7 @@ import {
   initStepSession,
   getStepData,
 } from '../../../shared/workflows/steps.js';
+import { handlePostExec } from '../post.js';
 import type { RunnerContext } from './types.js';
 
 /**
@@ -135,6 +136,59 @@ export async function executeCurrentStep(ctx: RunnerContext): Promise<void> {
       monitoringId: output.monitoringId,
     };
 
+    // Handle post-execution directives (error, trigger, checkpoint, loop)
+    const postResult = await handlePostExec({
+      step,
+      stepOutput: { output: output.output },
+      cwd: ctx.cwd,
+      cmRoot: ctx.cmRoot,
+      index: machineCtx.currentStepIndex,
+      emitter: ctx.emitter,
+      uniqueAgentId,
+      abortController,
+      template: ctx.template,
+      loopCounters: ctx.getLoopCounters(),
+      activeLoop: ctx.getActiveLoop(),
+      engineType: step.engine ?? 'claude-code',
+    });
+
+    // Handle directive results
+    if (postResult.workflowShouldStop) {
+      debug('[Runner] Workflow should stop due to directive');
+      ctx.machine.send({ type: 'STOP' });
+      return;
+    }
+
+    // Update active loop state
+    if (postResult.newActiveLoop !== undefined) {
+      ctx.setActiveLoop(postResult.newActiveLoop);
+    }
+
+    // Handle loop - rewind to previous step
+    // newIndex is calculated as (index - stepsBack - 1) for use with a for-loop's i++
+    // Since we set currentStepIndex directly, we add 1 to get the correct target
+    if (postResult.newIndex !== undefined) {
+      const targetIndex = postResult.newIndex + 1;
+      if (targetIndex >= 0 && targetIndex <= machineCtx.currentStepIndex) {
+        debug('[Runner] Loop directive: rewinding to step %d', targetIndex);
+        machineCtx.currentStepIndex = targetIndex;
+        // Don't send STEP_COMPLETE - just return to let the main loop re-execute
+        return;
+      }
+    }
+
+    // Checkpoint continued - skip chained prompts and advance to next step
+    if (postResult.checkpointContinued) {
+      debug('[Runner] Checkpoint continued, advancing to next step');
+      ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+      ctx.emitter.logMessage(uniqueAgentId, `${step.agentName} checkpoint completed.`);
+      ctx.emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
+      ctx.machine.context.promptQueue = [];
+      ctx.machine.context.promptQueueIndex = 0;
+      ctx.machine.send({ type: 'STEP_COMPLETE', output: stepOutput });
+      return;
+    }
+
     // Update context with chained prompts if any
     debug('[Runner] chainedPrompts from output: %d items', output.chainedPrompts?.length ?? 0);
     if (output.chainedPrompts && output.chainedPrompts.length > 0) {
@@ -153,6 +207,8 @@ export async function executeCurrentStep(ctx: RunnerContext): Promise<void> {
     } else {
       debug('[Runner] No chained prompts, marking agent completed');
       ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+      ctx.emitter.logMessage(uniqueAgentId, `${step.agentName} has completed their work.`);
+      ctx.emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
       ctx.machine.context.promptQueue = [];
       ctx.machine.context.promptQueueIndex = 0;
     }

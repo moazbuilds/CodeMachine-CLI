@@ -8,7 +8,7 @@
  */
 
 import { debug } from '../../../shared/logging/logger.js';
-import type { ModuleStep } from '../../templates/types.js';
+import type { ModuleStep, WorkflowTemplate } from '../../templates/types.js';
 import type { WorkflowEventEmitter } from '../../events/index.js';
 import {
   createWorkflowMachine,
@@ -23,7 +23,7 @@ import {
 } from '../../input/index.js';
 import { setAutoMode, createModeListener } from '../../signals/index.js';
 import { loadControllerConfig } from '../../../shared/workflows/controller.js';
-import { DirectiveManager } from '../../directives/index.js';
+import { DirectiveManager, type ActiveLoop } from '../../directives/index.js';
 
 import type { WorkflowRunnerOptions, RunnerContext } from './types.js';
 import { setupListeners } from './listen.js';
@@ -41,16 +41,20 @@ export class WorkflowRunner implements RunnerContext {
   readonly moduleSteps: ModuleStep[];
   readonly cwd: string;
   readonly cmRoot: string;
+  readonly template: WorkflowTemplate;
 
   private userInput: UserInputProvider;
   private controllerInput: ControllerInputProvider;
   private activeProvider: InputProvider;
   private abortController: AbortController | null = null;
+  private loopCounters: Map<string, number> = new Map();
+  private activeLoop: ActiveLoop | null = null;
 
   constructor(options: WorkflowRunnerOptions) {
     this.cwd = options.cwd;
     this.cmRoot = options.cmRoot;
     this.emitter = options.emitter;
+    this.template = options.template;
 
     // Filter to only module steps
     this.moduleSteps = options.template.steps.filter(
@@ -127,6 +131,18 @@ export class WorkflowRunner implements RunnerContext {
 
   getControllerInput(): ControllerInputProvider {
     return this.controllerInput;
+  }
+
+  getLoopCounters(): Map<string, number> {
+    return this.loopCounters;
+  }
+
+  getActiveLoop(): ActiveLoop | null {
+    return this.activeLoop;
+  }
+
+  setActiveLoop(loop: ActiveLoop | null): void {
+    this.activeLoop = loop;
   }
 
   async getControllerConfig() {

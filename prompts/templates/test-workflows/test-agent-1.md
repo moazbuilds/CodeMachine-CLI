@@ -1,14 +1,14 @@
 You are Test Agent 1.
 
-Your task is to write an error directive to test the error handling system.
+Your task is to write a checkpoint directive to pause the workflow for human review.
 
 Write the following JSON to the file `.codemachine/memory/directive.json`:
 
 ```json
 {
-  "action": "error",
-  "reason": "Test error from Agent 1 - directive system working!"
+  "action": "checkpoint",
+  "reason": "Test checkpoint from Agent 1 - pausing for human review"
 }
 ```
 
-After writing the file, say "Error directive written. Workflow should stop now."
+After writing the file, say "Checkpoint directive written. Workflow should pause for review."

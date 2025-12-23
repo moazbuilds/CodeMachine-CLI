@@ -8,7 +8,7 @@ export default {
     resolveUI("❚❚ Human Review"),
 
     // Module with conditions
-    resolveModule('auto-loop', { loopSteps: 3, loopMaxIterations: 5, conditions: ['has_api'] }),
+    resolveModule('auto-loop', { loopSteps: 2, loopMaxIterations: 5 }),
   ],
   subAgentIds: ['frontend-dev'],
 };

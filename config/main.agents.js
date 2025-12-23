@@ -77,7 +77,7 @@ module.exports = [
     name: 'PO - Product Owner',
     description: 'BMAD product owner controller for autonomous mode',
     role: 'controller',
-    promptPath: path.join(promptsDir, 'bmad', 'controller', 'PO.md'),
+    promptPath: path.join(promptsDir, 'bmad', 'controller', 'PO.md')
   },
 
   // BMAD agents

@@ -13,6 +13,7 @@ import type {
 } from '../../input/index.js';
 import type { DirectiveManager } from '../../directives/index.js';
 import type { ControllerConfig } from '../../../shared/workflows/index.js';
+import type { ActiveLoop } from '../../directives/loop/index.js';
 
 /**
  * Runner options (public API)
@@ -36,6 +37,7 @@ export interface RunnerContext {
   readonly moduleSteps: ModuleStep[];
   readonly cwd: string;
   readonly cmRoot: string;
+  readonly template: WorkflowTemplate;
 
   // Mutable state via getters/setters
   getAbortController(): AbortController | null;
@@ -45,4 +47,9 @@ export interface RunnerContext {
   getUserInput(): UserInputProvider;
   getControllerInput(): ControllerInputProvider;
   getControllerConfig(): Promise<ControllerConfig | null>;
+
+  // Loop state
+  getLoopCounters(): Map<string, number>;
+  getActiveLoop(): ActiveLoop | null;
+  setActiveLoop(loop: ActiveLoop | null): void;
 }

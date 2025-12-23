@@ -28,6 +28,8 @@ interface HandlePostExecResult {
   newActiveLoop?: ActiveLoop | null;
   stoppedByCheckpointQuit?: boolean;
   workflowShouldStop?: boolean;
+  /** Checkpoint was triggered and user clicked Continue - skip to next step */
+  checkpointContinued?: boolean;
 }
 
 /**
@@ -92,13 +94,8 @@ export async function handlePostExec(options: HandlePostExecOptions): Promise<Ha
     await markStepCompleted(cmRoot, index);
   }
 
-  // Update UI status to completed
-  // This must happen BEFORE loop logic to ensure UI updates even when loops trigger
-  emitter.updateAgentStatus(uniqueAgentId, 'completed');
-
-  // Log completion messages BEFORE loop check (so they're part of current agent's output)
-  emitter.logMessage(uniqueAgentId, `${step.agentName} has completed their work.`);
-  emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
+  // NOTE: Status updates and completion logging are handled by the caller (exec.ts)
+  // because they depend on whether there are chained prompts
 
   // Check for checkpoint directive first (to pause workflow for manual review)
   const checkpointResult = await handleCheckpointLogic(step, stepOutput.output, cwd, emitter);
@@ -130,7 +127,8 @@ export async function handlePostExec(options: HandlePostExecOptions): Promise<Ha
       emitter.setWorkflowStatus('stopped');
       return { shouldBreak: true, stoppedByCheckpointQuit: true, workflowShouldStop: true };
     }
-    // Otherwise continue to next step (current step already marked complete via executeOnce)
+    // User clicked Continue - skip chained prompts and advance to next step
+    return { shouldBreak: false, checkpointContinued: true };
   }
 
   const loopResult = await handleLoopLogic(step, index, stepOutput.output, loopCounters, cwd, emitter);
