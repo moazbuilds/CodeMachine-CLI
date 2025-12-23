@@ -32,22 +32,22 @@ export function getItemHeight(item: NavigableItem): number {
 function getFullItemsList(state: WorkflowState): NavigableItem[] {
   const items: NavigableItem[] = []
   type StepItem =
-    | { stepIndex: number; type: "agent"; agent: AgentState }
-    | { stepIndex: number; type: "uiElement"; uiElement: UIElement }
+    | { orderIndex: number; type: "agent"; agent: AgentState }
+    | { orderIndex: number; type: "uiElement"; uiElement: UIElement }
 
   const stepItems: StepItem[] = []
 
   for (const agent of state.agents) {
-    if (agent.stepIndex !== undefined) {
-      stepItems.push({ stepIndex: agent.stepIndex, type: "agent", agent })
+    if (agent.orderIndex !== undefined) {
+      stepItems.push({ orderIndex: agent.orderIndex, type: "agent", agent })
     }
   }
 
   for (const uiElement of state.uiElements) {
-    stepItems.push({ stepIndex: uiElement.stepIndex, type: "uiElement", uiElement })
+    stepItems.push({ orderIndex: uiElement.stepIndex, type: "uiElement", uiElement })
   }
 
-  stepItems.sort((a, b) => a.stepIndex - b.stepIndex)
+  stepItems.sort((a, b) => a.orderIndex - b.orderIndex)
 
   for (const stepItem of stepItems) {
     if (stepItem.type === "agent") {

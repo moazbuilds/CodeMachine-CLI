@@ -103,6 +103,7 @@ describe('MockAdapter', () => {
           stepIndex: 0,
           totalSteps: 3,
           status: 'pending',
+          orderIndex: 0,
         },
       });
 
@@ -259,6 +260,7 @@ describe('HeadlessAdapter', () => {
         stepIndex: 0,
         totalSteps: 3,
         status: 'pending',
+        orderIndex: 0,
       },
     });
     bus.emit({ type: 'agent:status', agentId: 'a1', status: 'running' });
@@ -291,6 +293,7 @@ describe('HeadlessAdapter', () => {
         stepIndex: 0,
         totalSteps: 3,
         status: 'pending',
+        orderIndex: 0,
       },
     });
     bus.emit({ type: 'agent:status', agentId: 'a1', status: 'running' });
@@ -314,6 +317,7 @@ describe('HeadlessAdapter', () => {
         stepIndex: 0,
         totalSteps: 3,
         status: 'pending',
+        orderIndex: 0,
       },
     });
 
@@ -388,11 +392,11 @@ describe('Integration: Full workflow simulation', () => {
     // Add agents
     bus.emit({
       type: 'agent:added',
-      agent: { id: 'a1', name: 'Agent 1', engine: 'claude', stepIndex: 0, totalSteps: 2, status: 'pending' },
+      agent: { id: 'a1', name: 'Agent 1', engine: 'claude', stepIndex: 0, totalSteps: 2, status: 'pending', orderIndex: 0 },
     });
     bus.emit({
       type: 'agent:added',
-      agent: { id: 'a2', name: 'Agent 2', engine: 'claude', stepIndex: 1, totalSteps: 2, status: 'pending' },
+      agent: { id: 'a2', name: 'Agent 2', engine: 'claude', stepIndex: 1, totalSteps: 2, status: 'pending', orderIndex: 1 },
     });
 
     // Run first agent

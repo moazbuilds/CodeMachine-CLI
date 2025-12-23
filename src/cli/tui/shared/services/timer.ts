@@ -105,12 +105,8 @@ class TimerService {
     this.workflowEndTime = Date.now()
     this.status = "stopped"
 
-    // Mark all running agents as completed
-    for (const agent of this.agents.values()) {
-      if (!agent.endTime) {
-        this.completeAgent(agent.id)
-      }
-    }
+    // Clear all running agents
+    this.agents.clear()
 
     this.stopTicking()
     this.notifyListeners()
@@ -187,11 +183,10 @@ class TimerService {
   // ============================================================================
 
   /**
-   * Register an agent and start its timer
+   * Register an agent when it starts running
    * Auto-starts workflow timer on first agent
-   * @returns unsubscribe function
    */
-  registerAgent(id: string, startTime?: number): () => void {
+  registerAgent(id: string): void {
     // Auto-start workflow on first agent
     if (this.status === "idle") {
       this.start()
@@ -199,7 +194,7 @@ class TimerService {
 
     const agent: AgentTimer = {
       id,
-      startTime: startTime ?? Date.now(),
+      startTime: Date.now(),
       totalPausedTime: 0,
     }
 
@@ -210,56 +205,37 @@ class TimerService {
 
     this.agents.set(id, agent)
     this.notifyListeners()
-
-    // Return unsubscribe function
-    return () => {
-      this.agents.delete(id)
-    }
   }
 
   /**
-   * Mark an agent as completed
+   * Complete an agent - returns duration in seconds and removes from tracking
    */
-  completeAgent(id: string): void {
+  completeAgent(id: string): number {
     const agent = this.agents.get(id)
-    if (!agent || agent.endTime) return
+    if (!agent) return 0
 
     const now = Date.now()
 
     // Add any pending pause time
+    let pausedTime = agent.totalPausedTime
     if (agent.pausedAt) {
-      agent.totalPausedTime += now - agent.pausedAt
-      agent.pausedAt = undefined
+      pausedTime += now - agent.pausedAt
     }
 
-    agent.endTime = now
+    const durationSeconds = (now - agent.startTime - pausedTime) / 1000
+
+    // Remove from tracking
+    this.agents.delete(id)
     this.notifyListeners()
+
+    return Math.max(0, durationSeconds)
   }
 
   /**
-   * Mark an agent as failed (same as complete for timing purposes)
-   */
-  failAgent(id: string): void {
-    this.completeAgent(id)
-  }
-
-  /**
-   * Check if an agent is registered
+   * Check if an agent is currently running
    */
   hasAgent(id: string): boolean {
     return this.agents.has(id)
-  }
-
-  /**
-   * Get raw timestamps for an agent (for state persistence)
-   */
-  getAgentTimestamps(id: string): { startTime: number; endTime?: number } | undefined {
-    const agent = this.agents.get(id)
-    if (!agent) return undefined
-    return {
-      startTime: agent.startTime,
-      endTime: agent.endTime,
-    }
   }
 
   // ============================================================================

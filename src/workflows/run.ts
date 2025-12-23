@@ -136,6 +136,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         engineType,
         moduleIndex,
         moduleSteps.length,
+        stepIndex, // orderIndex: overall step position for timeline ordering
         moduleIndex < startIndex ? 'completed' : 'pending',
         step.model
       );

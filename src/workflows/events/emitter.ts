@@ -38,7 +38,7 @@ import type {
  *
  * // These emit events to the bus
  * emitter.workflowStarted('My Workflow', 5);
- * emitter.addMainAgent('agent-1', 'Planner', 'claude', 0, 5);
+ * emitter.addMainAgent('agent-1', 'Planner', 'claude', 0, 5, 0);
  * emitter.updateAgentStatus('agent-1', 'running');
  * ```
  */
@@ -109,11 +109,12 @@ export class WorkflowEventEmitter {
     engine: string,
     stepIndex: number,
     totalSteps: number,
+    orderIndex: number,
     status: AgentStatus = 'pending',
     model?: string
   ): void {
-    debug('[Emitter] agent:added id=%s name=%s engine=%s step=%d/%d status=%s',
-      agentId, name, engine, stepIndex, totalSteps, status);
+    debug('[Emitter] agent:added id=%s name=%s engine=%s step=%d/%d order=%d status=%s',
+      agentId, name, engine, stepIndex, totalSteps, orderIndex, status);
 
     // Track step info for this agent
     this.agentStepMap.set(agentId, { stepIndex, totalSteps });
@@ -126,6 +127,7 @@ export class WorkflowEventEmitter {
       stepIndex,
       totalSteps,
       status,
+      orderIndex,
     };
 
     this.bus.emit({

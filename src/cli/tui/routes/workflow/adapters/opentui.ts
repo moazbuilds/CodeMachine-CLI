@@ -118,9 +118,10 @@ export class OpenTUIAdapter extends BaseUIAdapter {
 
       // Agent events
       case "agent:added": {
-        const startTime = Date.now()
-        // Register with timer service (auto-starts workflow timer on first agent)
-        timerService.registerAgent(event.agent.id, startTime)
+        // Register with timer if starting as running
+        if (event.agent.status === "running") {
+          timerService.registerAgent(event.agent.id)
+        }
         this.actions.addAgent({
           id: event.agent.id,
           name: event.agent.name,
@@ -128,19 +129,26 @@ export class OpenTUIAdapter extends BaseUIAdapter {
           model: event.agent.model,
           status: event.agent.status,
           telemetry: { tokensIn: 0, tokensOut: 0 },
-          startTime,
+          startTime: event.agent.status === "running" ? Date.now() : 0,
           toolCount: 0,
           thinkingCount: 0,
           stepIndex: event.agent.stepIndex,
           totalSteps: event.agent.totalSteps,
+          orderIndex: event.agent.orderIndex,
         })
         break
       }
 
       case "agent:status":
-        // Update timer service for completion states
+        // Register when starting to run
+        if (event.status === "running") {
+          timerService.registerAgent(event.agentId)
+          this.actions.updateAgentStartTime(event.agentId, Date.now())
+        }
+        // Complete and store duration when done
         if (event.status === "completed" || event.status === "failed" || event.status === "skipped") {
-          timerService.completeAgent(event.agentId)
+          const duration = timerService.completeAgent(event.agentId)
+          this.actions.updateAgentDuration(event.agentId, duration)
         }
         this.actions.updateAgentStatus(event.agentId, event.status)
         break
@@ -168,23 +176,33 @@ export class OpenTUIAdapter extends BaseUIAdapter {
 
       // Sub-agent events
       case "subagent:added":
-        // Register sub-agent with timer service
-        timerService.registerAgent(event.subAgent.id, event.subAgent.startTime)
+        // Register if starting as running
+        if (event.subAgent.status === "running") {
+          timerService.registerAgent(event.subAgent.id)
+        }
         this.actions.addSubAgent(event.parentId, event.subAgent)
         break
 
       case "subagent:batch":
-        // Register all sub-agents with timer service
+        // Register running sub-agents
         for (const subAgent of event.subAgents) {
-          timerService.registerAgent(subAgent.id, subAgent.startTime)
+          if (subAgent.status === "running") {
+            timerService.registerAgent(subAgent.id)
+          }
         }
         this.actions.batchAddSubAgents(event.parentId, event.subAgents)
         break
 
       case "subagent:status":
-        // Update timer service for completion states
+        // Register when starting to run
+        if (event.status === "running") {
+          timerService.registerAgent(event.subAgentId)
+          this.actions.updateSubAgentStartTime(event.subAgentId, Date.now())
+        }
+        // Complete and store duration when done
         if (event.status === "completed" || event.status === "failed" || event.status === "skipped") {
-          timerService.completeAgent(event.subAgentId)
+          const duration = timerService.completeAgent(event.subAgentId)
+          this.actions.updateSubAgentDuration(event.subAgentId, duration)
         }
         this.actions.updateSubAgentStatus(event.subAgentId, event.status)
         break

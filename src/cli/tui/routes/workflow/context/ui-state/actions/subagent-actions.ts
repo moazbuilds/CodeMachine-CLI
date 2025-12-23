@@ -49,25 +49,48 @@ export function createSubAgentActions(ctx: SubAgentActionsContext) {
   function updateSubAgentStatus(subAgentId: string, status: AgentStatus): void {
     const state = ctx.getState()
     const newSubAgents = new Map(state.subAgents)
-    let updated = false
-    const shouldSetEndTime = status === "completed" || status === "failed" || status === "skipped"
     for (const [parentId, subAgents] of newSubAgents.entries()) {
       const index = subAgents.findIndex((sa) => sa.id === subAgentId)
       if (index >= 0) {
         const updatedSubAgents = [...subAgents]
-        updatedSubAgents[index] = {
-          ...updatedSubAgents[index],
-          status,
-          endTime: shouldSetEndTime ? Date.now() : updatedSubAgents[index].endTime,
-        }
+        updatedSubAgents[index] = { ...updatedSubAgents[index], status }
         newSubAgents.set(parentId, updatedSubAgents)
-        updated = true
-        break
+        ctx.setState({ ...state, subAgents: newSubAgents })
+        ctx.notify()
+        return
       }
     }
-    if (updated) {
-      ctx.setState({ ...state, subAgents: newSubAgents })
-      ctx.notify()
+  }
+
+  function updateSubAgentStartTime(subAgentId: string, startTime: number): void {
+    const state = ctx.getState()
+    const newSubAgents = new Map(state.subAgents)
+    for (const [parentId, subAgents] of newSubAgents.entries()) {
+      const index = subAgents.findIndex((sa) => sa.id === subAgentId)
+      if (index >= 0) {
+        const updatedSubAgents = [...subAgents]
+        updatedSubAgents[index] = { ...updatedSubAgents[index], startTime }
+        newSubAgents.set(parentId, updatedSubAgents)
+        ctx.setState({ ...state, subAgents: newSubAgents })
+        ctx.notify()
+        return
+      }
+    }
+  }
+
+  function updateSubAgentDuration(subAgentId: string, duration: number): void {
+    const state = ctx.getState()
+    const newSubAgents = new Map(state.subAgents)
+    for (const [parentId, subAgents] of newSubAgents.entries()) {
+      const index = subAgents.findIndex((sa) => sa.id === subAgentId)
+      if (index >= 0) {
+        const updatedSubAgents = [...subAgents]
+        updatedSubAgents[index] = { ...updatedSubAgents[index], duration, endTime: Date.now() }
+        newSubAgents.set(parentId, updatedSubAgents)
+        ctx.setState({ ...state, subAgents: newSubAgents })
+        ctx.notify()
+        return
+      }
     }
   }
 
@@ -83,6 +106,8 @@ export function createSubAgentActions(ctx: SubAgentActionsContext) {
     addSubAgent,
     batchAddSubAgents,
     updateSubAgentStatus,
+    updateSubAgentStartTime,
+    updateSubAgentDuration,
     clearSubAgents,
   }
 }

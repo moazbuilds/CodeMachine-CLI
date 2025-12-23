@@ -34,24 +34,21 @@ export function MainAgentNode(props: MainAgentNodeProps) {
 
   const color = () => props.agent.error ? themeCtx.theme.error : getStatusColor(props.agent.status, themeCtx.theme)
 
-  // Duration calculation:
-  // - Running agents: live timer from timer service
-  // - Completed agents: frozen duration from UI state
-  // - Queued agents: show 00:00
+  // Duration: running = live timer, completed = stored duration, queued = 00:00
   const duration = () => {
-    const { startTime, endTime, status } = props.agent
+    const { duration: storedDuration, status } = props.agent
 
-    // Completed/failed/skipped - show frozen duration
-    if (endTime) {
-      return formatDuration((endTime - startTime) / 1000)
+    // Completed - use stored duration
+    if (storedDuration !== undefined) {
+      return formatDuration(storedDuration)
     }
 
-    // Running agent - use timer service for live updates
-    if (status === "running" && startTime > 0) {
+    // Running - live timer
+    if (status === "running") {
       return timer.agentDuration(props.agent.id)
     }
 
-    // Queued/pending - show 00:00
+    // Queued/pending
     return "00:00"
   }
 

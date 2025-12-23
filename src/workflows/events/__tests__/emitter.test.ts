@@ -43,7 +43,7 @@ describe('WorkflowEventEmitter', () => {
 
   describe('main agents', () => {
     it('should emit agent added event', () => {
-      emitter.addMainAgent('agent-1', 'Planner', 'claude', 0, 3, 'pending');
+      emitter.addMainAgent('agent-1', 'Planner', 'claude', 0, 3, 0, 'pending');
 
       expect(events).toHaveLength(1);
       expect(events[0].type).toBe('agent:added');
@@ -54,6 +54,7 @@ describe('WorkflowEventEmitter', () => {
         stepIndex: 0,
         totalSteps: 3,
         status: 'pending',
+        orderIndex: 0,
       });
     });
 
@@ -231,8 +232,8 @@ describe('Integration: Emitter with workflow simulation', () => {
     emitter.workflowStarted('Integration Test', 2);
 
     // Add agents
-    emitter.addMainAgent('agent-1', 'Planner', 'claude', 0, 2);
-    emitter.addMainAgent('agent-2', 'Coder', 'claude', 1, 2);
+    emitter.addMainAgent('agent-1', 'Planner', 'claude', 0, 2, 0);
+    emitter.addMainAgent('agent-2', 'Coder', 'claude', 1, 2, 1);
 
     // Execute first agent
     emitter.updateAgentStatus('agent-1', 'running');
