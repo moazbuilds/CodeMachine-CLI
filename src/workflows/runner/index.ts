@@ -7,28 +7,32 @@
  * - Step executor for running agents
  */
 
-import { debug } from '../../../shared/logging/logger.js';
-import type { ModuleStep, WorkflowTemplate } from '../../templates/types.js';
-import type { WorkflowEventEmitter } from '../../events/index.js';
+import { debug } from '../../shared/logging/logger.js';
+import type { ModuleStep, WorkflowTemplate } from '../templates/types.js';
+import type { WorkflowEventEmitter } from '../events/index.js';
 import {
   createWorkflowMachine,
   type StateMachine,
-} from '../../state/index.js';
+} from '../state/index.js';
 import {
   UserInputProvider,
   ControllerInputProvider,
   createInputEmitter,
   type InputProvider,
   type InputEventEmitter,
-} from '../../input/index.js';
-import { setAutoMode, createModeListener } from '../../signals/index.js';
-import { loadControllerConfig } from '../../../shared/workflows/controller.js';
-import { DirectiveManager, type ActiveLoop } from '../../directives/index.js';
+} from '../input/index.js';
+import { setAutoMode, createModeListener } from '../signals/index.js';
+import { loadControllerConfig } from '../../shared/workflows/controller.js';
+import { DirectiveManager, type ActiveLoop } from '../directives/index.js';
 
 import type { WorkflowRunnerOptions, RunnerContext } from './types.js';
-import { setupListeners } from './listen.js';
-import { executeCurrentStep } from './exec.js';
+import { setupListeners } from './listeners.js';
+import { runStepFresh } from '../step/run.js';
 import { handleWaiting } from './wait.js';
+
+export type { WorkflowRunnerOptions, RunnerContext } from './types.js';
+export { handleWaiting } from './wait.js';
+export * from './resume.js';
 
 /**
  * Workflow runner class
@@ -172,7 +176,7 @@ export class WorkflowRunner implements RunnerContext {
       const state = this.machine.state;
 
       if (state === 'running') {
-        await executeCurrentStep(this);
+        await runStepFresh(this);
       } else if (state === 'awaiting') {
         await handleWaiting(this, {
           setAutoMode: (enabled) => this.setAutoMode(enabled),

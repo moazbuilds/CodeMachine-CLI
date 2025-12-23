@@ -5,7 +5,7 @@
  * Mode signals are handled by signals/mode/listener.ts
  */
 
-import { debug } from '../../../shared/logging/logger.js';
+import { debug } from '../../shared/logging/logger.js';
 import type { RunnerContext } from './types.js';
 
 /**

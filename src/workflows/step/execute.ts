@@ -1,3 +1,10 @@
+/**
+ * Step Execution - Low Level Agent Runner
+ *
+ * Executes a single workflow step by delegating to the agent execution layer.
+ * This handles prompt loading, processing, and agent invocation.
+ */
+
 import * as path from 'node:path';
 import { readFile, mkdir } from 'node:fs/promises';
 import type { WorkflowStep } from '../templates/index.js';
@@ -53,53 +60,58 @@ async function runAgentsBuilderStep(cwd: string): Promise<void> {
 }
 
 /**
- * Executes a workflow step (main agent)
+ * Execute a workflow step (agent invocation)
  *
- * This is a simplified version that delegates to execution/runner.ts
- * after building the prompt. No duplication with runner.ts anymore.
+ * This is the low-level execution that:
+ * 1. Loads and processes the prompt
+ * 2. Calls the agent execution layer
+ * 3. Returns the output
+ *
+ * For orchestration (setup, post-exec), see run.ts
  */
 export async function executeStep(
   step: WorkflowStep,
   cwd: string,
   options: StepExecutorOptions,
 ): Promise<StepOutput> {
-  debug(`[DEBUG step] executeStep called for agentId=${step.type === 'module' ? step.agentId : 'N/A'}`);
+  debug(`[step/execute] executeStep called for agentId=${step.type === 'module' ? step.agentId : 'N/A'}`);
 
   // Only module steps can be executed
   if (!isModuleStep(step)) {
-    debug(`[DEBUG step] Not a module step, throwing error`);
+    debug(`[step/execute] Not a module step, throwing error`);
     throw new Error('Only module steps can be executed');
   }
 
   const promptSources = Array.isArray(step.promptPath) ? step.promptPath : [step.promptPath];
-  debug(`[DEBUG step] Loading prompt from ${promptSources.join(', ')}`);
+  debug(`[step/execute] Loading prompt from ${promptSources.join(', ')}`);
   if (promptSources.length === 0) {
     throw new Error(`Agent ${step.agentId} has no promptPath configured`);
   }
+
   // Load and process the prompt template(s)
   const resolvedPromptPaths = promptSources.map(p =>
     path.isAbsolute(p) ? p : path.resolve(cwd, p),
   );
-  debug(`[DEBUG step] Resolved promptPath(s): ${resolvedPromptPaths.join(', ')}`);
+  debug(`[step/execute] Resolved promptPath(s): ${resolvedPromptPaths.join(', ')}`);
 
   let rawPrompt: string;
   try {
     const parts = await Promise.all(
       resolvedPromptPaths.map(async promptPath => {
         const content = await readFile(promptPath, 'utf8');
-        debug(`[DEBUG step] Prompt loaded from ${promptPath}, length=${content.length}`);
+        debug(`[step/execute] Prompt loaded from ${promptPath}, length=${content.length}`);
         return content;
       }),
     );
     rawPrompt = parts.join('\n\n');
-    debug(`[DEBUG step] Combined prompt length=${rawPrompt.length}`);
+    debug(`[step/execute] Combined prompt length=${rawPrompt.length}`);
   } catch (fileError) {
-    debug(`[DEBUG step] ERROR reading prompt file: ${fileError instanceof Error ? fileError.message : String(fileError)}`);
+    debug(`[step/execute] ERROR reading prompt file: ${fileError instanceof Error ? fileError.message : String(fileError)}`);
     throw fileError;
   }
 
   const prompt = await processPromptString(rawPrompt, cwd);
-  debug(`[DEBUG step] Prompt processed, length=${prompt.length}`);
+  debug(`[step/execute] Prompt processed, length=${prompt.length}`);
 
   // Use environment variable or default to 30 minutes (1800000ms)
   const timeout =
@@ -107,15 +119,14 @@ export async function executeStep(
     (process.env.CODEMACHINE_AGENT_TIMEOUT
       ? Number.parseInt(process.env.CODEMACHINE_AGENT_TIMEOUT, 10)
       : 1800000);
-  debug(`[DEBUG step] timeout=${timeout}ms`);
+  debug(`[step/execute] timeout=${timeout}ms`);
 
   // Determine engine: step override > default
   const engineType: EngineType | undefined = step.engine;
-  debug(`[DEBUG step] engineType=${engineType}`);
+  debug(`[step/execute] engineType=${engineType}`);
 
-  debug(`[DEBUG step] Calling execute...`);
+  debug(`[step/execute] Calling execute...`);
   // Execute via the unified execution layer
-  // Handles: auth, monitoring, engine execution, memory storage, telemetry forwarding
   const result = await execute(step.agentId, prompt, {
     workingDir: cwd,
     engine: engineType,
@@ -133,26 +144,22 @@ export async function executeStep(
     selectedConditions: options.selectedConditions,
     // Pass emitter as UI so runner can register monitoring ID immediately
     ui: options.emitter,
-    // Telemetry auto-forwarding (replaces manual callback setup)
+    // Telemetry auto-forwarding
     telemetry: options.uniqueAgentId && options.emitter
       ? { uniqueAgentId: options.uniqueAgentId, emitter: options.emitter }
       : undefined,
   });
 
-  debug(`[DEBUG step] execute completed. agentId=${result.agentId}, outputLength=${result.output?.length ?? 0}`);
+  debug(`[step/execute] execute completed. agentId=${result.agentId}, outputLength=${result.output?.length ?? 0}`);
 
   // Run special post-execution steps
   const agentName = step.agentName.toLowerCase();
   if (step.agentId === 'agents-builder' || agentName.includes('builder')) {
-    debug(`[DEBUG step] Running agents builder post-step`);
+    debug(`[step/execute] Running agents builder post-step`);
     await runAgentsBuilderStep(cwd);
   }
 
-  // NOTE: Telemetry is already updated via onTelemetry callback during streaming execution.
-  // DO NOT parse from final output - it would match the FIRST telemetry line (early/wrong values)
-  // instead of the LAST telemetry line (final/correct values), causing incorrect UI display.
-
-  debug(`[DEBUG step] executeStep returning`);
+  debug(`[step/execute] executeStep returning`);
   return {
     output: result.output,
     monitoringId: result.agentId,

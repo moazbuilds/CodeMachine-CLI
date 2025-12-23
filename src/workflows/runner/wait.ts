@@ -1,18 +1,19 @@
 /**
  * Workflow Runner Waiting State Handling
+ *
+ * Handles the awaiting state - gets input from provider and processes it.
  */
 
-import { debug } from '../../../shared/logging/logger.js';
-import { formatUserInput } from '../../../shared/formatters/outputMarkers.js';
-import { AgentLoggerService } from '../../../agents/monitoring/index.js';
-import type { InputContext } from '../../input/index.js';
-import { getUniqueAgentId } from '../../context/index.js';
-import { executeStep } from '../step.js';
+import { debug } from '../../shared/logging/logger.js';
+import { formatUserInput } from '../../shared/formatters/outputMarkers.js';
+import { AgentLoggerService } from '../../agents/monitoring/index.js';
+import type { InputContext } from '../input/index.js';
+import { getUniqueAgentId } from '../context/index.js';
+import { runStepResume } from '../step/run.js';
 import {
   markStepCompleted,
   markChainCompleted,
-  getStepData,
-} from '../../../shared/workflows/steps.js';
+} from '../../shared/workflows/steps.js';
 import type { RunnerContext } from './types.js';
 
 export interface WaitCallbacks {
@@ -68,9 +69,7 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
   if (result.type === 'input' && result.value === '__SWITCH_TO_MANUAL__') {
     debug('[Runner] Switching to manual mode');
     await callbacks.setAutoMode(false);
-    // Now show checkpoint since we're waiting for user input
     ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'awaiting');
-    // Re-run waiting with user input
     return;
   }
 
@@ -78,7 +77,6 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
   if (result.type === 'input' && result.value === '__SWITCH_TO_AUTO__') {
     debug('[Runner] Switching to autonomous mode');
     await callbacks.setAutoMode(true);
-    // Re-run waiting with controller input
     return;
   }
 
@@ -88,26 +86,24 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
       if (result.value === '') {
         // Empty input = advance to next step
         debug('[Runner] Empty input, marking agent completed and advancing');
-        machineCtx.paused = false; // Clear paused flag
+        machineCtx.paused = false;
         ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'completed');
         ctx.emitter.logMessage(stepUniqueAgentId, `${step.agentName} has completed their work.`);
         ctx.emitter.logMessage(stepUniqueAgentId, '\n' + '═'.repeat(80) + '\n');
-        // Track step completion for resume
         await markStepCompleted(ctx.cmRoot, machineCtx.currentStepIndex);
         ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
       } else {
-        // Has input = resume current step with input, then wait again
-        await resumeWithInput(ctx, callbacks, result.value, result.resumeMonitoringId, result.source);
+        // Has input = resume current step
+        await handleResumeInput(ctx, callbacks, result.value, result.resumeMonitoringId, result.source);
       }
       break;
 
     case 'skip':
       debug('[Runner] Skip requested, marking agent skipped');
-      machineCtx.paused = false; // Clear paused flag
+      machineCtx.paused = false;
       ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'skipped');
       ctx.emitter.logMessage(stepUniqueAgentId, `${step.agentName} was skipped.`);
       ctx.emitter.logMessage(stepUniqueAgentId, '\n' + '═'.repeat(80) + '\n');
-      // Track step completion for resume
       await markStepCompleted(ctx.cmRoot, machineCtx.currentStepIndex);
       ctx.machine.send({ type: 'SKIP' });
       break;
@@ -119,9 +115,9 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
 }
 
 /**
- * Resume current step with input (for chained prompts or steering)
+ * Handle resume with input - delegates to step/run.ts
  */
-async function resumeWithInput(
+async function handleResumeInput(
   ctx: RunnerContext,
   callbacks: WaitCallbacks,
   input: string,
@@ -134,11 +130,7 @@ async function resumeWithInput(
 
   debug('[Runner] Resuming step with input: %s... (source=%s)', input.slice(0, 50), source ?? 'user');
 
-  // Get sessionId from step data for resume
-  const stepData = await getStepData(ctx.cmRoot, machineCtx.currentStepIndex);
-  const sessionId = stepData?.sessionId;
-
-  // Detect queued vs custom input
+  // Detect queued vs custom input and advance queue if needed
   let isQueuedPrompt = false;
   if (machineCtx.promptQueue.length > 0 && machineCtx.promptQueueIndex < machineCtx.promptQueue.length) {
     const queuedPrompt = machineCtx.promptQueue[machineCtx.promptQueueIndex];
@@ -147,7 +139,6 @@ async function resumeWithInput(
       const chainIndex = machineCtx.promptQueueIndex;
       machineCtx.promptQueueIndex += 1;
       debug('[Runner] Advanced queue to index %d', machineCtx.promptQueueIndex);
-      // Track chain completion for resume
       await markChainCompleted(ctx.cmRoot, machineCtx.currentStepIndex, chainIndex);
     }
   }
@@ -161,77 +152,36 @@ async function resumeWithInput(
     }
   }
 
-  // Clear paused flag since we're resuming
+  // Clear paused flag
   machineCtx.paused = false;
 
-  const abortController = new AbortController();
-  ctx.setAbortController(abortController);
-  ctx.directiveManager.setAbortController(abortController);
-  ctx.directiveManager.setStepContext({
-    stepIndex: machineCtx.currentStepIndex,
-    agentId: uniqueAgentId,
-    agentName: step.agentName,
-  });
-
-  // Transition state machine to running so pause works
-  ctx.machine.send({ type: 'RESUME' });
-
-  ctx.emitter.updateAgentStatus(uniqueAgentId, 'running');
-  ctx.emitter.setWorkflowStatus('running');
-
-  // Track if mode switch was requested during execution
+  // Track mode switch during execution
   let modeSwitchRequested: 'manual' | 'auto' | null = null;
   const modeChangeHandler = (data: { autonomousMode: boolean }) => {
-    debug('[Runner] Mode change during resumeWithInput: autoMode=%s', data.autonomousMode);
+    debug('[Runner] Mode change during resume: autoMode=%s', data.autonomousMode);
     modeSwitchRequested = data.autonomousMode ? 'auto' : 'manual';
-    // Abort the current step execution
     ctx.getAbortController()?.abort();
   };
   process.on('workflow:mode-change', modeChangeHandler);
 
   try {
-    const output = await executeStep(step, ctx.cwd, {
-      logger: () => {},
-      stderrLogger: () => {},
-      emitter: ctx.emitter,
-      abortSignal: abortController.signal,
-      uniqueAgentId,
-      resumeMonitoringId: monitoringId,
-      resumeSessionId: sessionId,
+    // Use unified step runner
+    await runStepResume(ctx, {
       resumePrompt: input,
+      resumeMonitoringId: monitoringId,
+      source,
     });
-
-    // Update context with new output
-    machineCtx.currentOutput = {
-      output: output.output,
-      monitoringId: output.monitoringId,
-    };
-    machineCtx.currentMonitoringId = output.monitoringId;
-
-    // Transition back to awaiting state
-    ctx.machine.send({
-      type: 'STEP_COMPLETE',
-      output: { output: output.output, monitoringId: output.monitoringId },
-    });
-
-    // Back to checkpoint while waiting for next input
-    ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      // Handle mode switch during execution
       if (modeSwitchRequested) {
         debug('[Runner] Step aborted due to mode switch to %s', modeSwitchRequested);
         ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
         await callbacks.setAutoMode(modeSwitchRequested === 'auto');
       }
-      // Directive (pause) already handled everything else
       return;
     }
-    ctx.machine.send({ type: 'STEP_ERROR', error: error as Error });
+    throw error;
   } finally {
     process.removeListener('workflow:mode-change', modeChangeHandler);
-    ctx.setAbortController(null);
-    ctx.directiveManager.setAbortController(null);
-    // Keep stepContext - still valid during waiting state
   }
 }

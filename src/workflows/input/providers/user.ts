@@ -5,13 +5,13 @@
  * Emits events so TUI knows to show prompt box.
  */
 
-import { debug } from '../../shared/logging/logger.js';
+import { debug } from '../../../shared/logging/logger.js';
 import type {
   InputProvider,
   InputContext,
   InputResult,
   InputEventEmitter,
-} from './types.js';
+} from '../types.js';
 
 /**
  * User input provider options

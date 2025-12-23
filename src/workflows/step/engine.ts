@@ -1,3 +1,9 @@
+/**
+ * Engine Selection
+ *
+ * Selects the appropriate engine for step execution with fallback logic.
+ */
+
 import { registry } from '../../infra/engines/index.js';
 import { debug } from '../../shared/logging/logger.js';
 import type { WorkflowEventEmitter } from '../events/index.js';
@@ -66,21 +72,21 @@ export async function selectEngine(
   emitter: WorkflowEventEmitter,
   uniqueAgentId: string
 ): Promise<string> {
-  debug(`[DEBUG workflow] step.engine=${step.engine}`);
+  debug(`[step/engine] step.engine=${step.engine}`);
 
   // Determine engine: step override > first authenticated engine
   let engineType: string;
   if (step.engine) {
-    debug(`[DEBUG workflow] Using step-specified engine: ${step.engine}`);
+    debug(`[step/engine] Using step-specified engine: ${step.engine}`);
     engineType = step.engine;
 
     // If an override is provided but not authenticated, log and fall back
     const overrideEngine = registry.get(engineType);
-    debug(`[DEBUG workflow] Checking auth for override engine...`);
+    debug(`[step/engine] Checking auth for override engine...`);
     const isOverrideAuthed = overrideEngine
       ? await authCache.isAuthenticated(overrideEngine.metadata.id, () => overrideEngine.auth.isAuthenticated())
       : false;
-    debug(`[DEBUG workflow] isOverrideAuthed=${isOverrideAuthed}`);
+    debug(`[step/engine] isOverrideAuthed=${isOverrideAuthed}`);
     if (!isOverrideAuthed) {
       const pretty = overrideEngine?.metadata.name ?? engineType;
       const authMsg = `${pretty} override is not authenticated; falling back to first authenticated engine by order. Run 'codemachine auth login' to use ${pretty}.`;
@@ -112,19 +118,19 @@ export async function selectEngine(
       }
     }
   } else {
-    debug(`[DEBUG workflow] No step.engine specified, finding authenticated engine...`);
+    debug(`[step/engine] No step.engine specified, finding authenticated engine...`);
     // Fallback: find first authenticated engine by order (with caching)
     const engines = registry.getAll();
-    debug(`[DEBUG workflow] Available engines: ${engines.map(e => e.metadata.id).join(', ')}`);
+    debug(`[step/engine] Available engines: ${engines.map(e => e.metadata.id).join(', ')}`);
     let foundEngine = null;
 
     for (const engine of engines) {
-      debug(`[DEBUG workflow] Checking auth for engine: ${engine.metadata.id}`);
+      debug(`[step/engine] Checking auth for engine: ${engine.metadata.id}`);
       const isAuth = await authCache.isAuthenticated(
         engine.metadata.id,
         () => engine.auth.isAuthenticated()
       );
-      debug(`[DEBUG workflow] Engine ${engine.metadata.id} isAuth=${isAuth}`);
+      debug(`[step/engine] Engine ${engine.metadata.id} isAuth=${isAuth}`);
       if (isAuth) {
         foundEngine = engine;
         break;
@@ -132,22 +138,22 @@ export async function selectEngine(
     }
 
     if (!foundEngine) {
-      debug(`[DEBUG workflow] No authenticated engine found, using default`);
+      debug(`[step/engine] No authenticated engine found, using default`);
       // If no authenticated engine, use default (first by order)
       foundEngine = registry.getDefault();
     }
 
     if (!foundEngine) {
-      debug(`[DEBUG workflow] No engines registered at all!`);
+      debug(`[step/engine] No engines registered at all!`);
       throw new Error('No engines registered. Please install at least one engine.');
     }
 
     engineType = foundEngine.metadata.id;
-    debug(`[DEBUG workflow] Selected engine: ${engineType}`);
+    debug(`[step/engine] Selected engine: ${engineType}`);
     const engineMsg = `No engine specified, using ${foundEngine.metadata.name} (${engineType})`;
     emitter.logMessage(uniqueAgentId, engineMsg);
   }
 
-  debug(`[DEBUG workflow] Engine determined: ${engineType}`);
+  debug(`[step/engine] Engine determined: ${engineType}`);
   return engineType;
 }

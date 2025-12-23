@@ -1,10 +1,9 @@
 /**
  * Input Module
  *
- * Input providers for workflow execution.
+ * Input providers and event handling for workflow execution.
  */
 
 export * from './types.js';
-export * from './user.js';
-export * from './controller.js';
+export * from './providers/index.js';
 export * from './emitter.js';

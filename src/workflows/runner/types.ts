@@ -2,18 +2,18 @@
  * Workflow Runner Types
  */
 
-import type { ModuleStep, WorkflowTemplate } from '../../templates/types.js';
-import type { WorkflowEventEmitter } from '../../events/index.js';
-import type { StateMachine } from '../../state/index.js';
+import type { ModuleStep, WorkflowTemplate } from '../templates/types.js';
+import type { WorkflowEventEmitter } from '../events/index.js';
+import type { StateMachine } from '../state/index.js';
 import type {
   UserInputProvider,
   ControllerInputProvider,
   InputProvider,
   InputEventEmitter,
-} from '../../input/index.js';
-import type { DirectiveManager } from '../../directives/index.js';
-import type { ControllerConfig } from '../../../shared/workflows/index.js';
-import type { ActiveLoop } from '../../directives/loop/index.js';
+} from '../input/index.js';
+import type { DirectiveManager } from '../directives/index.js';
+import type { ControllerConfig } from '../../shared/workflows/index.js';
+import type { ActiveLoop } from '../directives/loop/index.js';
 
 /**
  * Runner options (public API)
@@ -27,7 +27,7 @@ export interface WorkflowRunnerOptions {
 }
 
 /**
- * Runner context passed to extracted functions
+ * Runner context passed to step execution and input handling
  */
 export interface RunnerContext {
   readonly machine: StateMachine;

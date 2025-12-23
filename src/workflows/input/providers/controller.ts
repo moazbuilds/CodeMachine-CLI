@@ -5,23 +5,23 @@
  * The controller agent sees step output and decides what to do.
  */
 
-import { debug } from '../../shared/logging/logger.js';
-import { executeWithActions } from '../../agents/execution/index.js';
-import { AgentLoggerService, AgentMonitorService } from '../../agents/monitoring/index.js';
-import { saveControllerConfig } from '../../shared/workflows/controller.js';
-import { stripColorMarkers } from '../../shared/formatters/logFileFormatter.js';
+import { debug } from '../../../shared/logging/logger.js';
+import { executeWithActions } from '../../../agents/execution/index.js';
+import { AgentLoggerService, AgentMonitorService } from '../../../agents/monitoring/index.js';
+import { saveControllerConfig } from '../../../shared/workflows/controller.js';
+import { stripColorMarkers } from '../../../shared/formatters/logFileFormatter.js';
 import {
   formatControllerHeader,
   formatControllerFooter,
-} from '../../shared/formatters/outputMarkers.js';
-import type { ControllerConfig } from '../../shared/workflows/template.js';
-import type { WorkflowEventEmitter } from '../events/index.js';
+} from '../../../shared/formatters/outputMarkers.js';
+import type { ControllerConfig } from '../../../shared/workflows/template.js';
+import type { WorkflowEventEmitter } from '../../events/index.js';
 import type {
   InputProvider,
   InputContext,
   InputResult,
   InputEventEmitter,
-} from './types.js';
+} from '../types.js';
 
 /**
  * Controller input provider options
