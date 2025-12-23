@@ -1,12 +1,9 @@
 /**
  * Pause Directive Module
  *
- * Handles workflow pause signals from:
- * - User keypress (workflow:pause event)
- * - Agent writing { action: 'pause' } to directive.json
+ * Handles agent-written { action: 'pause' } in directive.json.
+ * User keypress pause is handled by signals/handlers/pause.ts
  */
 
 export * from './types.js';
 export * from './evaluator.js';
-export * from './handler.js';
-export * from './listener.js';

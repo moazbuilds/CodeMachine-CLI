@@ -1,12 +1,15 @@
 /**
  * Workflow Signals Module
  *
- * Signals that control workflow execution:
- * - mode: Switch between user and auto input modes
- * - (future) pause: Pause workflow execution
- * - (future) resume: Resume paused workflow
- * - (future) skip: Skip current step
- * - (future) stop: Stop workflow execution
+ * User-initiated process events that control workflow execution:
+ * - pause: Pause workflow execution
+ * - skip: Skip current step
+ * - stop: Stop workflow execution
+ * - mode-change: Switch between user and auto input modes
  */
 
-export * from './mode/index.js';
+export * from './manager/index.js';
+export * from './handlers/index.js';
+
+// Re-export setAutoMode for direct use by runner
+export { setAutoMode } from './handlers/mode.js';

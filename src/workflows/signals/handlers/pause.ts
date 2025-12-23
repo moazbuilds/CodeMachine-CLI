@@ -1,0 +1,39 @@
+/**
+ * Pause Signal Handler
+ *
+ * Handles workflow:pause process events (user keypress Ctrl+P or 'p').
+ * Logs, aborts current step, transitions state machine.
+ */
+
+import { debug } from '../../../shared/logging/logger.js';
+import type { SignalContext } from '../manager/types.js';
+
+/**
+ * Handle pause signal
+ */
+export function handlePauseSignal(ctx: SignalContext): void {
+  debug('[PauseSignal] workflow:pause received, state=%s', ctx.machine.state);
+
+  const stepContext = ctx.getStepContext();
+  if (!stepContext) {
+    debug('[PauseSignal] No step context, ignoring pause');
+    return;
+  }
+
+  // Log pause message
+  ctx.emitter.logMessage(
+    stepContext.agentId,
+    `${stepContext.agentName} paused.`
+  );
+
+  // Abort step if running
+  if (ctx.machine.state === 'running') {
+    ctx.machine.send({ type: 'PAUSE' });
+    ctx.getAbortController()?.abort();
+  }
+
+  // Emit mode-change to switch to manual (ignored if already manual)
+  process.emit('workflow:mode-change' as any, { autonomousMode: false });
+
+  debug('[PauseSignal] Pause handled');
+}

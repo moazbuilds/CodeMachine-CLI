@@ -11,3 +11,4 @@ export { executeStep, type StepOutput, type StepExecutorOptions, type ChainedPro
 export { selectEngine, EngineAuthCache, authCache } from './engine.js';
 export { beforeRun, afterRun, cleanupRun, type BeforeRunOptions, type AfterRunResult } from './hooks.js';
 export { runStepFresh, runStepResume, type RunStepOptions, type RunStepResult } from './run.js';
+export { shouldSkipStep, logSkipDebug, type ActiveLoop } from './skip.js';

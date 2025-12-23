@@ -1,8 +1,18 @@
+/**
+ * Step Skip Logic
+ *
+ * Determines if a workflow step should be skipped based on:
+ * - Track-based filtering
+ * - Condition-based filtering
+ * - executeOnce (already completed)
+ * - Active loop skip list
+ */
+
 import type { WorkflowStep } from '../templates/index.js';
 import { isModuleStep } from '../templates/types.js';
 import type { WorkflowEventEmitter } from '../events/emitter.js';
 import { debug } from '../../shared/logging/logger.js';
-import type { ActiveLoop } from './loop/types.js';
+import type { ActiveLoop } from '../directives/loop/types.js';
 
 // Re-export for backwards compatibility
 export type { ActiveLoop };

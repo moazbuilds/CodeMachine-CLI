@@ -39,7 +39,7 @@ export interface BeforeRunResult {
 /**
  * Setup before step execution
  *
- * - Resets directives
+ * - Resets signal manager
  * - Creates abort controller
  * - Updates UI status
  * - Resets directive file
@@ -54,18 +54,18 @@ export function beforeRun(options: BeforeRunOptions): BeforeRunResult {
   // Clear paused flag
   machineCtx.paused = false;
 
-  // Reset all directives (only for fresh start, not resume)
+  // Reset signal manager (only for fresh start, not resume)
   if (!isResume) {
-    ctx.directiveManager.resetAll();
+    ctx.signalManager.resetAll();
   }
 
   // Set up abort controller
   const abortController = new AbortController();
   ctx.setAbortController(abortController);
-  ctx.directiveManager.setAbortController(abortController);
+  ctx.signalManager.setAbortController(abortController);
 
-  // Set step context for directives
-  ctx.directiveManager.setStepContext({
+  // Set step context for signals
+  ctx.signalManager.setStepContext({
     stepIndex,
     agentId: uniqueAgentId,
     agentName: step.agentName,
@@ -96,7 +96,7 @@ export function beforeRun(options: BeforeRunOptions): BeforeRunResult {
  */
 export function cleanupRun(ctx: RunnerContext): void {
   ctx.setAbortController(null);
-  ctx.directiveManager.setAbortController(null);
+  ctx.signalManager.setAbortController(null);
   // Keep stepContext - still valid during waiting state
 }
 

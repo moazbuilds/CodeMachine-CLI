@@ -9,23 +9,23 @@
 
 import * as path from 'node:path';
 
-import type { RunWorkflowOptions, WorkflowStep, WorkflowTemplate } from '../templates/types.js';
-import { loadTemplateWithPath } from '../templates/index.js';
-import { debug, setDebugLogFile } from '../../shared/logging/logger.js';
+import type { RunWorkflowOptions, WorkflowStep, WorkflowTemplate } from './templates/types.js';
+import { loadTemplateWithPath } from './templates/index.js';
+import { debug, setDebugLogFile } from '../shared/logging/logger.js';
 import {
   getTemplatePathFromTracking,
   getResumeStartIndex,
   getSelectedTrack,
   getSelectedConditions,
-} from '../../shared/workflows/index.js';
-import { registry } from '../../infra/engines/index.js';
-import { MonitoringCleanup } from '../../agents/monitoring/index.js';
-import { WorkflowEventBus, WorkflowEventEmitter } from '../events/index.js';
-import { validateSpecification } from '../../runtime/services/index.js';
-import { WorkflowRunner } from '../runner/index.js';
-import { getUniqueAgentId } from '../context/index.js';
+} from '../shared/workflows/index.js';
+import { registry } from '../infra/engines/index.js';
+import { MonitoringCleanup } from '../agents/monitoring/index.js';
+import { WorkflowEventBus, WorkflowEventEmitter } from './events/index.js';
+import { validateSpecification } from '../runtime/services/index.js';
+import { WorkflowRunner } from './runner/index.js';
+import { getUniqueAgentId } from './context/index.js';
 
-export { validateSpecification, ValidationError } from '../../runtime/services/index.js';
+export { validateSpecification, ValidationError } from '../runtime/services/index.js';
 export type { WorkflowStep, WorkflowTemplate };
 
 /**

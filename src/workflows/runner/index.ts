@@ -21,12 +21,11 @@ import {
   type InputProvider,
   type InputEventEmitter,
 } from '../input/index.js';
-import { setAutoMode, createModeListener } from '../signals/index.js';
+import { SignalManager, setAutoMode } from '../signals/index.js';
 import { loadControllerConfig } from '../../shared/workflows/controller.js';
-import { DirectiveManager, type ActiveLoop } from '../directives/index.js';
+import type { ActiveLoop } from '../directives/loop/index.js';
 
 import type { WorkflowRunnerOptions, RunnerContext } from './types.js';
-import { setupListeners } from './listeners.js';
 import { runStepFresh } from '../step/run.js';
 import { handleWaiting } from './wait.js';
 
@@ -41,7 +40,7 @@ export class WorkflowRunner implements RunnerContext {
   readonly machine: StateMachine;
   readonly emitter: WorkflowEventEmitter;
   readonly inputEmitter: InputEventEmitter;
-  readonly directiveManager: DirectiveManager;
+  readonly signalManager: SignalManager;
   readonly moduleSteps: ModuleStep[];
   readonly cwd: string;
   readonly cmRoot: string;
@@ -98,19 +97,26 @@ export class WorkflowRunner implements RunnerContext {
       currentOutput: null,
     });
 
-    // Create directive manager (handles pause, skip, etc.)
-    this.directiveManager = new DirectiveManager({
+    // Create signal manager (handles pause, skip, stop, mode-change)
+    this.signalManager = new SignalManager({
       emitter: this.emitter,
       machine: this.machine,
       cwd: this.cwd,
       cmRoot: this.cmRoot,
     });
 
-    // Set up event listeners
-    setupListeners(this);
+    // Set mode context for mode switching
+    this.signalManager.setModeContext({
+      getActiveProvider: () => this.activeProvider,
+      setActiveProvider: (p) => {
+        this.activeProvider = p;
+      },
+      getUserInput: () => this.userInput,
+      getControllerInput: () => this.controllerInput,
+    });
 
-    // Set up mode listener
-    createModeListener({ ctx: this, machine: this.machine });
+    // Initialize all signal listeners
+    this.signalManager.init();
   }
 
   // RunnerContext implementation
@@ -214,7 +220,7 @@ export class WorkflowRunner implements RunnerContext {
    * Pause the workflow
    */
   pause(): void {
-    // Just emit event - directive handles everything
+    // Just emit event - SignalManager handles everything
     (process as NodeJS.EventEmitter).emit('workflow:pause');
   }
 
