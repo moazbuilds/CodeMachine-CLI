@@ -21,7 +21,6 @@ export interface AgentTimelineProps {
   onToggleExpand: (agentId: string) => void
   availableHeight?: number
   availableWidth?: number
-  isPaused?: boolean
   isPromptBoxFocused?: boolean
 }
 
@@ -90,7 +89,7 @@ export function AgentTimeline(props: AgentTimelineProps) {
 
               // Main agent
               if (item.type === "main") {
-                return <MainAgentNode agent={item.agent} isSelected={isMainSelected(item.id)} isPaused={props.isPaused} availableWidth={props.availableWidth} />
+                return <MainAgentNode agent={item.agent} isSelected={isMainSelected(item.id)} availableWidth={props.availableWidth} />
               }
 
               // Sub-agent summary (collapsed)
@@ -116,7 +115,7 @@ export function AgentTimeline(props: AgentTimelineProps) {
 
               // Sub-agent (expanded)
               if (item.type === "sub") {
-                return <SubAgentNode agent={item.agent} isSelected={isSubSelected(item.id)} isPaused={props.isPaused} />
+                return <SubAgentNode agent={item.agent} isSelected={isSubSelected(item.id)} />
               }
 
               return null

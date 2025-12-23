@@ -10,6 +10,7 @@ import { debug } from "../../../../../shared/logging/logger.js"
 import type { AgentStatus, SubAgentState, LoopState, ChainedState, InputState, TriggeredAgentState } from "../state/types.js"
 import { BaseUIAdapter } from "./base.js"
 import type { UIAdapterOptions } from "./types.js"
+import { timerService } from "@tui/shared/services"
 
 /**
  * Actions interface that the OpenTUI adapter calls to update UI state.
@@ -92,20 +93,34 @@ export class OpenTUIAdapter extends BaseUIAdapter {
     switch (event.type) {
       // Workflow events
       case "workflow:started":
+        // Reset timer for new workflow (will auto-start on first agent)
+        timerService.reset()
         this.actions.setWorkflowStatus("running")
         break
 
       case "workflow:status":
         debug(`[DEBUG Adapter] Received workflow:status event with status=${event.status}`)
+        // Handle timer service state transitions
+        if (event.status === "stopped" || event.status === "completed" || event.status === "error") {
+          timerService.stop()
+        } else if (event.status === "paused") {
+          timerService.pause("user")
+        } else if (event.status === "running" && timerService.isPaused()) {
+          timerService.resume()
+        }
         this.actions.setWorkflowStatus(event.status)
         break
 
       case "workflow:stopped":
+        timerService.stop()
         this.actions.setWorkflowStatus("stopped")
         break
 
       // Agent events
-      case "agent:added":
+      case "agent:added": {
+        const startTime = Date.now()
+        // Register with timer service (auto-starts workflow timer on first agent)
+        timerService.registerAgent(event.agent.id, startTime)
         this.actions.addAgent({
           id: event.agent.id,
           name: event.agent.name,
@@ -113,15 +128,20 @@ export class OpenTUIAdapter extends BaseUIAdapter {
           model: event.agent.model,
           status: event.agent.status,
           telemetry: { tokensIn: 0, tokensOut: 0 },
-          startTime: Date.now(),
+          startTime,
           toolCount: 0,
           thinkingCount: 0,
           stepIndex: event.agent.stepIndex,
           totalSteps: event.agent.totalSteps,
         })
         break
+      }
 
       case "agent:status":
+        // Update timer service for completion states
+        if (event.status === "completed" || event.status === "failed" || event.status === "skipped") {
+          timerService.completeAgent(event.agentId)
+        }
         this.actions.updateAgentStatus(event.agentId, event.status)
         break
 
@@ -148,14 +168,24 @@ export class OpenTUIAdapter extends BaseUIAdapter {
 
       // Sub-agent events
       case "subagent:added":
+        // Register sub-agent with timer service
+        timerService.registerAgent(event.subAgent.id, event.subAgent.startTime)
         this.actions.addSubAgent(event.parentId, event.subAgent)
         break
 
       case "subagent:batch":
+        // Register all sub-agents with timer service
+        for (const subAgent of event.subAgents) {
+          timerService.registerAgent(subAgent.id, subAgent.startTime)
+        }
         this.actions.batchAddSubAgents(event.parentId, event.subAgents)
         break
 
       case "subagent:status":
+        // Update timer service for completion states
+        if (event.status === "completed" || event.status === "failed" || event.status === "skipped") {
+          timerService.completeAgent(event.subAgentId)
+        }
         this.actions.updateSubAgentStatus(event.subAgentId, event.status)
         break
 
@@ -179,15 +209,27 @@ export class OpenTUIAdapter extends BaseUIAdapter {
 
       // Checkpoint events
       case "checkpoint:state":
+        if (event.checkpoint?.active) {
+          timerService.pause("checkpoint")
+        }
         this.actions.setCheckpointState(event.checkpoint)
         break
 
       case "checkpoint:clear":
+        // Resume timer if not in another pause state
+        if (timerService.getPauseReason() === "checkpoint") {
+          timerService.resume()
+        }
         this.actions.setCheckpointState(null)
         break
 
       // Input state events (unified pause/chained)
       case "input:state":
+        if (event.inputState?.active) {
+          timerService.pause("awaiting")
+        } else if (timerService.getPauseReason() === "awaiting") {
+          timerService.resume()
+        }
         this.actions.setInputState(event.inputState)
         break
 

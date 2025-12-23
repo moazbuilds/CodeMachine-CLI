@@ -13,7 +13,7 @@ import { useToast } from "@tui/shared/context/toast"
 import { useUIState } from "./context/ui-state"
 import { AgentTimeline } from "./components/timeline"
 import { OutputWindow, TelemetryBar, StatusFooter } from "./components/output"
-import { formatRuntime } from "./state/formatters"
+import { useTimer } from "@tui/shared/services"
 import { CheckpointModal, LogViewer, HistoryView, StopModal, ErrorModal } from "./components/modals"
 import { OpenTUIAdapter } from "./adapters/opentui"
 import { useLogStream } from "./hooks/useLogStream"
@@ -44,6 +44,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
   const state = () => ui.state()
   const dimensions = useTerminalDimensions()
   const modals = useWorkflowModals()
+  const timer = useTimer()
 
   const getVisibleItems = () => calculateVisibleItems(dimensions()?.height ?? 30)
 
@@ -81,19 +82,14 @@ export function WorkflowShell(props: WorkflowShellProps) {
     ui.actions.setVisibleItemCount(getVisibleItems())
   })
 
-  // Track checkpoint freeze time
-  const [checkpointFreezeTime, setCheckpointFreezeTime] = createSignal<number | undefined>(undefined)
-
   // Connect to event bus
   let adapter: OpenTUIAdapter | null = null
 
   const handleStopping = () => {
-    setCheckpointFreezeTime(Date.now())
     ui.actions.setWorkflowStatus("stopping")
   }
 
   const handleUserStop = () => {
-    setCheckpointFreezeTime(Date.now())
     ui.actions.setWorkflowStatus("stopped")
   }
 
@@ -158,29 +154,6 @@ export function WorkflowShell(props: WorkflowShellProps) {
   // Unified input waiting check
   const isWaitingForInput = () => state().inputState?.active ?? false
 
-  // Timer freeze effects
-  createEffect(() => {
-    const checkpointState = state().checkpointState
-    if (checkpointState?.active && !checkpointFreezeTime()) {
-      setCheckpointFreezeTime(Date.now())
-    } else if (!checkpointState?.active && checkpointFreezeTime() && !isWaitingForInput()) {
-      setCheckpointFreezeTime(undefined)
-    }
-  })
-
-  createEffect(() => {
-    if (isWaitingForInput() && !checkpointFreezeTime()) {
-      setCheckpointFreezeTime(Date.now())
-    } else if (!isWaitingForInput() && checkpointFreezeTime() && !state().checkpointState?.active) {
-      setCheckpointFreezeTime(undefined)
-    }
-  })
-
-  // Runtime tick
-  const [tick, setTick] = createSignal(0)
-  const tickInterval = setInterval(() => setTick((t) => t + 1), 1000)
-  onCleanup(() => clearInterval(tickInterval))
-
   // Current agent for output
   const currentAgent = createMemo(() => {
     const s = state()
@@ -199,12 +172,6 @@ export function WorkflowShell(props: WorkflowShellProps) {
   })
 
   const logStream = useLogStream(() => currentAgent()?.monitoringId)
-
-  const runtime = createMemo(() => {
-    tick()
-    const effectiveEndTime = checkpointFreezeTime() ?? state().endTime
-    return formatRuntime(state().startTime, effectiveEndTime)
-  })
 
   const totalTelemetry = createMemo(() => {
     const s = state()
@@ -229,7 +196,6 @@ export function WorkflowShell(props: WorkflowShellProps) {
   const handleCheckpointContinue = () => {
     ui.actions.setCheckpointState(null)
     ui.actions.setWorkflowStatus("running")
-    setCheckpointFreezeTime(undefined)
     ;(process as NodeJS.EventEmitter).emit("checkpoint:continue")
   }
 
@@ -387,7 +353,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
       <box flexDirection="row" flexGrow={1} gap={1}>
         <Show when={!isTimelineCollapsed()}>
           <box flexDirection="column" width={showOutputPanel() ? "35%" : "100%"}>
-            <AgentTimeline state={state()} onToggleExpand={(id) => ui.actions.toggleExpand(id)} availableHeight={state().visibleItemCount} availableWidth={Math.floor((dimensions()?.width ?? 80) * (showOutputPanel() ? 0.35 : 1))} isPaused={isWaitingForInput()} isPromptBoxFocused={isPromptBoxFocused()} />
+            <AgentTimeline state={state()} onToggleExpand={(id) => ui.actions.toggleExpand(id)} availableHeight={state().visibleItemCount} availableWidth={Math.floor((dimensions()?.width ?? 80) * (showOutputPanel() ? 0.35 : 1))} isPromptBoxFocused={isPromptBoxFocused()} />
           </box>
         </Show>
         <Show when={showOutputPanel() || isTimelineCollapsed()}>
@@ -412,7 +378,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
       </box>
 
       <box flexShrink={0} flexDirection="column">
-        <TelemetryBar workflowName={state().workflowName} runtime={runtime()} status={state().workflowStatus} total={totalTelemetry()} autonomousMode={state().autonomousMode} />
+        <TelemetryBar workflowName={state().workflowName} runtime={timer.workflowRuntime()} status={state().workflowStatus} total={totalTelemetry()} autonomousMode={state().autonomousMode} />
         <StatusFooter autonomousMode={state().autonomousMode} />
       </box>
 

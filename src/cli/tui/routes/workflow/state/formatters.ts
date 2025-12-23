@@ -1,49 +1,9 @@
-import type { AgentStatus } from "./types"
-
-export function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  const secs = Math.floor(seconds % 60)
-
-  if (hours > 0) {
-    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs
-      .toString()
-      .padStart(2, "0")}`
-  }
-
-  return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
-}
-
 /**
- * Calculate display-friendly duration for an agent based on timestamps/status.
- * Ported from: src/ui/utils/calculateDuration.ts
+ * Formatting utilities for workflow display
+ *
+ * Note: Time/duration formatting has been moved to the unified TimerService
+ * at @tui/shared/services/timer.ts
  */
-export interface DurationInput {
-  startTime: number
-  endTime?: number
-  status: AgentStatus
-}
-
-export function calculateDuration(
-  { startTime, endTime, status }: DurationInput,
-  nowProvider: () => number = Date.now
-): string {
-  if (endTime) {
-    return formatDuration((endTime - startTime) / 1000)
-  }
-
-  if (status === "running") {
-    return formatDuration((nowProvider() - startTime) / 1000)
-  }
-
-  return ""
-}
-
-export function formatRuntime(startTime: number, endTime?: number): string {
-  const now = endTime ?? Date.now()
-  const elapsed = Math.floor((now - startTime) / 1000)
-  return formatDuration(elapsed)
-}
 
 export function formatNumber(num: number): string {
   return num.toLocaleString()

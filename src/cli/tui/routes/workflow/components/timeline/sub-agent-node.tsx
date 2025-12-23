@@ -6,72 +6,43 @@
  * Styled similarly to MainAgentNode but with proper indentation for hierarchy
  */
 
-import { Show, createSignal, createEffect, on } from "solid-js"
+import { Show } from "solid-js"
 import { useTheme } from "@tui/shared/context/theme"
-import { useTick } from "@tui/shared/hooks/tick"
+import { useTimer, formatDuration } from "@tui/shared/services"
 import { Spinner } from "@tui/shared/components/spinner"
 import type { SubAgentState } from "../../state/types"
-import { formatDuration } from "../../state/formatters"
 import { getStatusIcon, getStatusColor } from "./status-utils"
 
 export interface SubAgentNodeProps {
   agent: SubAgentState
   isSelected: boolean
-  isPaused?: boolean
 }
 
 export function SubAgentNode(props: SubAgentNodeProps) {
   const themeCtx = useTheme()
-  const now = useTick()
+  const timer = useTimer()
 
   const color = () => props.agent.error ? themeCtx.theme.error : getStatusColor(props.agent.status, themeCtx.theme)
 
-  // Store pause state for timer freeze/resume
-  const [pauseStartTime, setPauseStartTime] = createSignal<number | null>(null)
-  const [totalPausedTime, setTotalPausedTime] = createSignal<number>(0)
-
-  // Handle pause/resume transitions
-  createEffect(on(
-    () => props.isPaused,
-    (isPaused, wasPaused) => {
-      if (isPaused && !wasPaused) {
-        // Just paused - record the time
-        setPauseStartTime(Date.now())
-      } else if (!isPaused && wasPaused) {
-        // Just resumed - add pause duration to total
-        const pauseStart = pauseStartTime()
-        if (pauseStart !== null) {
-          setTotalPausedTime(prev => prev + (Date.now() - pauseStart))
-        }
-        setPauseStartTime(null)
-      }
-    },
-    { defer: false }
-  ))
-
+  // Duration calculation:
+  // - Running agents: live timer from timer service
+  // - Completed agents: frozen duration from UI state
+  // - Queued agents: show 00:00
   const duration = () => {
     const { startTime, endTime, status } = props.agent
 
+    // Completed/failed/skipped - show frozen duration
     if (endTime) {
       return formatDuration((endTime - startTime) / 1000)
     }
 
-    if (status !== "running" || startTime <= 0) {
-      return ""
+    // Running agent - use timer service for live updates
+    if (status === "running" && startTime > 0) {
+      return timer.agentDuration(props.agent.id)
     }
 
-    const pauseStart = pauseStartTime()
-    const totalPaused = totalPausedTime()
-
-    // If currently paused, use pauseStartTime (don't call now())
-    if (props.isPaused && pauseStart !== null) {
-      const elapsed = (pauseStart - startTime - totalPaused) / 1000
-      return formatDuration(Math.max(0, elapsed))
-    }
-
-    // Running - use live time minus total paused time
-    const elapsed = (now() - startTime - totalPaused) / 1000
-    return formatDuration(Math.max(0, elapsed))
+    // Queued/pending - show 00:00
+    return "00:00"
   }
 
   // Selection indicator
@@ -83,7 +54,7 @@ export function SubAgentNode(props: SubAgentNodeProps) {
       <Show when={props.agent.status === "running"} fallback={
         <text fg={color()}>{getStatusIcon(props.agent.status)} </text>
       }>
-        <Show when={props.isPaused} fallback={
+        <Show when={timer.isPaused()} fallback={
           <>
             <Spinner color={color()} />
             <text> </text>
