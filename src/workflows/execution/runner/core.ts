@@ -74,6 +74,7 @@ export class WorkflowRunner implements RunnerContext {
       getControllerConfig: () => this.getControllerConfig(),
       cwd: this.cwd,
       cmRoot: this.cmRoot,
+      workflowEmitter: this.emitter,
     });
 
     // Default to user input

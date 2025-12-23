@@ -46,6 +46,8 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
   }
 
   // Build input context
+  const step = ctx.moduleSteps[machineCtx.currentStepIndex];
+  const stepUniqueAgentId = `${step.agentId}-step-${machineCtx.currentStepIndex}`;
   const inputContext: InputContext = {
     stepOutput: machineCtx.currentOutput ?? { output: '' },
     stepIndex: machineCtx.currentStepIndex,
@@ -53,6 +55,7 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
     promptQueue: machineCtx.promptQueue,
     promptQueueIndex: machineCtx.promptQueueIndex,
     cwd: ctx.cwd,
+    uniqueAgentId: stepUniqueAgentId,
   };
 
   // Get input from provider (user input if paused, otherwise active provider)
@@ -65,9 +68,7 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
     debug('[Runner] Switching to manual mode');
     await callbacks.setAutoMode(false);
     // Now show checkpoint since we're waiting for user input
-    const step = ctx.moduleSteps[machineCtx.currentStepIndex];
-    const uniqueAgentId = `${step.agentId}-step-${machineCtx.currentStepIndex}`;
-    ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
+    ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'awaiting');
     // Re-run waiting with user input
     return;
   }
@@ -81,18 +82,15 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
   }
 
   // Handle result
-  const step = ctx.moduleSteps[machineCtx.currentStepIndex];
-  const uniqueAgentId = `${step.agentId}-step-${machineCtx.currentStepIndex}`;
-
   switch (result.type) {
     case 'input':
       if (result.value === '') {
         // Empty input = advance to next step
         debug('[Runner] Empty input, marking agent completed and advancing');
         machineCtx.paused = false; // Clear paused flag
-        ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
-        ctx.emitter.logMessage(uniqueAgentId, `${step.agentName} has completed their work.`);
-        ctx.emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
+        ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'completed');
+        ctx.emitter.logMessage(stepUniqueAgentId, `${step.agentName} has completed their work.`);
+        ctx.emitter.logMessage(stepUniqueAgentId, '\n' + '═'.repeat(80) + '\n');
         // Track step completion for resume
         await markStepCompleted(ctx.cmRoot, machineCtx.currentStepIndex);
         ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
@@ -105,9 +103,9 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
     case 'skip':
       debug('[Runner] Skip requested, marking agent skipped');
       machineCtx.paused = false; // Clear paused flag
-      ctx.emitter.updateAgentStatus(uniqueAgentId, 'skipped');
-      ctx.emitter.logMessage(uniqueAgentId, `${step.agentName} was skipped.`);
-      ctx.emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
+      ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'skipped');
+      ctx.emitter.logMessage(stepUniqueAgentId, `${step.agentName} was skipped.`);
+      ctx.emitter.logMessage(stepUniqueAgentId, '\n' + '═'.repeat(80) + '\n');
       // Track step completion for resume
       await markStepCompleted(ctx.cmRoot, machineCtx.currentStepIndex);
       ctx.machine.send({ type: 'SKIP' });

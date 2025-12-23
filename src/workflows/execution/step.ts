@@ -4,11 +4,11 @@ import type { WorkflowStep } from '../templates/index.js';
 import { isModuleStep } from '../templates/types.js';
 import type { EngineType } from '../../infra/engines/index.js';
 import { processPromptString } from '../../shared/prompts/index.js';
-import { executeAgent, type ChainedPrompt } from '../../agents/runner/runner.js';
+import { execute, type ChainedPrompt } from '../../agents/execution/index.js';
 import type { WorkflowEventEmitter } from '../events/emitter.js';
 import { debug } from '../../shared/logging/logger.js';
 
-export type { ChainedPrompt } from '../../agents/runner/runner.js';
+export type { ChainedPrompt } from '../../agents/execution/index.js';
 
 /**
  * Output from executing a workflow step
@@ -113,23 +113,15 @@ export async function executeStep(
   const engineType: EngineType | undefined = step.engine;
   debug(`[DEBUG step] engineType=${engineType}`);
 
-  // Build telemetry callback that updates emitter
-  const onTelemetry = options.uniqueAgentId
-    ? (telemetry: import('../../cli/tui/routes/workflow/state/types.js').AgentTelemetry) => {
-        options.emitter?.updateAgentTelemetry(options.uniqueAgentId!, telemetry);
-      }
-    : undefined;
-
-  debug(`[DEBUG step] Calling executeAgent...`);
-  // Execute via the unified execution runner
-  // Runner handles: auth, monitoring, engine execution, memory storage
-  const result = await executeAgent(step.agentId, prompt, {
+  debug(`[DEBUG step] Calling execute...`);
+  // Execute via the unified execution layer
+  // Handles: auth, monitoring, engine execution, memory storage, telemetry forwarding
+  const result = await execute(step.agentId, prompt, {
     workingDir: cwd,
     engine: engineType,
     model: step.model,
     logger: options.logger,
     stderrLogger: options.stderrLogger,
-    onTelemetry,
     parentId: options.parentId,
     disableMonitoring: options.disableMonitoring,
     abortSignal: options.abortSignal,
@@ -141,9 +133,13 @@ export async function executeStep(
     selectedConditions: options.selectedConditions,
     // Pass emitter as UI so runner can register monitoring ID immediately
     ui: options.emitter,
+    // Telemetry auto-forwarding (replaces manual callback setup)
+    telemetry: options.uniqueAgentId && options.emitter
+      ? { uniqueAgentId: options.uniqueAgentId, emitter: options.emitter }
+      : undefined,
   });
 
-  debug(`[DEBUG step] executeAgent completed. agentId=${result.agentId}, outputLength=${result.output?.length ?? 0}`);
+  debug(`[DEBUG step] execute completed. agentId=${result.agentId}, outputLength=${result.output?.length ?? 0}`);
 
   // Run special post-execution steps
   const agentName = step.agentName.toLowerCase();

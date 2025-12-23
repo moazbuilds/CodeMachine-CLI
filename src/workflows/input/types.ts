@@ -28,6 +28,9 @@ export interface InputContext {
 
   /** Working directory */
   cwd: string;
+
+  /** Unique agent ID for the current step (for telemetry attribution) */
+  uniqueAgentId?: string;
 }
 
 /**

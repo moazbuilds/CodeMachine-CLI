@@ -6,19 +6,16 @@
  */
 
 import { debug } from '../../shared/logging/logger.js';
-import { executeAgent } from '../../agents/runner/runner.js';
+import { executeWithActions } from '../../agents/execution/index.js';
 import { AgentLoggerService, AgentMonitorService } from '../../agents/monitoring/index.js';
-import {
-  parseControllerAction,
-  extractInputText,
-  saveControllerConfig,
-} from '../../shared/workflows/controller.js';
+import { saveControllerConfig } from '../../shared/workflows/controller.js';
 import { stripColorMarkers } from '../../shared/formatters/logFileFormatter.js';
 import {
   formatControllerHeader,
   formatControllerFooter,
 } from '../../shared/formatters/outputMarkers.js';
 import type { ControllerConfig } from '../../shared/workflows/template.js';
+import type { WorkflowEventEmitter } from '../events/index.js';
 import type {
   InputProvider,
   InputContext,
@@ -34,6 +31,8 @@ export interface ControllerInputProviderOptions {
   getControllerConfig: () => Promise<ControllerConfig | null>;
   cwd: string;
   cmRoot: string;
+  /** Workflow emitter for telemetry updates */
+  workflowEmitter?: WorkflowEventEmitter;
 }
 
 /**
@@ -53,6 +52,7 @@ export class ControllerInputProvider implements InputProvider {
   private getControllerConfig: () => Promise<ControllerConfig | null>;
   private cwd: string;
   private cmRoot: string;
+  private workflowEmitter?: WorkflowEventEmitter;
   private aborted = false;
   private abortController: AbortController | null = null;
   private modeChangeListener: ((data: { autonomousMode: boolean }) => void) | null = null;
@@ -62,6 +62,7 @@ export class ControllerInputProvider implements InputProvider {
     this.getControllerConfig = options.getControllerConfig;
     this.cwd = options.cwd;
     this.cmRoot = options.cmRoot;
+    this.workflowEmitter = options.workflowEmitter;
   }
 
   async getInput(context: InputContext): Promise<InputResult> {
@@ -111,8 +112,8 @@ Review the output above and respond appropriately, or use ACTION: NEXT to procee
         loggerService.write(context.stepOutput.monitoringId, '\n' + formatControllerHeader('PO Agent') + '\n');
       }
 
-      // Execute controller agent (resume existing session)
-      const result = await executeAgent(config.agentId, prompt, {
+      // Execute controller agent with action parsing enabled (resume existing session)
+      const result = await executeWithActions(config.agentId, prompt, {
         workingDir: this.cwd,
         resumeSessionId: config.sessionId,
         resumePrompt: prompt,
@@ -128,6 +129,10 @@ Review the output above and respond appropriately, or use ACTION: NEXT to procee
             loggerService.write(context.stepOutput.monitoringId, `[STDERR] ${chunk}`);
           }
         },
+        // Add telemetry support - attribute to current step's agent
+        telemetry: this.workflowEmitter && context.uniqueAgentId
+          ? { uniqueAgentId: context.uniqueAgentId, emitter: this.workflowEmitter }
+          : undefined,
       });
 
       // Write controller footer
@@ -163,16 +168,13 @@ Review the output above and respond appropriately, or use ACTION: NEXT to procee
         return { type: 'input', value: '__SWITCH_TO_MANUAL__' };
       }
 
-      const response = result.output;
-      debug('[Controller] Response: %s...', response.slice(0, 100));
+      debug('[Controller] Response: %s...', result.output.slice(0, 100));
 
-      // Parse for action commands
-      const action = parseControllerAction(response);
+      // Action already parsed by executeWithActions
+      if (result.action) {
+        debug('[Controller] Action detected: %s', result.action);
 
-      if (action) {
-        debug('[Controller] Action detected: %s', action);
-
-        switch (action) {
+        switch (result.action) {
           case 'NEXT': {
             // Use next queued prompt content to advance
             const hasQueuedPrompt = context.promptQueue.length > 0 &&
@@ -198,8 +200,8 @@ Review the output above and respond appropriately, or use ACTION: NEXT to procee
         }
       }
 
-      // No action - use response as input
-      const cleanedResponse = extractInputText(response);
+      // No action - use cleaned response as input
+      const cleanedResponse = result.cleanedOutput!;
       debug('[Controller] Sending as input: %s...', cleanedResponse.slice(0, 50));
 
       this.emitter.emitReceived({ input: cleanedResponse, source: 'controller' });

@@ -172,36 +172,19 @@ export async function clearControllerConfig(cmRoot: string): Promise<void> {
   }
 }
 
-/**
- * Parse controller response for action commands
- */
-export function parseControllerAction(output: string): 'NEXT' | 'SKIP' | 'STOP' | null {
-  if (output.includes('ACTION: NEXT')) return 'NEXT';
-  if (output.includes('ACTION: SKIP')) return 'SKIP';
-  if (output.includes('ACTION: STOP')) return 'STOP';
-  return null;
-}
+// ─────────────────────────────────────────────────────────────────
+// Action Parsing (re-exported from agents/execution for backward compatibility)
+// ─────────────────────────────────────────────────────────────────
 
 /**
- * Extract clean input text from controller response
- * Removes:
- * - ACTION: commands
- * - Color markers like [CYAN], [GREEN:BOLD], [GRAY], etc.
- * - Status lines like "> OpenCode is analyzing..."
+ * @deprecated Use parseAction from '../../agents/execution/index.js' instead
  */
-export function extractInputText(output: string): string {
-  let cleaned = output
-    // Remove ACTION commands
-    .replace(/ACTION:\s*(NEXT|SKIP|STOP)/g, '')
-    // Remove color markers like [CYAN], [GREEN:BOLD], [GRAY], [RUNNING], etc.
-    .replace(/\[(CYAN|GREEN|GRAY|RED|YELLOW|MAGENTA|BLUE|WHITE|BLACK|RUNNING|DIM|BOLD|RESET)(:[A-Z]+)?\]/gi, '')
-    // Remove "* " thinking prefix from streaming
-    .replace(/^\s*\*\s*/gm, '')
-    // Remove status lines
-    .replace(/>\s*OpenCode is analyzing[^\n]*/gi, '')
-    // Clean up multiple newlines
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+export { parseAction as parseControllerAction } from '../../agents/execution/actions.js';
 
-  return cleaned;
-}
+/**
+ * @deprecated Use extractCleanText from '../../agents/execution/index.js' instead
+ */
+export { extractCleanText as extractInputText } from '../../agents/execution/actions.js';
+
+// Export the new generic type for forward compatibility
+export type { AgentAction } from '../../agents/execution/types.js';
