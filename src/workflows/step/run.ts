@@ -202,7 +202,9 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
     return { output: stepOutput };
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      debug('[step/run] Step aborted');
+      debug('[step/run] Step aborted, skipping to next');
+      ctx.emitter.updateAgentStatus(uniqueAgentId, 'skipped');
+      ctx.machine.send({ type: 'SKIP' });
       return null;
     }
 
