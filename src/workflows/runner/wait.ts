@@ -27,21 +27,24 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
   const machineCtx = ctx.machine.context;
 
   debug('[Runner] Handling waiting state, autoMode=%s, paused=%s, promptQueue=%d items, queueIndex=%d',
-    machineCtx.autoMode, machineCtx.paused, machineCtx.promptQueue.length, machineCtx.promptQueueIndex);
+    ctx.mode.autoMode, ctx.mode.paused, machineCtx.promptQueue.length, machineCtx.promptQueueIndex);
 
-  // Determine input provider:
-  // - If paused → always use user input
-  // - If manual mode (autoMode=false) → always use user input
-  // - If auto mode (autoMode=true) and not paused → use active provider (controller)
-  const useUserInput = machineCtx.paused || !machineCtx.autoMode;
-  const provider = useUserInput ? ctx.getUserInput() : ctx.getActiveProvider();
-  if (machineCtx.paused) {
+  // Get provider from WorkflowMode (single source of truth)
+  // WorkflowMode.getActiveProvider() automatically handles paused and autoMode state
+  const provider = ctx.mode.getActiveProvider();
+  if (ctx.mode.paused) {
     debug('[Runner] Workflow is paused, using user input provider');
-  } else if (!machineCtx.autoMode) {
+  } else if (!ctx.mode.autoMode) {
     debug('[Runner] Manual mode, using user input provider');
   }
 
-  if (!machineCtx.paused && machineCtx.promptQueue.length === 0 && machineCtx.autoMode) {
+  // Get queue state from session (source of truth) or machine context (fallback)
+  const session = ctx.getCurrentSession();
+  const hasChainedPrompts = session
+    ? !session.isQueueExhausted
+    : machineCtx.promptQueue.length > machineCtx.promptQueueIndex;
+
+  if (!ctx.mode.paused && !hasChainedPrompts && ctx.mode.autoMode) {
     // No chained prompts, not paused, and in auto mode - auto-advance to next step
     // In manual mode, we wait for user input before advancing
     debug('[Runner] No chained prompts (auto mode), auto-advancing to next step');
@@ -53,12 +56,18 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
   // Build input context
   const step = ctx.moduleSteps[machineCtx.currentStepIndex];
   const stepUniqueAgentId = getUniqueAgentId(step, machineCtx.currentStepIndex);
+
+  // Get queue state from session if available, otherwise from machine context
+  const queueState = session
+    ? session.getQueueState()
+    : { promptQueue: machineCtx.promptQueue, promptQueueIndex: machineCtx.promptQueueIndex };
+
   const inputContext: InputContext = {
     stepOutput: machineCtx.currentOutput ?? { output: '' },
     stepIndex: machineCtx.currentStepIndex,
     totalSteps: machineCtx.totalSteps,
-    promptQueue: machineCtx.promptQueue,
-    promptQueueIndex: machineCtx.promptQueueIndex,
+    promptQueue: queueState.promptQueue,
+    promptQueueIndex: queueState.promptQueueIndex,
     cwd: ctx.cwd,
     uniqueAgentId: stepUniqueAgentId,
   };
@@ -89,7 +98,8 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
       if (result.value === '') {
         // Empty input = advance to next step
         debug('[Runner] Empty input, marking agent completed and advancing');
-        machineCtx.paused = false;
+        ctx.mode.resume();
+        machineCtx.paused = false; // Keep machine context in sync
         ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'completed');
         await markStepCompleted(ctx.cmRoot, machineCtx.currentStepIndex);
         ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
@@ -101,7 +111,8 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
 
     case 'skip':
       debug('[Runner] Skip requested, marking agent skipped');
-      machineCtx.paused = false;
+      ctx.mode.resume();
+      machineCtx.paused = false; // Keep machine context in sync
       ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'skipped');
       await markStepCompleted(ctx.cmRoot, machineCtx.currentStepIndex);
       ctx.machine.send({ type: 'SKIP' });
@@ -131,7 +142,21 @@ async function handleResumeInput(
 
   // Detect queued vs custom input and advance queue if needed
   let isQueuedPrompt = false;
-  if (machineCtx.promptQueue.length > 0 && machineCtx.promptQueueIndex < machineCtx.promptQueue.length) {
+  const session = ctx.getCurrentSession();
+
+  if (session) {
+    // Use StepSession for queue management
+    if (session.isQueuedPrompt(input)) {
+      isQueuedPrompt = true;
+      const chainIndex = session.promptQueueIndex;
+      session.advanceQueue();
+      // Sync to machine context
+      session.syncToMachineContext(machineCtx);
+      debug('[Runner] Advanced queue via StepSession to index %d', session.promptQueueIndex);
+      await markChainCompleted(ctx.cmRoot, machineCtx.currentStepIndex, chainIndex);
+    }
+  } else if (machineCtx.promptQueue.length > 0 && machineCtx.promptQueueIndex < machineCtx.promptQueue.length) {
+    // Fallback: use machine context directly
     const queuedPrompt = machineCtx.promptQueue[machineCtx.promptQueueIndex];
     if (input === queuedPrompt.content) {
       isQueuedPrompt = true;
@@ -150,8 +175,9 @@ async function handleResumeInput(
     }
   }
 
-  // Clear paused flag
-  machineCtx.paused = false;
+  // Resume from paused state
+  ctx.mode.resume();
+  machineCtx.paused = false; // Keep machine context in sync
 
   // Track mode switch during execution
   let modeSwitchRequested: 'manual' | 'auto' | null = null;

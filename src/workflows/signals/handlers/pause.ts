@@ -3,6 +3,8 @@
  *
  * Handles workflow:pause process events (user keypress Ctrl+P or 'p').
  * Captures session for resume, updates status, transitions state machine, and aborts.
+ *
+ * Delegates to WorkflowMode for pause state management.
  */
 
 import { debug } from '../../../shared/logging/logger.js';
@@ -29,6 +31,13 @@ export function handlePauseSignal(ctx: SignalContext): void {
     // Transition state machine
     ctx.machine.send({ type: 'PAUSE' });
 
+    // Set paused state via WorkflowMode (single source of truth)
+    ctx.mode.pause();
+
+    // Sync machine context
+    const machineCtx = ctx.machine.context;
+    machineCtx.paused = true;
+
     // Capture session from monitor before aborting so resume can find it
     // Agent is registered with base ID (e.g., "bmad-architect" not "bmad-architect-step-2")
     const baseAgentId = stepContext.agentId.replace(/-step-\d+$/, '');
@@ -40,7 +49,6 @@ export function handlePauseSignal(ctx: SignalContext): void {
       debug('[PauseSignal] Captured agent: id=%d sessionId=%s', agent.id, agent.sessionId);
 
       // Set in machine context so handleWaiting can pass to resume
-      const machineCtx = ctx.machine.context;
       machineCtx.currentMonitoringId = agent.id;
       machineCtx.currentOutput = { output: '', monitoringId: agent.id };
 
@@ -55,7 +63,8 @@ export function handlePauseSignal(ctx: SignalContext): void {
     ctx.getAbortController()?.abort();
   }
 
-  // Switch to manual mode
+  // Emit mode-change event so ControllerInputProvider can abort its execution
+  // (it listens for this event to know when to stop)
   (process as NodeJS.EventEmitter).emit('workflow:mode-change', { autonomousMode: false });
 
   debug('[PauseSignal] Pause handled');

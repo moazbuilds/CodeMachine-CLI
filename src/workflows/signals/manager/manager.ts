@@ -10,6 +10,7 @@ import { debug } from '../../../shared/logging/logger.js';
 import type { WorkflowEventEmitter } from '../../events/emitter.js';
 import type { StateMachine } from '../../state/index.js';
 import type { InputProvider } from '../../input/types.js';
+import type { WorkflowMode } from '../../mode/index.js';
 import type {
   SignalManagerOptions,
   StepContext,
@@ -28,6 +29,7 @@ import { handleModeChangeSignal } from '../handlers/mode.js';
 export class SignalManager implements SignalContext {
   readonly machine: StateMachine;
   readonly emitter: WorkflowEventEmitter;
+  readonly mode: WorkflowMode;
   readonly cwd: string;
   readonly cmRoot: string;
 
@@ -36,6 +38,7 @@ export class SignalManager implements SignalContext {
   private cleanupFns: (() => void)[] = [];
 
   // Mode switching context (set by runner via setModeContext)
+  // Kept for backwards compatibility, but WorkflowMode is the source of truth
   private activeProviderGetter: (() => InputProvider) | null = null;
   private activeProviderSetter: ((p: InputProvider) => void) | null = null;
   private userInputGetter: (() => InputProvider) | null = null;
@@ -44,6 +47,7 @@ export class SignalManager implements SignalContext {
   constructor(options: SignalManagerOptions) {
     this.emitter = options.emitter;
     this.machine = options.machine;
+    this.mode = options.mode;
     this.cwd = options.cwd;
     this.cmRoot = options.cmRoot;
   }

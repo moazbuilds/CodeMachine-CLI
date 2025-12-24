@@ -3,10 +3,13 @@
  *
  * Handles workflow:mode-change process events.
  * Switches between user and auto (controller) input modes.
+ *
+ * Delegates to WorkflowMode for state management.
+ * WorkflowMode is the single source of truth for mode state.
  */
 
 import { debug } from '../../../shared/logging/logger.js';
-import type { SignalContext, ModeSwitchContext } from '../manager/types.js';
+import type { SignalContext } from '../manager/types.js';
 
 /**
  * Handle mode change signal
@@ -28,20 +31,17 @@ export async function handleModeChangeSignal(
     return;
   }
 
-  // In other states (running, idle), set auto mode directly
-  await setAutoMode(ctx, data.autonomousMode);
+  // In other states (running, idle), set auto mode via WorkflowMode
+  setAutoMode(ctx, data.autonomousMode);
 }
 
 /**
  * Set auto mode on/off
  *
- * Switches the active input provider between user and controller.
- * Exported for direct use by runner.setAutoMode()
+ * Delegates to WorkflowMode which handles provider activation/deactivation.
+ * Also syncs machine context to keep it consistent.
  */
-export async function setAutoMode(
-  ctx: ModeSwitchContext,
-  enabled: boolean
-): Promise<void> {
+export function setAutoMode(ctx: SignalContext, enabled: boolean): void {
   const machineCtx = ctx.machine.context;
 
   if (machineCtx.autoMode === enabled) {
@@ -50,18 +50,9 @@ export async function setAutoMode(
 
   debug('[Mode] Setting auto mode: %s', enabled);
 
-  // Deactivate current provider
-  const currentProvider = ctx.getActiveProvider();
-  currentProvider.deactivate?.();
+  // Delegate to WorkflowMode (handles provider activation/deactivation)
+  ctx.mode.setAutoMode(enabled);
 
-  // Update context
+  // Sync machine context
   machineCtx.autoMode = enabled;
-
-  // Activate new provider
-  if (enabled) {
-    ctx.setActiveProvider(ctx.getControllerInput());
-  } else {
-    ctx.setActiveProvider(ctx.getUserInput());
-  }
-  ctx.getActiveProvider().activate?.();
 }

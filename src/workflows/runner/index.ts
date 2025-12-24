@@ -21,9 +21,12 @@ import {
   type InputProvider,
   type InputEventEmitter,
 } from '../input/index.js';
-import { SignalManager, setAutoMode } from '../signals/index.js';
+import { SignalManager } from '../signals/index.js';
 import { loadControllerConfig } from '../../shared/workflows/controller.js';
 import type { ActiveLoop } from '../directives/loop/index.js';
+import { WorkflowMode } from '../mode/index.js';
+import { StepSession } from '../session/index.js';
+import { getUniqueAgentId } from '../context/index.js';
 
 import type { WorkflowRunnerOptions, RunnerContext } from './types.js';
 import { runStepFresh } from '../step/run.js';
@@ -45,13 +48,14 @@ export class WorkflowRunner implements RunnerContext {
   readonly cwd: string;
   readonly cmRoot: string;
   readonly template: WorkflowTemplate;
+  readonly mode: WorkflowMode;
 
   private userInput: UserInputProvider;
   private controllerInput: ControllerInputProvider;
-  private activeProvider: InputProvider;
   private abortController: AbortController | null = null;
   private loopCounters: Map<string, number> = new Map();
   private activeLoop: ActiveLoop | null = null;
+  private _currentSession: StepSession | null = null;
 
   constructor(options: WorkflowRunnerOptions) {
     this.cwd = options.cwd;
@@ -80,8 +84,11 @@ export class WorkflowRunner implements RunnerContext {
       workflowEmitter: this.emitter,
     });
 
-    // Default to user input
-    this.activeProvider = this.userInput;
+    // Create WorkflowMode (single source of truth for mode state)
+    this.mode = new WorkflowMode({
+      userInput: this.userInput,
+      controllerInput: this.controllerInput,
+    });
 
     // Create state machine
     this.machine = createWorkflowMachine({
@@ -101,18 +108,19 @@ export class WorkflowRunner implements RunnerContext {
     this.signalManager = new SignalManager({
       emitter: this.emitter,
       machine: this.machine,
+      mode: this.mode,
       cwd: this.cwd,
       cmRoot: this.cmRoot,
     });
 
-    // Set mode context for mode switching
+    // Set mode context for mode switching (delegates to WorkflowMode)
     this.signalManager.setModeContext({
-      getActiveProvider: () => this.activeProvider,
-      setActiveProvider: (p) => {
-        this.activeProvider = p;
+      getActiveProvider: () => this.mode.getActiveProvider(),
+      setActiveProvider: () => {
+        // No-op: WorkflowMode manages provider selection internally
       },
-      getUserInput: () => this.userInput,
-      getControllerInput: () => this.controllerInput,
+      getUserInput: () => this.mode.getUserInput(),
+      getControllerInput: () => this.mode.getControllerInput(),
     });
 
     // Initialize all signal listeners
@@ -129,11 +137,12 @@ export class WorkflowRunner implements RunnerContext {
   }
 
   getActiveProvider(): InputProvider {
-    return this.activeProvider;
+    return this.mode.getActiveProvider();
   }
 
-  setActiveProvider(provider: InputProvider): void {
-    this.activeProvider = provider;
+  setActiveProvider(_provider: InputProvider): void {
+    // No-op: WorkflowMode manages provider selection internally
+    // This method is kept for interface compatibility
   }
 
   getUserInput(): UserInputProvider {
@@ -156,6 +165,38 @@ export class WorkflowRunner implements RunnerContext {
     this.activeLoop = loop;
   }
 
+  getCurrentSession(): StepSession | null {
+    return this._currentSession;
+  }
+
+  setCurrentSession(session: StepSession | null): void {
+    this._currentSession = session;
+  }
+
+  /**
+   * Create a new StepSession for the current step
+   */
+  createSession(): StepSession {
+    const stepIndex = this.machine.context.currentStepIndex;
+    const step = this.moduleSteps[stepIndex];
+    const uniqueAgentId = getUniqueAgentId(step, stepIndex);
+
+    const session = new StepSession({
+      stepIndex,
+      step,
+      cwd: this.cwd,
+      cmRoot: this.cmRoot,
+      emitter: this.emitter,
+      uniqueAgentId,
+    });
+
+    // Sync existing queue state from machine context (for backwards compatibility)
+    session.syncFromMachineContext(this.machine.context);
+
+    this._currentSession = session;
+    return session;
+  }
+
   async getControllerConfig() {
     const state = await loadControllerConfig(this.cmRoot);
     return state?.controllerConfig ?? null;
@@ -170,7 +211,9 @@ export class WorkflowRunner implements RunnerContext {
     // Load initial auto mode state
     const controllerState = await loadControllerConfig(this.cmRoot);
     if (controllerState?.autonomousMode && controllerState.controllerConfig) {
-      await this.setAutoMode(true);
+      this.mode.enableAutoMode();
+      // Sync machine context with mode state
+      this.machine.context.autoMode = true;
     }
 
     // Start the machine
@@ -182,6 +225,9 @@ export class WorkflowRunner implements RunnerContext {
       const state = this.machine.state;
 
       if (state === 'running') {
+        // Create new session for this step
+        const session = this.createSession();
+        session.markRunning();
         await runStepFresh(this);
       } else if (state === 'awaiting') {
         await handleWaiting(this, {
@@ -213,14 +259,22 @@ export class WorkflowRunner implements RunnerContext {
    * Set auto mode on/off
    */
   async setAutoMode(enabled: boolean): Promise<void> {
-    await setAutoMode(this, enabled);
+    this.mode.setAutoMode(enabled);
+    // Sync machine context with mode state
+    this.machine.context.autoMode = enabled;
   }
 
   /**
    * Pause the workflow
    */
   pause(): void {
-    // Just emit event - SignalManager handles everything
+    // Sync mode state
+    this.mode.pause();
+    // Sync session state
+    if (this._currentSession) {
+      this._currentSession.markAwaiting();
+    }
+    // Just emit event - SignalManager handles state machine transition
     (process as NodeJS.EventEmitter).emit('workflow:pause');
   }
 

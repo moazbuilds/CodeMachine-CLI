@@ -14,6 +14,8 @@ import type {
 import type { SignalManager } from '../signals/index.js';
 import type { ControllerConfig } from '../../shared/workflows/index.js';
 import type { ActiveLoop } from '../directives/loop/index.js';
+import type { WorkflowMode } from '../mode/index.js';
+import type { StepSession } from '../session/index.js';
 
 /**
  * Runner options (public API)
@@ -38,6 +40,7 @@ export interface RunnerContext {
   readonly cwd: string;
   readonly cmRoot: string;
   readonly template: WorkflowTemplate;
+  readonly mode: WorkflowMode;
 
   // Mutable state via getters/setters
   getAbortController(): AbortController | null;
@@ -52,4 +55,9 @@ export interface RunnerContext {
   getLoopCounters(): Map<string, number>;
   getActiveLoop(): ActiveLoop | null;
   setActiveLoop(loop: ActiveLoop | null): void;
+
+  // Session state
+  getCurrentSession(): StepSession | null;
+  setCurrentSession(session: StepSession | null): void;
+  createSession(): StepSession;
 }

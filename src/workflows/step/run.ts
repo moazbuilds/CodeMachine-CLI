@@ -184,9 +184,28 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
       return { output: stepOutput, checkpointContinued: true };
     }
 
-    // Handle chained prompts
+    // Handle chained prompts via StepSession
     debug('[step/run] chainedPrompts: %d items', output.chainedPrompts?.length ?? 0);
-    if (output.chainedPrompts && output.chainedPrompts.length > 0) {
+    const session = ctx.getCurrentSession();
+    if (session) {
+      session.setOutput(stepOutput);
+      const loaded = session.loadChainedPrompts(output.chainedPrompts);
+      if (loaded) {
+        // Sync session state to machine context
+        session.syncToMachineContext(machineCtx);
+        session.markAwaiting();
+        if (!machineCtx.autoMode) {
+          ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
+        }
+      } else {
+        // No chained prompts - complete the session
+        await session.complete();
+        ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+        machineCtx.promptQueue = [];
+        machineCtx.promptQueueIndex = 0;
+      }
+    } else if (output.chainedPrompts && output.chainedPrompts.length > 0) {
+      // Fallback for backwards compatibility (no session)
       machineCtx.promptQueue = output.chainedPrompts;
       machineCtx.promptQueueIndex = 0;
       if (!machineCtx.autoMode) {
@@ -267,9 +286,23 @@ export async function runStepResume(
     };
     machineCtx.currentMonitoringId = output.monitoringId;
 
-    // If promptQueue is empty but we got chained prompts, populate it
-    // This happens when initial execution was aborted before completion
-    if (machineCtx.promptQueue.length === 0 && output.chainedPrompts && output.chainedPrompts.length > 0) {
+    // Use StepSession for chained prompts handling
+    // StepSession.loadChainedPrompts only loads once (hasCompletedOnce check)
+    const session = ctx.getCurrentSession();
+    if (session) {
+      session.setOutput(machineCtx.currentOutput);
+
+      // If promptQueue is empty but we got chained prompts, populate it
+      // StepSession.loadChainedPrompts will only load if not already loaded
+      if (output.chainedPrompts && output.chainedPrompts.length > 0) {
+        const loaded = session.loadChainedPrompts(output.chainedPrompts);
+        if (loaded) {
+          debug('[step/run] Resume: Loaded %d chained prompts via StepSession', output.chainedPrompts.length);
+          session.syncToMachineContext(machineCtx);
+        }
+      }
+    } else if (machineCtx.promptQueue.length === 0 && output.chainedPrompts && output.chainedPrompts.length > 0) {
+      // Fallback for backwards compatibility (no session)
       debug('[step/run] Resume: Populating promptQueue with %d chained prompts (initial exec was aborted)', output.chainedPrompts.length);
       machineCtx.promptQueue = output.chainedPrompts;
       machineCtx.promptQueueIndex = 0;
