@@ -1,6 +1,6 @@
 export interface ClaudeCommandOptions {
   workingDir: string;
-  prompt: string;
+  resumeSessionId?: string;
   model?: string;
 }
 
@@ -43,7 +43,7 @@ function mapModel(model?: string): string | undefined {
 }
 
 export function buildClaudeExecCommand(options: ClaudeCommandOptions): ClaudeCommand {
-  const { model } = options;
+  const { resumeSessionId, model } = options;
 
   // Base args: --print for non-interactive mode, bypass permissions, streaming output
   const args: string[] = [
@@ -56,14 +56,18 @@ export function buildClaudeExecCommand(options: ClaudeCommandOptions): ClaudeCom
     'bypassPermissions',
   ];
 
+  // Add resume flag if resuming a session
+  if (resumeSessionId?.trim()) {
+    args.push('--resume', resumeSessionId.trim());
+  }
+
   // Add model if specified and valid
   const mappedModel = mapModel(model);
   if (mappedModel) {
     args.push('--model', mappedModel);
   }
 
-  // Prompt is now passed via stdin instead of as an argument
-  // Call claude directly - the runner passes cwd and prompt to spawnProcess
+  // Prompt is passed via stdin
   return {
     command: 'claude',
     args,
