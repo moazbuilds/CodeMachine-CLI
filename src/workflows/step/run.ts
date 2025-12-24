@@ -74,8 +74,6 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
     }
 
     ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
-    ctx.emitter.logMessage(uniqueAgentId, '═'.repeat(80));
-    ctx.emitter.logMessage(uniqueAgentId, `${step.agentName} resumed - waiting for input.`);
 
     machineCtx.currentMonitoringId = stepData.monitoringId;
     machineCtx.currentOutput = {
@@ -180,8 +178,6 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
     if (postResult.checkpointContinued) {
       debug('[step/run] Checkpoint continued, advancing to next step');
       ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
-      ctx.emitter.logMessage(uniqueAgentId, `${step.agentName} checkpoint completed.`);
-      ctx.emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
       machineCtx.promptQueue = [];
       machineCtx.promptQueueIndex = 0;
       ctx.machine.send({ type: 'STEP_COMPLETE', output: stepOutput });
@@ -198,8 +194,6 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
       }
     } else {
       ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
-      ctx.emitter.logMessage(uniqueAgentId, `${step.agentName} has completed their work.`);
-      ctx.emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
       machineCtx.promptQueue = [];
       machineCtx.promptQueueIndex = 0;
     }

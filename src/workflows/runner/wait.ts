@@ -38,10 +38,6 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
   if (!machineCtx.paused && machineCtx.promptQueue.length === 0) {
     // No chained prompts and not paused - auto-advance to next step
     debug('[Runner] No chained prompts, auto-advancing to next step');
-    const step = ctx.moduleSteps[machineCtx.currentStepIndex];
-    const uniqueAgentId = getUniqueAgentId(step, machineCtx.currentStepIndex);
-    ctx.emitter.logMessage(uniqueAgentId, `${step.agentName} has completed their work.`);
-    ctx.emitter.logMessage(uniqueAgentId, '\n' + '═'.repeat(80) + '\n');
     await markStepCompleted(ctx.cmRoot, machineCtx.currentStepIndex);
     ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
     return;
@@ -88,8 +84,6 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
         debug('[Runner] Empty input, marking agent completed and advancing');
         machineCtx.paused = false;
         ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'completed');
-        ctx.emitter.logMessage(stepUniqueAgentId, `${step.agentName} has completed their work.`);
-        ctx.emitter.logMessage(stepUniqueAgentId, '\n' + '═'.repeat(80) + '\n');
         await markStepCompleted(ctx.cmRoot, machineCtx.currentStepIndex);
         ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
       } else {
@@ -102,8 +96,6 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
       debug('[Runner] Skip requested, marking agent skipped');
       machineCtx.paused = false;
       ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'skipped');
-      ctx.emitter.logMessage(stepUniqueAgentId, `${step.agentName} was skipped.`);
-      ctx.emitter.logMessage(stepUniqueAgentId, '\n' + '═'.repeat(80) + '\n');
       await markStepCompleted(ctx.cmRoot, machineCtx.currentStepIndex);
       ctx.machine.send({ type: 'SKIP' });
       break;
@@ -143,10 +135,9 @@ async function handleResumeInput(
     }
   }
 
-  // Log custom user input (magenta) - skip for controller input (already logged during streaming)
+  // Log custom user input to file - skip for controller input (already logged during streaming)
   if (!isQueuedPrompt && source !== 'controller') {
     const formatted = formatUserInput(input);
-    ctx.emitter.logMessage(uniqueAgentId, formatted);
     if (monitoringId !== undefined) {
       AgentLoggerService.getInstance().write(monitoringId, `\n${formatted}\n`);
     }

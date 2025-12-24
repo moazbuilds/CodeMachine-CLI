@@ -20,12 +20,6 @@ export function handlePauseSignal(ctx: SignalContext): void {
     return;
   }
 
-  // Log pause message
-  ctx.emitter.logMessage(
-    stepContext.agentId,
-    `${stepContext.agentName} paused.`
-  );
-
   // Abort step if running
   if (ctx.machine.state === 'running') {
     ctx.machine.send({ type: 'PAUSE' });

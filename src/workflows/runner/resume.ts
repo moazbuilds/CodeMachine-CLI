@@ -86,8 +86,6 @@ export async function execWithResume(options: ExecWithResumeOptions): Promise<Ex
     const monitor = AgentMonitorService.getInstance();
     await monitor.markRunning(chainResumeInfo.monitoringId);
 
-    emitter.logMessage(uniqueAgentId, `Resuming from saved chain state...`);
-
     stepOutput = {
       output: '',
       monitoringId: chainResumeInfo.monitoringId,
@@ -115,8 +113,6 @@ export async function execWithResume(options: ExecWithResumeOptions): Promise<Ex
       const monitor = AgentMonitorService.getInstance();
       await monitor.markRunning(stepDataForResume.monitoringId);
 
-      emitter.logMessage(uniqueAgentId, `Resuming from saved session...`);
-
       stepOutput = {
         output: '',
         monitoringId: stepDataForResume.monitoringId,
@@ -124,7 +120,6 @@ export async function execWithResume(options: ExecWithResumeOptions): Promise<Ex
       };
     } else {
       debug(`[DEBUG workflow] No chained prompts - normal resume execution`);
-      emitter.logMessage(uniqueAgentId, `Resuming from saved session (process restart)...`);
 
       stepOutput = await executeStep(step, cwd, {
         logger: () => {},
@@ -150,9 +145,6 @@ export async function execWithResume(options: ExecWithResumeOptions): Promise<Ex
     }
   } else {
     debug(`[DEBUG workflow] Normal execution path (fresh start or pause resume)`);
-    if (shouldResumeFromPause) {
-      emitter.logMessage(uniqueAgentId, `Resuming from paused session...`);
-    }
 
     debug(`[DEBUG workflow] About to call executeStep...`);
     stepOutput = await executeStep(step, cwd, {

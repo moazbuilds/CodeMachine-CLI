@@ -73,10 +73,6 @@ export function beforeRun(options: BeforeRunOptions): BeforeRunResult {
 
   // Update UI
   ctx.emitter.updateAgentStatus(uniqueAgentId, 'running');
-  if (!isResume) {
-    ctx.emitter.logMessage(uniqueAgentId, '═'.repeat(80));
-    ctx.emitter.logMessage(uniqueAgentId, `${step.agentName} started to work.`);
-  }
 
   // Reset directive file (only for fresh start)
   if (!isResume) {
@@ -193,7 +189,6 @@ export async function afterRun(options: AfterRunOptions): Promise<AfterRunResult
     } catch (triggerError) {
       if (triggerError instanceof Error && triggerError.name === 'AbortError') {
         emitter.updateAgentStatus(triggeredAgentId, 'skipped');
-        emitter.logMessage(triggeredAgentId, `Triggered agent was skipped by user.`);
       }
     }
   }

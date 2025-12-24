@@ -88,10 +88,6 @@ export async function selectEngine(
       : false;
     debug(`[step/engine] isOverrideAuthed=${isOverrideAuthed}`);
     if (!isOverrideAuthed) {
-      const pretty = overrideEngine?.metadata.name ?? engineType;
-      const authMsg = `${pretty} override is not authenticated; falling back to first authenticated engine by order. Run 'codemachine auth login' to use ${pretty}.`;
-      emitter.logMessage(uniqueAgentId, authMsg);
-
       // Find first authenticated engine by order (with caching)
       const engines = registry.getAll();
       let fallbackEngine = null as typeof overrideEngine | null;
@@ -112,9 +108,9 @@ export async function selectEngine(
       }
 
       if (fallbackEngine) {
+        const pretty = overrideEngine?.metadata.name ?? engineType;
+        emitter.logMessage(uniqueAgentId, `${pretty} not authenticated. Fallback to ${fallbackEngine.metadata.name}. Run /login to connect.`);
         engineType = fallbackEngine.metadata.id;
-        const fallbackMsg = `Falling back to ${fallbackEngine.metadata.name} (${engineType})`;
-        emitter.logMessage(uniqueAgentId, fallbackMsg);
       }
     }
   } else {
@@ -150,8 +146,6 @@ export async function selectEngine(
 
     engineType = foundEngine.metadata.id;
     debug(`[step/engine] Selected engine: ${engineType}`);
-    const engineMsg = `No engine specified, using ${foundEngine.metadata.name} (${engineType})`;
-    emitter.logMessage(uniqueAgentId, engineMsg);
   }
 
   debug(`[step/engine] Engine determined: ${engineType}`);

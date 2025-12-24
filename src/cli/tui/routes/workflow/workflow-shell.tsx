@@ -131,7 +131,14 @@ export function WorkflowShell(props: WorkflowShellProps) {
     }
 
     if (props.eventBus) {
-      adapter = new OpenTUIAdapter({ actions: ui.actions })
+      // Extend actions with showToast from toast context
+      const actionsWithToast = {
+        ...ui.actions,
+        showToast: (variant: "success" | "error" | "info" | "warning", message: string) => {
+          toast.show({ variant, message, duration: 7000 })
+        }
+      }
+      adapter = new OpenTUIAdapter({ actions: actionsWithToast })
       adapter.connect(props.eventBus)
       adapter.start()
       props.onAdapterReady?.()

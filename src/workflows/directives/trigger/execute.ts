@@ -89,12 +89,6 @@ export async function executeTriggerAgent(options: TriggerExecutionOptions): Pro
       emitter.addTriggeredAgent(sourceAgentId, triggeredAgentData);
     }
 
-    if (emitter) {
-      emitter.logMessage(sourceAgentId, `Executing triggered agent: ${triggeredAgentName}`);
-      emitter.logMessage(triggerAgentId, '═'.repeat(80));
-      emitter.logMessage(triggerAgentId, `${triggeredAgentName} started to work (triggered).`);
-    }
-
     const memoryDir = path.resolve(cwd, '.codemachine', 'memory');
     const adapter = new MemoryAdapter(memoryDir);
     const store = new MemoryStore(adapter);
@@ -140,22 +134,12 @@ export async function executeTriggerAgent(options: TriggerExecutionOptions): Pro
       emitter.updateAgentStatus(triggerAgentId, 'completed');
     }
 
-    if (emitter) {
-      emitter.logMessage(triggerAgentId, `${triggeredAgentName} (triggered) has completed their work.`);
-      emitter.logMessage(triggerAgentId, '═'.repeat(80));
-    }
-
     if (monitor && monitoringAgentId !== undefined) {
       await monitor.complete(monitoringAgentId);
     }
   } catch (triggerError) {
     if (monitor && monitoringAgentId !== undefined) {
       await monitor.fail(monitoringAgentId, triggerError as Error);
-    }
-
-    const errorMsg = `Triggered agent '${triggerAgentId}' failed: ${triggerError instanceof Error ? triggerError.message : String(triggerError)}`;
-    if (emitter) {
-      emitter.logMessage(sourceAgentId, errorMsg);
     }
     throw triggerError;
   }

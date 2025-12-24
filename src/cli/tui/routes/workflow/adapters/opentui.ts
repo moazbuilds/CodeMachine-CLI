@@ -54,6 +54,7 @@ export interface UIActions {
   resetAgentForLoop(agentId: string, cycleNumber?: number): void
   addUIElement(element: { id: string; text: string; stepIndex: number }): void
   logMessage(agentId: string, message: string): void
+  showToast?(variant: "success" | "error" | "info" | "warning", message: string): void
 }
 
 export interface OpenTUIAdapterOptions extends UIAdapterOptions {
@@ -258,9 +259,9 @@ export class OpenTUIAdapter extends BaseUIAdapter {
         this.actions.setChainedState(event.chainedState)
         break
 
-      // Message/logging events
+      // Message/logging events - show as toast
       case "message:log":
-        this.actions.logMessage(event.agentId, event.message)
+        this.actions.showToast?.("warning", event.message)
         break
 
       // UI element events
