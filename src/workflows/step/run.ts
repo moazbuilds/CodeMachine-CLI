@@ -202,18 +202,8 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
     return { output: stepOutput };
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      // PAUSE sends PAUSE event (transitions running→awaiting) BEFORE calling abort()
-      // SKIP only calls abort() without sending any event first
-      // So if machine is still 'running', this was a skip - send SKIP to advance
-      // If machine is 'awaiting', this was a pause - preserve that state
-      if (ctx.machine.state === 'running') {
-        debug('[step/run] Step aborted via skip, advancing to next step');
-        ctx.emitter.updateAgentStatus(uniqueAgentId, 'skipped');
-        ctx.machine.send({ type: 'SKIP' });
-      } else {
-        debug('[step/run] Step aborted via pause, entering awaiting state');
-        ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
-      }
+      // Signal handlers (pause/skip) handle status updates and state transitions
+      debug('[step/run] Step aborted');
       return null;
     }
 
