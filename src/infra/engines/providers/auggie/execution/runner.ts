@@ -10,11 +10,14 @@ import type { ParsedTelemetry } from '../../../core/types.js';
 export interface RunAuggieOptions {
   prompt: string;
   workingDir: string;
+  resumeSessionId?: string;
+  resumePrompt?: string;
   model?: string;
   env?: NodeJS.ProcessEnv;
   onData?: (chunk: string) => void;
   onErrorData?: (chunk: string) => void;
   onTelemetry?: (telemetry: ParsedTelemetry) => void;
+  onSessionId?: (sessionId: string) => void;
   abortSignal?: AbortSignal;
   timeout?: number; // Timeout in milliseconds (default: 1800000ms = 30 minutes)
 }
@@ -48,6 +51,20 @@ function cleanAnsi(text: string, plainLogs: boolean): string {
   return text.replace(ANSI_ESCAPE_SEQUENCE, '');
 }
 
+/**
+ * Build the final resume prompt combining steering instruction with user message
+ */
+function buildResumePrompt(userPrompt?: string): string {
+  const defaultPrompt = 'Continue from where you left off.';
+
+  if (!userPrompt) {
+    return defaultPrompt;
+  }
+
+  // Combine steering instruction with user's message
+  return `[USER STEERING] The user paused this session to give you new direction. Continue from where you left off, but prioritize the user's request: "${userPrompt}"`;
+}
+
 // Note: Auggie returns a single result object, not streaming events like OpenCode
 // Therefore, we don't need complex formatting helpers like formatToolUse or formatStepEvent
 
@@ -71,11 +88,14 @@ export async function runAuggie(options: RunAuggieOptions): Promise<RunAuggieRes
   const {
     prompt,
     workingDir,
+    resumeSessionId,
+    resumePrompt,
     model,
     env,
     onData,
     onErrorData,
     onTelemetry,
+    onSessionId,
     abortSignal,
     timeout = 1800000,
   } = options;
@@ -91,13 +111,16 @@ export async function runAuggie(options: RunAuggieOptions): Promise<RunAuggieRes
   const runnerEnv = resolveRunnerEnv(env);
   const plainLogs =
     (env?.CODEMACHINE_PLAIN_LOGS ?? process.env.CODEMACHINE_PLAIN_LOGS ?? '').toString() === '1';
-  const { command, args } = buildAuggieRunCommand({ model });
+  const { command, args } = buildAuggieRunCommand({ model, resumeSessionId });
 
   // Add working directory to args (Auggie uses --workspace-root, not --cwd)
   args.push('--workspace-root', workingDir);
 
+  // When resuming, use the resume prompt instead of the original prompt
+  const effectivePrompt = resumeSessionId ? buildResumePrompt(resumePrompt) : prompt;
+
   // Add prompt as positional argument (Auggie accepts it as the last argument)
-  args.push(prompt);
+  args.push(effectivePrompt);
 
   logger.debug(
     `Auggie runner - prompt length: ${prompt.length}, lines: ${prompt.split('\n').length}, model: ${
@@ -108,6 +131,7 @@ export async function runAuggie(options: RunAuggieOptions): Promise<RunAuggieRes
   const telemetryCapture = createTelemetryCapture('auggie', model, prompt, workingDir);
   let jsonBuffer = '';
   let isFirstStep = true;
+  let sessionIdCaptured = false;
 
   const processLine = (line: string): void => {
     if (!line.trim()) {
@@ -131,6 +155,12 @@ export async function runAuggie(options: RunAuggieOptions): Promise<RunAuggieRes
     // Auggie returns a single JSON object with type "result"
     // Format: {"type":"result","result":"...","is_error":false,"subtype":"success","session_id":"...","num_turns":0}
     if (parsedObj.type === 'result') {
+      // Capture session ID from result event
+      if (!sessionIdCaptured && parsedObj.session_id && onSessionId) {
+        sessionIdCaptured = true;
+        onSessionId(parsedObj.session_id);
+      }
+
       const resultText = typeof parsedObj.result === 'string' ? parsedObj.result : '';
       const isError = parsedObj.is_error === true;
 

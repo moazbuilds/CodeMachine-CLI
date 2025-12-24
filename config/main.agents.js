@@ -78,7 +78,7 @@ module.exports = [
     description: 'BMAD product owner controller for autonomous mode',
     role: 'controller',
     promptPath: path.join(promptsDir, 'bmad', 'controller', 'PO.md'),
-    engine: 'codex'
+    engine: 'opencode'
   },
 
   // BMAD agents
