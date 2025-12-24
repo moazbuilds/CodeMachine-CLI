@@ -13,3 +13,6 @@ export * from './factory.js';
 
 // Export registry
 export { registry } from './registry.js';
+
+// Export auth helpers
+export * from './auth.js';

@@ -1,8 +1,14 @@
-import { stat, rm, writeFile, mkdir, readFile } from 'node:fs/promises';
+import { stat, rm, writeFile, readFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { homedir } from 'node:os';
 
 import { expandHomeDir } from '../../../../shared/utils/index.js';
+import {
+  displayCliNotInstalledError,
+  isCommandNotFoundError,
+  ensureAuthDirectory,
+  createCredentialFile,
+} from '../../core/auth.js';
 import { metadata } from './metadata.js';
 
 const SENTINEL_FILE = 'auth.json';
@@ -16,10 +22,6 @@ function resolveOpenCodeHome(customPath?: string): string {
   return target;
 }
 
-async function ensureDataDirExists(dataDir: string): Promise<void> {
-  await mkdir(dataDir, { recursive: true });
-}
-
 function getSentinelPath(opencodeHome: string): string {
   return path.join(opencodeHome, 'data', SENTINEL_FILE);
 }
@@ -31,20 +33,6 @@ function getSentinelPath(opencodeHome: string): string {
 function isCliInstalled(command: string): boolean {
   return Bun.which(command) !== null;
 }
-
-function logInstallHelp(): void {
-  console.error(`\n────────────────────────────────────────────────────────────`);
-  console.error(`  ⚠️  ${metadata.name} CLI Not Installed`);
-  console.error(`────────────────────────────────────────────────────────────`);
-  console.error(`\nThe '${metadata.cliBinary}' command is not available. Install OpenCode via:\n`);
-  console.error(`  npm i -g opencode-ai@latest`);
-  console.error(`  brew install opencode`);
-  console.error(`  scoop bucket add extras && scoop install extras/opencode`);
-  console.error(`  choco install opencode`);
-  console.error(`\nDocs: https://opencode.ai/docs`);
-  console.error(`────────────────────────────────────────────────────────────\n`);
-}
-
 
 export async function isAuthenticated(): Promise<boolean> {
   // OpenCode works with zero config - just needs to be installed
@@ -90,16 +78,16 @@ export async function ensureAuth(forceLogin = false): Promise<boolean> {
   }
 
   // Ensure data directory exists before proceeding
-  await ensureDataDirExists(dataDir);
+  await ensureAuthDirectory(dataDir);
 
   // Check if CLI is installed
   if (!isCliInstalled(metadata.cliBinary)) {
-    logInstallHelp();
+    displayCliNotInstalledError(metadata);
     throw new Error(`${metadata.name} CLI is not installed.`);
   }
 
   if (process.env.CODEMACHINE_SKIP_AUTH === '1') {
-    await writeFile(sentinelPath, '{}', { encoding: 'utf8' });
+    await createCredentialFile(sentinelPath, {});
     return true;
   }
 
@@ -122,16 +110,7 @@ export async function ensureAuth(forceLogin = false): Promise<boolean> {
     });
     await proc.exited;
   } catch (error) {
-    const err = error as unknown as { code?: string; stderr?: string; message?: string };
-    const stderr = err?.stderr ?? '';
-    const message = err?.message ?? '';
-    const notFound =
-      err?.code === 'ENOENT' ||
-      /not recognized as an internal or external command/i.test(stderr || message) ||
-      /command not found/i.test(stderr || message) ||
-      /No such file or directory/i.test(stderr || message);
-
-    if (notFound) {
+    if (isCommandNotFoundError(error)) {
       console.error(`\n────────────────────────────────────────────────────────────`);
       console.error(`  ⚠️  ${metadata.name} CLI Not Found`);
       console.error(`────────────────────────────────────────────────────────────`);

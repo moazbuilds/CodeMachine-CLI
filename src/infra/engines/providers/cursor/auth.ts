@@ -1,43 +1,19 @@
-import { stat, rm, mkdir, writeFile } from 'node:fs/promises';
+import { stat } from 'node:fs/promises';
 import * as path from 'node:path';
 import { homedir } from 'node:os';
 
 import { expandHomeDir } from '../../../../shared/utils/index.js';
+import {
+  checkCliInstalled,
+  displayCliNotInstalledError,
+  isCommandNotFoundError,
+  ensureAuthDirectory,
+  createCredentialFile,
+  cleanupAuthFiles,
+  getNextAuthAction,
+  checkCredentialExists,
+} from '../../core/auth.js';
 import { metadata } from './metadata.js';
-
-/**
- * Check if CLI is installed
- */
-async function isCliInstalled(command: string): Promise<boolean> {
-  try {
-    // Resolve command using Bun.which() to handle Windows .cmd files
-    const resolvedCommand = Bun.which(command) ?? command;
-
-    const proc = Bun.spawn([resolvedCommand, '--version'], {
-      stdout: 'pipe',
-      stderr: 'pipe',
-      stdin: 'ignore',
-    });
-
-    // Set a timeout
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Timeout')), 3000)
-    );
-
-    const exitCode = await Promise.race([proc.exited, timeout]);
-    const stdout = await new Response(proc.stdout).text();
-    const stderr = await new Response(proc.stderr).text();
-    const out = `${stdout}\n${stderr}`;
-
-    if (typeof exitCode === 'number' && exitCode === 0) return true;
-    if (/not recognized as an internal or external command/i.test(out)) return false;
-    if (/command not found/i.test(out)) return false;
-    if (/No such file or directory/i.test(out)) return false;
-    return false;
-  } catch {
-    return false;
-  }
-}
 
 export interface CursorAuthOptions {
   cursorConfigDir?: string;
@@ -84,14 +60,7 @@ export function getCursorAuthPaths(configDir: string): string[] {
 export async function isAuthenticated(options?: CursorAuthOptions): Promise<boolean> {
   const configDir = resolveCursorConfigDir(options);
   const configPath = getCursorConfigPath(configDir);
-
-  try {
-    const stats = await stat(configPath);
-    // Check if cli-config.json exists and is a file
-    return stats.isFile();
-  } catch (_error) {
-    return false;
-  }
+  return checkCredentialExists(configPath);
 }
 
 /**
@@ -113,21 +82,15 @@ export async function ensureAuth(options?: CursorAuthOptions): Promise<boolean> 
 
   if (process.env.CODEMACHINE_SKIP_AUTH === '1') {
     // Create a placeholder for testing/dry-run mode
-    await mkdir(configDir, { recursive: true });
-    await writeFile(configPath, JSON.stringify({ version: 1 }), 'utf8');
+    await ensureAuthDirectory(configDir);
+    await createCredentialFile(configPath, { version: 1 });
     return true;
   }
 
   // Check if CLI is installed
-  const cliInstalled = await isCliInstalled(metadata.cliBinary);
+  const cliInstalled = await checkCliInstalled(metadata.cliBinary);
   if (!cliInstalled) {
-    console.error(`\n────────────────────────────────────────────────────────────`);
-    console.error(`  ⚠️  ${metadata.name} CLI Not Installed`);
-    console.error(`────────────────────────────────────────────────────────────`);
-    console.error(`\nThe '${metadata.cliBinary}' command is not available.`);
-    console.error(`Please install ${metadata.name} CLI first:\n`);
-    console.error(`  ${metadata.installCommand}\n`);
-    console.error(`────────────────────────────────────────────────────────────\n`);
+    displayCliNotInstalledError(metadata);
     throw new Error(`${metadata.name} CLI is not installed.`);
   }
 
@@ -136,7 +99,7 @@ export async function ensureAuth(options?: CursorAuthOptions): Promise<boolean> 
   console.log(`Config directory: ${configDir}\n`);
 
   // Ensure the config directory exists before login
-  await mkdir(configDir, { recursive: true });
+  await ensureAuthDirectory(configDir);
 
   // Set CURSOR_CONFIG_DIR to control where cursor-agent stores authentication
   try {
@@ -152,16 +115,7 @@ export async function ensureAuth(options?: CursorAuthOptions): Promise<boolean> 
     });
     await proc.exited;
   } catch (error) {
-    const err = error as unknown as { code?: string; stderr?: string; message?: string };
-    const stderr = err?.stderr ?? '';
-    const message = err?.message ?? '';
-    const notFound =
-      err?.code === 'ENOENT' ||
-      /not recognized as an internal or external command/i.test(stderr || message) ||
-      /command not found/i.test(stderr || message) ||
-      /No such file or directory/i.test(stderr || message);
-
-    if (notFound) {
+    if (isCommandNotFoundError(error)) {
       console.error(`\n────────────────────────────────────────────────────────────`);
       console.error(`  ⚠️  ${metadata.name} CLI Not Found`);
       console.error(`────────────────────────────────────────────────────────────`);
@@ -205,22 +159,12 @@ export async function ensureAuth(options?: CursorAuthOptions): Promise<boolean> 
 export async function clearAuth(options?: CursorAuthOptions): Promise<void> {
   const configDir = resolveCursorConfigDir(options);
   const authPaths = getCursorAuthPaths(configDir);
-
-  // Remove all auth-related files/folders
-  await Promise.all(
-    authPaths.map(async (authPath) => {
-      try {
-        await rm(authPath, { force: true, recursive: true });
-      } catch (_error) {
-        // Ignore removal errors; treat as cleared
-      }
-    }),
-  );
+  await cleanupAuthFiles(authPaths);
 }
 
 /**
  * Returns the next auth menu action based on current auth state
  */
 export async function nextAuthMenuAction(options?: CursorAuthOptions): Promise<'login' | 'logout'> {
-  return (await isAuthenticated(options)) ? 'logout' : 'login';
+  return getNextAuthAction(await isAuthenticated(options));
 }

@@ -1,51 +1,17 @@
-import { stat, rm, writeFile, mkdir } from 'node:fs/promises';
+import { stat } from 'node:fs/promises';
 import * as path from 'node:path';
 import { homedir } from 'node:os';
 
 import { expandHomeDir } from '../../../../shared/utils/index.js';
+import {
+  checkCliInstalled,
+  displayCliNotInstalledError,
+  ensureAuthDirectory,
+  createCredentialFile,
+  cleanupAuthFiles,
+  getNextAuthAction,
+} from '../../core/auth.js';
 import { metadata } from './metadata.js';
-
-/**
- * Check if CLI is installed
- */
-async function isCliInstalled(command: string): Promise<boolean> {
-  try {
-    // Resolve command using Bun.which() to handle Windows .cmd files
-    const resolvedCommand = Bun.which(command) ?? command;
-
-    // Try -v first (CCR uses -v instead of --version)
-    const proc = Bun.spawn([resolvedCommand, '-v'], {
-      stdout: 'pipe',
-      stderr: 'pipe',
-      stdin: 'ignore',
-    });
-
-    // Set a timeout
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Timeout')), 3000)
-    );
-
-    const exitCode = await Promise.race([proc.exited, timeout]);
-    const stdout = await new Response(proc.stdout).text();
-    const stderr = await new Response(proc.stderr).text();
-    const out = `${stdout}\n${stderr}`;
-
-    // Check for error messages indicating command not found
-    if (/not recognized as an internal or external command/i.test(out)) return false;
-    if (/command not found/i.test(out)) return false;
-    if (/No such file or directory/i.test(out)) return false;
-
-    // If exit code is 0, CLI is installed
-    if (typeof exitCode === 'number' && exitCode === 0) return true;
-
-    // For CCR, check if output contains version info (even with non-zero exit code)
-    if (/version:\s*\d+\.\d+\.\d+/i.test(out)) return true;
-
-    return false;
-  } catch {
-    return false;
-  }
-}
 
 export interface CcrAuthOptions {
   ccrConfigDir?: string;
@@ -95,7 +61,7 @@ export async function isAuthenticated(options?: CcrAuthOptions): Promise<boolean
   try {
     await stat(credPath);
     return true;
-  } catch (_error) {
+  } catch {
     return false;
   }
 }
@@ -116,23 +82,17 @@ export async function ensureAuth(options?: CcrAuthOptions): Promise<boolean> {
     // Credentials file doesn't exist
   }
 
-  // Check if CLI is installed
-  const cliInstalled = await isCliInstalled(metadata.cliBinary);
+  // Check if CLI is installed (CCR uses -v instead of --version)
+  const cliInstalled = await checkCliInstalled(metadata.cliBinary, { versionFlag: '-v' });
   if (!cliInstalled) {
-    console.error(`\n────────────────────────────────────────────────────────────`);
-    console.error(`  ⚠️  ${metadata.name} CLI Not Installed`);
-    console.error(`────────────────────────────────────────────────────────────`);
-    console.error(`\nThe '${metadata.cliBinary}' command is not available.`);
-    console.error(`Please install ${metadata.name} CLI first:\n`);
-    console.error(`  ${metadata.installCommand}\n`);
-    console.error(`────────────────────────────────────────────────────────────\n`);
+    displayCliNotInstalledError(metadata);
     throw new Error(`${metadata.name} CLI is not installed.`);
   }
 
   // Create the .enable marker file
   const ccrDir = path.dirname(credPath);
-  await mkdir(ccrDir, { recursive: true });
-  await writeFile(credPath, '', { encoding: 'utf8' });
+  await ensureAuthDirectory(ccrDir);
+  await createCredentialFile(credPath, '');
 
   // Show configuration tip
   console.log(`\n────────────────────────────────────────────────────────────`);
@@ -165,22 +125,12 @@ export async function ensureAuth(options?: CcrAuthOptions): Promise<boolean> {
 export async function clearAuth(options?: CcrAuthOptions): Promise<void> {
   const configDir = resolveCcrConfigDir(options);
   const authPaths = getCcrAuthPaths(configDir);
-
-  // Remove all auth-related files
-  await Promise.all(
-    authPaths.map(async (authPath) => {
-      try {
-        await rm(authPath, { force: true });
-      } catch (_error) {
-        // Ignore removal errors; treat as cleared
-      }
-    }),
-  );
+  await cleanupAuthFiles(authPaths);
 }
 
 /**
  * Returns the next auth menu action based on current auth state
  */
 export async function nextAuthMenuAction(options?: CcrAuthOptions): Promise<'login' | 'logout'> {
-  return (await isAuthenticated(options)) ? 'logout' : 'login';
+  return getNextAuthAction(await isAuthenticated(options));
 }
