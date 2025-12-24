@@ -12,10 +12,13 @@ import { formatThinking, formatCommand, formatResult } from '../../../../../shar
 export interface RunCcrOptions {
   prompt: string;
   workingDir: string;
+  resumeSessionId?: string;
+  resumePrompt?: string;
   model?: string;
   env?: NodeJS.ProcessEnv;
   onData?: (chunk: string) => void;
   onErrorData?: (chunk: string) => void;
+  onSessionId?: (sessionId: string) => void;
   abortSignal?: AbortSignal;
   timeout?: number; // Timeout in milliseconds (default: 1800000ms = 30 minutes)
 }
@@ -26,6 +29,20 @@ export interface RunCcrResult {
 }
 
 const ANSI_ESCAPE_SEQUENCE = new RegExp(String.raw`\u001B\[[0-9;?]*[ -/]*[@-~]`, 'g');
+
+/**
+ * Build the final resume prompt combining steering instruction with user message
+ */
+function buildResumePrompt(userPrompt?: string): string {
+  const defaultPrompt = 'Continue from where you left off.';
+
+  if (!userPrompt) {
+    return defaultPrompt;
+  }
+
+  // Combine steering instruction with user's message
+  return `[USER STEERING] The user paused this session to give you new direction. Continue from where you left off, but prioritize the user's request: "${userPrompt}"`;
+}
 
 // Track tool names for associating with results
 const toolNameMap = new Map<string, string>();
@@ -105,7 +122,7 @@ function formatStreamJsonLine(line: string): string | null {
 }
 
 export async function runCcr(options: RunCcrOptions): Promise<RunCcrResult> {
-  const { prompt, workingDir, model, env, onData, onErrorData, abortSignal, timeout = 1800000 } = options;
+  const { prompt, workingDir, resumeSessionId, resumePrompt, model, env, onData, onErrorData, onSessionId, abortSignal, timeout = 1800000 } = options;
 
   if (!prompt) {
     throw new Error('runCcr requires a prompt.');
@@ -153,7 +170,7 @@ export async function runCcr(options: RunCcrOptions): Promise<RunCcrResult> {
     return result;
   };
 
-  const { command, args } = buildCcrExecCommand({ workingDir, prompt, model });
+  const { command, args } = buildCcrExecCommand({ workingDir, resumeSessionId, model });
 
   logger.debug(`CCR runner - prompt length: ${prompt.length}, lines: ${prompt.split('\n').length}`);
   logger.debug(`CCR runner - args count: ${args.length}, model: ${model ?? 'default'}`);
@@ -163,6 +180,7 @@ export async function runCcr(options: RunCcrOptions): Promise<RunCcrResult> {
 
   // Track JSON error events (CCR may exit 0 even on errors)
   let capturedError: string | null = null;
+  let sessionIdCaptured = false;
 
   let result;
   try {
@@ -171,7 +189,7 @@ export async function runCcr(options: RunCcrOptions): Promise<RunCcrResult> {
       args,
       cwd: workingDir,
       env: mergedEnv,
-      stdinInput: prompt, // Pass prompt via stdin instead of command-line argument
+      stdinInput: resumeSessionId ? buildResumePrompt(resumePrompt) : prompt,
       onStdout: inheritTTY
         ? undefined
         : (chunk) => {
@@ -188,6 +206,13 @@ export async function runCcr(options: RunCcrOptions): Promise<RunCcrResult> {
               // Check for error events (CCR may exit 0 even on errors like invalid model)
               try {
                 const json = JSON.parse(line);
+
+                // Capture session ID from first event that contains it
+                if (!sessionIdCaptured && json.session_id && onSessionId) {
+                  sessionIdCaptured = true;
+                  onSessionId(json.session_id);
+                }
+
                 // Check for error in result type
                 if (json.type === 'result' && json.is_error && json.result && !capturedError) {
                   capturedError = json.result;

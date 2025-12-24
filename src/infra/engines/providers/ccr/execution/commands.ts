@@ -1,6 +1,6 @@
 export interface CcrCommandOptions {
   workingDir: string;
-  prompt: string;
+  resumeSessionId?: string;
   model?: string;
 }
 
@@ -43,7 +43,7 @@ function mapModel(model?: string): string | undefined {
 }
 
 export function buildCcrExecCommand(options: CcrCommandOptions): CcrCommand {
-  const { model } = options;
+  const { resumeSessionId, model } = options;
 
   // Base args: --print for non-interactive mode, similar to Claude but using ccr code
   const args: string[] = [
@@ -57,14 +57,18 @@ export function buildCcrExecCommand(options: CcrCommandOptions): CcrCommand {
     'bypassPermissions',
   ];
 
+  // Add resume flag if resuming a session
+  if (resumeSessionId?.trim()) {
+    args.push('--resume', resumeSessionId.trim());
+  }
+
   // Add model if specified and valid
   const mappedModel = mapModel(model);
   if (mappedModel) {
     args.push('--model', mappedModel);
   }
 
-  // Prompt is now passed via stdin instead of as an argument
-  // Call ccr code - the runner passes cwd and prompt to spawnProcess
+  // Prompt is passed via stdin
   return {
     command: 'ccr',
     args,

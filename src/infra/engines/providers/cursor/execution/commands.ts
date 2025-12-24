@@ -1,6 +1,6 @@
 export interface CursorCommandOptions {
   workingDir: string;
-  prompt: string;
+  resumeSessionId?: string;
   model?: string;
   cursorConfigDir?: string;
 }
@@ -49,7 +49,7 @@ function mapModel(model?: string): string | undefined {
 }
 
 export function buildCursorExecCommand(options: CursorCommandOptions): CursorCommand {
-  const { model, cursorConfigDir } = options;
+  const { resumeSessionId, model, cursorConfigDir } = options;
 
   // Base args: -p for print mode, --force, streaming JSON output
   const args: string[] = [
@@ -58,6 +58,11 @@ export function buildCursorExecCommand(options: CursorCommandOptions): CursorCom
     '--output-format',
     'stream-json',
   ];
+
+  // Add resume flag if resuming a session
+  if (resumeSessionId?.trim()) {
+    args.push(`--resume=${resumeSessionId.trim()}`);
+  }
 
   // Add model if specified and valid
   const mappedModel = mapModel(model);
@@ -70,8 +75,7 @@ export function buildCursorExecCommand(options: CursorCommandOptions): CursorCom
     args.push(cursorConfigDir);
   }
 
-  // Prompt is now passed via stdin instead of as an argument
-  // Call cursor-agent directly - the runner passes cwd and prompt to spawnProcess
+  // Prompt is passed via stdin
   return {
     command: 'cursor-agent',
     args,

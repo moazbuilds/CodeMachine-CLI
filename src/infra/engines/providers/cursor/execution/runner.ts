@@ -11,10 +11,13 @@ import { debug } from '../../../../../shared/logging/logger.js';
 export interface RunCursorOptions {
   prompt: string;
   workingDir: string;
+  resumeSessionId?: string;
+  resumePrompt?: string;
   model?: string;
   env?: NodeJS.ProcessEnv;
   onData?: (chunk: string) => void;
   onErrorData?: (chunk: string) => void;
+  onSessionId?: (sessionId: string) => void;
   abortSignal?: AbortSignal;
   timeout?: number; // Timeout in milliseconds (default: 1800000ms = 30 minutes)
 }
@@ -31,6 +34,20 @@ const toolNameMap = new Map<string, string>();
 
 // Track accumulated thinking text for delta updates
 let accumulatedThinking = '';
+
+/**
+ * Build the final resume prompt combining steering instruction with user message
+ */
+function buildResumePrompt(userPrompt?: string): string {
+  const defaultPrompt = 'Continue from where you left off.';
+
+  if (!userPrompt) {
+    return defaultPrompt;
+  }
+
+  // Combine steering instruction with user's message
+  return `[USER STEERING] The user paused this session to give you new direction. Continue from where you left off, but prioritize the user's request: "${userPrompt}"`;
+}
 
 /**
  * Formats a Cursor stream-json line for display
@@ -137,7 +154,7 @@ function formatStreamJsonLine(line: string): string | null {
 }
 
 export async function runCursor(options: RunCursorOptions): Promise<RunCursorResult> {
-  const { prompt, workingDir, model, env, onData, onErrorData, abortSignal, timeout = 1800000 } = options;
+  const { prompt, workingDir, resumeSessionId, resumePrompt, model, env, onData, onErrorData, onSessionId, abortSignal, timeout = 1800000 } = options;
 
   if (!prompt) {
     throw new Error('runCursor requires a prompt.');
@@ -187,7 +204,7 @@ export async function runCursor(options: RunCursorOptions): Promise<RunCursorRes
 
   const { command, args } = buildCursorExecCommand({
     workingDir,
-    prompt,
+    resumeSessionId,
     model,
     cursorConfigDir
   });
@@ -196,6 +213,8 @@ export async function runCursor(options: RunCursorOptions): Promise<RunCursorRes
   debug(`Cursor runner - prompt length: ${prompt.length}, lines: ${prompt.split('\n').length}`);
   debug(`Cursor runner - args count: ${args.length}, model: ${model ?? 'auto'}`);
 
+  let sessionIdCaptured = false;
+
   let result;
   try {
     result = await spawnProcess({
@@ -203,7 +222,7 @@ export async function runCursor(options: RunCursorOptions): Promise<RunCursorRes
       args,
       cwd: workingDir,
       env: mergedEnv,
-      stdinInput: prompt, // Pass prompt via stdin instead of command-line argument
+      stdinInput: resumeSessionId ? buildResumePrompt(resumePrompt) : prompt,
     onStdout: inheritTTY
       ? undefined
       : (chunk) => {
@@ -213,6 +232,17 @@ export async function runCursor(options: RunCursorOptions): Promise<RunCursorRes
           const lines = out.trim().split('\n');
           for (const line of lines) {
             if (!line.trim()) continue;
+
+            // Capture session ID from first event that contains it
+            try {
+              const json = JSON.parse(line);
+              if (!sessionIdCaptured && json.session_id && onSessionId) {
+                sessionIdCaptured = true;
+                onSessionId(json.session_id);
+              }
+            } catch {
+              // Ignore parse errors
+            }
 
             const formatted = formatStreamJsonLine(line);
             if (formatted) {
