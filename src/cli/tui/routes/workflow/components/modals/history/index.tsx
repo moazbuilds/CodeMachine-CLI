@@ -17,7 +17,6 @@ import { AgentMonitorService } from "../../../../../../../agents/monitoring/inde
 export interface HistoryViewProps {
   onClose: () => void
   onOpenLogViewer: (monitoringId: number) => void
-  disabled?: boolean
   initialSelectedIndex?: number
   onSelectedIndexChange?: (index: number) => void
 }
@@ -63,8 +62,8 @@ export function HistoryView(props: HistoryViewProps) {
     onOpenLogViewer: props.onOpenLogViewer,
     onClearHistory: handleClearHistory,
     onScrollToIndex: handleScrollToIndex,
-    disabled: () => props.disabled ?? false,
   })
+
 
   // Sync selection when user scrolls manually with mouse
   createEffect(() => {

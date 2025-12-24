@@ -16,7 +16,6 @@ export interface UseHistoryNavigationOptions {
   onOpenLogViewer: (monitoringId: number) => void
   onClearHistory?: () => void
   onScrollToIndex?: (index: number) => void
-  disabled?: () => boolean
 }
 
 export function useHistoryNavigation(options: UseHistoryNavigationOptions) {
@@ -60,8 +59,6 @@ export function useHistoryNavigation(options: UseHistoryNavigationOptions) {
   }
 
   useKeyboard((evt) => {
-    if (options.disabled?.()) return
-
     if (evt.name === "h" || evt.name === "escape") {
       evt.preventDefault()
       options.onClose()

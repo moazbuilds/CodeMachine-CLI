@@ -71,6 +71,7 @@ describe('WorkflowEventBus', () => {
           stepIndex: 0,
           totalSteps: 3,
           status: 'pending',
+          orderIndex: 0,
         },
       });
     });
@@ -201,6 +202,7 @@ describe('Integration: Event Flow', () => {
         stepIndex: 0,
         totalSteps: 3,
         status: 'pending',
+        orderIndex: 0,
       },
     });
 
@@ -213,6 +215,7 @@ describe('Integration: Event Flow', () => {
         stepIndex: 1,
         totalSteps: 3,
         status: 'pending',
+        orderIndex: 1,
       },
     });
 

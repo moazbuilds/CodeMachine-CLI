@@ -2,6 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import type { StepData } from './template.js';
+import { debug } from '../logging/logger.js';
 
 const TEMPLATE_TRACKING_FILE = 'template.json';
 
@@ -301,20 +302,26 @@ export async function clearNotCompletedSteps(cmRoot: string): Promise<void> {
 export async function getResumeStartIndex(cmRoot: string): Promise<number> {
   const { data } = await readTrackingData(cmRoot);
 
+  debug('[getResumeStartIndex] data: %O', { resumeFromLastStep: data.resumeFromLastStep, notCompletedSteps: data.notCompletedSteps });
+
   // Check if resume feature is enabled
   if (!data.resumeFromLastStep) {
+    debug('[getResumeStartIndex] resumeFromLastStep is false, returning 0');
     return 0;
   }
 
   // First check for incomplete chains
   const chainResumeInfo = await getChainResumeInfo(cmRoot);
   if (chainResumeInfo) {
+    debug('[getResumeStartIndex] Found chain resume, returning %d', chainResumeInfo.stepIndex);
     return chainResumeInfo.stepIndex;
   }
 
   // Check notCompletedSteps (crash recovery)
   if (data.notCompletedSteps && data.notCompletedSteps.length > 0) {
-    return Math.min(...data.notCompletedSteps);
+    const startIndex = Math.min(...data.notCompletedSteps);
+    debug('[getResumeStartIndex] notCompletedSteps=%O, starting at %d', data.notCompletedSteps, startIndex);
+    return startIndex;
   }
 
   // Check completedSteps - if all steps done, start after the last one
