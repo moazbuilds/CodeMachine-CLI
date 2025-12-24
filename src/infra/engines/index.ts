@@ -8,3 +8,4 @@ export * as claude from './providers/claude/index.js';
 export * as ccr from './providers/ccr/index.js';
 export * as opencode from './providers/opencode/index.js';
 export * as auggie from './providers/auggie/index.js';
+export * as mistral from './providers/mistral/index.js';
