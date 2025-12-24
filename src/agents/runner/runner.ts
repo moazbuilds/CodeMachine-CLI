@@ -433,17 +433,22 @@ export async function executeAgent(
 
     debug(`[AgentRunner] Engine execution completed, outputLength=%d`, totalStdout.length);
 
-    // Mark agent as completed
-    if (monitor && monitoringAgentId !== undefined) {
+    // Determine if this is a resume (conversational loop) vs fresh execution
+    const isResume = resumeSessionId !== undefined;
+
+    // Mark agent as completed (only for fresh execution, not resume)
+    // During resume, the agent stays in running/awaiting state for continued conversation
+    if (!isResume && monitor && monitoringAgentId !== undefined) {
       debug(`[AgentRunner] Marking agent %d as completed`, monitoringAgentId);
       await monitor.complete(monitoringAgentId);
       // Note: Don't close stream here - workflow may write more messages
       // Streams will be closed by cleanup handlers or monitoring service shutdown
+    } else if (isResume) {
+      debug(`[AgentRunner] Resume mode - agent %d stays running for continued conversation`, monitoringAgentId ?? -1);
     }
 
     // Load chained prompts if configured
-    // Always load on fresh execution; on resume, workflow.ts decides whether to use them
-    // based on chain resume state (chainResumeInfo)
+    // Always load - the workflow runner decides whether to use them based on promptQueue state
     let chainedPrompts: ChainedPrompt[] | undefined;
     debug(`[AgentRunner] ChainedPrompts path: %s`, agentConfig.chainedPromptsPath ?? '(none)');
     if (agentConfig.chainedPromptsPath) {

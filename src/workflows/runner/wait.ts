@@ -29,15 +29,22 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
   debug('[Runner] Handling waiting state, autoMode=%s, paused=%s, promptQueue=%d items, queueIndex=%d',
     machineCtx.autoMode, machineCtx.paused, machineCtx.promptQueue.length, machineCtx.promptQueueIndex);
 
-  // If paused, force user input provider (not controller)
-  const provider = machineCtx.paused ? ctx.getUserInput() : ctx.getActiveProvider();
+  // Determine input provider:
+  // - If paused → always use user input
+  // - If manual mode (autoMode=false) → always use user input
+  // - If auto mode (autoMode=true) and not paused → use active provider (controller)
+  const useUserInput = machineCtx.paused || !machineCtx.autoMode;
+  const provider = useUserInput ? ctx.getUserInput() : ctx.getActiveProvider();
   if (machineCtx.paused) {
     debug('[Runner] Workflow is paused, using user input provider');
+  } else if (!machineCtx.autoMode) {
+    debug('[Runner] Manual mode, using user input provider');
   }
 
-  if (!machineCtx.paused && machineCtx.promptQueue.length === 0) {
-    // No chained prompts and not paused - auto-advance to next step
-    debug('[Runner] No chained prompts, auto-advancing to next step');
+  if (!machineCtx.paused && machineCtx.promptQueue.length === 0 && machineCtx.autoMode) {
+    // No chained prompts, not paused, and in auto mode - auto-advance to next step
+    // In manual mode, we wait for user input before advancing
+    debug('[Runner] No chained prompts (auto mode), auto-advancing to next step');
     await markStepCompleted(ctx.cmRoot, machineCtx.currentStepIndex);
     ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
     return;

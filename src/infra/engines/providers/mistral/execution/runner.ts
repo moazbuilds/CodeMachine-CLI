@@ -1,4 +1,5 @@
 import * as path from 'node:path';
+import * as fs from 'node:fs';
 import { homedir } from 'node:os';
 
 import { spawnProcess } from '../../../../process/spawn.js';
@@ -40,6 +41,43 @@ export interface RunMistralResult {
 }
 
 const ANSI_ESCAPE_SEQUENCE = new RegExp(String.raw`\u001B\[[0-9;?]*[ -/]*[@-~]`, 'g');
+
+/**
+ * Find the most recent session file created after startTime
+ * Session files are stored in VIBE_HOME/logs/session/ with format:
+ *   session_{date}_{time}_{short_id}.json
+ * The full session_id is in the metadata.session_id field inside the file.
+ */
+function findLatestSessionId(vibeHome: string, startTime: number): string | null {
+  const sessionDir = path.join(vibeHome, 'logs', 'session');
+
+  try {
+    if (!fs.existsSync(sessionDir)) {
+      return null;
+    }
+
+    const files = fs.readdirSync(sessionDir)
+      .filter(f => f.startsWith('session_') && f.endsWith('.json'))
+      .map(f => ({
+        name: f,
+        path: path.join(sessionDir, f),
+        mtime: fs.statSync(path.join(sessionDir, f)).mtimeMs,
+      }))
+      .filter(f => f.mtime >= startTime)
+      .sort((a, b) => b.mtime - a.mtime);
+
+    if (files.length === 0) {
+      return null;
+    }
+
+    // Read the most recent session file and extract session_id from metadata
+    const content = fs.readFileSync(files[0].path, 'utf-8');
+    const json = JSON.parse(content);
+    return json.metadata?.session_id || null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Build the final resume prompt combining steering instruction with user message
@@ -236,6 +274,9 @@ export async function runMistral(options: RunMistralOptions): Promise<RunMistral
   let capturedError: string | null = null;
   let sessionIdCaptured = false;
 
+  // Record start time to find session files created during this run
+  const startTime = Date.now();
+
   let result;
   try {
     result = await spawnProcess({
@@ -315,7 +356,7 @@ export async function runMistral(options: RunMistralOptions): Promise<RunMistral
       timeout,
     });
   } catch (error) {
-    const err = error as unknown as { code?: string; message?: string };
+    const err = error as unknown as { code?: string; message?: string; name?: string };
     const message = err?.message ?? '';
     const notFound = err?.code === 'ENOENT' || /not recognized as an internal or external command/i.test(message) || /command not found/i.test(message);
     if (notFound) {
@@ -323,6 +364,17 @@ export async function runMistral(options: RunMistralOptions): Promise<RunMistral
       const name = metadata.name;
       throw new Error(`'${command}' is not available on this system. Please install ${name} first:\n  ${install}`);
     }
+
+    // Try to capture session ID even on abort - vibe saves session on exit
+    // This is important for pause/resume functionality
+    if (err?.name === 'AbortError' && !sessionIdCaptured && onSessionId) {
+      const sessionId = findLatestSessionId(vibeHome, startTime);
+      if (sessionId) {
+        sessionIdCaptured = true;
+        onSessionId(sessionId);
+      }
+    }
+
     throw error;
   }
 
@@ -375,6 +427,16 @@ export async function runMistral(options: RunMistralOptions): Promise<RunMistral
     }
 
     throw new Error(errorMessage);
+  }
+
+  // If session ID wasn't captured from streaming output, try to find it from session files
+  // Vibe doesn't include session_id in streaming JSON output, but saves it to session files
+  if (!sessionIdCaptured && onSessionId) {
+    const sessionId = findLatestSessionId(vibeHome, startTime);
+    if (sessionId) {
+      sessionIdCaptured = true;
+      onSessionId(sessionId);
+    }
   }
 
   // Log captured telemetry

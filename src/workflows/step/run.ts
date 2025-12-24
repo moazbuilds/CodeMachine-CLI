@@ -267,6 +267,14 @@ export async function runStepResume(
     };
     machineCtx.currentMonitoringId = output.monitoringId;
 
+    // If promptQueue is empty but we got chained prompts, populate it
+    // This happens when initial execution was aborted before completion
+    if (machineCtx.promptQueue.length === 0 && output.chainedPrompts && output.chainedPrompts.length > 0) {
+      debug('[step/run] Resume: Populating promptQueue with %d chained prompts (initial exec was aborted)', output.chainedPrompts.length);
+      machineCtx.promptQueue = output.chainedPrompts;
+      machineCtx.promptQueueIndex = 0;
+    }
+
     const stepOutput: StateStepOutput = {
       output: output.output,
       monitoringId: output.monitoringId,
