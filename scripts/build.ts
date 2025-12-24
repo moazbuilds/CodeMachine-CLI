@@ -135,6 +135,7 @@ if (watcherVersion) {
 // Map platform/arch to target names
 const platformMap = {
   'linux-x64': { target: 'bun-linux-x64', pkgOs: 'linux', npmOs: 'linux', arch: 'x64', ext: '' },
+  'linux-arm64': { target: 'bun-linux-arm64', pkgOs: 'linux', npmOs: 'linux', arch: 'arm64', ext: '' },
   'darwin-arm64': { target: 'bun-darwin-arm64', pkgOs: 'darwin', npmOs: 'darwin', arch: 'arm64', ext: '' },
   'darwin-x64': { target: 'bun-darwin-x64', pkgOs: 'darwin', npmOs: 'darwin', arch: 'x64', ext: '' },
   // NOTE: npm expects `win32` in the package.json `os` field; using `windows` causes the
@@ -212,7 +213,7 @@ try {
         asset: '[dir]/[name].[ext]', // Preserve original filenames (no hashing)
       },
       compile: {
-        target: target as 'bun-linux-x64' | 'bun-darwin-arm64' | 'bun-darwin-x64' | 'bun-windows-x64',
+        target: target as 'bun-linux-x64' | 'bun-linux-arm64' | 'bun-darwin-arm64' | 'bun-darwin-x64' | 'bun-windows-x64',
         outfile: binaryPath,
       },
       entrypoints: ['./src/runtime/index.ts', manifestPath],

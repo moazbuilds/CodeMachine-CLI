@@ -16,6 +16,9 @@ jobs:
         include:
           - os: ubuntu-latest
             slug: codemachine-linux-x64
+          - os: ubuntu-latest
+            slug: codemachine-linux-arm64
+            target: linux-arm64
           - os: macos-14
             slug: codemachine-darwin-arm64
           - os: macos-13
@@ -40,7 +43,13 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build platform binary
-        run: bun run build
+        shell: bash
+        run: |
+          if [ -n "${{ matrix.target }}" ]; then
+            bun run build --target ${{ matrix.target }}
+          else
+            bun run build
+          fi
 
       - name: Verify cm alias in package.json
         shell: bash
@@ -52,7 +61,7 @@ jobs:
           echo "✅ cm alias verified in package.json"
 
       - name: Test binary execution (Unix)
-        if: runner.os != 'Windows'
+        if: runner.os != 'Windows' && matrix.target == ''
         continue-on-error: true
         run: |
           chmod +x binaries/${{ matrix.slug }}/codemachine
@@ -72,7 +81,20 @@ jobs:
           path: binaries/${{ matrix.slug }}
 
       - name: Smoke test platform binary
+        if: matrix.target == ''
         shell: bash
         run: |
           chmod +x binaries/${{ matrix.slug }}/codemachine* || true
           binaries/${{ matrix.slug }}/codemachine --version
+
+      - name: Verify cross-compiled binary exists
+        if: matrix.target != ''
+        shell: bash
+        run: |
+          if [ -f "binaries/${{ matrix.slug }}/codemachine" ]; then
+            echo "✅ Cross-compiled binary exists: binaries/${{ matrix.slug }}/codemachine"
+            file binaries/${{ matrix.slug }}/codemachine
+          else
+            echo "❌ Binary not found"
+            exit 1
+          fi

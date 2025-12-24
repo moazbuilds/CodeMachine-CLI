@@ -42,6 +42,7 @@
   },
   "optionalDependencies": {
     "codemachine-linux-x64": "0.8.0",
+    "codemachine-linux-arm64": "0.8.0",
     "codemachine-darwin-arm64": "0.8.0",
     "codemachine-darwin-x64": "0.8.0",
     "codemachine-windows-x64": "0.8.0"

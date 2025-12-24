@@ -77,6 +77,7 @@ function runBinary(binaryPath, packageRoot) {
 // Map Node.js platform/arch to our package names
 const platformMap = {
   'linux-x64': { pkg: 'codemachine-linux-x64', bin: 'codemachine' },
+  'linux-arm64': { pkg: 'codemachine-linux-arm64', bin: 'codemachine' },
   'darwin-arm64': { pkg: 'codemachine-darwin-arm64', bin: 'codemachine' },
   'darwin-x64': { pkg: 'codemachine-darwin-x64', bin: 'codemachine' },
   'win32-x64': { pkg: 'codemachine-windows-x64', bin: 'codemachine.exe' },
