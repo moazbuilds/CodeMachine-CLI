@@ -7,7 +7,7 @@ export const metadata: EngineMetadata = {
   cliCommand: 'codex',
   cliBinary: 'codex',
   installCommand: 'npm install -g @openai/codex',
-  defaultModel: 'gpt-5-codex',
+  defaultModel: 'gpt-5.1-codex-max',
   defaultModelReasoningEffort: 'medium',
   order: 3,
 };

@@ -8,6 +8,6 @@ export const metadata: EngineMetadata = {
   cliBinary: 'ccr',
   installCommand: 'npm install -g @musistudio/claude-code-router',
   defaultModel: 'sonnet',
-  order: 3,
+  order: 7,
   experimental: false,
 };

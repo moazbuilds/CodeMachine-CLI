@@ -7,7 +7,7 @@ export const metadata: EngineMetadata = {
   cliCommand: 'claude',
   cliBinary: 'claude',
   installCommand: 'npm install -g @anthropic-ai/claude-code',
-  defaultModel: 'sonnet',
+  defaultModel: 'opus',
   order: 2,
   experimental: true,
 };

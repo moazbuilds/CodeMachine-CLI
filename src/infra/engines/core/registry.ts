@@ -33,13 +33,13 @@ class EngineRegistry {
     // Register all known engines
     // To add a new engine: import it above and register it here
     const engineModules = [
-      codexEngine,
-      claudeEngine,
-      cursorEngine,
-      ccrEngine,
       opencodeEngine,
-      auggieEngine,
+      claudeEngine,
+      codexEngine,
+      cursorEngine,
       mistralEngine,
+      auggieEngine,
+      ccrEngine,
       // Add new engines here
     ];
 
