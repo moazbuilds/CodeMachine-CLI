@@ -43,6 +43,7 @@ export interface UIActions {
   batchAddSubAgents(parentId: string, subAgents: SubAgentState[]): void
   updateSubAgentStatus(subAgentId: string, status: AgentStatus): void
   clearSubAgents(parentId: string): void
+  setWorkflowName(name: string): void
   setWorkflowStatus(status: "running" | "stopping" | "completed" | "stopped" | "awaiting" | "paused" | "error"): void
   setCheckpointState(checkpoint: { active: boolean; reason?: string } | null): void
   setInputState(inputState: InputState | null): void
@@ -95,6 +96,7 @@ export class OpenTUIAdapter extends BaseUIAdapter {
       case "workflow:started":
         // Reset timer for new workflow (will auto-start on first agent)
         timerService.reset()
+        this.actions.setWorkflowName(event.workflowName)
         this.actions.setWorkflowStatus("running")
         break
 

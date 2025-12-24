@@ -36,6 +36,7 @@ export type UIActions = {
   toggleTimeline(): void
   setVisibleItemCount(count: number): void
   setScrollOffset(offset: number, visibleItemCount?: number): void
+  setWorkflowName(name: string): void
   setWorkflowStatus(status: WorkflowStatus): void
   setCheckpointState(checkpoint: { active: boolean; reason?: string } | null): void
   setInputState(inputState: InputState | null): void

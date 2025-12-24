@@ -13,6 +13,13 @@ export type WorkflowActionsContext = {
 }
 
 export function createWorkflowActions(ctx: WorkflowActionsContext) {
+  function setWorkflowName(name: string): void {
+    const state = ctx.getState()
+    if (state.workflowName === name) return
+    ctx.setState({ ...state, workflowName: name })
+    ctx.notify()
+  }
+
   function setWorkflowStatus(status: WorkflowStatus): void {
     const state = ctx.getState()
     if (state.workflowStatus === status) return
@@ -129,6 +136,7 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
   }
 
   return {
+    setWorkflowName,
     setWorkflowStatus,
     setCheckpointState,
     setInputState,

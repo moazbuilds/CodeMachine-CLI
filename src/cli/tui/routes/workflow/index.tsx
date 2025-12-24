@@ -31,7 +31,7 @@ export function Workflow(props: WorkflowProps) {
   }
 
   return (
-    <UIStateProvider workflowName="CodeMachine Workflow">
+    <UIStateProvider workflowName="Workflow">
       <WorkflowShell
         version={getVersion()}
         currentDir={getCwd()}
