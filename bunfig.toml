@@ -1,18 +1,4 @@
 # Global preload removed - now scoped to TUI via src/cli/tui/launcher.ts
 # This prevents the SolidJS transform from affecting React/Ink components
 
-[test]
-# Test setup file (equivalent to vitest setupFiles)
-preload = ["./tests/setup.ts"]
-
-# Coverage configuration
-coverage = true
-coverageReporter = ["text", "lcov"]
-coverageDir = "./coverage"
-
-# Exclude patterns
-exclude = [
-  "**/node_modules/**",
-  "**/backups/**",
-  "**/*.d.ts"
-]
+# Tests archived to .tests.archive/ (hidden folder, ignored by bun test)

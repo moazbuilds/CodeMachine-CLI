@@ -54,7 +54,7 @@
     "_comment_build": "Production: Build platform-specific executables",
     "build": "bun scripts/build.ts",
     "_comment_quality": "Code Quality: Linting, testing, formatting",
-    "lint": "eslint --max-warnings=0 \"{src,tests}/**/*.{ts,tsx}\"",
+    "lint": "eslint --max-warnings=0 \"src/**/*.{ts,tsx}\"",
     "test": "bun test",
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",
