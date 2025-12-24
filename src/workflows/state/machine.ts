@@ -21,7 +21,7 @@ import type {
  */
 export function createMachine(config: MachineConfig): StateMachine {
   let currentState: WorkflowState = config.initial;
-  let context: WorkflowContext = { ...config.context };
+  const context: WorkflowContext = { ...config.context };
   const listeners = new Set<StateListener>();
 
   const FINAL_STATES: WorkflowState[] = ['completed', 'stopped', 'error'];

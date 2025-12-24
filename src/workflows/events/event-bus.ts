@@ -44,6 +44,7 @@ export type Unsubscribe = () => void;
  */
 export class WorkflowEventBus {
   private listeners = new Set<WorkflowEventListener>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private typedListeners = new Map<WorkflowEventType, Set<TypedEventListener<any>>>();
   private eventHistory: WorkflowEvent[] = [];
   private historyEnabled = false;

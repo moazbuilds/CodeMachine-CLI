@@ -20,6 +20,8 @@ export type UIActions = {
   subscribe(fn: Listener): () => void
   addAgent(agent: WorkflowState["agents"][number]): void
   updateAgentStatus(agentId: string, status: AgentStatus): void
+  updateAgentStartTime(agentId: string, startTime: number): void
+  updateAgentDuration(agentId: string, duration: number): void
   updateAgentEngine(agentId: string, engine: string): void
   updateAgentModel(agentId: string, model: string): void
   updateAgentTelemetry(agentId: string, telemetry: Partial<WorkflowState["agents"][number]["telemetry"]>): void
@@ -28,6 +30,8 @@ export type UIActions = {
   addSubAgent(parentId: string, subAgent: SubAgentState): void
   batchAddSubAgents(parentId: string, subAgents: SubAgentState[]): void
   updateSubAgentStatus(subAgentId: string, status: AgentStatus): void
+  updateSubAgentStartTime(subAgentId: string, startTime: number): void
+  updateSubAgentDuration(subAgentId: string, duration: number): void
   clearSubAgents(parentId: string): void
   navigateDown(visibleItemCount?: number): void
   navigateUp(visibleItemCount?: number): void

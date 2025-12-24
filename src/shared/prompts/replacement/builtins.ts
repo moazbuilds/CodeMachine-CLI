@@ -47,7 +47,7 @@ export async function getBuiltInContent(
  * Checks if a placeholder name is a built-in placeholder.
  */
 export function isBuiltInPlaceholder(name: string): boolean {
-  return name in STATIC_PLACEHOLDERS || CONTEXT_PLACEHOLDERS.includes(name as any);
+  return name in STATIC_PLACEHOLDERS || CONTEXT_PLACEHOLDERS.includes(name as typeof CONTEXT_PLACEHOLDERS[number]);
 }
 
 /**

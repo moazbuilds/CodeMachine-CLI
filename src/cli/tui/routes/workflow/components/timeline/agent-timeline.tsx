@@ -9,8 +9,8 @@
 
 import { For, Show, createMemo } from "solid-js"
 import { useTheme } from "@tui/shared/context/theme"
-import type { AgentState, SubAgentState, UIElement, WorkflowState } from "../../state/types"
-import { getTimelineLayout, type TimelineLayoutEntry } from "../../state/navigation"
+import type { WorkflowState } from "../../state/types"
+import { getTimelineLayout } from "../../state/navigation"
 import { MainAgentNode } from "./main-agent-node"
 import { SubAgentSummary } from "./sub-agent-summary"
 import { SubAgentNode } from "./sub-agent-node"

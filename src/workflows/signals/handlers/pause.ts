@@ -27,7 +27,7 @@ export function handlePauseSignal(ctx: SignalContext): void {
   }
 
   // Emit mode-change to switch to manual (ignored if already manual)
-  process.emit('workflow:mode-change' as any, { autonomousMode: false });
+  (process as NodeJS.EventEmitter).emit('workflow:mode-change', { autonomousMode: false });
 
   debug('[PauseSignal] Pause handled');
 }

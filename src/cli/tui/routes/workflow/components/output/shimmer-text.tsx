@@ -19,7 +19,7 @@ export interface ShimmerTextProps {
 const DURATION = 2_500
 
 export function ShimmerText(props: ShimmerTextProps) {
-  const themeCtx = useTheme()
+  const _themeCtx = useTheme()
 
   const timeline = useTimeline({
     duration: DURATION,

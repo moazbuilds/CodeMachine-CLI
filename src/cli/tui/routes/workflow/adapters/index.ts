@@ -16,7 +16,7 @@ export * from './opentui.js';
 import type { IWorkflowUI, UIAdapterOptions, AdapterType } from './types.js';
 import { HeadlessAdapter, type HeadlessAdapterOptions } from './headless.js';
 import { MockAdapter } from './mock.js';
-import { OpenTUIAdapter, type UIActions, type OpenTUIAdapterOptions } from './opentui.js';
+import { OpenTUIAdapter, type UIActions } from './opentui.js';
 
 /**
  * Create a UI adapter by type

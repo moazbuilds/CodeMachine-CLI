@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 import { WorkflowEventBus, createWorkflowEventBus } from '../event-bus.js';
 import type { WorkflowEvent } from '../types.js';
 
@@ -31,14 +31,14 @@ describe('WorkflowEventBus', () => {
       bus.emit({ type: 'agent:status', agentId: 'test-2', status: 'completed' });
 
       expect(events).toHaveLength(1);
-      expect((events[0] as any).agentId).toBe('test-1');
+      expect((events[0] as { agentId: string }).agentId).toBe('test-1');
     });
   });
 
   describe('on (typed listeners)', () => {
     it('should only notify listeners of matching event type', () => {
-      const statusEvents: any[] = [];
-      const telemetryEvents: any[] = [];
+      const statusEvents: WorkflowEvent[] = [];
+      const telemetryEvents: WorkflowEvent[] = [];
 
       bus.on('agent:status', (event) => statusEvents.push(event));
       bus.on('agent:telemetry', (event) => telemetryEvents.push(event));
@@ -113,8 +113,8 @@ describe('WorkflowEventBus', () => {
 
       const history = bus.getHistory();
       expect(history).toHaveLength(2);
-      expect((history[0] as any).agentId).toBe('test-2');
-      expect((history[1] as any).agentId).toBe('test-3');
+      expect((history[0] as { agentId: string }).agentId).toBe('test-2');
+      expect((history[1] as { agentId: string }).agentId).toBe('test-3');
     });
 
     it('should filter history by type', () => {

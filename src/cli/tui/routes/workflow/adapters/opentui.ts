@@ -29,8 +29,11 @@ export interface UIActions {
     thinkingCount: number
     stepIndex?: number
     totalSteps?: number
+    orderIndex?: number
   }): void
   updateAgentStatus(agentId: string, status: AgentStatus): void
+  updateAgentStartTime(agentId: string, startTime: number): void
+  updateAgentDuration(agentId: string, duration: number): void
   updateAgentEngine(agentId: string, engine: string): void
   updateAgentModel(agentId: string, model: string): void
   updateAgentTelemetry(
@@ -42,6 +45,8 @@ export interface UIActions {
   addSubAgent(parentId: string, subAgent: SubAgentState): void
   batchAddSubAgents(parentId: string, subAgents: SubAgentState[]): void
   updateSubAgentStatus(subAgentId: string, status: AgentStatus): void
+  updateSubAgentStartTime(subAgentId: string, startTime: number): void
+  updateSubAgentDuration(subAgentId: string, duration: number): void
   clearSubAgents(parentId: string): void
   setWorkflowName(name: string): void
   setWorkflowStatus(status: "running" | "stopping" | "completed" | "stopped" | "awaiting" | "paused" | "error"): void

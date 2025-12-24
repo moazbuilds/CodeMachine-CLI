@@ -121,11 +121,6 @@ function formatStreamJsonLine(line: string): string | null {
       const totalCached = cacheRead + cacheCreation;
       const totalIn = json.usage.input_tokens + totalCached;
 
-      // Show total input tokens with optional cached indicator
-      const tokensDisplay = totalCached > 0
-        ? `${totalIn}in/${json.usage.output_tokens}out (${totalCached} cached)`
-        : `${totalIn}in/${json.usage.output_tokens}out`;
-
       // Format telemetry line with rich formatting
       const durationStr = formatDuration(json.duration_ms);
       const costStr = formatCost(json.total_cost_usd);

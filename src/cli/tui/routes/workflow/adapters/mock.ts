@@ -110,12 +110,13 @@ export class MockAdapter extends BaseUIAdapter {
         });
         break;
 
-      case 'agent:status':
+      case 'agent:status': {
         const agent = this.state.agents.get(event.agentId);
         if (agent) {
           agent.status = event.status;
         }
         break;
+      }
 
       case 'subagent:added':
         if (!this.state.subAgents.has(event.parentId)) {

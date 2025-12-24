@@ -1,4 +1,4 @@
-import { stat, rm, writeFile, mkdir } from 'node:fs/promises';
+import { stat, rm, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { homedir } from 'node:os';
 import { createInterface } from 'node:readline/promises';
@@ -105,7 +105,7 @@ export async function ensureAuth(options?: MistralAuthOptions): Promise<boolean>
     return true;
   }
 
-  const configDir = resolveMistralConfigDir(options);
+  const _configDir = resolveMistralConfigDir(options);
   const vibeHome = resolveVibeHome(options);
   const credPath = getCredentialsPath(vibeHome);
 

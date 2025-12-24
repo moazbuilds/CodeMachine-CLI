@@ -5,6 +5,7 @@ import type { WorkflowEventBus } from '../event-bus.js';
 describe('WorkflowEventEmitter', () => {
   let bus: WorkflowEventBus;
   let emitter: WorkflowEventEmitter;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let events: any[];
 
   beforeEach(() => {

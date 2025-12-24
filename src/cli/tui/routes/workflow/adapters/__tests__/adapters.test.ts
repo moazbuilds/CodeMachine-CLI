@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'bun:test';
 import { createWorkflowEventBus } from '../../../../../../workflows/events/index.js';
 import { MockAdapter, createMockAdapter } from '../mock.js';
 import { HeadlessAdapter, createHeadlessAdapter } from '../headless.js';
-import { createAdapter, createAutoAdapter } from '../index.js';
+import { createAdapter, createAutoAdapter, type AdapterType } from '../index.js';
 import type { WorkflowEventBus } from '../../../../../../workflows/events/index.js';
 
 describe('MockAdapter', () => {
@@ -360,7 +360,7 @@ describe('createAdapter factory', () => {
   });
 
   it('should throw for unknown adapter type', () => {
-    expect(() => createAdapter('unknown' as any)).toThrow('Unknown adapter type');
+    expect(() => createAdapter('unknown' as AdapterType)).toThrow('Unknown adapter type');
   });
 });
 

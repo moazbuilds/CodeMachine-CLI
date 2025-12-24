@@ -98,10 +98,11 @@ export class HeadlessAdapter extends BaseUIAdapter {
         }
         break;
 
-      case 'agent:status':
+      case 'agent:status': {
         const agentName = this.agentNames.get(event.agentId) || event.agentId;
         this.log(`[${agentName}] Status: ${event.status}`);
         break;
+      }
 
       case 'agent:telemetry':
         if (this.logLevel === 'verbose') {

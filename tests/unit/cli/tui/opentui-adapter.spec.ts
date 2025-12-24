@@ -1,6 +1,12 @@
 import { describe, expect, it } from "bun:test"
 
-import { createOpenTUIAdapter, type UIActions } from "../../../../src/cli/tui/routes/workflow/adapters/opentui.js"
+import { createOpenTUIAdapter, type UIActions, type OpenTUIAdapter } from "../../../../src/cli/tui/routes/workflow/adapters/opentui.js"
+import type { WorkflowEvent } from "../../../../src/workflows/events/types.js"
+
+// Helper type to expose protected handleEvent for testing
+type TestableAdapter = OpenTUIAdapter & {
+  handleEvent(event: WorkflowEvent): void
+}
 
 type RecordedActions = {
   workflowStatus: Array<Parameters<UIActions["setWorkflowStatus"]>[0]>
@@ -25,15 +31,24 @@ function createTestActions() {
   const actions: UIActions = {
     addAgent: (agent) => recorded.addAgent.push(agent),
     updateAgentStatus: noop,
+    updateAgentStartTime: noop,
+    updateAgentDuration: noop,
+    updateAgentEngine: noop,
+    updateAgentModel: noop,
     updateAgentTelemetry: noop,
     setLoopState: noop,
     clearLoopRound: noop,
     addSubAgent: noop,
     batchAddSubAgents: noop,
     updateSubAgentStatus: noop,
+    updateSubAgentStartTime: noop,
+    updateSubAgentDuration: noop,
     clearSubAgents: noop,
+    setWorkflowName: noop,
     setWorkflowStatus: (status) => recorded.workflowStatus.push(status),
     setCheckpointState: noop,
+    setInputState: noop,
+    setChainedState: noop,
     registerMonitoringId: noop,
     addTriggeredAgent: noop,
     resetAgentForLoop: noop,
@@ -48,7 +63,7 @@ describe("OpenTUIAdapter", () => {
   it("routes workflow status events to the matching action", () => {
     const { adapter, recorded } = createAdapterUnderTest()
 
-    ;(adapter as any).handleEvent({ type: "workflow:status", status: "stopping" })
+    ;(adapter as TestableAdapter).handleEvent({ type: "workflow:status", status: "stopping" })
 
     expect(recorded.workflowStatus).toEqual(["stopping"])
   })
@@ -60,7 +75,7 @@ describe("OpenTUIAdapter", () => {
 
     Date.now = () => now
     try {
-      ;(adapter as any).handleEvent({
+      ;(adapter as TestableAdapter).handleEvent({
         type: "agent:added",
         agent: {
           id: "agent-1",
@@ -93,7 +108,7 @@ describe("OpenTUIAdapter", () => {
   it("forwards log events to logMessage", () => {
     const { adapter, recorded } = createAdapterUnderTest()
 
-    ;(adapter as any).handleEvent({ type: "message:log", agentId: "agent-1", message: "done" })
+    ;(adapter as TestableAdapter).handleEvent({ type: "message:log", agentId: "agent-1", message: "done" })
 
     expect(recorded.logMessages).toEqual([{ agentId: "agent-1", message: "done" }])
   })

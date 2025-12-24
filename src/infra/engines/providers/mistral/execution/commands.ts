@@ -26,7 +26,7 @@ const MODEL_MAP: Record<string, string> = {
  * Maps a model name from config to Mistral's model naming convention
  * Returns undefined if the model should use Mistral's default
  */
-function mapModel(model?: string): string | undefined {
+function _mapModel(model?: string): string | undefined {
   if (!model) {
     return undefined;
   }

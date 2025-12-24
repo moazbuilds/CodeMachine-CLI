@@ -26,7 +26,6 @@ export function TypingText(props: TypingTextProps) {
 
   createEffect(() => {
     const text = props.text
-    let typeInterval: NodeJS.Timeout | undefined
     let eraseInterval: NodeJS.Timeout | undefined
     let displayTimeout: NodeJS.Timeout | undefined
 
@@ -34,7 +33,7 @@ export function TypingText(props: TypingTextProps) {
     setVisibleChars(0)
 
     // Type in
-    typeInterval = setInterval(() => {
+    const typeInterval = setInterval(() => {
       setVisibleChars((prev) => {
         if (prev >= text.length) {
           clearInterval(typeInterval)

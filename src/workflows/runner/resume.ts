@@ -69,7 +69,7 @@ export async function execWithResume(options: ExecWithResumeOptions): Promise<Ex
     chainResumeInfo,
     shouldResumeFromSavedSession,
     stepDataForResume,
-    shouldResumeFromPause,
+    shouldResumeFromPause: _shouldResumeFromPause,
     stepResumeMonitoringId,
     stepResumePrompt,
     selectedConditions,

@@ -1,5 +1,4 @@
 /** @jsxImportSource @opentui/solid */
-import type { JSX } from "solid-js"
 import { useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
 import { SIMPLE_LOGO } from "../logo"
