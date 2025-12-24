@@ -22,11 +22,14 @@ import {
 export interface RunMistralOptions {
   prompt: string;
   workingDir: string;
+  resumeSessionId?: string;
+  resumePrompt?: string;
   model?: string;
   env?: NodeJS.ProcessEnv;
   onData?: (chunk: string) => void;
   onErrorData?: (chunk: string) => void;
   onTelemetry?: (telemetry: ParsedTelemetry) => void;
+  onSessionId?: (sessionId: string) => void;
   abortSignal?: AbortSignal;
   timeout?: number; // Timeout in milliseconds (default: 1800000ms = 30 minutes)
 }
@@ -38,6 +41,20 @@ export interface RunMistralResult {
 
 const ANSI_ESCAPE_SEQUENCE = new RegExp(String.raw`\u001B\[[0-9;?]*[ -/]*[@-~]`, 'g');
 
+/**
+ * Build the final resume prompt combining steering instruction with user message
+ */
+function buildResumePrompt(userPrompt?: string): string {
+  const defaultPrompt = 'Continue from where you left off.';
+
+  if (!userPrompt) {
+    return defaultPrompt;
+  }
+
+  // Combine steering instruction with user's message
+  return `[USER STEERING] The user paused this session to give you new direction. Continue from where you left off, but prioritize the user's request: "${userPrompt}"`;
+}
+
 // Track tool names for associating with results
 const toolNameMap = new Map<string, string>();
 
@@ -48,43 +65,68 @@ function formatStreamJsonLine(line: string): string | null {
   try {
     const json = JSON.parse(line);
 
-    // Mistral Vibe uses role/content format instead of type/message format
-    // Handle both formats for compatibility
     const role = json.role || json.type;
     const content = json.content || json.message?.content;
 
     if (role === 'assistant') {
-      // Handle assistant messages
-      if (typeof content === 'string') {
-        // Simple string content
+      // Handle tool_calls array
+      if (Array.isArray(json.tool_calls) && json.tool_calls.length > 0) {
+        const results: string[] = [];
+        for (const toolCall of json.tool_calls) {
+          const toolName = toolCall.function?.name || toolCall.name || 'tool';
+          const toolId = toolCall.id;
+          if (toolId && toolName) {
+            toolNameMap.set(toolId, toolName);
+          }
+          results.push(formatCommand(toolName, 'started'));
+        }
+        return results.join('\n');
+      }
+
+      // Handle text content
+      if (typeof content === 'string' && content.trim()) {
         return content;
       } else if (Array.isArray(content)) {
-        // Array of content blocks (like Claude/Gemini format)
         for (const block of content) {
           if (block.type === 'text' && block.text) {
             return block.text;
           } else if (block.type === 'thinking' && block.text) {
             return formatThinking(block.text);
           } else if (block.type === 'tool_use') {
-            // Track tool name for later use with result
             if (block.id && block.name) {
               toolNameMap.set(block.id, block.name);
             }
-            const commandName = block.name || 'tool';
-            return formatCommand(commandName, 'started');
+            return formatCommand(block.name || 'tool', 'started');
           }
         }
       }
+    } else if (role === 'tool') {
+      // Handle tool results
+      const toolName = json.name || (json.tool_call_id ? toolNameMap.get(json.tool_call_id) : undefined) || 'tool';
+
+      if (json.tool_call_id) {
+        toolNameMap.delete(json.tool_call_id);
+      }
+
+      let preview: string;
+      const toolContent = json.content;
+      if (typeof toolContent === 'string') {
+        const trimmed = toolContent.trim();
+        preview = trimmed
+          ? (trimmed.length > 100 ? trimmed.substring(0, 100) + '...' : trimmed)
+          : 'empty';
+      } else {
+        preview = JSON.stringify(toolContent);
+      }
+      return formatCommand(toolName, 'success') + '\n' + formatResult(preview, false);
     } else if (role === 'user') {
-      // Handle user messages (tool results)
+      // Handle user messages with tool results
       if (Array.isArray(content)) {
         for (const block of content) {
           if (block.type === 'tool_result') {
-            // Get tool name from map
             const toolName = block.tool_use_id ? toolNameMap.get(block.tool_use_id) : undefined;
             const commandName = toolName || 'tool';
 
-            // Clean up the map entry
             if (block.tool_use_id) {
               toolNameMap.delete(block.tool_use_id);
             }
@@ -92,7 +134,6 @@ function formatStreamJsonLine(line: string): string | null {
             let preview: string;
             if (block.is_error) {
               preview = typeof block.content === 'string' ? block.content : JSON.stringify(block.content);
-              // Show command in red with nested error
               return formatCommand(commandName, 'error') + '\n' + formatResult(preview, true);
             } else {
               if (typeof block.content === 'string') {
@@ -103,7 +144,6 @@ function formatStreamJsonLine(line: string): string | null {
               } else {
                 preview = JSON.stringify(block.content);
               }
-              // Show command in green with nested result
               return formatCommand(commandName, 'success') + '\n' + formatResult(preview, false);
             }
           }
@@ -134,7 +174,7 @@ function formatStreamJsonLine(line: string): string | null {
 }
 
 export async function runMistral(options: RunMistralOptions): Promise<RunMistralResult> {
-  const { prompt, workingDir, model, env, onData, onErrorData, onTelemetry, abortSignal, timeout = 1800000 } = options;
+  const { prompt, workingDir, resumeSessionId, resumePrompt, model, env, onData, onErrorData, onTelemetry, onSessionId, abortSignal, timeout = 1800000 } = options;
 
   if (!prompt) {
     throw new Error('runMistral requires a prompt.');
@@ -185,13 +225,16 @@ export async function runMistral(options: RunMistralOptions): Promise<RunMistral
     return result;
   };
 
-  const { command, args } = buildMistralExecCommand({ workingDir, prompt, model });
+  // When resuming, use the resume prompt instead of the original prompt
+  const effectivePrompt = resumeSessionId ? buildResumePrompt(resumePrompt) : prompt;
+  const { command, args } = buildMistralExecCommand({ workingDir, prompt: effectivePrompt, resumeSessionId, model });
 
   // Create telemetry capture instance
   const telemetryCapture = createTelemetryCapture('mistral', model, prompt, workingDir);
 
   // Track JSON error events (Mistral may exit 0 even on errors)
   let capturedError: string | null = null;
+  let sessionIdCaptured = false;
 
   let result;
   try {
@@ -218,6 +261,13 @@ export async function runMistral(options: RunMistralOptions): Promise<RunMistral
             // Check for error events (Mistral may exit 0 even on errors like invalid model)
             try {
               const json = JSON.parse(line);
+
+              // Capture session ID from first event that contains it
+              if (!sessionIdCaptured && json.session_id && onSessionId) {
+                sessionIdCaptured = true;
+                onSessionId(json.session_id);
+              }
+
               // Check for error in result type
               if (json.type === 'result' && json.is_error && json.result && !capturedError) {
                 capturedError = json.result;

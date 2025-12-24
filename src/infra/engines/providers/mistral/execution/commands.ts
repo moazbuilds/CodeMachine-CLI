@@ -1,6 +1,7 @@
 export interface MistralCommandOptions {
   workingDir: string;
   prompt: string;
+  resumeSessionId?: string;
   model?: string;
 }
 
@@ -49,7 +50,7 @@ export function buildMistralExecCommand(options: MistralCommandOptions): Mistral
   // Mistral Vibe CLI doesn't support --model flag
   // Model selection is done via agent configuration files at ~/.vibe/agents/
   // For now, we'll use the default model configured in Vibe
-  
+
   // Base args for Mistral Vibe CLI in programmatic mode
   // -p: programmatic mode (send prompt, auto-approve tools, output response, exit)
   //     The prompt will be passed as an argument to -p
@@ -62,6 +63,11 @@ export function buildMistralExecCommand(options: MistralCommandOptions): Mistral
     '--output',
     'streaming',
   ];
+
+  // Add resume flag if resuming a session
+  if (options.resumeSessionId?.trim()) {
+    args.push('--resume', options.resumeSessionId.trim());
+  }
 
   // Note: Model selection is not supported via CLI flags in Mistral Vibe
   // Users need to configure models via agent config files at ~/.vibe/agents/NAME.toml
