@@ -10,12 +10,13 @@
 import { debug } from '../../../shared/logging/logger.js';
 import { AgentMonitorService } from '../../../agents/monitoring/index.js';
 import { initStepSession } from '../../../shared/workflows/steps.js';
+import { setAutonomousMode } from '../../../shared/workflows/controller.js';
 import type { SignalContext } from '../manager/types.js';
 
 /**
  * Handle pause signal
  */
-export function handlePauseSignal(ctx: SignalContext): void {
+export async function handlePauseSignal(ctx: SignalContext): Promise<void> {
   debug('[PauseSignal] workflow:pause received, state=%s', ctx.machine.state);
 
   const stepContext = ctx.getStepContext();
@@ -24,7 +25,22 @@ export function handlePauseSignal(ctx: SignalContext): void {
     return;
   }
 
-  if (ctx.machine.state === 'running') {
+  // If in auto mode, just switch to manual mode (don't set paused state)
+  // This allows user to re-enable auto mode without being blocked by paused state
+  const wasAutoMode = ctx.mode.autoMode;
+  if (wasAutoMode) {
+    debug('[PauseSignal] Switching from auto to manual mode');
+    // Persist to file first - this emits workflow:mode-change event
+    // Controller listens for this and aborts itself with switchToManual=true,
+    // returning __SWITCH_TO_MANUAL__ instead of stopping the workflow
+    await setAutonomousMode(ctx.cmRoot, false);
+    ctx.mode.disableAutoMode();
+    // Don't set paused state - we're just switching modes, not pausing
+    debug('[PauseSignal] Auto mode disabled, returning');
+    return;
+  }
+
+  if (ctx.machine.state === 'running' || ctx.machine.state === 'awaiting') {
     // Update UI status
     ctx.emitter.updateAgentStatus(stepContext.agentId, 'awaiting');
 
@@ -37,6 +53,7 @@ export function handlePauseSignal(ctx: SignalContext): void {
     // Sync machine context
     const machineCtx = ctx.machine.context;
     machineCtx.paused = true;
+    machineCtx.autoMode = false;
 
     // Capture session from monitor before aborting so resume can find it
     // Agent is registered with base ID (e.g., "bmad-architect" not "bmad-architect-step-2")
@@ -62,10 +79,6 @@ export function handlePauseSignal(ctx: SignalContext): void {
     // Abort the step execution
     ctx.getAbortController()?.abort();
   }
-
-  // Emit mode-change event so ControllerInputProvider can abort its execution
-  // (it listens for this event to know when to stop)
-  (process as NodeJS.EventEmitter).emit('workflow:mode-change', { autonomousMode: false });
 
   debug('[PauseSignal] Pause handled');
 }

@@ -60,7 +60,11 @@ export class SignalManager implements SignalContext {
     debug('[SignalManager] Initializing all signal listeners');
 
     // Pause signal (Ctrl+P or 'p' key)
-    const pauseHandler = () => handlePauseSignal(this);
+    const pauseHandler = () => {
+      handlePauseSignal(this).catch(err =>
+        debug('[SignalManager] Pause handler error: %s', err.message)
+      );
+    };
     process.on('workflow:pause', pauseHandler);
     this.cleanupFns.push(() =>
       process.removeListener('workflow:pause', pauseHandler)

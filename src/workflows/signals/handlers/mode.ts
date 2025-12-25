@@ -55,4 +55,12 @@ export function setAutoMode(ctx: SignalContext, enabled: boolean): void {
 
   // Sync machine context
   machineCtx.autoMode = enabled;
+
+  // When enabling auto mode, also clear paused state
+  // Auto mode and paused are mutually exclusive
+  if (enabled && machineCtx.paused) {
+    debug('[Mode] Clearing paused state (auto mode enabled)');
+    machineCtx.paused = false;
+    ctx.mode.resume();
+  }
 }

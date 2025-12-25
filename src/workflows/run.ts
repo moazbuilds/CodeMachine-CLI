@@ -17,6 +17,7 @@ import {
   getResumeStartIndex,
   getSelectedTrack,
   getSelectedConditions,
+  getStepData,
 } from '../shared/workflows/index.js';
 import { registry } from '../infra/engines/index.js';
 import { MonitoringCleanup } from '../agents/monitoring/index.js';
@@ -134,11 +135,13 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
   // Pre-populate timeline
   let moduleIndex = 0;
-  visibleSteps.forEach((step, stepIndex) => {
+  for (let stepIndex = 0; stepIndex < visibleSteps.length; stepIndex++) {
+    const step = visibleSteps[stepIndex];
     if (step.type === 'module') {
       const defaultEngine = registry.getDefault();
       const engineType = step.engine ?? defaultEngine?.metadata.id ?? 'unknown';
       const uniqueAgentId = getUniqueAgentId(step, moduleIndex);
+      const isCompleted = moduleIndex < startIndex;
 
       emitter.addMainAgent(
         uniqueAgentId,
@@ -147,14 +150,23 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         moduleIndex,
         moduleSteps.length,
         stepIndex, // orderIndex: overall step position for timeline ordering
-        moduleIndex < startIndex ? 'completed' : 'pending',
+        isCompleted ? 'completed' : 'pending',
         step.model
       );
+
+      // For completed agents, register their monitoringId from template.json
+      if (isCompleted) {
+        const stepData = await getStepData(cmRoot, moduleIndex);
+        if (stepData?.monitoringId !== undefined) {
+          emitter.registerMonitoringId(uniqueAgentId, stepData.monitoringId);
+        }
+      }
+
       moduleIndex++;
     } else if (step.type === 'ui') {
       emitter.addUIElement(step.text, stepIndex);
     }
-  });
+  }
 
   // Create and run workflow
   const runner = new WorkflowRunner({

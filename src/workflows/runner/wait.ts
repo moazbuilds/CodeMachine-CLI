@@ -13,6 +13,7 @@ import { runStepResume } from '../step/run.js';
 import {
   markStepCompleted,
   markChainCompleted,
+  getStepData,
 } from '../../shared/workflows/steps.js';
 import type { RunnerContext } from './types.js';
 
@@ -45,12 +46,23 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
     : machineCtx.promptQueue.length > machineCtx.promptQueueIndex;
 
   if (!ctx.mode.paused && !hasChainedPrompts && ctx.mode.autoMode) {
-    // No chained prompts, not paused, and in auto mode - auto-advance to next step
-    // In manual mode, we wait for user input before advancing
-    debug('[Runner] No chained prompts (auto mode), auto-advancing to next step');
-    await markStepCompleted(ctx.cmRoot, machineCtx.currentStepIndex);
-    ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
-    return;
+    // Check if we're resuming a step (sessionId exists but no completedAt)
+    // In this case, we shouldn't auto-advance because the original execution
+    // might have had chained prompts that weren't persisted
+    const stepData = await getStepData(ctx.cmRoot, machineCtx.currentStepIndex);
+    const isResumingStep = stepData?.sessionId && !stepData.completedAt;
+
+    if (isResumingStep) {
+      // Resuming a step - let controller decide what to do
+      debug('[Runner] Resuming step in auto mode, letting controller handle it');
+    } else {
+      // No chained prompts, not paused, and in auto mode - auto-advance to next step
+      // In manual mode, we wait for user input before advancing
+      debug('[Runner] No chained prompts (auto mode), auto-advancing to next step');
+      await markStepCompleted(ctx.cmRoot, machineCtx.currentStepIndex);
+      ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
+      return;
+    }
   }
 
   // Build input context

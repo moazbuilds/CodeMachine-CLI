@@ -173,8 +173,9 @@ export function WorkflowShell(props: WorkflowShellProps) {
     if (s.selectedAgentId) {
       return s.agents.find((a) => a.id === s.selectedAgentId) ?? null
     }
-    const running = s.agents.find((a) => a.status === "running")
-    if (running) return running
+    // Check for running or awaiting (resumed) agents
+    const active = s.agents.find((a) => a.status === "running" || a.status === "awaiting")
+    if (active) return active
     return s.agents[s.agents.length - 1] ?? null
   })
 
