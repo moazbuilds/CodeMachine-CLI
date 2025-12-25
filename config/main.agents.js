@@ -74,11 +74,10 @@ module.exports = [
   // BMAD controller (Product Owner)
   {
     id: 'bmad-po',
-    name: 'PO - Product Owner',
+    name: 'Hakem [PO]',
     description: 'BMAD product owner controller for autonomous mode',
     role: 'controller',
     promptPath: path.join(promptsDir, 'bmad', 'controller', 'PO.md'),
-    engine: 'codex'
   },
 
   // BMAD agents

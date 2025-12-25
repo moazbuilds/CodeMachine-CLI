@@ -19,7 +19,7 @@ export interface ShimmerTextProps {
 const DURATION = 2_500
 
 export function ShimmerText(props: ShimmerTextProps) {
-  const _themeCtx = useTheme()
+  const themeCtx = useTheme()
 
   const timeline = useTimeline({
     duration: DURATION,
@@ -28,8 +28,8 @@ export function ShimmerText(props: ShimmerTextProps) {
 
   const characters = props.text.split("")
 
-  // Use provided color or default to theme text color (gray)
-  const color = props.color ?? RGBA.fromInts(128, 128, 128, 255)
+  // Use provided color or default to theme info color (matches status messages)
+  const color = props.color ?? themeCtx.theme.info
 
   const shimmerSignals = characters.map((_, i) => {
     const [shimmer, setShimmer] = createSignal(0.4)

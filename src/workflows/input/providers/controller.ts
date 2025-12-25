@@ -112,10 +112,11 @@ Review the output above and respond appropriately, or use ACTION: NEXT to procee
         loggerService.write(context.stepOutput.monitoringId, '\n' + formatControllerHeader('PO Agent') + '\n');
       }
 
-      // Execute controller agent with action parsing enabled (resume existing session)
+      // Resume controller session - reuse existing monitoring entry to avoid duplicate agent/log registration
       const result = await executeWithActions(config.agentId, prompt, {
         workingDir: this.cwd,
         resumeSessionId: config.sessionId,
+        resumeMonitoringId: config.monitoringId,
         resumePrompt: prompt,
         abortSignal: this.abortController.signal,
         logger: (chunk) => {

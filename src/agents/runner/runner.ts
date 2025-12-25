@@ -145,6 +145,11 @@ export interface ExecuteAgentOptions {
    * Selected conditions for filtering conditional chained prompt paths
    */
   selectedConditions?: string[];
+
+  /**
+   * Skip writing to agent's log file (caller handles logging externally)
+   */
+  skipLogFile?: boolean;
 }
 
 /**

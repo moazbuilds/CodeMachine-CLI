@@ -138,7 +138,7 @@ export function LogLine(props: LogLineProps) {
       case "orange": return themeCtx.theme.warning
       case "yellow": return themeCtx.theme.warning
       case "cyan": return themeCtx.theme.info
-      case "blue": return themeCtx.theme.info
+      case "blue": return themeCtx.theme.blue
       case "gray": return themeCtx.theme.textMuted
       case "magenta": return themeCtx.theme.purple
       default: return themeCtx.theme.text
@@ -192,7 +192,7 @@ export function LogLine(props: LogLineProps) {
             </Show>
             <text
               fg={lineColor()}
-              bg={isUserInput() ? themeCtx.theme.backgroundElement : isControllerOutput() ? '#1a365d' : undefined}
+              bg={isUserInput() ? themeCtx.theme.backgroundElement : isControllerOutput() ? themeCtx.theme.controllerBackground : undefined}
               attributes={textAttrs()}
             >
               {line}
@@ -223,7 +223,7 @@ export function LogLineInline(props: { line: string }) {
       case "orange": return themeCtx.theme.warning
       case "yellow": return themeCtx.theme.warning
       case "cyan": return themeCtx.theme.info
-      case "blue": return themeCtx.theme.info
+      case "blue": return themeCtx.theme.blue
       case "gray": return themeCtx.theme.textMuted
       case "magenta": return themeCtx.theme.purple
       default: return themeCtx.theme.text

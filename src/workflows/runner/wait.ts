@@ -47,17 +47,14 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
 
   if (!ctx.mode.paused && !hasChainedPrompts && ctx.mode.autoMode) {
     // Check if we're resuming a step (sessionId exists but no completedAt)
-    // In this case, we shouldn't auto-advance because the original execution
-    // might have had chained prompts that weren't persisted
     const stepData = await getStepData(ctx.cmRoot, machineCtx.currentStepIndex);
     const isResumingStep = stepData?.sessionId && !stepData.completedAt;
 
     if (isResumingStep) {
-      // Resuming a step - let controller decide what to do
+      // Resuming incomplete step - let controller decide
       debug('[Runner] Resuming step in auto mode, letting controller handle it');
     } else {
       // No chained prompts, not paused, and in auto mode - auto-advance to next step
-      // In manual mode, we wait for user input before advancing
       debug('[Runner] No chained prompts (auto mode), auto-advancing to next step');
       await markStepCompleted(ctx.cmRoot, machineCtx.currentStepIndex);
       ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });

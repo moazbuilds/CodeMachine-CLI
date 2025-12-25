@@ -11,9 +11,7 @@
  * Usage:
  *   node workflow-signals/index.js
  *
- * Environment:
- *   WORKFLOW_DIR - Working directory for the workflow (defaults to cwd)
- *   SIGNAL_DIR   - Directory for signal files (defaults to WORKFLOW_DIR/.codemachine/signals)
+ * Signals are stored globally at ~/.codemachine/mcp/workflow-signals/
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -37,8 +35,7 @@ import { SignalQueue } from './queue.js';
 // CONFIGURATION
 // ============================================================================
 
-const WORKFLOW_DIR = process.env.WORKFLOW_DIR || process.cwd();
-const signalQueue = new SignalQueue(WORKFLOW_DIR);
+const signalQueue = new SignalQueue();
 
 // ============================================================================
 // MCP SERVER
@@ -255,7 +252,6 @@ async function main(): Promise<void> {
 
   // Log to stderr (stdout is for MCP protocol)
   console.error(`[workflow-signals] MCP server running`);
-  console.error(`[workflow-signals] WORKFLOW_DIR: ${WORKFLOW_DIR}`);
   console.error(`[workflow-signals] SIGNAL_DIR: ${signalQueue.getSignalDir()}`);
 }
 

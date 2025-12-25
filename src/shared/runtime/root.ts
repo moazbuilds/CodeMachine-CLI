@@ -55,6 +55,8 @@ export function resolvePackageRoot(moduleUrl: string, errorContext: string): str
     const validated = validatePackageRoot(currentDir);
     if (validated) {
       cachedPackageRoot = validated;
+      // Set env var for other modules (like MCP setup) that check it directly
+      process.env.CODEMACHINE_PACKAGE_ROOT ??= validated;
       return validated;
     }
 

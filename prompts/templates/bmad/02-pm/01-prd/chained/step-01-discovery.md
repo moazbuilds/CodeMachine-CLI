@@ -21,7 +21,7 @@ description: 'Classify project and establish domain context for the PRD'
 
 ## CONTEXT BOUNDARIES:
 
-- Product brief already loaded in workflow context
+- Product brief may be provided in workflow context, or workflow may start fresh without one
 - Classification CSV data (project-types.csv, domain-complexity.csv) already loaded in workflow context
 - This step creates the PRD document with initial content
 - **Output Path:** `.codemachine/artifacts/prd-{date}.md`
@@ -34,7 +34,7 @@ Conduct comprehensive project discovery that leverages existing input documents 
 
 ### 1. Leverage Input Documents for Head Start
 
-Analyze the product brief loaded in the workflow context. Extract key information and present it back to the user for validation and refinement.
+If a product brief was provided, extract key information and present it back to the user for validation and refinement. Otherwise, start fresh with discovery questions.
 
 **If Product Brief Exists:**
 "As your PM peer, I've reviewed your existing project documentation and have a great starting point for our discovery. Let me share what I understand and you can refine or correct as needed.
@@ -177,7 +177,7 @@ status: 'draft'
 ## SUCCESS METRICS:
 
 ✅ Classification data loaded and used effectively
-✅ Product brief analyzed and leveraged for head start
+✅ Product brief analyzed and leveraged (if provided)
 ✅ User classifications validated and confirmed
 ✅ Product differentiator clearly identified and refined
 ✅ Executive summary content generated collaboratively with document context
@@ -186,7 +186,7 @@ status: 'draft'
 ## FAILURE MODES:
 
 ❌ Skipping classification data loading and guessing classifications
-❌ Not leveraging existing product brief to accelerate discovery
+❌ Ignoring product brief when one was provided
 ❌ Not validating classifications with user before proceeding
 ❌ Generating executive summary without real user input
 ❌ Missing the "what makes it special" discovery and refinement

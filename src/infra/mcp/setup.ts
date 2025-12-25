@@ -18,9 +18,19 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Get the path to the workflow-signals MCP server
+ *
+ * Uses CODEMACHINE_PACKAGE_ROOT for embedded/linked mode,
+ * falls back to __dirname for direct source execution.
  */
 export function getWorkflowSignalsMCPPath(): string {
-  // Point to the TypeScript source - we use bun to run it directly
+  const packageRoot = process.env.CODEMACHINE_PACKAGE_ROOT;
+
+  if (packageRoot) {
+    // Embedded or linked mode - use the extracted/installed location
+    return path.join(packageRoot, 'src', 'infra', 'mcp', 'servers', 'workflow-signals', 'index.ts');
+  }
+
+  // Dev mode - use relative path from this file
   return path.resolve(__dirname, 'servers/workflow-signals/index.ts');
 }
 
@@ -290,7 +300,7 @@ export function getOpenCodeSettingsPath(
     }
     return path.join(projectDir, 'opencode.json');
   }
-  return path.join(homedir(), '.codemachine', 'opencode', 'config', 'opencode.json');
+  return path.join(homedir(), '.codemachine', 'opencode', 'config', 'opencode', 'opencode.json');
 }
 
 /**
@@ -318,14 +328,12 @@ async function writeOpenCodeSettings(
 
 /**
  * Get MCP server configuration for OpenCode format
+ * Uses current working directory automatically (no WORKFLOW_DIR needed)
  */
-function getOpenCodeMCPConfig(workflowDir: string): OpenCodeMCPServer {
+function getOpenCodeMCPConfig(): OpenCodeMCPServer {
   return {
     type: 'local',
     command: ['bun', 'run', getWorkflowSignalsMCPPath()],
-    environment: {
-      WORKFLOW_DIR: workflowDir,
-    },
     enabled: true,
   };
 }
@@ -347,7 +355,7 @@ export async function configureOpenCodeMCP(
   settings.mcp = settings.mcp || {};
 
   // Add/update workflow-signals MCP server
-  settings.mcp['workflow-signals'] = getOpenCodeMCPConfig(workflowDir);
+  settings.mcp['workflow-signals'] = getOpenCodeMCPConfig();
 
   await writeOpenCodeSettings(settingsPath, settings);
 }

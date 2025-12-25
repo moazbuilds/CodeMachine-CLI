@@ -8,14 +8,16 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { watch, type FSWatcher } from 'fs';
+import { homedir } from 'os';
 
 import type { SignalMessage, ProposeStepCompletion, ApproveStepTransition } from './schemas.js';
 
 export class SignalQueue {
   private signalDir: string;
 
-  constructor(workflowDir: string) {
-    this.signalDir = path.join(workflowDir, '.codemachine', 'signals');
+  constructor(_workflowDir?: string) {
+    // Use a global signals directory in user home
+    this.signalDir = path.join(homedir(), '.codemachine', 'mcp', 'workflow-signals');
   }
 
   /**

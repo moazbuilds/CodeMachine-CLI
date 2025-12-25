@@ -21,6 +21,8 @@ export type Theme = {
   borderSubtle: RGBA
   mutedBlue: RGBA
   purple: RGBA
+  blue: RGBA
+  controllerBackground: RGBA
 }
 
 type HexColor = `#${string}`
