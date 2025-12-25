@@ -47,6 +47,20 @@ export interface EngineAuthModule {
 }
 
 /**
+ * MCP (Model Context Protocol) configuration for an engine
+ */
+export interface EngineMCPConfig {
+  /** Whether this engine supports MCP */
+  supported: boolean;
+  /** Configure MCP servers for this engine */
+  configure?: (workflowDir: string) => Promise<void>;
+  /** Remove MCP configuration */
+  cleanup?: (workflowDir: string) => Promise<void>;
+  /** Check if MCP is configured */
+  isConfigured?: (workflowDir: string) => Promise<boolean>;
+}
+
+/**
  * Complete engine module interface
  * All engines must export these to be auto-discovered
  */
@@ -63,6 +77,8 @@ export interface EngineModule {
   onRegister?: () => void;
   /** Optional: Called when engine is loaded */
   onLoad?: () => void;
+  /** Optional: MCP configuration for workflow signals */
+  mcp?: EngineMCPConfig;
 }
 
 /**

@@ -588,6 +588,44 @@ export function formatMessage(text: string): string {
   return addMarker('GRAY', `${SYMBOL_BULLET} ${cleanText}`)
 }
 
+/**
+ * Format MCP tool call (signals)
+ * Uses YELLOW with INVERSE for a distinctive "shining" signal look
+ */
+export function formatMcpCall(
+  server: string,
+  tool: string,
+  state: 'started' | 'completed' | 'error' = 'started'
+): string {
+  const signalName = `${server}:${tool}`
+
+  switch (state) {
+    case 'error':
+      return addMarker('RED', `${INDENT}<< SIGNAL >> ${signalName}`, 'BOLD', 'INVERSE')
+    case 'completed':
+      return addMarker('GREEN', `${INDENT}<< SIGNAL >> ${signalName}`, 'BOLD')
+    default:
+      // Started - shining yellow inverse for maximum visibility
+      return addMarker('YELLOW', `${INDENT}>> SIGNAL >> ${signalName}`, 'BOLD', 'INVERSE')
+  }
+}
+
+/**
+ * Format MCP tool result (signal response)
+ * Shows the result content with special signal styling
+ */
+export function formatMcpResult(result: string, isError: boolean = false): string {
+  const color = isError ? 'RED' : 'YELLOW'
+  const lines = result.split('\n')
+  const formattedLines = lines.map((line) => {
+    if (!line) {
+      return addMarker(color, `${INDENT}${INDENT}${SYMBOL_PIPE}`, 'DIM')
+    }
+    return addMarker(color, `${INDENT}${INDENT}${SYMBOL_PIPE} ${line}`, 'DIM')
+  })
+  return formattedLines.join('\n')
+}
+
 // ============================================================================
 // Utility Functions
 // ============================================================================

@@ -51,11 +51,11 @@ export default {
   ],
 
   steps: [
-    resolveStep('bmad-analyst', {engine: 'codex', conditions: ['use_analyst']}),
-    resolveStep('bmad-pm', {engine: 'codex'}),
-    resolveStep('bmad-ux', {engine: 'codex', conditions: ['has_ui']}),
-    resolveStep('bmad-architect', {engine: 'codex'}),
-    resolveStep('bmad-epics', {engine: 'codex'}),
-    resolveStep('bmad-sprints', {engine: 'codex'}),
+    resolveStep('bmad-analyst', {conditions: ['use_analyst']}),
+    resolveStep('bmad-pm', {}),
+    resolveStep('bmad-ux', {conditions: ['has_ui']}),
+    resolveStep('bmad-architect', {}),
+    resolveStep('bmad-epics', {}),
+    resolveStep('bmad-sprints', {}),
   ],
 };

@@ -24,6 +24,7 @@ import { WorkflowEventBus, WorkflowEventEmitter } from './events/index.js';
 import { validateSpecification } from '../runtime/services/index.js';
 import { WorkflowRunner } from './runner/index.js';
 import { getUniqueAgentId } from './context/index.js';
+import { setupWorkflowMCP, cleanupWorkflowMCP } from './mcp.js';
 
 export { validateSpecification, ValidationError } from '../runtime/services/index.js';
 export type { WorkflowStep, WorkflowTemplate };
@@ -59,6 +60,15 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   const { template } = await loadTemplateWithPath(cwd, templatePath);
 
   debug('[Workflow] Using template: %s', template.name);
+
+  // Setup MCP servers for workflow signal tools (use cwd for project root settings)
+  const mcpResult = await setupWorkflowMCP(template, cwd);
+  if (mcpResult.configured.length > 0) {
+    debug('[Workflow] MCP configured for engines: %s', mcpResult.configured.join(', '));
+  }
+  if (mcpResult.failed.length > 0) {
+    debug('[Workflow] MCP setup failed for engines: %s', mcpResult.failed.join(', '));
+  }
 
   // Sync agent configurations
   const workflowAgents = Array.from(
@@ -155,6 +165,20 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     startIndex,
   });
 
+  // Cleanup function for MCP
+  const doMCPCleanup = async () => {
+    debug('[Workflow] Cleaning up MCP...');
+    await cleanupWorkflowMCP(template, cwd).catch(() => {});
+  };
+
+  // Handle SIGINT (Ctrl+C) for cleanup
+  const sigintHandler = async () => {
+    await doMCPCleanup();
+    process.exit(0);
+  };
+  process.once('SIGINT', sigintHandler);
+  process.once('SIGTERM', sigintHandler);
+
   try {
     await runner.run();
   } catch (error) {
@@ -164,6 +188,11 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       reason: (error as Error).message,
     });
     throw error;
+  } finally {
+    // Always cleanup MCP when workflow ends (success, error, or stop)
+    process.off('SIGINT', sigintHandler);
+    process.off('SIGTERM', sigintHandler);
+    await doMCPCleanup();
   }
 
   // Keep process alive for TUI

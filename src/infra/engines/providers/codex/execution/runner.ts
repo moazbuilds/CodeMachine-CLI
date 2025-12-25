@@ -7,7 +7,7 @@ import { metadata } from '../metadata.js';
 import { expandHomeDir } from '../../../../../shared/utils/index.js';
 import { createTelemetryCapture } from '../../../../../shared/telemetry/index.js';
 import type { ParsedTelemetry } from '../../../core/types.js';
-import { formatThinking, formatCommand, formatResult, formatMessage, formatStatus } from '../../../../../shared/formatters/outputMarkers.js';
+import { formatThinking, formatCommand, formatResult, formatMessage, formatStatus, formatMcpCall, formatMcpResult } from '../../../../../shared/formatters/outputMarkers.js';
 import { debug } from '../../../../../shared/logging/logger.js';
 
 export interface RunCodexOptions {
@@ -71,6 +71,34 @@ function formatCodexStreamJsonLine(line: string): string | null {
     // Handle agent messages
     if (json.type === 'item.completed' && json.item?.type === 'agent_message') {
       return formatMessage(json.item.text);
+    }
+
+    // Handle MCP tool calls (signals) - only show completed
+    if (json.type === 'item.completed' && json.item?.type === 'mcp_tool_call') {
+      const server = json.item.server ?? 'mcp';
+      const tool = json.item.tool ?? 'unknown';
+      const status = json.item.status;
+      const isError = status === 'failed' || status === 'error';
+
+      // Format the call completion
+      let output = formatMcpCall(server, tool, isError ? 'error' : 'completed');
+
+      // Add result preview if available
+      if (json.item.result?.content) {
+        const content = json.item.result.content;
+        // Extract text from content array if present
+        const textContent = Array.isArray(content)
+          ? content.map((c: { text?: string }) => c.text ?? '').join('\n')
+          : String(content);
+        if (textContent) {
+          const preview = textContent.length > 150
+            ? textContent.substring(0, 150) + '...'
+            : textContent;
+          output += '\n' + formatMcpResult(preview, isError);
+        }
+      }
+
+      return output;
     }
 
     // Handle turn/thread lifecycle events
