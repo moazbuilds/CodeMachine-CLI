@@ -259,6 +259,129 @@ export async function configureCodexMCP(
 }
 
 // ============================================================================
+// OPENCODE CONFIGURATION
+// ============================================================================
+
+interface OpenCodeMCPServer {
+  type: 'local' | 'remote';
+  command?: string[];
+  environment?: Record<string, string>;
+  enabled?: boolean;
+  timeout?: number;
+}
+
+interface OpenCodeSettings {
+  $schema?: string;
+  mcp?: Record<string, OpenCodeMCPServer>;
+  [key: string]: unknown;
+}
+
+/**
+ * Get OpenCode config file path (opencode.json)
+ * OpenCode uses opencode.json format
+ */
+export function getOpenCodeSettingsPath(
+  scope: 'project' | 'user',
+  projectDir?: string
+): string {
+  if (scope === 'project') {
+    if (!projectDir) {
+      throw new Error('projectDir required for project scope');
+    }
+    return path.join(projectDir, 'opencode.json');
+  }
+  return path.join(homedir(), '.codemachine', 'opencode', 'config', 'opencode.json');
+}
+
+/**
+ * Read OpenCode settings
+ */
+async function readOpenCodeSettings(settingsPath: string): Promise<OpenCodeSettings> {
+  try {
+    const content = await fs.readFile(settingsPath, 'utf-8');
+    return JSON.parse(content) as OpenCodeSettings;
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Write OpenCode settings
+ */
+async function writeOpenCodeSettings(
+  settingsPath: string,
+  settings: OpenCodeSettings
+): Promise<void> {
+  await fs.mkdir(path.dirname(settingsPath), { recursive: true });
+  await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2));
+}
+
+/**
+ * Get MCP server configuration for OpenCode format
+ */
+function getOpenCodeMCPConfig(workflowDir: string): OpenCodeMCPServer {
+  return {
+    type: 'local',
+    command: ['bun', 'run', getWorkflowSignalsMCPPath()],
+    environment: {
+      WORKFLOW_DIR: workflowDir,
+    },
+    enabled: true,
+  };
+}
+
+/**
+ * Configure OpenCode to use workflow-signals MCP server
+ *
+ * @param workflowDir - The workflow directory
+ * @param scope - 'project' (recommended) or 'user'
+ */
+export async function configureOpenCodeMCP(
+  workflowDir: string,
+  scope: 'project' | 'user' = 'project'
+): Promise<void> {
+  const settingsPath = getOpenCodeSettingsPath(scope, workflowDir);
+  const settings = await readOpenCodeSettings(settingsPath);
+
+  // Initialize mcp if not present
+  settings.mcp = settings.mcp || {};
+
+  // Add/update workflow-signals MCP server
+  settings.mcp['workflow-signals'] = getOpenCodeMCPConfig(workflowDir);
+
+  await writeOpenCodeSettings(settingsPath, settings);
+}
+
+/**
+ * Remove workflow-signals MCP server from OpenCode settings
+ */
+export async function removeOpenCodeMCP(
+  workflowDir: string,
+  scope: 'project' | 'user' = 'project'
+): Promise<void> {
+  const settingsPath = getOpenCodeSettingsPath(scope, workflowDir);
+  const settings = await readOpenCodeSettings(settingsPath);
+
+  if (settings.mcp && 'workflow-signals' in settings.mcp) {
+    delete settings.mcp['workflow-signals'];
+    await writeOpenCodeSettings(settingsPath, settings);
+  }
+}
+
+/**
+ * Check if OpenCode has workflow-signals MCP configured
+ */
+export async function isOpenCodeMCPConfigured(
+  workflowDir: string,
+  scope: 'project' | 'user' = 'project'
+): Promise<boolean> {
+  const settingsPath = getOpenCodeSettingsPath(scope, workflowDir);
+  const settings = await readOpenCodeSettings(settingsPath);
+
+  return !!(settings.mcp && 'workflow-signals' in settings.mcp);
+}
+
+// ============================================================================
 // UNIFIED SETUP
 // ============================================================================
 
@@ -266,7 +389,7 @@ export interface SetupOptions {
   /** Workflow directory */
   workflowDir: string;
   /** Which agents to configure */
-  agents?: ('claude' | 'codex')[];
+  agents?: ('claude' | 'codex' | 'opencode')[];
   /** Configuration scope */
   scope?: 'project' | 'user';
 }
@@ -290,6 +413,9 @@ export async function setupWorkflowMCP(options: SetupOptions): Promise<void> {
       } else if (agent === 'codex') {
         await configureCodexMCP(workflowDir, scope);
         results.push({ agent: 'codex', success: true });
+      } else if (agent === 'opencode') {
+        await configureOpenCodeMCP(workflowDir, scope);
+        results.push({ agent: 'opencode', success: true });
       }
     } catch (error) {
       results.push({
@@ -320,8 +446,10 @@ export async function cleanupWorkflowMCP(options: SetupOptions): Promise<void> {
     try {
       if (agent === 'claude') {
         await removeClaudeMCP(workflowDir, scope);
+      } else if (agent === 'opencode') {
+        await removeOpenCodeMCP(workflowDir, scope);
       }
-      // Add codex cleanup when implemented
+      // Other engines handle cleanup via their own mcp.ts modules
     } catch {
       // Ignore cleanup errors
     }

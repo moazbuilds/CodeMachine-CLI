@@ -47,14 +47,9 @@ export class WorkflowMode {
    * This is the key improvement - no separate activeProvider state to sync
    */
   getActiveProvider(): InputProvider {
-    // TESTING: Always use controller for MCP signal testing
-    // TODO: Remove this after testing
-    return this.providers.controllerInput;
-
-    // Original logic:
-    // return this.shouldUseUserInput
-    //   ? this.providers.userInput
-    //   : this.providers.controllerInput;
+    return this.shouldUseUserInput
+      ? this.providers.userInput
+      : this.providers.controllerInput;
   }
 
   /**

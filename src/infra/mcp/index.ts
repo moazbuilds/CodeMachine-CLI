@@ -11,12 +11,16 @@ export {
   cleanupWorkflowMCP,
   configureClaudeMCP,
   configureCodexMCP,
+  configureOpenCodeMCP,
   removeClaudeMCP,
+  removeOpenCodeMCP,
   isClaudeMCPConfigured,
+  isOpenCodeMCPConfigured,
   getWorkflowSignalsMCPPath,
   getWorkflowSignalsMCPConfig,
   getClaudeSettingsPath,
   getCodexSettingsPath,
+  getOpenCodeSettingsPath,
   type SetupOptions,
 } from './setup.js';
 
