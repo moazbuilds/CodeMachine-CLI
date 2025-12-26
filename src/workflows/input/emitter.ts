@@ -38,8 +38,21 @@ export function createInputEmitter(workflowEmitter: WorkflowEventEmitter): Input
       debug('[InputEmitter] Emitting received: source=%s, inputLength=%d',
         data.source, data.input.length);
 
-      // Clear input state
-      workflowEmitter.setInputState(null);
+      // Preserve queue info with active=false so step indicator shows while agent runs
+      if (data.promptQueue && data.promptQueue.length > 0) {
+        workflowEmitter.setInputState({
+          active: false,
+          queuedPrompts: data.promptQueue.map(p => ({
+            name: p.name,
+            label: p.label,
+            content: p.content,
+          })),
+          currentIndex: data.promptQueueIndex ?? 0,
+        });
+      } else {
+        // No queue - clear input state
+        workflowEmitter.setInputState(null);
+      }
     },
 
     emitCanceled(): void {

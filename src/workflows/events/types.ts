@@ -87,7 +87,10 @@ export type WorkflowEvent =
   | { type: 'ui:element'; element: UIElementInfo }
 
   // Monitoring ID registration (for log file access)
-  | { type: 'monitoring:register'; uiAgentId: string; monitoringId: number };
+  | { type: 'monitoring:register'; uiAgentId: string; monitoringId: number }
+
+  // Progress tracking (step indicator)
+  | { type: 'progress:state'; progress: ProgressState | null };
 
 /**
  * Extract event type from WorkflowEvent union

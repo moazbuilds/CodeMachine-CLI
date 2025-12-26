@@ -188,7 +188,12 @@ Review the output above and respond appropriately, or use ACTION: NEXT to procee
             debug('[Controller] ACTION: NEXT hasQueuedPrompt=%s, queueIndex=%d/%d',
               hasQueuedPrompt, context.promptQueueIndex, context.promptQueue.length);
             debug('[Controller] ACTION: NEXT returning prompt: %s', nextPrompt ? nextPrompt.slice(0, 80) + '...' : '(empty - will advance step)');
-            this.emitter.emitReceived({ input: nextPrompt, source: 'controller' });
+            this.emitter.emitReceived({
+              input: nextPrompt,
+              source: 'controller',
+              promptQueue: context.promptQueue,
+              promptQueueIndex: context.promptQueueIndex,
+            });
             return {
               type: 'input',
               value: nextPrompt,
@@ -197,10 +202,20 @@ Review the output above and respond appropriately, or use ACTION: NEXT to procee
             };
           }
           case 'SKIP':
-            this.emitter.emitReceived({ input: '', source: 'controller' });
+            this.emitter.emitReceived({
+              input: '',
+              source: 'controller',
+              promptQueue: context.promptQueue,
+              promptQueueIndex: context.promptQueueIndex,
+            });
             return { type: 'skip' };
           case 'STOP':
-            this.emitter.emitReceived({ input: '', source: 'controller' });
+            this.emitter.emitReceived({
+              input: '',
+              source: 'controller',
+              promptQueue: context.promptQueue,
+              promptQueueIndex: context.promptQueueIndex,
+            });
             return { type: 'stop' };
         }
       }
@@ -209,7 +224,12 @@ Review the output above and respond appropriately, or use ACTION: NEXT to procee
       const cleanedResponse = result.cleanedOutput!;
       debug('[Controller] Sending as input: %s...', cleanedResponse.slice(0, 50));
 
-      this.emitter.emitReceived({ input: cleanedResponse, source: 'controller' });
+      this.emitter.emitReceived({
+        input: cleanedResponse,
+        source: 'controller',
+        promptQueue: context.promptQueue,
+        promptQueueIndex: context.promptQueueIndex,
+      });
       return {
         type: 'input',
         value: cleanedResponse,

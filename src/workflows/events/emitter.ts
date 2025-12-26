@@ -15,6 +15,7 @@ import type {
   AgentInfo,
   UIElementInfo,
   WorkflowEvent,
+  ProgressState,
 } from './types.js';
 import type {
   AgentStatus,

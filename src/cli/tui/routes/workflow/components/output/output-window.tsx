@@ -125,6 +125,18 @@ export function OutputWindow(props: OutputWindowProps) {
           },
         }
       }
+      // Fallback: use workflow step info from currentAgent
+      const agent = props.currentAgent
+      if (agent?.stepIndex !== undefined && agent?.totalSteps !== undefined && agent.totalSteps > 1) {
+        return {
+          mode: "passive",
+          chainedStep: {
+            name: agent.name,
+            index: agent.stepIndex + 1,
+            total: agent.totalSteps,
+          },
+        }
+      }
       return { mode: "passive" }
     }
 

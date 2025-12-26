@@ -99,7 +99,12 @@ export class UserInputProvider implements InputProvider {
 
     // Handle skip
     if (data?.skip) {
-      this.emitter.emitReceived({ input: '', source: 'user' });
+      this.emitter.emitReceived({
+        input: '',
+        source: 'user',
+        promptQueue: this.currentContext.promptQueue,
+        promptQueueIndex: this.currentContext.promptQueueIndex,
+      });
       this.resolver({ type: 'skip' });
       this.resolver = null;
       this.currentContext = null;
@@ -125,7 +130,12 @@ export class UserInputProvider implements InputProvider {
     // If still no input, treat as continue to next step
     if (!input) {
       debug('[UserInput] Empty input, continuing to next step');
-      this.emitter.emitReceived({ input: '', source: 'user' });
+      this.emitter.emitReceived({
+        input: '',
+        source: 'user',
+        promptQueue: this.currentContext.promptQueue,
+        promptQueueIndex: this.currentContext.promptQueueIndex,
+      });
       this.resolver({ type: 'input', value: '' });
       this.resolver = null;
       this.currentContext = null;
@@ -133,7 +143,12 @@ export class UserInputProvider implements InputProvider {
     }
 
     // Normal input
-    this.emitter.emitReceived({ input, source: 'user' });
+    this.emitter.emitReceived({
+      input,
+      source: 'user',
+      promptQueue: this.currentContext.promptQueue,
+      promptQueueIndex: this.currentContext.promptQueueIndex,
+    });
     this.resolver({
       type: 'input',
       value: input,

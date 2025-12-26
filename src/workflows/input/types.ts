@@ -122,4 +122,7 @@ export interface WaitingEventData {
 export interface ReceivedEventData {
   input: string;
   source: 'user' | 'controller' | 'queue';
+  /** Queue info to preserve step indicator while agent runs */
+  promptQueue?: QueuedPrompt[];
+  promptQueueIndex?: number;
 }
