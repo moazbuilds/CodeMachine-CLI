@@ -21,7 +21,7 @@ export function StatusFooter(props: StatusFooterProps) {
   return (
     <box paddingLeft={1} paddingRight={1}>
       <text fg={themeCtx.theme.textMuted}>
-        [↑↓] Navigate  [ENTER] Expand/View  [Tab] Toggle Panel  [H] History  [P] Pause  [Ctrl+S] Skip  [Esc] Stop{props.autonomousMode ? '  [Shift+Tab] Disable Auto' : ''}
+        [↑↓] Navigate  [ENTER] Expand/View  [Tab] Toggle Panel  [H] History  [P] Pause  [Ctrl+S] Skip  [Esc] Stop  [Shift+Tab] {props.autonomousMode ? 'Disable' : 'Enable'} Auto
       </text>
     </box>
   )

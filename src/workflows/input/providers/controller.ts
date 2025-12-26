@@ -68,6 +68,16 @@ export class ControllerInputProvider implements InputProvider {
   async getInput(context: InputContext): Promise<InputResult> {
     this.aborted = false;
 
+    // Emit queue state immediately so UI shows step info while controller runs
+    if (context.promptQueue.length > 0) {
+      this.emitter.emitWaiting({
+        stepIndex: context.stepIndex,
+        promptQueue: context.promptQueue,
+        promptQueueIndex: context.promptQueueIndex,
+        monitoringId: context.stepOutput.monitoringId,
+      });
+    }
+
     const config = await this.getControllerConfig();
     if (!config) {
       debug('[Controller] No controller config, falling back to skip');

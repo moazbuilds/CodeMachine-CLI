@@ -44,10 +44,22 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
 
   function setInputState(inputState: InputState | null): void {
     const state = ctx.getState()
-    ctx.setState({ ...state, inputState })
-    if (inputState && inputState.active) {
+    const prevQueue = state.inputState?.queuedPrompts
+    const prevIndex = state.inputState?.currentIndex
+
+    // Persist queue from previous state if new state doesn't have one
+    let mergedState = inputState
+    if (inputState && !inputState.queuedPrompts && prevQueue && prevQueue.length > 0) {
+      mergedState = { ...inputState, queuedPrompts: prevQueue, currentIndex: prevIndex }
+    } else if (!inputState && prevQueue && prevQueue.length > 0) {
+      // Even when clearing, preserve queue info for UI display
+      mergedState = { active: false, queuedPrompts: prevQueue, currentIndex: prevIndex }
+    }
+
+    ctx.setState({ ...state, inputState: mergedState })
+    if (mergedState && mergedState.active) {
       // Only show "Paused" for manual pause (no queue), not for chained prompts
-      const hasQueue = inputState.queuedPrompts && inputState.queuedPrompts.length > 0
+      const hasQueue = mergedState.queuedPrompts && mergedState.queuedPrompts.length > 0
       if (!hasQueue) {
         setWorkflowStatus("paused")
       }
