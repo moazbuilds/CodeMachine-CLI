@@ -17,6 +17,9 @@ import {
   initStepSession,
   getStepData,
 } from '../../shared/workflows/steps.js';
+import { getSelectedConditions } from '../../shared/workflows/template.js';
+import { loadAgentConfig } from '../../agents/runner/index.js';
+import { loadChainedPrompts } from '../../agents/runner/chained.js';
 import { beforeRun, afterRun, cleanupRun } from './hooks.js';
 import type { RunnerContext } from '../runner/types.js';
 
@@ -80,6 +83,31 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
       output: '',
       monitoringId: stepData.monitoringId,
     };
+
+    // Restore queue from persisted completedChains
+    if (stepData.completedChains && stepData.completedChains.length > 0) {
+      const agentConfig = await loadAgentConfig(step.agentId, ctx.cwd);
+      if (agentConfig?.chainedPromptsPath) {
+        const selectedConditions = await getSelectedConditions(ctx.cmRoot);
+        const chainedPrompts = await loadChainedPrompts(
+          agentConfig.chainedPromptsPath,
+          ctx.cwd,
+          selectedConditions
+        );
+        if (chainedPrompts.length > 0) {
+          const resumeIndex = Math.max(...stepData.completedChains) + 1;
+          debug('[step/run] Restoring queue: %d prompts, resuming at index %d', chainedPrompts.length, resumeIndex);
+          const session = ctx.getCurrentSession();
+          if (session) {
+            session.initializeFromPersisted(chainedPrompts, resumeIndex);
+            session.syncToMachineContext(machineCtx);
+          } else {
+            machineCtx.promptQueue = chainedPrompts;
+            machineCtx.promptQueueIndex = resumeIndex;
+          }
+        }
+      }
+    }
 
     ctx.machine.send({
       type: 'STEP_COMPLETE',
