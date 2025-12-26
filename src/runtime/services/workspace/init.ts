@@ -72,7 +72,7 @@ export async function bootstrapWorkspace(options?: WorkspaceBootstrapOptions): P
       const template = await loadWorkflowModule(options.templatePath);
       if (isWorkflowTemplate(template)) {
         const templateName = path.basename(options.templatePath);
-        agentIdsToLoad = template.subAgentIds;
+        agentIdsToLoad = template.subAgentIds ?? [];
 
         // Save template to template.json
         await setActiveTemplate(cmRoot, templateName);
