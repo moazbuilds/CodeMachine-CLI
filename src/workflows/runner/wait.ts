@@ -71,6 +71,13 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
     ? session.getQueueState()
     : { promptQueue: machineCtx.promptQueue, promptQueueIndex: machineCtx.promptQueueIndex };
 
+  debug('[Runner] Queue state source: %s, queueLen=%d, queueIndex=%d',
+    session ? 'session' : 'machineCtx', queueState.promptQueue.length, queueState.promptQueueIndex);
+  if (session) {
+    debug('[Runner] Session vs machineCtx: session.idx=%d, machineCtx.idx=%d',
+      session.promptQueueIndex, machineCtx.promptQueueIndex);
+  }
+
   const inputContext: InputContext = {
     stepOutput: machineCtx.currentOutput ?? { output: '' },
     stepIndex: machineCtx.currentStepIndex,
@@ -153,16 +160,25 @@ async function handleResumeInput(
   let isQueuedPrompt = false;
   const session = ctx.getCurrentSession();
 
+  debug('[Runner:handleResumeInput] Before queue check: session=%s, machineCtx.queueIndex=%d, machineCtx.queueLen=%d',
+    session ? 'exists' : 'null', machineCtx.promptQueueIndex, machineCtx.promptQueue.length);
+
   if (session) {
+    debug('[Runner:handleResumeInput] Session state: queueIndex=%d, queueLen=%d, isQueueExhausted=%s',
+      session.promptQueueIndex, session.promptQueue.length, session.isQueueExhausted);
     // Use StepSession for queue management
     if (session.isQueuedPrompt(input)) {
       isQueuedPrompt = true;
       const chainIndex = session.promptQueueIndex;
+      debug('[Runner:handleResumeInput] Input matches queued prompt at index %d, advancing...', chainIndex);
       session.advanceQueue();
       // Sync to machine context
       session.syncToMachineContext(machineCtx);
-      debug('[Runner] Advanced queue via StepSession to index %d', session.promptQueueIndex);
+      debug('[Runner:handleResumeInput] After advance: session.idx=%d, machineCtx.idx=%d',
+        session.promptQueueIndex, machineCtx.promptQueueIndex);
       await markChainCompleted(ctx.cmRoot, machineCtx.currentStepIndex, chainIndex);
+    } else {
+      debug('[Runner:handleResumeInput] Input does NOT match queued prompt (custom input)');
     }
   } else if (machineCtx.promptQueue.length > 0 && machineCtx.promptQueueIndex < machineCtx.promptQueue.length) {
     // Fallback: use machine context directly

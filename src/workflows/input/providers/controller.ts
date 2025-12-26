@@ -174,6 +174,8 @@ Review the output above and respond appropriately, or use ACTION: NEXT to procee
       // Action already parsed by executeWithActions
       if (result.action) {
         debug('[Controller] Action detected: %s', result.action);
+        debug('[Controller] Queue state at action: queueLen=%d, queueIndex=%d, stepIndex=%d',
+          context.promptQueue.length, context.promptQueueIndex, context.stepIndex);
 
         switch (result.action) {
           case 'NEXT': {
@@ -183,7 +185,9 @@ Review the output above and respond appropriately, or use ACTION: NEXT to procee
             const nextPrompt = hasQueuedPrompt
               ? context.promptQueue[context.promptQueueIndex].content
               : '';
-            debug('[Controller] ACTION: NEXT with prompt: %s', nextPrompt ? nextPrompt.slice(0, 50) + '...' : '(empty)');
+            debug('[Controller] ACTION: NEXT hasQueuedPrompt=%s, queueIndex=%d/%d',
+              hasQueuedPrompt, context.promptQueueIndex, context.promptQueue.length);
+            debug('[Controller] ACTION: NEXT returning prompt: %s', nextPrompt ? nextPrompt.slice(0, 80) + '...' : '(empty - will advance step)');
             this.emitter.emitReceived({ input: nextPrompt, source: 'controller' });
             return {
               type: 'input',

@@ -197,12 +197,15 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
         if (!machineCtx.autoMode) {
           ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
         }
-      } else {
-        // No chained prompts - complete the session
+      } else if (session.promptQueue.length === 0) {
+        // Truly no prompts - complete the session
         await session.complete();
         ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
         machineCtx.promptQueue = [];
         machineCtx.promptQueueIndex = 0;
+      } else {
+        // Prompts exist but already loaded - sync to machineCtx
+        session.syncToMachineContext(machineCtx);
       }
     } else if (output.chainedPrompts && output.chainedPrompts.length > 0) {
       // Fallback for backwards compatibility (no session)
