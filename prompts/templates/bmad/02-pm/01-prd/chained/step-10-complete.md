@@ -13,14 +13,13 @@ description: 'Finalize PRD document and complete workflow'
 
 - 🛑 NO content generation - this is a wrap-up step
 - 📋 FINALIZE document and update workflow status
-- 💬 FOCUS on completion, next steps, and suggestions
+- 💬 FOCUS on completion and validation
 - 🎯 UPDATE workflow status files with completion information
 
 ## EXECUTION PROTOCOLS:
 
 - 🎯 Show your analysis before taking any action
 - 💾 Update the main workflow status file with completion information
-- 📖 Suggest potential next workflow steps for the user
 - 🚫 DO NOT load additional steps after this one
 
 ## TERMINATION STEP PROTOCOLS:
@@ -28,7 +27,6 @@ description: 'Finalize PRD document and complete workflow'
 - This is a FINAL step - workflow completion required
 - Output any remaining content if needed (none for this step)
 - Update the main workflow status file with finalized document
-- Suggest potential next steps for the user
 - Mark workflow as complete in status tracking
 
 ## CONTEXT BOUNDARIES:
@@ -36,11 +34,11 @@ description: 'Finalize PRD document and complete workflow'
 - Complete PRD document is available from all previous steps
 - Workflow frontmatter shows all completed steps
 - All collaborative content has been generated and saved
-- Focus on completion, validation, and next steps
+- Focus on completion and validation
 
 ## YOUR TASK:
 
-Complete the PRD workflow, update status files, and suggest next steps for the project.
+Complete the PRD workflow and update status files.
 
 ## WORKFLOW COMPLETION SEQUENCE:
 
@@ -84,35 +82,7 @@ Update the main workflow status file:
 - Save file, preserving all comments and structure
 - Mark current timestamp as completion time
 
-### 4. Suggest Next Steps
-
-Provide guidance on logical next workflows:
-
-**Typical Next Workflows:**
-
-**Immediate Next Steps:**
-
-1. `workflow create-ux-design` - UX Design (if UI exists)
-   - User journey insights from step-03 will inform interaction design
-   - Functional requirements from step-08 define design scope
-
-2. `workflow create-architecture` - Technical architecture
-   - Project-type requirements from step-06 guide technical decisions
-   - Non-functional requirements from step-09 inform architecture choices
-
-3. `workflow create-epics-and-stories` - Epic breakdown
-   - Functional requirements from step-08 become epics and stories
-   - Scope definition from step-02 guides sprint planning
-
-**Strategic Considerations:**
-
-- UX design and architecture can happen in parallel
-- Epics/stories are richer when created after UX/architecture
-- Consider your team's capacity and priorities
-
-**What would be most valuable to tackle next?**
-
-### 5. Document Quality Check
+### 4. Document Quality Check
 
 Perform final validation of the PRD:
 
@@ -130,7 +100,7 @@ Perform final validation of the PRD:
 - Is scope consistent across all sections?
 - Are requirements traceable to user needs and success criteria?
 
-### 6. Final Completion Confirmation
+### 5. Final Completion Confirmation
 
 Confirm completion with user:
 "**Document finalized and saved.**
@@ -143,14 +113,6 @@ The document contains everything needed to guide:
 - Technical architecture planning
 - Development prioritization and sprint planning
 
-**Ready to continue with:**
-
-- UX design workflow?
-- Architecture workflow?
-- Epic and story creation?
-
-**Or would you like to review the complete PRD first?**
-
 [Workflow Complete]"
 
 ## SUCCESS METRICS:
@@ -158,17 +120,14 @@ The document contains everything needed to guide:
 ✅ PRD document contains all required sections
 ✅ All collaborative content properly saved to document
 ✅ Workflow status file updated with completion information
-✅ Clear next step guidance provided to user
 ✅ Document quality validation completed
-✅ User acknowledges completion and understands next options
+✅ User acknowledges completion
 
 ## FAILURE MODES:
 
 ❌ Not updating workflow status file with completion information
-❌ Missing clear next step guidance for user
 ❌ Not confirming document completeness with user
 ❌ Workflow not properly marked as complete in status tracking
-❌ User unclear about what happens next
 
 ## WORKFLOW COMPLETION CHECKLIST:
 
@@ -190,21 +149,6 @@ The document contains everything needed to guide:
 - [ ] All content saved to document
 - [ ] Frontmatter properly updated
 - [ ] Workflow status file updated
-- [ ] Next steps clearly communicated
-
-## NEXT STEPS GUIDANCE:
-
-**Immediate Options:**
-
-1. **UX Design** - If product has UI components
-2. **Technical Architecture** - System design and technology choices
-3. **Epic Creation** - Break down FRs into implementable stories
-4. **Review** - Validate PRD with stakeholders before proceeding
-
-**Recommended Sequence:**
-For products with UI: UX → Architecture → Epics
-For API/backend products: Architecture → Epics
-Consider team capacity and timeline constraints
 
 ## WORKFLOW FINALIZATION:
 
