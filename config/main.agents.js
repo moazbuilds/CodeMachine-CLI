@@ -228,7 +228,6 @@ module.exports = [
       path.join(promptsDir, 'bmad', 'shared', 'system-files-protection.md'),
       path.join(promptsDir, 'bmad', '06-sm', 'bob.md'),
       path.join(promptsDir, 'bmad', '06-sm', '02-create-story', 'instructions.xml'),
-      path.join(promptsDir, 'bmad', '06-sm', '02-create-story', 'checklist.md'),
     ],
   },
   {

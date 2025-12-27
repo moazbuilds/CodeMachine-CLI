@@ -42,6 +42,7 @@ module.exports = {
     // BMAD SM workflow shared files
     sprint_status_template: path.join('prompts', 'templates', 'bmad', '06-sm', '01-sprint-planning', 'sprint-status-template.yaml'),
     story_template: path.join('prompts', 'templates', 'bmad', '06-sm', '02-create-story', 'template.md'),
+    story_checklist: path.join('prompts', 'templates', 'bmad', '06-sm', '02-create-story', 'checklist.md'),
 
     // BMAD shared step rules
     step_completion: path.join('prompts', 'templates', 'bmad', 'shared', 'step-completion.md'),

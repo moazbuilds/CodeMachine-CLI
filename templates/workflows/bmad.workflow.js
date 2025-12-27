@@ -52,10 +52,15 @@ export default {
 
   steps: [
     resolveStep('bmad-analyst', {conditions: ['use_analyst']}),
+    resolveUI("∴ Planning Phase ∴"),
     resolveStep('bmad-pm', {}),
     resolveStep('bmad-ux', {conditions: ['has_ui']}),
+    resolveUI("∴ Solutioning Phase ∴"),
     resolveStep('bmad-architect', {}),
     resolveStep('bmad-epics', {}),
+    resolveUI("∴ Implementation Phase ∴"),
     resolveStep('bmad-sprints', {}),
+    resolveUI("⟲ Story Loop ⟲"),
+
   ],
 };

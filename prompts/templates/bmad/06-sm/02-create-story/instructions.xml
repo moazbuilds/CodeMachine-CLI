@@ -10,9 +10,34 @@
     <input name="architecture" required="true">Architecture document</input>
     <input name="ux_design_spec" required="false">UX design specification</input>
     <input name="story_template" required="true">Story file template</input>
+    <input name="story_checklist" required="true">Story validation checklist</input>
   </inputs>
 
-  <critical>Communicate all responses in {communication_language} and generate all documents in {document_output_language}</critical>
+  <source_documents>
+## Epics
+
+{epics}
+
+## PRD
+
+{prd}
+
+## Architecture
+
+{architecture}
+
+## UX Design Specification
+
+{!ux_design_spec}
+
+## Story Template
+
+{story_template}
+
+## Story Checklist
+
+{story_checklist}
+  </source_documents>
 
   <critical>🔥 CRITICAL MISSION: You are creating the ULTIMATE story context engine that prevents LLM developer mistakes, omissions or
     disasters! 🔥</critical>
@@ -26,127 +51,17 @@
     analyze different artifacts simultaneously and thoroughly</critical>
   <critical>❓ SAVE QUESTIONS: If you think of questions or clarifications during analysis, save them for the end after the complete story is
     written</critical>
-  <critical>🎯 ZERO USER INTERVENTION: Process should be fully automated except for initial epic/story selection or missing documents</critical>
+  <critical>🎯 ZERO USER INTERVENTION: Process is fully automated - all data is pre-injected</critical>
 
-  <step n="1" goal="Determine target story">
-    <check if="{{story_path}} is provided by user or user provided the epic and story number such as 2-4 or 1.6 or epic 1 story 5">
-      <action>Parse user-provided story path: extract epic_num, story_num, story_title from format like "1-2-user-auth"</action>
-      <action>Set {{epic_num}}, {{story_num}}, {{story_key}} from user input</action>
-      <action>GOTO step 2a</action>
-    </check>
-
-    <action>Check if .codemachine/artifacts/sprint-status.yaml file exists for auto discover</action>
-    <check if="sprint status file does NOT exist">
-      <output>🚫 No sprint status file found and no story specified</output>
-      <output>
-        **Required Options:**
-        1. Run `sprint-planning` to initialize sprint tracking (recommended)
-        2. Provide specific epic-story number to create (e.g., "1-2-user-auth")
-        3. Provide path to story documents if sprint status doesn't exist yet
-      </output>
-      <ask>Choose option [1], provide epic-story number, path to story docs, or [q] to quit:</ask>
-
-      <check if="user chooses 'q'">
-        <action>HALT - No work needed</action>
-      </check>
-
-      <check if="user chooses '1'">
-        <output>Run sprint-planning workflow first to create sprint-status.yaml</output>
-        <action>HALT - User needs to run sprint-planning</action>
-      </check>
-
-      <check if="user provides epic-story number">
-        <action>Parse user input: extract epic_num, story_num, story_title</action>
-        <action>Set {{epic_num}}, {{story_num}}, {{story_key}} from user input</action>
-        <action>GOTO step 2a</action>
-      </check>
-
-      <check if="user provides story docs path">
-        <action>Use user-provided path for story documents</action>
-        <action>GOTO step 2a</action>
-      </check>
-    </check>
-
-    <!-- Auto-discover from sprint status only if no user input -->
-    <check if="no user input provided">
-      <critical>MUST read COMPLETE .codemachine/artifacts/sprint-status.yaml file from start to end to preserve order</critical>
-      <action>Load the FULL file: .codemachine/artifacts/sprint-status.yaml</action>
-      <action>Read ALL lines from beginning to end - do not skip any content</action>
-      <action>Parse the development_status section completely</action>
-
-      <action>Find the FIRST story (by reading in order from top to bottom) where:
-        - Key matches pattern: number-number-name (e.g., "1-2-user-auth")
-        - NOT an epic key (epic-X) or retrospective (epic-X-retrospective)
-        - Status value equals "backlog"
-      </action>
-
-      <check if="no backlog story found">
-        <output>📋 No backlog stories found in sprint-status.yaml
-
-          All stories are either already created, in progress, or done.
-
-          **Options:**
-          1. Run sprint-planning to refresh story tracking
-          2. Load PM agent and run correct-course to add more stories
-          3. Check if current sprint is complete and run retrospective
-        </output>
-        <action>HALT</action>
-      </check>
-
-      <action>Extract from found story key (e.g., "1-2-user-authentication"):
-        - epic_num: first number before dash (e.g., "1")
-        - story_num: second number after first dash (e.g., "2")
-        - story_title: remainder after second dash (e.g., "user-authentication")
-      </action>
-      <action>Set {{story_id}} = "{{epic_num}}.{{story_num}}"</action>
-      <action>Store story_key for later use (e.g., "1-2-user-authentication")</action>
-
-      <!-- Mark epic as in-progress if this is first story -->
-      <action>Check if this is the first story in epic {{epic_num}} by looking for {{epic_num}}-1-* pattern</action>
-      <check if="this is first story in epic {{epic_num}}">
-        <action>Load .codemachine/artifacts/sprint-status.yaml and check epic-{{epic_num}} status</action>
-        <action>If epic status is "backlog" → update to "in-progress"</action>
-        <action>If epic status is "contexted" (legacy status) → update to "in-progress" (backward compatibility)</action>
-        <action>If epic status is "in-progress" → no change needed</action>
-        <check if="epic status is 'done'">
-          <output>🚫 ERROR: Cannot create story in completed epic</output>
-          <output>Epic {{epic_num}} is marked as 'done'. All stories are complete.</output>
-          <output>If you need to add more work, either:</output>
-          <output>1. Manually change epic status back to 'in-progress' in sprint-status.yaml</output>
-          <output>2. Create a new epic for additional work</output>
-          <action>HALT - Cannot proceed</action>
-        </check>
-        <check if="epic status is not one of: backlog, contexted, in-progress, done">
-          <output>🚫 ERROR: Invalid epic status '{{epic_status}}'</output>
-          <output>Epic {{epic_num}} has invalid status. Expected: backlog, in-progress, or done</output>
-          <output>Please fix sprint-status.yaml manually or run sprint-planning to regenerate</output>
-          <action>HALT - Cannot proceed</action>
-        </check>
-        <output>📊 Epic {{epic_num}} status updated to in-progress</output>
-      </check>
-
-      <action>GOTO step 2a</action>
-    </check>
-    <action>Load the FULL file: .codemachine/artifacts/sprint-status.yaml</action>
-    <action>Read ALL lines from beginning to end - do not skip any content</action>
-    <action>Parse the development_status section completely</action>
-
-    <action>Find the FIRST story (by reading in order from top to bottom) where:
+  <step n="1" goal="Determine target story from sprint status">
+    <action>From {sprint_status}, find the FIRST story (in order) where:
       - Key matches pattern: number-number-name (e.g., "1-2-user-auth")
       - NOT an epic key (epic-X) or retrospective (epic-X-retrospective)
       - Status value equals "backlog"
     </action>
 
     <check if="no backlog story found">
-      <output>📋 No backlog stories found in sprint-status.yaml
-
-        All stories are either already created, in progress, or done.
-
-        **Options:**
-        1. Run sprint-planning to refresh story tracking
-        2. Load PM agent and run correct-course to add more stories
-        3. Check if current sprint is complete and run retrospective
-      </output>
+      <output>📋 No backlog stories found - All stories are either already created, in progress, or done.</output>
       <action>HALT</action>
     </check>
 
@@ -159,30 +74,14 @@
     <action>Store story_key for later use (e.g., "1-2-user-authentication")</action>
 
     <!-- Mark epic as in-progress if this is first story -->
-    <action>Check if this is the first story in epic {{epic_num}} by looking for {{epic_num}}-1-* pattern</action>
-    <check if="this is first story in epic {{epic_num}}">
-      <action>Load .codemachine/artifacts/sprint-status.yaml and check epic-{{epic_num}} status</action>
-      <action>If epic status is "backlog" → update to "in-progress"</action>
-      <action>If epic status is "contexted" (legacy status) → update to "in-progress" (backward compatibility)</action>
-      <action>If epic status is "in-progress" → no change needed</action>
+    <check if="this is first story in epic ({{epic_num}}-1-*)">
+      <action>If epic-{{epic_num}} status is "backlog" or "contexted" → update to "in-progress"</action>
       <check if="epic status is 'done'">
-        <output>🚫 ERROR: Cannot create story in completed epic</output>
-        <output>Epic {{epic_num}} is marked as 'done'. All stories are complete.</output>
-        <output>If you need to add more work, either:</output>
-        <output>1. Manually change epic status back to 'in-progress' in sprint-status.yaml</output>
-        <output>2. Create a new epic for additional work</output>
-        <action>HALT - Cannot proceed</action>
-      </check>
-      <check if="epic status is not one of: backlog, contexted, in-progress, done">
-        <output>🚫 ERROR: Invalid epic status '{{epic_status}}'</output>
-        <output>Epic {{epic_num}} has invalid status. Expected: backlog, in-progress, or done</output>
-        <output>Please fix sprint-status.yaml manually or run sprint-planning to regenerate</output>
-        <action>HALT - Cannot proceed</action>
+        <output>🚫 ERROR: Cannot create story in completed epic - Epic {{epic_num}} is marked as 'done'</output>
+        <action>HALT</action>
       </check>
       <output>📊 Epic {{epic_num}} status updated to in-progress</output>
     </check>
-
-    <action>GOTO step 2a</action>
   </step>
 
   <step n="2" goal="Load and analyze core artifacts">
@@ -320,18 +219,12 @@
   </step>
 
   <step n="6" goal="Update sprint status and finalize">
-    <invoke-task>Validate against checklist at {installed_path}/checklist.md using _bmad/core/tasks/validate-workflow.xml</invoke-task>
+    <action>Validate story against the Story Checklist criteria in source documents above</action>
     <action>Save story document unconditionally</action>
 
     <!-- Update sprint status -->
-    <check if="sprint status file exists">
-      <action>Update .codemachine/artifacts/sprint-status.yaml</action>
-      <action>Load the FULL file and read all development_status entries</action>
-      <action>Find development_status key matching {{story_key}}</action>
-      <action>Verify current status is "backlog" (expected previous state)</action>
-      <action>Update development_status[{{story_key}}] = "ready-for-dev"</action>
-      <action>Save file, preserving ALL comments and structure including STATUS DEFINITIONS</action>
-    </check>
+    <action>In .codemachine/artifacts/sprint-status.yaml, update development_status[{{story_key}}] from "backlog" to "ready-for-dev"</action>
+    <action>Save .codemachine/artifacts/sprint-status.yaml preserving all comments and structure</action>
 
     <action>Report completion</action>
     <output>**🎯 ULTIMATE BMad Method STORY CONTEXT CREATED, {user_name}!**
