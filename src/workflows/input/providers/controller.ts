@@ -69,12 +69,13 @@ export class ControllerInputProvider implements InputProvider {
     this.aborted = false;
 
     // Emit queue state immediately so UI shows step info while controller runs
+    // Use emitReceived (active=false) to show info without enabling input box
     if (context.promptQueue.length > 0) {
-      this.emitter.emitWaiting({
-        stepIndex: context.stepIndex,
+      this.emitter.emitReceived({
+        input: '',
+        source: 'controller',
         promptQueue: context.promptQueue,
         promptQueueIndex: context.promptQueueIndex,
-        monitoringId: context.stepOutput.monitoringId,
       });
     }
 
