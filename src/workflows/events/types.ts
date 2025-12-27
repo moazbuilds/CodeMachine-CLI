@@ -56,7 +56,7 @@ export interface ProgressState {
 /**
  * Onboarding step identifiers
  */
-export type OnboardStep = 'project_name' | 'tracks' | 'condition_group' | 'condition_child' | 'controller';
+export type OnboardStep = 'project_name' | 'tracks' | 'condition_group' | 'condition_child' | 'controller' | 'launching';
 
 /**
  * Onboarding configuration passed to service
@@ -138,7 +138,14 @@ export type WorkflowEvent =
   | { type: 'onboard:condition'; conditionId: string; groupIndex: number; isChild: boolean }
   | { type: 'onboard:conditions_confirmed'; conditions: string[]; groupIndex: number }
   | { type: 'onboard:completed'; result: OnboardResult }
-  | { type: 'onboard:cancelled' };
+  | { type: 'onboard:cancelled' }
+
+  // Controller launching events (during onboarding)
+  | { type: 'onboard:launching_started'; controllerId: string; controllerName: string }
+  | { type: 'onboard:launching_log'; message: string }
+  | { type: 'onboard:launching_monitor'; monitoringId: number }
+  | { type: 'onboard:launching_completed'; controllerId: string }
+  | { type: 'onboard:launching_failed'; controllerId: string; error: string };
 
 /**
  * Extract event type from WorkflowEvent union

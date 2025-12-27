@@ -12,6 +12,7 @@ import type { OnboardConfig, OnboardResult, OnboardStep } from '../events/types.
 import type { TracksConfig, ConditionGroup, ChildConditionGroup } from '../templates/types.js';
 import type { AgentDefinition } from '../../shared/agents/config/types.js';
 import { OnboardingEmitter } from './emitter.js';
+import { initControllerAgent } from '../../shared/workflows/controller.js';
 
 /**
  * Internal state for the onboarding service
@@ -46,6 +47,10 @@ export interface OnboardingServiceConfig {
   conditionGroups?: ConditionGroup[];
   controllerAgents?: AgentDefinition[];
   initialProjectName?: string | null;
+  /** Working directory for controller initialization */
+  cwd?: string;
+  /** .codemachine root directory */
+  cmRoot?: string;
 }
 
 /**
@@ -224,12 +229,77 @@ export class OnboardingService {
   }
 
   /**
-   * Select controller agent and complete
+   * Select controller agent and transition to launching step
    */
   selectController(controllerId: string): void {
     debug('[OnboardingService] controller selected: "%s"', controllerId);
     this.state.selectedControllerId = controllerId;
-    this.complete();
+
+    // Transition to launching step to show initialization progress
+    this.setStep('launching', 'Initializing controller agent...');
+  }
+
+  /**
+   * Launch the controller agent (called from UI when launching step is rendered)
+   */
+  async launchController(): Promise<void> {
+    const controllerId = this.state.selectedControllerId;
+    if (!controllerId) {
+      debug('[OnboardingService] launchController called without selected controller');
+      return;
+    }
+
+    const agent = this.config.controllerAgents?.find(a => a.id === controllerId);
+    if (!agent) {
+      debug('[OnboardingService] controller agent not found: "%s"', controllerId);
+      this.emitter.launchingFailed(controllerId, `Controller agent not found: ${controllerId}`);
+      return;
+    }
+
+    const controllerName = agent.name;
+    debug('[OnboardingService] launching controller: "%s"', controllerName);
+
+    // Emit launching started
+    this.emitter.launchingStarted(controllerId, controllerName);
+    this.emitter.launchingLog(`Starting ${controllerName}...`);
+
+    try {
+      // Get paths from config or use defaults
+      const cwd = this.config.cwd || process.cwd();
+      const cmRoot = this.config.cmRoot || `${cwd}/.codemachine`;
+
+      // Get prompt path from agent config
+      const promptPath = (agent.promptPath as string | string[]) || `prompts/agents/${controllerId}/system.md`;
+
+      this.emitter.launchingLog('Loading controller prompt...');
+
+      // Initialize the controller agent with monitoring callback for log streaming
+      await initControllerAgent(controllerId, promptPath, cwd, cmRoot, {
+        onMonitoringId: (monitoringId) => {
+          debug('[OnboardingService] Received monitoring ID: %d', monitoringId);
+          this.emitter.launchingMonitor(monitoringId);
+        }
+      });
+
+      this.emitter.launchingLog('Controller initialized successfully');
+      this.emitter.launchingCompleted(controllerId);
+
+      // Now complete the onboarding
+      this.complete();
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      debug('[OnboardingService] controller launch failed: %s', errorMsg);
+      this.emitter.launchingFailed(controllerId, errorMsg);
+    }
+  }
+
+  /**
+   * Get the selected controller agent definition
+   */
+  getSelectedController(): AgentDefinition | undefined {
+    const controllerId = this.state.selectedControllerId;
+    if (!controllerId) return undefined;
+    return this.config.controllerAgents?.find(a => a.id === controllerId);
   }
 
   /**
@@ -284,6 +354,8 @@ export class OnboardingService {
         return this.state.currentChildContext?.question ?? '';
       case 'controller':
         return 'Select a controller agent for autonomous mode:';
+      case 'launching':
+        return 'Initializing controller agent...';
       default:
         return '';
     }
@@ -308,7 +380,7 @@ export class OnboardingService {
       case 'controller':
         return (this.config.controllerAgents ?? []).map((a) => [
           a.id,
-          { label: a.id, description: a.description as string | undefined },
+          { label: a.name, description: a.description as string | undefined },
         ]);
       default:
         return [];

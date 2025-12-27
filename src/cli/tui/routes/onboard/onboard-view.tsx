@@ -14,12 +14,12 @@ import type { WorkflowEventBus } from "../../../../workflows/events/event-bus"
 import type { OnboardingService } from "../../../../workflows/onboarding/service"
 import type { OnboardStep } from "../../../../workflows/events/types"
 
-import { useTypingEffect } from "./hooks/use-typing-effect"
 import { useOnboardKeyboard } from "./hooks/use-onboard-keyboard"
 import { QuestionDisplay } from "./components/question-display"
 import { ProjectNameInput } from "./components/project-name-input"
 import { OptionList, type OptionItem } from "./components/option-list"
 import { FooterHints } from "./components/footer-hints"
+import { LaunchingView } from "./components/launching-view"
 
 export interface OnboardViewProps {
   tracks?: TracksConfig
@@ -102,16 +102,13 @@ export function OnboardView(props: OnboardViewProps) {
         return currentChildContext()?.question ?? ""
       case 'controller':
         return "Select a controller agent for autonomous mode:"
+      case 'launching':
+        return "Initializing controller agent..."
       default:
         return ""
     }
   })
 
-  // Typing effect
-  const { typedText, typingDone } = useTypingEffect({
-    text: currentQuestion,
-    deps: [currentStep, currentGroupIndex, currentChildContext],
-  })
 
   // Current entries for selection - memoized for reactivity
   const currentOptions = createMemo(() => {
@@ -151,7 +148,7 @@ export function OnboardView(props: OnboardViewProps) {
     const entries = currentOptions()
     return entries.map(([id, config]) => ({
       id: id as string,
-      label: (config as { label?: string; id?: string })?.label ?? (id as string),
+      label: (config as { label?: string; name?: string })?.label ?? (config as { name?: string })?.name ?? (id as string),
       description: (config as { description?: string })?.description,
     }))
   })
@@ -393,27 +390,37 @@ export function OnboardView(props: OnboardViewProps) {
         paddingBottom={2}
         gap={1}
       >
-        <QuestionDisplay typedText={typedText} typingDone={typingDone} />
+        <Show when={currentStep() === 'launching' && props.service && props.eventBus}>
+          <LaunchingView
+            controllerName={props.service!.getSelectedController()?.name ?? 'controller'}
+            eventBus={props.eventBus!}
+            service={props.service!}
+          />
+        </Show>
 
-        <box flexDirection="column" gap={1} marginTop={1}>
-          <Show when={currentStep() === 'project_name'}>
-            <ProjectNameInput value={projectName} typingDone={typingDone} />
-          </Show>
+        <Show when={currentStep() !== 'launching'}>
+          <QuestionDisplay question={currentQuestion} />
 
-          <Show when={currentStep() !== 'project_name'}>
-            <OptionList
-              options={options()}
-              selectedIndex={selectedIndex}
-              multiSelect={checkMultiSelect()}
-              isChecked={checkConditionSelected}
-            />
-          </Show>
-        </box>
+          <box flexDirection="column" gap={1} marginTop={1}>
+            <Show when={currentStep() === 'project_name'}>
+              <ProjectNameInput value={projectName} />
+            </Show>
 
-        <FooterHints
-          currentStep={currentStep}
-          isMultiSelect={() => checkMultiSelect()}
-        />
+            <Show when={currentStep() !== 'project_name'}>
+              <OptionList
+                options={options()}
+                selectedIndex={selectedIndex}
+                multiSelect={checkMultiSelect()}
+                isChecked={checkConditionSelected}
+              />
+            </Show>
+          </box>
+
+          <FooterHints
+            currentStep={currentStep}
+            isMultiSelect={() => checkMultiSelect()}
+          />
+        </Show>
       </box>
     </box>
   )

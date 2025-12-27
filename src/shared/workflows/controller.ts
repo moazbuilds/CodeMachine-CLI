@@ -30,6 +30,14 @@ export async function getControllerAgents(projectRoot: string): Promise<AgentDef
 }
 
 /**
+ * Options for controller agent initialization
+ */
+export interface InitControllerOptions {
+  /** Callback when monitoring ID becomes available (for log streaming) */
+  onMonitoringId?: (monitoringId: number) => void;
+}
+
+/**
  * Initialize controller agent session
  * Called at onboard time to create persistent session for the workflow
  */
@@ -37,7 +45,8 @@ export async function initControllerAgent(
   agentId: string,
   promptPath: string | string[],
   cwd: string,
-  cmRoot: string
+  cmRoot: string,
+  options?: InitControllerOptions
 ): Promise<ControllerConfig> {
   debug('[Controller] initControllerAgent called: agentId=%s promptPath=%o cwd=%s cmRoot=%s', agentId, promptPath, cwd, cmRoot);
 
@@ -69,8 +78,19 @@ export async function initControllerAgent(
 
   // Execute agent via normal flow (creates monitoring entry, session, etc.)
   debug('[Controller] Calling executeAgent...');
+
+  // Create UI interface to capture monitoring ID early (for log streaming)
+  const ui = options?.onMonitoringId ? {
+    registerMonitoringId: (_uiAgentId: string, monitoringAgentId: number) => {
+      debug('[Controller] Received monitoringId=%d, invoking callback', monitoringAgentId);
+      options.onMonitoringId!(monitoringAgentId);
+    }
+  } : undefined;
+
   const result = await executeAgent(agentId, prompt, {
     workingDir: cwd,
+    ui,
+    uniqueAgentId: agentId, // Required for ui callback to work
   });
   debug('[Controller] executeAgent returned: agentId=%s', result.agentId);
 

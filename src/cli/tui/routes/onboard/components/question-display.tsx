@@ -2,17 +2,15 @@
 /**
  * Question Display Component
  *
- * Shows PO avatar and typing animation for questions.
+ * Shows PO avatar and question text.
  */
 
 import type { Accessor } from "solid-js"
 import { useTheme } from "@tui/shared/context/theme"
 
 export interface QuestionDisplayProps {
-  /** Currently typed portion of text */
-  typedText: Accessor<string>
-  /** Whether typing animation is complete */
-  typingDone: Accessor<boolean>
+  /** Question text to display */
+  question: Accessor<string>
 }
 
 export function QuestionDisplay(props: QuestionDisplayProps) {
@@ -32,10 +30,10 @@ export function QuestionDisplay(props: QuestionDisplayProps) {
         <text fg={themeCtx.theme.textMuted}>PO</text>
       </box>
 
-      {/* Typing question */}
+      {/* Question */}
       <box marginBottom={1}>
         <text fg={themeCtx.theme.text}>
-          "{props.typedText()}{props.typingDone() ? "" : "_"}"
+          "{props.question()}"
         </text>
       </box>
     </>

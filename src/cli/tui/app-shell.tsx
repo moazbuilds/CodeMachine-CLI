@@ -24,7 +24,7 @@ import { MonitoringCleanup } from "../../agents/monitoring/index.js"
 import path from "path"
 import { createRequire } from "node:module"
 import { resolvePackageJson } from "../../shared/runtime/root.js"
-import { getSelectedTrack, setSelectedTrack, hasSelectedConditions, setSelectedConditions, getProjectName, setProjectName, getControllerAgents, initControllerAgent, loadControllerConfig } from "../../shared/workflows/index.js"
+import { getSelectedTrack, setSelectedTrack, hasSelectedConditions, setSelectedConditions, getProjectName, setProjectName, getControllerAgents, loadControllerConfig } from "../../shared/workflows/index.js"
 import { loadTemplate } from "../../workflows/templates/loader.js"
 import { getTemplatePathFromTracking } from "../../shared/workflows/template.js"
 import type { TracksConfig, ConditionGroup } from "../../workflows/templates/types"
@@ -198,6 +198,8 @@ export function App(props: { initialToast?: InitialToast }) {
           conditionGroups: hasConditionGroups ? template.conditionGroups : undefined,
           controllerAgents: needsControllerSelection ? controllers : undefined,
           initialProjectName: existingProjectName,
+          cwd,
+          cmRoot,
         })
         setOnboardingService(service)
 
@@ -268,20 +270,8 @@ export function App(props: { initialToast?: InitialToast }) {
       await setSelectedConditions(cmRoot, result.conditions)
     }
 
-    // Initialize controller agent if selected
-    if (result.controllerAgentId) {
-      const agent = controllerAgents()?.find(a => a.id === result.controllerAgentId)
-      if (agent) {
-        // Get prompt path from agent config (or use default)
-        const promptPath = (agent.promptPath as string) || `prompts/agents/${result.controllerAgentId}/system.md`
-        try {
-          await initControllerAgent(result.controllerAgentId, promptPath, cwd, cmRoot)
-        } catch (error) {
-          console.error("Failed to initialize controller agent:", error)
-          // Continue anyway - workflow will run without autonomous mode
-        }
-      }
-    }
+    // Note: Controller initialization is now handled by OnboardingService during the 'launching' step
+    // The onboard:completed event is only emitted after successful controller initialization
 
     // Start workflow
     startWorkflowExecution()
