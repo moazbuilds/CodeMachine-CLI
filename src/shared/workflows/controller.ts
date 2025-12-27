@@ -7,6 +7,7 @@ import type { ControllerConfig } from './template.js';
 import { executeAgent } from '../../agents/runner/runner.js';
 import { AgentMonitorService } from '../../agents/monitoring/index.js';
 import { processPromptString } from '../prompts/index.js';
+import { debug } from '../logging/logger.js';
 
 const TEMPLATE_TRACKING_FILE = 'template.json';
 
@@ -20,8 +21,12 @@ interface TemplateTracking {
  * Get all agents with role: 'controller'
  */
 export async function getControllerAgents(projectRoot: string): Promise<AgentDefinition[]> {
+  debug('[Controller] getControllerAgents called with projectRoot=%s', projectRoot);
   const agents = await collectAgentDefinitions(projectRoot);
-  return agents.filter(agent => agent.role === 'controller');
+  debug('[Controller] collectAgentDefinitions returned %d agents', agents.length);
+  const controllerAgents = agents.filter(agent => agent.role === 'controller');
+  debug('[Controller] Found %d controller agents: %o', controllerAgents.length, controllerAgents.map(a => ({ id: a.id, role: a.role })));
+  return controllerAgents;
 }
 
 /**
@@ -30,25 +35,52 @@ export async function getControllerAgents(projectRoot: string): Promise<AgentDef
  */
 export async function initControllerAgent(
   agentId: string,
-  promptPath: string,
+  promptPath: string | string[],
   cwd: string,
   cmRoot: string
 ): Promise<ControllerConfig> {
-  // Load prompt from MD file (same as other agents)
-  const resolvedPath = path.isAbsolute(promptPath) ? promptPath : path.resolve(cwd, promptPath);
-  const rawPrompt = await readFile(resolvedPath, 'utf8');
+  debug('[Controller] initControllerAgent called: agentId=%s promptPath=%o cwd=%s cmRoot=%s', agentId, promptPath, cwd, cmRoot);
+
+  // Handle both single path and array of paths
+  const promptPaths = Array.isArray(promptPath) ? promptPath : [promptPath];
+  debug('[Controller] Prompt paths to load: %o', promptPaths);
+
+  // Load and combine all prompt files
+  const promptParts: string[] = [];
+  for (const p of promptPaths) {
+    const resolvedPath = path.isAbsolute(p) ? p : path.resolve(cwd, p);
+    debug('[Controller] Resolved prompt path: %s', resolvedPath);
+
+    const promptExists = existsSync(resolvedPath);
+    debug('[Controller] Prompt file exists: %s', promptExists);
+    if (!promptExists) {
+      throw new Error(`Prompt file not found: ${resolvedPath}`);
+    }
+
+    const content = await readFile(resolvedPath, 'utf8');
+    debug('[Controller] Read prompt file %s, length=%d', resolvedPath, content.length);
+    promptParts.push(content);
+  }
+
+  const rawPrompt = promptParts.join('\n\n');
+  debug('[Controller] Combined raw prompt, length=%d', rawPrompt.length);
   const prompt = await processPromptString(rawPrompt, cwd);
+  debug('[Controller] Processed prompt, length=%d', prompt.length);
 
   // Execute agent via normal flow (creates monitoring entry, session, etc.)
+  debug('[Controller] Calling executeAgent...');
   const result = await executeAgent(agentId, prompt, {
     workingDir: cwd,
   });
+  debug('[Controller] executeAgent returned: agentId=%s', result.agentId);
 
   // Get sessionId from monitoring service
   const monitor = AgentMonitorService.getInstance();
   const agent = monitor.getAgent(result.agentId!);
+  debug('[Controller] Monitor agent: %o', agent ? { id: agent.id, sessionId: agent.sessionId } : null);
 
   if (!agent?.sessionId) {
+    debug('[Controller] ERROR: No session ID for controller agent');
     throw new Error(`Failed to get session ID for controller agent: ${agentId}`);
   }
 
@@ -58,9 +90,12 @@ export async function initControllerAgent(
     sessionId: agent.sessionId,
     monitoringId: result.agentId!,
   };
+  debug('[Controller] Built config: %o', config);
 
   // Save to template.json
+  debug('[Controller] Saving controller config to template.json...');
   await saveControllerConfig(cmRoot, config);
+  debug('[Controller] Controller config saved successfully');
 
   return config;
 }
@@ -72,20 +107,26 @@ export async function loadControllerConfig(cmRoot: string): Promise<{
   autonomousMode: boolean;
   controllerConfig: ControllerConfig | null;
 } | null> {
+  debug('[Controller] loadControllerConfig called with cmRoot=%s', cmRoot);
   const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
+  debug('[Controller] trackingPath=%s', trackingPath);
 
   if (!existsSync(trackingPath)) {
+    debug('[Controller] template.json does not exist, returning null');
     return null;
   }
 
   try {
     const content = await readFile(trackingPath, 'utf8');
     const data = JSON.parse(content) as TemplateTracking;
-    return {
+    const result = {
       autonomousMode: data.autonomousMode ?? false,
       controllerConfig: data.controllerConfig ?? null,
     };
-  } catch {
+    debug('[Controller] Loaded config: autonomousMode=%s controllerConfig=%o', result.autonomousMode, result.controllerConfig);
+    return result;
+  } catch (error) {
+    debug('[Controller] Failed to load/parse template.json: %s', error instanceof Error ? error.message : String(error));
     return null;
   }
 }

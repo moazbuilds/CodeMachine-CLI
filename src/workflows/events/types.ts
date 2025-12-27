@@ -41,6 +41,44 @@ export interface UIElementInfo {
 }
 
 /**
+ * Progress tracking state
+ */
+export interface ProgressState {
+  currentStep: number;
+  totalSteps: number;
+  stepName?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Onboarding Types
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Onboarding step identifiers
+ */
+export type OnboardStep = 'project_name' | 'tracks' | 'condition_group' | 'condition_child' | 'controller';
+
+/**
+ * Onboarding configuration passed to service
+ */
+export interface OnboardConfig {
+  hasTracks: boolean;
+  hasConditions: boolean;
+  hasController: boolean;
+  initialProjectName?: string | null;
+}
+
+/**
+ * Onboarding result returned on completion
+ */
+export interface OnboardResult {
+  projectName?: string;
+  trackId?: string;
+  conditions?: string[];
+  controllerAgentId?: string;
+}
+
+/**
  * All workflow events that UI adapters can subscribe to
  */
 export type WorkflowEvent =
@@ -90,7 +128,17 @@ export type WorkflowEvent =
   | { type: 'monitoring:register'; uiAgentId: string; monitoringId: number }
 
   // Progress tracking (step indicator)
-  | { type: 'progress:state'; progress: ProgressState | null };
+  | { type: 'progress:state'; progress: ProgressState | null }
+
+  // Onboarding events
+  | { type: 'onboard:started'; config: OnboardConfig }
+  | { type: 'onboard:step'; step: OnboardStep; question: string }
+  | { type: 'onboard:project_name'; name: string }
+  | { type: 'onboard:track'; trackId: string }
+  | { type: 'onboard:condition'; conditionId: string; groupIndex: number; isChild: boolean }
+  | { type: 'onboard:conditions_confirmed'; conditions: string[]; groupIndex: number }
+  | { type: 'onboard:completed'; result: OnboardResult }
+  | { type: 'onboard:cancelled' };
 
 /**
  * Extract event type from WorkflowEvent union

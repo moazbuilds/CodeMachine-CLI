@@ -18,7 +18,8 @@ import { Home } from "@tui/routes/home"
 import { Workflow } from "@tui/routes/workflow"
 import { Onboard } from "@tui/routes/onboard"
 import { homedir } from "os"
-import { WorkflowEventBus } from "../../workflows/events/index.js"
+import { WorkflowEventBus, OnboardingService } from "../../workflows/events/index.js"
+import { debug, setDebugLogFile } from "../../shared/logging/logger.js"
 import { MonitoringCleanup } from "../../agents/monitoring/index.js"
 import path from "path"
 import { createRequire } from "node:module"
@@ -129,6 +130,8 @@ export function App(props: { initialToast?: InitialToast }) {
   const [templateConditionGroups, setTemplateConditionGroups] = createSignal<ConditionGroup[] | null>(null)
   const [initialProjectName, setInitialProjectName] = createSignal<string | null>(null)
   const [controllerAgents, setControllerAgents] = createSignal<AgentDefinition[] | null>(null)
+  const [onboardingService, setOnboardingService] = createSignal<OnboardingService | null>(null)
+  const [onboardingEventBus, setOnboardingEventBus] = createSignal<WorkflowEventBus | null>(null)
 
   let pendingWorkflowStart: (() => void) | null = null
 
@@ -142,6 +145,15 @@ export function App(props: { initialToast?: InitialToast }) {
   const handleStartWorkflow = async () => {
     const cwd = process.env.CODEMACHINE_CWD || process.cwd()
     const cmRoot = path.join(cwd, '.codemachine')
+
+    // Initialize debug log file early (before onboarding) so all logs are captured
+    const rawLogLevel = (process.env.LOG_LEVEL || '').trim().toLowerCase()
+    const debugFlag = (process.env.DEBUG || '').trim().toLowerCase()
+    const debugEnabled = rawLogLevel === 'debug' || (debugFlag !== '' && debugFlag !== '0' && debugFlag !== 'false')
+    if (debugEnabled) {
+      const debugLogPath = path.join(cwd, '.codemachine', 'logs', 'workflow-debug.log')
+      setDebugLogFile(debugLogPath)
+    }
 
     // Check if tracks/conditions exist and no selection yet
     try {
@@ -169,10 +181,38 @@ export function App(props: { initialToast?: InitialToast }) {
 
       // If project name, tracks, conditions, or controller need selection, show onboard view
       if (needsProjectName || needsTrackSelection || needsConditionsSelection || needsControllerSelection) {
+        debug('[AppShell] Starting onboarding flow')
+
+        // Store config for Onboard component (backward compatibility)
         if (hasTracks) setTemplateTracks(template.tracks!)
         if (hasConditionGroups) setTemplateConditionGroups(template.conditionGroups!)
         if (needsControllerSelection) setControllerAgents(controllers)
-        setInitialProjectName(existingProjectName) // Pass existing name if any (to skip that step)
+        setInitialProjectName(existingProjectName)
+
+        // Create event bus and service for onboarding
+        const eventBus = new WorkflowEventBus()
+        setOnboardingEventBus(eventBus)
+
+        const service = new OnboardingService(eventBus, {
+          tracks: hasTracks ? template.tracks : undefined,
+          conditionGroups: hasConditionGroups ? template.conditionGroups : undefined,
+          controllerAgents: needsControllerSelection ? controllers : undefined,
+          initialProjectName: existingProjectName,
+        })
+        setOnboardingService(service)
+
+        // Subscribe to completion event
+        eventBus.on('onboard:completed', (event) => {
+          debug('[AppShell] onboard:completed received result=%o', event.result)
+          handleOnboardComplete(event.result)
+        })
+
+        // Subscribe to cancel event
+        eventBus.on('onboard:cancelled', () => {
+          debug('[AppShell] onboard:cancelled received')
+          handleOnboardCancel()
+        })
+
         currentView = "onboard"
         setView("onboard")
         return
@@ -348,6 +388,8 @@ export function App(props: { initialToast?: InitialToast }) {
               initialProjectName={initialProjectName()}
               onComplete={handleOnboardComplete}
               onCancel={handleOnboardCancel}
+              eventBus={onboardingEventBus() ?? undefined}
+              service={onboardingService() ?? undefined}
             />
           </Match>
           <Match when={view() === "workflow"}>

@@ -7,3 +7,6 @@
 export * from './types.js';
 export * from './event-bus.js';
 export * from './emitter.js';
+
+// Re-export onboarding module for convenience
+export * from '../onboarding/index.js';

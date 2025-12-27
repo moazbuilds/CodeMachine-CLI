@@ -8,6 +8,7 @@ import { collectAgentsFromWorkflows } from './steps.js';
 import type { AgentDefinition } from '../config/types.js';
 import { AGENT_MODULE_FILENAMES } from '../config/types.js';
 import { resolvePackageRoot } from '../../runtime/root.js';
+import { debug } from '../../logging/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,13 +64,20 @@ export function loadAgentsFromModule(modulePath: string): AgentDefinition[] {
     // ignore cache miss
   }
 
-  const loadedAgents = require(modulePath);
-  return Array.isArray(loadedAgents) ? (loadedAgents as AgentDefinition[]) : [];
+  try {
+    const loadedAgents = require(modulePath);
+    return Array.isArray(loadedAgents) ? (loadedAgents as AgentDefinition[]) : [];
+  } catch (error) {
+    console.error(`[AgentCatalog] Failed to load agents from ${modulePath}:`, error);
+    return [];
+  }
 }
 
 export async function collectAgentDefinitions(projectRoot: string): Promise<AgentDefinition[]> {
+  debug('[AgentCatalog] collectAgentDefinitions called with projectRoot=%s', projectRoot);
   const candidates = new Set<string>();
   const roots = [projectRoot, ...CLI_ROOT_CANDIDATES.filter((root) => root && root !== projectRoot)];
+  debug('[AgentCatalog] Searching roots: %o', roots);
 
   for (const root of roots) {
     if (!root) continue;
@@ -79,18 +87,23 @@ export async function collectAgentDefinitions(projectRoot: string): Promise<Agen
       const distCandidate = path.join(resolvedRoot, 'dist', 'config', filename);
 
       if (existsSync(moduleCandidate)) {
+        debug('[AgentCatalog] Found module candidate: %s', moduleCandidate);
         candidates.add(moduleCandidate);
       }
       if (existsSync(distCandidate)) {
+        debug('[AgentCatalog] Found dist candidate: %s', distCandidate);
         candidates.add(distCandidate);
       }
     }
   }
 
+  debug('[AgentCatalog] Total module candidates: %d', candidates.size);
   const byId = new Map<string, AgentDefinition>();
 
   for (const modulePath of candidates) {
+    debug('[AgentCatalog] Loading agents from: %s', modulePath);
     const agents = loadAgentsFromModule(modulePath);
+    debug('[AgentCatalog] Loaded %d agents from %s', agents.length, modulePath);
     for (const agent of agents) {
       if (!agent || typeof agent.id !== 'string') {
         continue;
@@ -103,7 +116,11 @@ export async function collectAgentDefinitions(projectRoot: string): Promise<Agen
     }
   }
 
+  debug('[AgentCatalog] After module loading: %d unique agents', byId.size);
+  debug('[AgentCatalog] Collecting agents from workflows...');
   const workflowAgents = await collectAgentsFromWorkflows(roots);
+  debug('[AgentCatalog] Found %d workflow agents', workflowAgents.length);
+
   for (const agent of workflowAgents) {
     if (!agent || typeof agent.id !== 'string') continue;
     const id = agent.id.trim();
@@ -117,7 +134,12 @@ export async function collectAgentDefinitions(projectRoot: string): Promise<Agen
     }
   }
 
-  return Array.from(byId.values());
+  debug('[AgentCatalog] Final total: %d agents', byId.size);
+  const allAgents = Array.from(byId.values());
+  const controllerAgents = allAgents.filter(a => a.role === 'controller');
+  debug('[AgentCatalog] Controller agents in catalog: %o', controllerAgents.map(a => ({ id: a.id, role: a.role })));
+
+  return allAgents;
 }
 
 export function mergeAdditionalAgents(

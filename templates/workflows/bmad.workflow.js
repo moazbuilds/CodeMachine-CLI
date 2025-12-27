@@ -61,6 +61,7 @@ export default {
     resolveUI("∴ Implementation Phase ∴"),
     resolveStep('bmad-sprints', {}),
     resolveUI("⟲ Story Loop ⟲"),
+    resolveStep('bmad-stories', {}),
 
   ],
 };
