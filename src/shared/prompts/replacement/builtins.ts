@@ -5,6 +5,7 @@
 
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import * as os from 'node:os';
 import * as path from 'node:path';
 
 const CM_FOLDER = '.codemachine';
@@ -15,6 +16,7 @@ const STATIC_PLACEHOLDERS: Record<string, () => string> = {
   date: () => new Date().toISOString().split('T')[0], // YYYY-MM-DD
   datetime: () => new Date().toISOString(),
   timestamp: () => Date.now().toString(),
+  user_name: () => os.userInfo().username,
 };
 
 // Context-dependent placeholders (loaded from template.json)
