@@ -21,8 +21,8 @@ export function WelcomeSection() {
 
       <box width={60} flexDirection="column" gap={0}>
         <box flexDirection="row" gap={0} marginBottom={1}>
-          <text fg={themeCtx.theme.textMuted}>--- </text>
-          <text fg={themeCtx.theme.text} attributes={TextAttributes.BOLD}>Bun Runtime Edition</text>
+          <text fg={themeCtx.theme.textMuted}>🌟 </text>
+          <text fg={themeCtx.theme.text} attributes={TextAttributes.BOLD}>Nova Edition</text>
           <text fg={themeCtx.theme.textMuted}> v{getVersion()}</text>
         </box>
         <For each={COMMAND_HELP}>
