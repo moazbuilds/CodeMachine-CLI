@@ -77,7 +77,10 @@ module.exports = [
     name: 'Hakem [PO]',
     description: 'BMAD product owner controller for autonomous mode',
     role: 'controller',
-    promptPath: path.join(promptsDir, 'bmad', 'controller', 'PO.md'),
+    promptPath: [
+      path.join(promptsDir, 'bmad', 'shared', 'system-files-protection.md'),
+      path.join(promptsDir, 'bmad', 'controller', 'PO.md'),
+    ],
   },
 
   // BMAD agents
@@ -86,6 +89,7 @@ module.exports = [
     name: 'Mary [Analyst]',
     description: 'BMAD business analyst for collaborative product discovery',
     promptPath: [
+      path.join(promptsDir, 'bmad', 'shared', 'system-files-protection.md'),
       path.join(promptsDir, 'bmad', '01-analyst', 'mary.md'),
       path.join(promptsDir, 'bmad', '01-analyst', 'workflow.md'),
       path.join(promptsDir, 'bmad', '01-analyst', 'chained', 'step-01-vision.md'),
@@ -102,6 +106,7 @@ module.exports = [
     name: 'John [PM: PRD]',
     description: 'BMAD product manager for PRD creation workflow',
     promptPath: [
+      path.join(promptsDir, 'bmad', 'shared', 'system-files-protection.md'),
       path.join(promptsDir, 'bmad', '02-pm', 'john.md'),
       path.join(promptsDir, 'bmad', '02-pm', '01-prd', 'workflow.md'),
       path.join(promptsDir, 'bmad', '02-pm', '01-prd', 'chained', 'step-01-discovery.md'),
@@ -123,6 +128,7 @@ module.exports = [
     name: 'Sally [UX]',
     description: 'BMAD UX designer for UX design specification workflow',
     promptPath: [
+      path.join(promptsDir, 'bmad', 'shared', 'system-files-protection.md'),
       path.join(promptsDir, 'bmad', '03-ux-designer', 'sally.md'),
       path.join(promptsDir, 'bmad', '03-ux-designer', 'workflow.md'),
       path.join(promptsDir, 'bmad', '03-ux-designer', 'chained', 'step-01-discovery.md'),
@@ -147,6 +153,7 @@ module.exports = [
     name: 'Winston [Arch]',
     description: 'BMAD architect for architecture decision workflow',
     promptPath: [
+      path.join(promptsDir, 'bmad', 'shared', 'system-files-protection.md'),
       path.join(promptsDir, 'bmad', '04-architect', 'winston.md'),
       path.join(promptsDir, 'bmad', '04-architect', 'workflow.md'),
       path.join(promptsDir, 'bmad', '04-architect', 'chained', 'step-01-context.md'),
@@ -165,6 +172,7 @@ module.exports = [
     name: 'John [PM: Epics]',
     description: 'BMAD PM for epics and stories creation workflow',
     promptPath: [
+      path.join(promptsDir, 'bmad', 'shared', 'system-files-protection.md'),
       path.join(promptsDir, 'bmad', '02-pm', 'john.md'),
       path.join(promptsDir, 'bmad', '02-pm', '02-epics', 'workflow.md'),
       path.join(promptsDir, 'bmad', '02-pm', '02-epics', 'chained', 'step-01-validate-prerequisites.md'),
@@ -180,6 +188,7 @@ module.exports = [
     name: 'Murat [Test Arch]',
     description: 'BMAD test architect for test design and risk assessment workflow',
     promptPath: [
+      path.join(promptsDir, 'bmad', 'shared', 'system-files-protection.md'),
       path.join(promptsDir, 'bmad', '05-tea', 'murat.md'),
       path.join(promptsDir, 'bmad', '05-tea', '01-test-design', 'instructions.md'),
     ],
@@ -189,6 +198,7 @@ module.exports = [
     name: 'John [PM: Readiness]',
     description: 'BMAD PM for implementation readiness validation workflow',
     promptPath: [
+      path.join(promptsDir, 'bmad', 'shared', 'system-files-protection.md'),
       path.join(promptsDir, 'bmad', '02-pm', 'john.md'),
       path.join(promptsDir, 'bmad', '02-pm', '03-readiness', 'workflow.md'),
       path.join(promptsDir, 'bmad', '02-pm', '03-readiness', 'chained', 'step-01-prd-analysis.md'),
@@ -205,6 +215,7 @@ module.exports = [
     name: 'Bob [SM: Sprints]',
     description: 'BMAD SM for sprint status generation from epics',
     promptPath: [
+      path.join(promptsDir, 'bmad', 'shared', 'system-files-protection.md'),
       path.join(promptsDir, 'bmad', '06-sm', 'bob.md'),
       path.join(promptsDir, 'bmad', '06-sm', '01-sprint-planning', 'instructions.md'),
     ],
@@ -214,6 +225,7 @@ module.exports = [
     name: 'Bob [SM: Create Story]',
     description: 'BMAD SM for creating developer-ready story files',
     promptPath: [
+      path.join(promptsDir, 'bmad', 'shared', 'system-files-protection.md'),
       path.join(promptsDir, 'bmad', '06-sm', 'bob.md'),
       path.join(promptsDir, 'bmad', '06-sm', '02-create-story', 'instructions.xml'),
       path.join(promptsDir, 'bmad', '06-sm', '02-create-story', 'checklist.md'),
@@ -224,6 +236,7 @@ module.exports = [
     name: 'Amelia [Dev: Story]',
     description: 'BMAD Developer for story implementation',
     promptPath: [
+      path.join(promptsDir, 'bmad', 'shared', 'system-files-protection.md'),
       path.join(promptsDir, 'bmad', '07-dev', 'amelia.md'),
       path.join(promptsDir, 'bmad', '07-dev', '01-dev-story', 'instructions.xml'),
       path.join(promptsDir, 'bmad', '07-dev', '01-dev-story', 'checklist.md'),
@@ -234,6 +247,7 @@ module.exports = [
     name: 'Amelia [Dev: Code Review]',
     description: 'BMAD Developer for code review',
     promptPath: [
+      path.join(promptsDir, 'bmad', 'shared', 'system-files-protection.md'),
       path.join(promptsDir, 'bmad', '07-dev', 'amelia.md'),
       path.join(promptsDir, 'bmad', '07-dev', '02-code-review', 'instructions.xml'),
       path.join(promptsDir, 'bmad', '07-dev', '02-code-review', 'checklist.md'),
