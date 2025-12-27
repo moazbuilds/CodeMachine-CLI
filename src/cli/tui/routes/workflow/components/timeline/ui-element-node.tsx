@@ -22,7 +22,7 @@ export function UIElementNode(props: UIElementNodeProps) {
 
   return (
     <box paddingLeft={1} paddingRight={1}>
-      <text fg={themeCtx.theme.textMuted}>
+      <text fg={themeCtx.theme.mutedBlue}>
         {separator} {props.uiElement.text} {separator}
       </text>
     </box>
