@@ -51,18 +51,28 @@ function migrateCompletedSteps(data: TemplateTracking): Record<string, StepData>
  */
 async function readTrackingData(cmRoot: string): Promise<{ data: TemplateTracking; trackingPath: string }> {
   const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
+  debug('[readTrackingData] Reading from: %s', trackingPath);
 
   if (!existsSync(trackingPath)) {
+    debug('[readTrackingData] File does not exist, returning default data');
     return { data: createDefaultData(), trackingPath };
   }
 
   try {
     const content = await readFile(trackingPath, 'utf8');
+    debug('[readTrackingData] Raw JSON content: %s', content);
     const data = JSON.parse(content) as TemplateTracking;
+    debug('[readTrackingData] Parsed data before migration: %O', data);
     // Migrate old format if needed
+    const wasMigrated = Array.isArray(data.completedSteps);
     data.completedSteps = migrateCompletedSteps(data);
+    if (wasMigrated) {
+      debug('[readTrackingData] Migrated old array format to new Record format');
+    }
+    debug('[readTrackingData] Final data: %O', data);
     return { data, trackingPath };
   } catch (error) {
+    debug('[readTrackingData] Failed to parse: %s', error instanceof Error ? error.message : String(error));
     console.warn(`Failed to read tracking file: ${error instanceof Error ? error.message : String(error)}`);
     return { data: createDefaultData(), trackingPath };
   }
@@ -80,13 +90,23 @@ async function writeTrackingData(trackingPath: string, data: TemplateTracking): 
  * Gets the list of fully completed step indices (those with completedAt set).
  */
 export async function getCompletedSteps(cmRoot: string): Promise<number[]> {
+  debug('[getCompletedSteps] Getting completed steps for cmRoot=%s', cmRoot);
   const { data } = await readTrackingData(cmRoot);
   const completedSteps = data.completedSteps as Record<string, StepData>;
 
-  return Object.entries(completedSteps)
-    .filter(([, stepData]) => stepData.completedAt !== undefined)
+  debug('[getCompletedSteps] completedSteps record: %O', completedSteps);
+
+  const result = Object.entries(completedSteps)
+    .filter(([key, stepData]) => {
+      const hasCompletedAt = stepData.completedAt !== undefined;
+      debug('[getCompletedSteps] Step %s: completedAt=%s, included=%s', key, stepData.completedAt, hasCompletedAt);
+      return hasCompletedAt;
+    })
     .map(([key]) => parseInt(key, 10))
     .sort((a, b) => a - b);
+
+  debug('[getCompletedSteps] Final completed step indices: %O', result);
+  return result;
 }
 
 /**
@@ -300,42 +320,67 @@ export async function clearNotCompletedSteps(cmRoot: string): Promise<void> {
  * Priority: incomplete chains > notCompletedSteps > after last completed step > 0
  */
 export async function getResumeStartIndex(cmRoot: string): Promise<number> {
+  debug('[getResumeStartIndex] ========== START ==========');
+  debug('[getResumeStartIndex] cmRoot=%s', cmRoot);
   const { data } = await readTrackingData(cmRoot);
 
-  debug('[getResumeStartIndex] data: %O', { resumeFromLastStep: data.resumeFromLastStep, notCompletedSteps: data.notCompletedSteps });
+  debug('[getResumeStartIndex] Full template.json data: %O', data);
+  debug('[getResumeStartIndex] Decision factors: resumeFromLastStep=%s, notCompletedSteps=%O, completedSteps=%O',
+    data.resumeFromLastStep, data.notCompletedSteps, data.completedSteps);
 
   // Check if resume feature is enabled
   if (!data.resumeFromLastStep) {
-    debug('[getResumeStartIndex] resumeFromLastStep is false, returning 0');
+    debug('[getResumeStartIndex] DECISION: resumeFromLastStep is false → returning 0');
+    debug('[getResumeStartIndex] ========== END (startIndex=0) ==========');
     return 0;
   }
 
   // First check for incomplete chains
+  debug('[getResumeStartIndex] Checking for incomplete chains...');
   const chainResumeInfo = await getChainResumeInfo(cmRoot);
   if (chainResumeInfo) {
-    debug('[getResumeStartIndex] Found chain resume, returning %d', chainResumeInfo.stepIndex);
+    debug('[getResumeStartIndex] DECISION: Found incomplete chain → returning stepIndex=%d (chainIndex=%d)',
+      chainResumeInfo.stepIndex, chainResumeInfo.chainIndex);
+    debug('[getResumeStartIndex] ========== END (startIndex=%d) ==========', chainResumeInfo.stepIndex);
     return chainResumeInfo.stepIndex;
   }
+  debug('[getResumeStartIndex] No incomplete chains found');
 
   // Check notCompletedSteps (crash recovery)
   if (data.notCompletedSteps && data.notCompletedSteps.length > 0) {
     const startIndex = Math.min(...data.notCompletedSteps);
-    debug('[getResumeStartIndex] notCompletedSteps=%O, starting at %d', data.notCompletedSteps, startIndex);
+    debug('[getResumeStartIndex] DECISION: notCompletedSteps has entries → returning min=%d from %O',
+      startIndex, data.notCompletedSteps);
+    debug('[getResumeStartIndex] ========== END (startIndex=%d) ==========', startIndex);
     return startIndex;
   }
+  debug('[getResumeStartIndex] notCompletedSteps is empty or undefined');
 
   // Check completedSteps - if all steps done, start after the last one
   const completedSteps = data.completedSteps as Record<string, StepData>;
+  debug('[getResumeStartIndex] Checking completedSteps record...');
   if (completedSteps && typeof completedSteps === 'object') {
     const completedIndices = Object.entries(completedSteps)
-      .filter(([, stepData]) => stepData.completedAt !== undefined)
+      .filter(([key, stepData]) => {
+        const hasCompletedAt = stepData.completedAt !== undefined;
+        debug('[getResumeStartIndex] Step %s: completedAt=%s, isCompleted=%s', key, stepData.completedAt, hasCompletedAt);
+        return hasCompletedAt;
+      })
       .map(([key]) => parseInt(key, 10));
 
+    debug('[getResumeStartIndex] Completed step indices: %O', completedIndices);
+
     if (completedIndices.length > 0) {
-      // Return index after the highest completed step
-      return Math.max(...completedIndices) + 1;
+      const maxCompleted = Math.max(...completedIndices);
+      const startIndex = maxCompleted + 1;
+      debug('[getResumeStartIndex] DECISION: Found completed steps → max=%d, returning startIndex=%d',
+        maxCompleted, startIndex);
+      debug('[getResumeStartIndex] ========== END (startIndex=%d) ==========', startIndex);
+      return startIndex;
     }
   }
 
+  debug('[getResumeStartIndex] DECISION: No resume conditions met → returning 0');
+  debug('[getResumeStartIndex] ========== END (startIndex=0) ==========');
   return 0;
 }

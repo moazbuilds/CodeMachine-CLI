@@ -2,6 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import { resolvePackageRoot } from '../runtime/root.js';
+import { debug } from '../logging/logger.js';
 
 const TEMPLATE_TRACKING_FILE = 'template.json';
 
@@ -56,16 +57,20 @@ interface TemplateTracking {
  */
 export async function getActiveTemplate(cmRoot: string): Promise<string | null> {
   const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
+  debug('[Template] getActiveTemplate: trackingPath=%s', trackingPath);
 
   if (!existsSync(trackingPath)) {
+    debug('[Template] getActiveTemplate: file does not exist, returning null');
     return null;
   }
 
   try {
     const content = await readFile(trackingPath, 'utf8');
     const data = JSON.parse(content) as TemplateTracking;
+    debug('[Template] getActiveTemplate: activeTemplate=%s', data.activeTemplate);
     return data.activeTemplate ?? null;
   } catch (error) {
+    debug('[Template] getActiveTemplate: parse error=%s', error instanceof Error ? error.message : String(error));
     console.warn(`Failed to read active template from tracking file: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
@@ -168,16 +173,20 @@ export async function getTemplatePathFromTracking(cmRoot: string): Promise<strin
  */
 export async function getSelectedTrack(cmRoot: string): Promise<string | null> {
   const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
+  debug('[Template] getSelectedTrack: trackingPath=%s', trackingPath);
 
   if (!existsSync(trackingPath)) {
+    debug('[Template] getSelectedTrack: file does not exist, returning null');
     return null;
   }
 
   try {
     const content = await readFile(trackingPath, 'utf8');
     const data = JSON.parse(content) as TemplateTracking;
+    debug('[Template] getSelectedTrack: selectedTrack=%s', data.selectedTrack);
     return data.selectedTrack ?? null;
   } catch (error) {
+    debug('[Template] getSelectedTrack: parse error=%s', error instanceof Error ? error.message : String(error));
     console.warn(`Failed to read selected track: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
@@ -225,16 +234,20 @@ export async function setSelectedTrack(cmRoot: string, track: string): Promise<v
  */
 export async function getSelectedConditions(cmRoot: string): Promise<string[]> {
   const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
+  debug('[Template] getSelectedConditions: trackingPath=%s', trackingPath);
 
   if (!existsSync(trackingPath)) {
+    debug('[Template] getSelectedConditions: file does not exist, returning []');
     return [];
   }
 
   try {
     const content = await readFile(trackingPath, 'utf8');
     const data = JSON.parse(content) as TemplateTracking;
+    debug('[Template] getSelectedConditions: selectedConditions=%O', data.selectedConditions);
     return data.selectedConditions ?? [];
   } catch (error) {
+    debug('[Template] getSelectedConditions: parse error=%s', error instanceof Error ? error.message : String(error));
     console.warn(`Failed to read selected conditions: ${error instanceof Error ? error.message : String(error)}`);
     return [];
   }
@@ -302,16 +315,20 @@ export async function setSelectedConditions(cmRoot: string, conditions: string[]
  */
 export async function getProjectName(cmRoot: string): Promise<string | null> {
   const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
+  debug('[Template] getProjectName: trackingPath=%s', trackingPath);
 
   if (!existsSync(trackingPath)) {
+    debug('[Template] getProjectName: file does not exist, returning null');
     return null;
   }
 
   try {
     const content = await readFile(trackingPath, 'utf8');
     const data = JSON.parse(content) as TemplateTracking;
+    debug('[Template] getProjectName: projectName=%s', data.projectName);
     return data.projectName ?? null;
   } catch (error) {
+    debug('[Template] getProjectName: parse error=%s', error instanceof Error ? error.message : String(error));
     console.warn(`Failed to read project name: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }

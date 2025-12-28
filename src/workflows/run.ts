@@ -111,21 +111,39 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
   // Get start index
   const startIndex = await getResumeStartIndex(cmRoot);
+  debug('[Workflow] ========== STEP DECISION ==========');
+  debug('[Workflow] getResumeStartIndex returned: %d', startIndex);
 
   // Load track and conditions selections
   const selectedTrack = await getSelectedTrack(cmRoot);
   const selectedConditions = await getSelectedConditions(cmRoot);
+  debug('[Workflow] selectedTrack: %s', selectedTrack);
+  debug('[Workflow] selectedConditions: %O', selectedConditions);
 
   // Filter steps by track and conditions
-  const visibleSteps = template.steps.filter(step => {
-    if (step.type !== 'module') return true;
-    if (step.tracks?.length && selectedTrack && !step.tracks.includes(selectedTrack)) return false;
+  debug('[Workflow] Filtering %d template steps...', template.steps.length);
+  const visibleSteps = template.steps.filter((step, idx) => {
+    if (step.type !== 'module') {
+      debug('[Workflow] Step %d: type=%s → included (non-module)', idx, step.type);
+      return true;
+    }
+    if (step.tracks?.length && selectedTrack && !step.tracks.includes(selectedTrack)) {
+      debug('[Workflow] Step %d: agentId=%s, tracks=%O, selectedTrack=%s → EXCLUDED (track mismatch)',
+        idx, step.agentId, step.tracks, selectedTrack);
+      return false;
+    }
     if (step.conditions?.length) {
       const missing = step.conditions.filter(c => !(selectedConditions ?? []).includes(c));
-      if (missing.length > 0) return false;
+      if (missing.length > 0) {
+        debug('[Workflow] Step %d: agentId=%s, conditions=%O, missing=%O → EXCLUDED (missing conditions)',
+          idx, step.agentId, step.conditions, missing);
+        return false;
+      }
     }
+    debug('[Workflow] Step %d: agentId=%s → included', idx, step.agentId);
     return true;
   });
+  debug('[Workflow] Visible steps after filtering: %d', visibleSteps.length);
 
   // Count module steps for total
   const moduleSteps = visibleSteps.filter(s => s.type === 'module');
@@ -134,6 +152,8 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   emitter.workflowStarted(template.name, moduleSteps.length);
 
   // Pre-populate timeline
+  debug('[Workflow] ========== TIMELINE POPULATION ==========');
+  debug('[Workflow] startIndex=%d, total moduleSteps=%d', startIndex, moduleSteps.length);
   let moduleIndex = 0;
   for (let stepIndex = 0; stepIndex < visibleSteps.length; stepIndex++) {
     const step = visibleSteps[stepIndex];
@@ -142,6 +162,9 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       const engineType = step.engine ?? defaultEngine?.metadata.id ?? 'unknown';
       const uniqueAgentId = getUniqueAgentId(step, moduleIndex);
       const isCompleted = moduleIndex < startIndex;
+
+      debug('[Workflow] Module %d (step %d): agentId=%s, isCompleted=%s (moduleIndex %d < startIndex %d = %s)',
+        moduleIndex, stepIndex, step.agentId, isCompleted, moduleIndex, startIndex, moduleIndex < startIndex);
 
       emitter.addMainAgent(
         uniqueAgentId,
@@ -157,6 +180,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       // For completed agents, register their monitoringId from template.json
       if (isCompleted) {
         const stepData = await getStepData(cmRoot, moduleIndex);
+        debug('[Workflow] Module %d marked completed, stepData=%O', moduleIndex, stepData);
         if (stepData?.monitoringId !== undefined) {
           emitter.registerMonitoringId(uniqueAgentId, stepData.monitoringId);
         }
@@ -167,6 +191,9 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       emitter.addUIElement(step.text, stepIndex);
     }
   }
+  debug('[Workflow] Timeline populated: %d completed, %d pending',
+    startIndex, moduleSteps.length - startIndex);
+  debug('[Workflow] ========== END STEP DECISION ==========');
 
   // Create and run workflow
   const runner = new WorkflowRunner({
