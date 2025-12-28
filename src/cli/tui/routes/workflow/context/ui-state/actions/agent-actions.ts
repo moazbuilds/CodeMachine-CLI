@@ -18,7 +18,12 @@ export type AgentActionsContext = {
 export function createAgentActions(ctx: AgentActionsContext) {
   function addAgent(agent: WorkflowState["agents"][number]): void {
     const state = ctx.getState()
+    const hasNoSelection = state.selectedAgentId === null && state.selectedSubAgentId === null
     ctx.setState({ ...state, agents: [...state.agents, agent] })
+    // Auto-select if nothing is currently selected (first agent or resumed session)
+    if (hasNoSelection) {
+      ctx.selectItem(agent.id, "main", undefined, true)
+    }
     ctx.notify()
   }
 
