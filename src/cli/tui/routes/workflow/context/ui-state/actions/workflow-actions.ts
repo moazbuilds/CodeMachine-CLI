@@ -119,14 +119,14 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
     ctx.notify()
   }
 
-  function addUIElement(element: { id: string; text: string; stepIndex: number }): void {
+  function addSeparator(separator: { id: string; text: string; stepIndex: number }): void {
     const state = ctx.getState()
-    const exists = state.uiElements.some((e) => e.id === element.id || e.stepIndex === element.stepIndex)
+    const exists = state.separators.some((s) => s.id === separator.id || s.stepIndex === separator.stepIndex)
     if (exists) return
 
     ctx.setState({
       ...state,
-      uiElements: [...state.uiElements, element],
+      separators: [...state.separators, separator],
     })
     ctx.notify()
   }
@@ -156,7 +156,7 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
     setLoopState,
     clearLoopRound,
     addTriggeredAgent,
-    addUIElement,
+    addSeparator,
     logMessage,
     setAutonomousMode,
   }

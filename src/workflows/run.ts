@@ -123,10 +123,12 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   // Filter steps by track and conditions
   debug('[Workflow] Filtering %d template steps...', template.steps.length);
   const visibleSteps = template.steps.filter((step, idx) => {
-    if (step.type !== 'module') {
-      debug('[Workflow] Step %d: type=%s → included (non-module)', idx, step.type);
+    // Separators are always included (visual dividers only)
+    if (step.type === 'separator') {
+      debug('[Workflow] Step %d: type=separator → included (visual separator)', idx);
       return true;
     }
+    // Module steps may be filtered by track/conditions
     if (step.tracks?.length && selectedTrack && !step.tracks.includes(selectedTrack)) {
       debug('[Workflow] Step %d: agentId=%s, tracks=%O, selectedTrack=%s → EXCLUDED (track mismatch)',
         idx, step.agentId, step.tracks, selectedTrack);
@@ -187,8 +189,8 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       }
 
       moduleIndex++;
-    } else if (step.type === 'ui') {
-      emitter.addUIElement(step.text, stepIndex);
+    } else if (step.type === 'separator') {
+      emitter.addSeparator(step.text, stepIndex);
     }
   }
   debug('[Workflow] Timeline populated: %d completed, %d pending',

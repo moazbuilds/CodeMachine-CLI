@@ -173,9 +173,9 @@ export class HeadlessAdapter extends BaseUIAdapter {
         }
         break;
 
-      case 'ui:element':
+      case 'separator:add':
         if (this.logLevel !== 'minimal') {
-          this.log(`UI: ${event.element.text}`);
+          this.log(`─── ${event.separator.text} ───`);
         }
         break;
 

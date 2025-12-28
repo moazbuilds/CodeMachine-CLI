@@ -17,7 +17,7 @@ export function createInitialState(workflowName: string, totalSteps = 0): Workfl
     agents: [],
     subAgents: new Map(),
     triggeredAgents: [],
-    uiElements: [],
+    separators: [],
     executionHistory: [],
     loopState: null,
     checkpointState: null,

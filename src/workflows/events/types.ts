@@ -32,9 +32,9 @@ export interface AgentInfo {
 }
 
 /**
- * UI element information (text labels in timeline)
+ * Separator information (visual dividers in timeline)
  */
-export interface UIElementInfo {
+export interface SeparatorInfo {
   id: string;
   text: string;
   stepIndex: number;
@@ -121,8 +121,8 @@ export type WorkflowEvent =
   // Message/logging events
   | { type: 'message:log'; agentId: string; message: string }
 
-  // UI element events
-  | { type: 'ui:element'; element: UIElementInfo }
+  // Separator events (visual dividers)
+  | { type: 'separator:add'; separator: SeparatorInfo }
 
   // Monitoring ID registration (for log file access)
   | { type: 'monitoring:register'; uiAgentId: string; monitoringId: number }

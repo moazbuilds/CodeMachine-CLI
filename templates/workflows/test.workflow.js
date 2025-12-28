@@ -195,7 +195,7 @@ export default {
     resolveStep('test-agent-2', { conditions: ['javascript', 'has_api'] }),
 
     // Human review checkpoint
-    resolveUI("❚❚ Human Review"),
+    separator("❚❚ Human Review"),
 
     // Module with conditions
     resolveModule('auto-loop', { loopSteps: 3, loopMaxIterations: 5, conditions: ['has_api'] }),

@@ -57,7 +57,7 @@ export interface UIActions {
   registerMonitoringId(uiAgentId: string, monitoringId: number): void
   addTriggeredAgent(sourceAgentId: string, triggeredAgent: TriggeredAgentState): void
   resetAgentForLoop(agentId: string, cycleNumber?: number): void
-  addUIElement(element: { id: string; text: string; stepIndex: number }): void
+  addSeparator(separator: { id: string; text: string; stepIndex: number }): void
   logMessage(agentId: string, message: string): void
   showToast?(variant: "success" | "error" | "info" | "warning", message: string): void
 }
@@ -269,9 +269,9 @@ export class OpenTUIAdapter extends BaseUIAdapter {
         this.actions.showToast?.("warning", event.message)
         break
 
-      // UI element events
-      case "ui:element":
-        this.actions.addUIElement(event.element)
+      // Separator events (visual dividers)
+      case "separator:add":
+        this.actions.addSeparator(event.separator)
         break
 
       // Monitoring registration

@@ -1,10 +1,10 @@
-import type { AgentState, SubAgentState, UIElement, WorkflowState } from "./types"
+import type { AgentState, SubAgentState, SeparatorItem, WorkflowState } from "./types"
 
 export type NavigableItem =
   | { type: "main"; id: string; agent: AgentState }
   | { type: "summary"; id: string; parentId: string }
   | { type: "sub"; id: string; agent: SubAgentState }
-  | { type: "ui"; id: string; uiElement: UIElement }
+  | { type: "separator"; id: string; separator: SeparatorItem }
 
 export type SelectableItem =
   | { type: "main"; id: string; agent: AgentState }
@@ -33,7 +33,7 @@ function getFullItemsList(state: WorkflowState): NavigableItem[] {
   const items: NavigableItem[] = []
   type StepItem =
     | { orderIndex: number; type: "agent"; agent: AgentState }
-    | { orderIndex: number; type: "uiElement"; uiElement: UIElement }
+    | { orderIndex: number; type: "separator"; separator: SeparatorItem }
 
   const stepItems: StepItem[] = []
 
@@ -43,8 +43,8 @@ function getFullItemsList(state: WorkflowState): NavigableItem[] {
     }
   }
 
-  for (const uiElement of state.uiElements) {
-    stepItems.push({ orderIndex: uiElement.stepIndex, type: "uiElement", uiElement })
+  for (const sep of state.separators) {
+    stepItems.push({ orderIndex: sep.stepIndex, type: "separator", separator: sep })
   }
 
   stepItems.sort((a, b) => a.orderIndex - b.orderIndex)
@@ -63,7 +63,7 @@ function getFullItemsList(state: WorkflowState): NavigableItem[] {
         }
       }
     } else {
-      items.push({ type: "ui", id: stepItem.uiElement.id, uiElement: stepItem.uiElement })
+      items.push({ type: "separator", id: stepItem.separator.id, separator: stepItem.separator })
     }
   }
 
@@ -72,7 +72,7 @@ function getFullItemsList(state: WorkflowState): NavigableItem[] {
 
 export function getFlatNavigableList(state: WorkflowState): SelectableItem[] {
   const fullList = getFullItemsList(state)
-  return fullList.filter((item) => item.type !== "ui") as SelectableItem[]
+  return fullList.filter((item) => item.type !== "separator") as SelectableItem[]
 }
 
 export function getTimelineLayout(state: WorkflowState): TimelineLayoutEntry[] {

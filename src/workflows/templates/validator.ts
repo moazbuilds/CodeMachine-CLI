@@ -48,16 +48,16 @@ export function validateWorkflowTemplate(value: unknown): ValidationResult {
       };
 
       // Validate step type
-      if (candidate.type !== 'module' && candidate.type !== 'ui') {
-        errors.push(`Step[${index}].type must be 'module' or 'ui'`);
+      if (candidate.type !== 'module' && candidate.type !== 'separator') {
+        errors.push(`Step[${index}].type must be 'module' or 'separator'`);
       }
 
-      // Validate UI step
-      if (candidate.type === 'ui') {
+      // Validate separator step (visual divider)
+      if (candidate.type === 'separator') {
         if (typeof candidate.text !== 'string' || (candidate.text as string).trim().length === 0) {
           errors.push(`Step[${index}].text must be a non-empty string`);
         }
-        // UI steps don't need other validation
+        // Separator steps don't need other validation
         return;
       }
 

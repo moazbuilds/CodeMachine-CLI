@@ -13,7 +13,7 @@ import { debug } from '../../shared/logging/logger.js';
 import type { WorkflowEventBus } from './event-bus.js';
 import type {
   AgentInfo,
-  UIElementInfo,
+  SeparatorInfo,
   WorkflowEvent,
   ProgressState,
 } from './types.js';
@@ -367,19 +367,19 @@ export class WorkflowEventEmitter {
   }
 
   /**
-   * Emit UI element added
-   * Mirrors: ui.addUIElement(text, stepIndex)
+   * Emit separator added (visual divider in timeline)
+   * Mirrors: ui.addSeparator(text, stepIndex)
    */
-  addUIElement(text: string, stepIndex: number): void {
-    const element: UIElementInfo = {
-      id: `ui-element-${stepIndex}-${Date.now()}`,
+  addSeparator(text: string, stepIndex: number): void {
+    const separator: SeparatorInfo = {
+      id: `separator-${stepIndex}-${Date.now()}`,
       text,
       stepIndex,
     };
 
     this.bus.emit({
-      type: 'ui:element',
-      element,
+      type: 'separator:add',
+      separator,
     });
   }
 

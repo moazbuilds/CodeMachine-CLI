@@ -5,7 +5,7 @@ export default {
     resolveStep('test-agent-1'),
 
     // Human review checkpoint
-    resolveUI("❚❚ Human Review"),
+    separator("❚❚ Human Review"),
 
     // Module with conditions
     resolveModule('auto-loop', { loopSteps: 2, loopMaxIterations: 5 }),

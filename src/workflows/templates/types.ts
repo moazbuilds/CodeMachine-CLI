@@ -41,12 +41,12 @@ export interface ModuleStep {
   conditions?: string[]; // Conditions required for this step (e.g., ['has_ui', 'has_api'])
 }
 
-export interface UIStep {
-  type: 'ui';
+export interface Separator {
+  type: 'separator';
   text: string;
 }
 
-export type WorkflowStep = ModuleStep | UIStep;
+export type WorkflowStep = ModuleStep | Separator;
 
 /**
  * Type guard to check if a step is a ModuleStep

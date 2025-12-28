@@ -9,7 +9,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 
 import { debug } from '../../shared/logging/logger.js';
-import { markStepCompleted, removeFromNotCompleted } from '../../shared/workflows/index.js';
+import { markStepCompleted } from '../../shared/workflows/index.js';
 import { handleLoopLogic, createActiveLoop, type ActiveLoop } from '../directives/loop/index.js';
 import { handleTriggerLogic } from '../directives/trigger/index.js';
 import { handleCheckpointLogic } from '../directives/checkpoint/index.js';
@@ -193,10 +193,8 @@ export async function afterRun(options: AfterRunOptions): Promise<AfterRunResult
     }
   }
 
-  // Remove from notCompletedSteps
-  await removeFromNotCompleted(cmRoot, index);
-
   // Mark step as completed if executeOnce is true
+  // Note: notCompletedSteps is cleared by markStepCompleted, not here
   if (step.executeOnce) {
     await markStepCompleted(cmRoot, index);
   }

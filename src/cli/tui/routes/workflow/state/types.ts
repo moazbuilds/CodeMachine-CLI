@@ -115,7 +115,7 @@ export interface ExecutionRecord {
   error?: string
 }
 
-export interface UIElement {
+export interface SeparatorItem {
   id: string
   text: string
   stepIndex: number
@@ -130,7 +130,7 @@ export interface WorkflowState {
   agents: AgentState[]
   subAgents: Map<string, SubAgentState[]>
   triggeredAgents: TriggeredAgentState[]
-  uiElements: UIElement[]
+  separators: SeparatorItem[]
   executionHistory: ExecutionRecord[]
   loopState: LoopState | null
   checkpointState: CheckpointState | null

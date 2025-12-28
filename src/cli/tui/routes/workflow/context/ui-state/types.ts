@@ -49,7 +49,7 @@ export type UIActions = {
   registerMonitoringId(uiAgentId: string, monitoringId: number): void
   addTriggeredAgent(sourceAgentId: string, triggeredAgent: TriggeredAgentState): void
   resetAgentForLoop(agentId: string, cycleNumber?: number): void
-  addUIElement(element: { id: string; text: string; stepIndex: number }): void
+  addSeparator(separator: { id: string; text: string; stepIndex: number }): void
   logMessage(agentId: string, message: string): void
   setAutonomousMode(enabled: boolean): void
 }

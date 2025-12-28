@@ -14,7 +14,7 @@ import { getTimelineLayout } from "../../state/navigation"
 import { MainAgentNode } from "./main-agent-node"
 import { SubAgentSummary } from "./sub-agent-summary"
 import { SubAgentNode } from "./sub-agent-node"
-import { UIElementNode } from "./ui-element-node"
+import { SeparatorNode } from "./separator-node"
 
 export interface AgentTimelineProps {
   state: WorkflowState
@@ -108,9 +108,9 @@ export function AgentTimeline(props: AgentTimelineProps) {
                 )
               }
 
-              // UI element
-              if (item.type === "ui") {
-                return <UIElementNode uiElement={item.uiElement} />
+              // Separator (visual divider)
+              if (item.type === "separator") {
+                return <SeparatorNode separator={item.separator} />
               }
 
               // Sub-agent (expanded)
