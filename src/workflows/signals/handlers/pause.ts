@@ -9,7 +9,6 @@
 
 import { debug } from '../../../shared/logging/logger.js';
 import { AgentMonitorService } from '../../../agents/monitoring/index.js';
-import { initStepSession } from '../../../shared/workflows/steps.js';
 import { setAutonomousMode } from '../../../shared/workflows/controller.js';
 import type { SignalContext } from '../manager/types.js';
 
@@ -70,8 +69,9 @@ export async function handlePauseSignal(ctx: SignalContext): Promise<void> {
       machineCtx.currentOutput = { output: '', monitoringId: agent.id };
 
       // Persist session to step data for resume lookup
+      // Uses indexManager for centralized lifecycle tracking
       if (agent.sessionId) {
-        initStepSession(ctx.cmRoot, stepContext.stepIndex, agent.sessionId, agent.id)
+        ctx.indexManager.stepSessionInitialized(stepContext.stepIndex, agent.sessionId, agent.id)
           .catch(err => debug('[PauseSignal] Failed to save session: %s', err.message));
       }
     }

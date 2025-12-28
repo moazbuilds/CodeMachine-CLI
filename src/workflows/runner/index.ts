@@ -27,6 +27,8 @@ import type { ActiveLoop } from '../directives/loop/index.js';
 import { WorkflowMode } from '../mode/index.js';
 import { StepSession } from '../session/index.js';
 import { getUniqueAgentId } from '../context/index.js';
+import type { StepIndexManager } from '../indexing/index.js';
+import { shouldSkipStep, logSkipDebug } from '../step/skip.js';
 
 import type { WorkflowRunnerOptions, RunnerContext } from './types.js';
 import { runStepFresh } from '../step/run.js';
@@ -49,6 +51,7 @@ export class WorkflowRunner implements RunnerContext {
   readonly cmRoot: string;
   readonly template: WorkflowTemplate;
   readonly mode: WorkflowMode;
+  readonly indexManager: StepIndexManager;
 
   private userInput: UserInputProvider;
   private controllerInput: ControllerInputProvider;
@@ -62,6 +65,7 @@ export class WorkflowRunner implements RunnerContext {
     this.cmRoot = options.cmRoot;
     this.emitter = options.emitter;
     this.template = options.template;
+    this.indexManager = options.indexManager;
 
     // Filter to only module steps
     this.moduleSteps = options.template.steps.filter(
@@ -98,8 +102,6 @@ export class WorkflowRunner implements RunnerContext {
       cwd: this.cwd,
       cmRoot: this.cmRoot,
       autoMode: false,
-      promptQueue: [],
-      promptQueueIndex: 0,
       paused: false,
       currentOutput: null,
     });
@@ -111,6 +113,7 @@ export class WorkflowRunner implements RunnerContext {
       mode: this.mode,
       cwd: this.cwd,
       cmRoot: this.cmRoot,
+      indexManager: this.indexManager,
     });
 
     // Set mode context for mode switching (delegates to WorkflowMode)
@@ -188,10 +191,8 @@ export class WorkflowRunner implements RunnerContext {
       cmRoot: this.cmRoot,
       emitter: this.emitter,
       uniqueAgentId,
+      indexManager: this.indexManager,
     });
-
-    // Sync existing queue state from machine context (for backwards compatibility)
-    session.syncFromMachineContext(this.machine.context);
 
     this._currentSession = session;
     return session;
@@ -225,6 +226,29 @@ export class WorkflowRunner implements RunnerContext {
       const state = this.machine.state;
 
       if (state === 'running') {
+        const stepIndex = this.machine.context.currentStepIndex;
+        const step = this.moduleSteps[stepIndex];
+        const uniqueAgentId = getUniqueAgentId(step, stepIndex);
+
+        // Log skip debug info for loops
+        logSkipDebug(step, stepIndex, this.activeLoop);
+
+        // Check if step should be skipped (executeOnce, loop skip list)
+        const skipResult = await shouldSkipStep({
+          step,
+          index: stepIndex,
+          activeLoop: this.activeLoop,
+          indexManager: this.indexManager,
+          uniqueAgentId,
+          emitter: this.emitter,
+        });
+
+        if (skipResult.skip) {
+          debug('[Runner] Skipping step %d: %s', stepIndex, skipResult.reason);
+          this.machine.send({ type: 'SKIP' });
+          continue;
+        }
+
         // Create new session for this step
         const session = this.createSession();
         session.markRunning();

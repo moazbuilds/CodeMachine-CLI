@@ -11,6 +11,7 @@ import type { WorkflowEventEmitter } from '../../events/emitter.js';
 import type { StateMachine } from '../../state/index.js';
 import type { InputProvider } from '../../input/types.js';
 import type { WorkflowMode } from '../../mode/index.js';
+import type { StepIndexManager } from '../../indexing/index.js';
 import type {
   SignalManagerOptions,
   StepContext,
@@ -32,6 +33,7 @@ export class SignalManager implements SignalContext {
   readonly mode: WorkflowMode;
   readonly cwd: string;
   readonly cmRoot: string;
+  readonly indexManager: StepIndexManager;
 
   private abortController: AbortController | null = null;
   private stepContext: StepContext | null = null;
@@ -50,6 +52,7 @@ export class SignalManager implements SignalContext {
     this.mode = options.mode;
     this.cwd = options.cwd;
     this.cmRoot = options.cmRoot;
+    this.indexManager = options.indexManager;
   }
 
   /**

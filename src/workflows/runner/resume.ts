@@ -5,8 +5,8 @@
  */
 
 import { debug } from '../../shared/logging/logger.js';
-import { initStepSession } from '../../shared/workflows/index.js';
 import { AgentMonitorService } from '../../agents/monitoring/index.js';
+import type { StepIndexManager } from '../indexing/index.js';
 import { loadAgentConfig } from '../../agents/runner/index.js';
 import { loadChainedPrompts } from '../../agents/runner/chained.js';
 import type { WorkflowEventEmitter } from '../events/index.js';
@@ -46,6 +46,7 @@ export interface ExecWithResumeOptions {
   stepResumeMonitoringId: number | undefined;
   stepResumePrompt: string | undefined;
   selectedConditions: string[];
+  indexManager: StepIndexManager;
 }
 
 export interface ExecWithResumeResult {
@@ -60,7 +61,7 @@ export async function execWithResume(options: ExecWithResumeOptions): Promise<Ex
   const {
     step,
     cwd,
-    cmRoot,
+    cmRoot: _cmRoot,
     index,
     emitter,
     uniqueAgentId,
@@ -73,6 +74,7 @@ export async function execWithResume(options: ExecWithResumeOptions): Promise<Ex
     stepResumeMonitoringId,
     stepResumePrompt,
     selectedConditions,
+    indexManager,
   } = options;
 
   debug(`[DEBUG workflow] isResumingFromChain=${isResumingFromChain}, chainResumeInfo=${JSON.stringify(chainResumeInfo)}`);
@@ -139,7 +141,7 @@ export async function execWithResume(options: ExecWithResumeOptions): Promise<Ex
         const monitor = AgentMonitorService.getInstance();
         const agent = monitor.getAgent(stepOutput.monitoringId);
         const sessionId = agent?.sessionId ?? '';
-        await initStepSession(cmRoot, index, sessionId, stepOutput.monitoringId);
+        await indexManager.stepSessionInitialized(index, sessionId, stepOutput.monitoringId);
         debug(`[DEBUG workflow] Step session initialized`);
       }
     }
@@ -165,7 +167,7 @@ export async function execWithResume(options: ExecWithResumeOptions): Promise<Ex
       const monitor = AgentMonitorService.getInstance();
       const agent = monitor.getAgent(stepOutput.monitoringId);
       const sessionId = agent?.sessionId ?? '';
-      await initStepSession(cmRoot, index, sessionId, stepOutput.monitoringId);
+      await indexManager.stepSessionInitialized(index, sessionId, stepOutput.monitoringId);
       debug(`[DEBUG workflow] Step session initialized`);
     }
   }

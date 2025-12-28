@@ -9,8 +9,8 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 
 import { debug } from '../../shared/logging/logger.js';
-import { markStepCompleted } from '../../shared/workflows/index.js';
 import { handleLoopLogic, createActiveLoop, type ActiveLoop } from '../directives/loop/index.js';
+import type { StepIndexManager } from '../indexing/index.js';
 import { handleTriggerLogic } from '../directives/trigger/index.js';
 import { handleCheckpointLogic } from '../directives/checkpoint/index.js';
 import { handleErrorLogic } from '../directives/error/index.js';
@@ -112,6 +112,8 @@ export interface AfterRunOptions {
   loopCounters: Map<string, number>;
   activeLoop: ActiveLoop | null;
   engineType: string;
+  /** Step index manager for lifecycle tracking */
+  indexManager: StepIndexManager;
 }
 
 /**
@@ -152,7 +154,7 @@ export async function afterRun(options: AfterRunOptions): Promise<AfterRunResult
     step,
     stepOutput,
     cwd,
-    cmRoot,
+    cmRoot: _cmRoot,
     index,
     emitter,
     uniqueAgentId,
@@ -161,6 +163,7 @@ export async function afterRun(options: AfterRunOptions): Promise<AfterRunResult
     loopCounters,
     activeLoop,
     engineType,
+    indexManager,
   } = options;
 
   // Check for error directive first (highest priority)
@@ -194,9 +197,9 @@ export async function afterRun(options: AfterRunOptions): Promise<AfterRunResult
   }
 
   // Mark step as completed if executeOnce is true
-  // Note: notCompletedSteps is cleared by markStepCompleted, not here
+  // Uses indexManager for centralized lifecycle tracking
   if (step.executeOnce) {
-    await markStepCompleted(cmRoot, index);
+    await indexManager.stepCompleted(index);
   }
 
   // Check for checkpoint directive

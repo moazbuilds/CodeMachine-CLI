@@ -28,20 +28,5 @@ export {
   extractInputText,
 } from './controller.js';
 
-// Step tracking functions
-export {
-  getCompletedSteps,
-  getStepData,
-  isStepCompleted,
-  markStepStarted,
-  initStepSession,
-  updateStepSession,
-  markChainCompleted,
-  markStepCompleted,
-  getChainResumeInfo,
-  clearCompletedSteps,
-  getNotCompletedSteps,
-  removeFromNotCompleted,
-  clearNotCompletedSteps,
-  getResumeStartIndex,
-} from './steps.js';
+// Note: Step tracking functions have been moved to src/workflows/indexing/
+// Import from 'src/workflows/indexing/index.js' for StepIndexManager

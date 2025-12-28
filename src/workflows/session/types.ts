@@ -1,12 +1,14 @@
 /**
  * StepSession Types
  *
- * Owns step lifecycle and promptQueue for each step execution.
+ * Manages step lifecycle state for each step execution.
+ * Queue operations are delegated to StepIndexManager (single source of truth).
  */
 
 import type { ModuleStep } from '../templates/types.js';
 import type { StepOutput, QueuedPrompt } from '../state/types.js';
 import type { WorkflowEventEmitter } from '../events/index.js';
+import type { StepIndexManager } from '../indexing/index.js';
 
 /**
  * Session state lifecycle
@@ -34,6 +36,9 @@ export interface StepSessionConfig {
 
   /** Unique agent ID for this step (includes step index suffix) */
   uniqueAgentId: string;
+
+  /** Step index manager (single source of truth for queue state) */
+  indexManager: StepIndexManager;
 }
 
 /**

@@ -14,11 +14,10 @@ import { loadTemplateWithPath } from './templates/index.js';
 import { debug, setDebugLogFile } from '../shared/logging/logger.js';
 import {
   getTemplatePathFromTracking,
-  getResumeStartIndex,
   getSelectedTrack,
   getSelectedConditions,
-  getStepData,
 } from '../shared/workflows/index.js';
+import { StepIndexManager, ResumeDecision } from './indexing/index.js';
 import { registry } from '../infra/engines/index.js';
 import { MonitoringCleanup } from '../agents/monitoring/index.js';
 import { WorkflowEventBus, WorkflowEventEmitter } from './events/index.js';
@@ -109,10 +108,14 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     globalThis.__workflowEventBus = eventBus;
   }
 
-  // Get start index
-  const startIndex = await getResumeStartIndex(cmRoot);
+  // Create step index manager
+  const indexManager = new StepIndexManager(cmRoot);
+
+  // Get resume info
+  const resumeInfo = await indexManager.getResumeInfo();
+  const startIndex = resumeInfo.startIndex;
   debug('[Workflow] ========== STEP DECISION ==========');
-  debug('[Workflow] getResumeStartIndex returned: %d', startIndex);
+  debug('[Workflow] Resume info: startIndex=%d, decision=%s', startIndex, resumeInfo.decision);
 
   // Load track and conditions selections
   const selectedTrack = await getSelectedTrack(cmRoot);
@@ -181,7 +184,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
       // For completed agents, register their monitoringId from template.json
       if (isCompleted) {
-        const stepData = await getStepData(cmRoot, moduleIndex);
+        const stepData = await indexManager.getStepData(moduleIndex);
         debug('[Workflow] Module %d marked completed, stepData=%O', moduleIndex, stepData);
         if (stepData?.monitoringId !== undefined) {
           emitter.registerMonitoringId(uniqueAgentId, stepData.monitoringId);
@@ -197,6 +200,9 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     startIndex, moduleSteps.length - startIndex);
   debug('[Workflow] ========== END STEP DECISION ==========');
 
+  // Initialize index manager with start index
+  indexManager.setCurrentStepIndex(startIndex);
+
   // Create and run workflow
   const runner = new WorkflowRunner({
     cwd,
@@ -204,6 +210,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     template: { ...template, steps: visibleSteps },
     emitter,
     startIndex,
+    indexManager,
   });
 
   // Cleanup function for MCP

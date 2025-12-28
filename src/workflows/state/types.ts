@@ -2,7 +2,9 @@
  * Workflow State Machine Types
  *
  * Defines the states, events, and context for workflow execution.
- * This is the single source of truth for workflow state.
+ *
+ * Note: Queue state (promptQueue, promptQueueIndex) is managed by StepIndexManager.
+ * See src/workflows/indexing/ for the single source of truth.
  */
 
 import type { ModuleStep } from '../templates/types.js';
@@ -55,8 +57,6 @@ export interface WorkflowContext {
 
   // Input mode
   autoMode: boolean;
-  promptQueue: QueuedPrompt[];
-  promptQueueIndex: number;
 
   // Pause state
   paused: boolean;

@@ -16,6 +16,7 @@ import type { ControllerConfig } from '../../shared/workflows/index.js';
 import type { ActiveLoop } from '../directives/loop/index.js';
 import type { WorkflowMode } from '../mode/index.js';
 import type { StepSession } from '../session/index.js';
+import type { StepIndexManager } from '../indexing/index.js';
 
 /**
  * Runner options (public API)
@@ -26,6 +27,7 @@ export interface WorkflowRunnerOptions {
   template: WorkflowTemplate;
   emitter: WorkflowEventEmitter;
   startIndex?: number;
+  indexManager: StepIndexManager;
 }
 
 /**
@@ -41,6 +43,7 @@ export interface RunnerContext {
   readonly cmRoot: string;
   readonly template: WorkflowTemplate;
   readonly mode: WorkflowMode;
+  readonly indexManager: StepIndexManager;
 
   // Mutable state via getters/setters
   getAbortController(): AbortController | null;

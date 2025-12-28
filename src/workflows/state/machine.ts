@@ -3,6 +3,10 @@
  *
  * Finite state machine implementation for workflow execution.
  * Ensures valid state transitions and prevents race conditions.
+ *
+ * Note: Queue state (promptQueue, promptQueueIndex) is managed by StepIndexManager.
+ * The context fields are kept for backward compatibility during transition.
+ * StepSession syncs between indexManager and machine context.
  */
 
 import { debug } from '../../shared/logging/logger.js';
@@ -120,8 +124,6 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
     steps: [],
     currentOutput: null,
     autoMode: false,
-    promptQueue: [],
-    promptQueueIndex: 0,
     paused: false,
     cwd: process.cwd(),
     cmRoot: '',
@@ -170,13 +172,12 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
           },
           SKIP: [
             // Skip while running - advance to next step
+            // Note: Queue reset is handled by StepIndexManager
             {
               target: 'running',
               guard: (ctx) => ctx.currentStepIndex < ctx.totalSteps - 1,
               action: (ctx) => {
                 ctx.currentStepIndex += 1;
-                ctx.promptQueue = [];
-                ctx.promptQueueIndex = 0;
                 debug('[FSM] Skipped during run, advancing to step %d', ctx.currentStepIndex + 1);
               },
             },
@@ -235,12 +236,12 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
           ],
           SKIP: [
             // If more steps, skip to next
+            // Note: Queue reset is handled by StepIndexManager
             {
               target: 'running',
               guard: (ctx) => ctx.currentStepIndex < ctx.totalSteps - 1,
               action: (ctx) => {
                 ctx.currentStepIndex += 1;
-                ctx.promptQueueIndex = 0; // Reset queue on skip
                 debug('[FSM] Skipped, advancing to step %d', ctx.currentStepIndex + 1);
               },
             },

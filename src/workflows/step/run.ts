@@ -12,11 +12,6 @@ import { getUniqueAgentId } from '../context/index.js';
 import { executeStep } from './execute.js';
 import { selectEngine } from './engine.js';
 import { registry } from '../../infra/engines/index.js';
-import {
-  markStepStarted,
-  initStepSession,
-  getStepData,
-} from '../../shared/workflows/steps.js';
 import { getSelectedConditions } from '../../shared/workflows/template.js';
 import { loadAgentConfig } from '../../agents/runner/index.js';
 import { loadChainedPrompts } from '../../agents/runner/chained.js';
@@ -65,7 +60,7 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
   debug('[step/run] Running fresh step %d: %s', stepIndex, step.agentName);
 
   // Check for resume data (existing session from previous run)
-  const stepData = await getStepData(ctx.cmRoot, stepIndex);
+  const stepData = await ctx.indexManager.getStepData(stepIndex);
   const isResuming = stepData?.sessionId && !stepData.completedAt;
 
   // If resuming from crash, go directly to waiting state
@@ -100,10 +95,9 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
           const session = ctx.getCurrentSession();
           if (session) {
             session.initializeFromPersisted(chainedPrompts, resumeIndex);
-            session.syncToMachineContext(machineCtx);
           } else {
-            machineCtx.promptQueue = chainedPrompts;
-            machineCtx.promptQueueIndex = resumeIndex;
+            // Session should always exist - use indexManager directly as fallback
+            ctx.indexManager.initQueue(chainedPrompts, resumeIndex);
           }
         }
       }
@@ -117,7 +111,7 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
   }
 
   // Track step start for resume
-  await markStepStarted(ctx.cmRoot, stepIndex);
+  await ctx.indexManager.stepStarted(stepIndex);
 
   // Setup (abort controller, UI status, directives)
   const { abortController } = beforeRun({
@@ -156,7 +150,7 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
       const monitor = AgentMonitorService.getInstance();
       const agentInfo = monitor.getAgent(output.monitoringId);
       const sessionId = agentInfo?.sessionId ?? '';
-      await initStepSession(ctx.cmRoot, stepIndex, sessionId, output.monitoringId);
+      await ctx.indexManager.stepSessionInitialized(stepIndex, sessionId, output.monitoringId);
     }
 
     const stepOutput: StateStepOutput = {
@@ -178,6 +172,7 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
       loopCounters: ctx.getLoopCounters(),
       activeLoop: ctx.getActiveLoop(),
       engineType: step.engine ?? 'claude-code',
+      indexManager: ctx.indexManager,
     });
 
     // Handle directive results
@@ -206,21 +201,18 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
     if (postResult.checkpointContinued) {
       debug('[step/run] Checkpoint continued, advancing to next step');
       ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
-      machineCtx.promptQueue = [];
-      machineCtx.promptQueueIndex = 0;
+      ctx.indexManager.resetQueue();
       ctx.machine.send({ type: 'STEP_COMPLETE', output: stepOutput });
       return { output: stepOutput, checkpointContinued: true };
     }
 
-    // Handle chained prompts via StepSession
+    // Handle chained prompts via StepSession (uses indexManager as single source of truth)
     debug('[step/run] chainedPrompts: %d items', output.chainedPrompts?.length ?? 0);
     const session = ctx.getCurrentSession();
     if (session) {
       session.setOutput(stepOutput);
       const loaded = session.loadChainedPrompts(output.chainedPrompts);
       if (loaded) {
-        // Sync session state to machine context
-        session.syncToMachineContext(machineCtx);
         session.markAwaiting();
         if (!machineCtx.autoMode) {
           ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
@@ -229,23 +221,17 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
         // Truly no prompts - complete the session
         await session.complete();
         ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
-        machineCtx.promptQueue = [];
-        machineCtx.promptQueueIndex = 0;
-      } else {
-        // Prompts exist but already loaded - sync to machineCtx
-        session.syncToMachineContext(machineCtx);
       }
+      // If prompts exist but already loaded, no action needed - indexManager has the state
     } else if (output.chainedPrompts && output.chainedPrompts.length > 0) {
-      // Fallback for backwards compatibility (no session)
-      machineCtx.promptQueue = output.chainedPrompts;
-      machineCtx.promptQueueIndex = 0;
+      // No session - use indexManager directly
+      ctx.indexManager.initQueue(output.chainedPrompts, 0);
       if (!machineCtx.autoMode) {
         ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
       }
     } else {
       ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
-      machineCtx.promptQueue = [];
-      machineCtx.promptQueueIndex = 0;
+      ctx.indexManager.resetQueue();
     }
 
     ctx.machine.send({ type: 'STEP_COMPLETE', output: stepOutput });
@@ -283,7 +269,7 @@ export async function runStepResume(
   debug('[step/run] Resuming step %d with input: %s...', stepIndex, options.resumePrompt?.slice(0, 50));
 
   // Get session ID from step data
-  const stepData = await getStepData(ctx.cmRoot, stepIndex);
+  const stepData = await ctx.indexManager.getStepData(stepIndex);
   const sessionId = options.resumeSessionId ?? stepData?.sessionId;
 
   // Setup (abort controller, UI status)
@@ -317,26 +303,24 @@ export async function runStepResume(
     };
     machineCtx.currentMonitoringId = output.monitoringId;
 
-    // Use StepSession for chained prompts handling
+    // Use StepSession for chained prompts handling (uses indexManager as single source of truth)
     // StepSession.loadChainedPrompts only loads once (hasCompletedOnce check)
     const session = ctx.getCurrentSession();
     if (session) {
       session.setOutput(machineCtx.currentOutput);
 
-      // If promptQueue is empty but we got chained prompts, populate it
+      // If prompts not yet loaded, populate them
       // StepSession.loadChainedPrompts will only load if not already loaded
       if (output.chainedPrompts && output.chainedPrompts.length > 0) {
         const loaded = session.loadChainedPrompts(output.chainedPrompts);
         if (loaded) {
           debug('[step/run] Resume: Loaded %d chained prompts via StepSession', output.chainedPrompts.length);
-          session.syncToMachineContext(machineCtx);
         }
       }
-    } else if (machineCtx.promptQueue.length === 0 && output.chainedPrompts && output.chainedPrompts.length > 0) {
-      // Fallback for backwards compatibility (no session)
-      debug('[step/run] Resume: Populating promptQueue with %d chained prompts (initial exec was aborted)', output.chainedPrompts.length);
-      machineCtx.promptQueue = output.chainedPrompts;
-      machineCtx.promptQueueIndex = 0;
+    } else if (ctx.indexManager.isQueueExhausted() && output.chainedPrompts && output.chainedPrompts.length > 0) {
+      // No session - use indexManager directly
+      debug('[step/run] Resume: Populating queue with %d chained prompts via indexManager', output.chainedPrompts.length);
+      ctx.indexManager.initQueue(output.chainedPrompts, 0);
     }
 
     const stepOutput: StateStepOutput = {

@@ -8,6 +8,7 @@ import type { WorkflowEventEmitter } from '../../events/emitter.js';
 import type { StateMachine } from '../../state/index.js';
 import type { InputProvider } from '../../input/types.js';
 import type { WorkflowMode } from '../../mode/index.js';
+import type { StepIndexManager } from '../../indexing/index.js';
 
 /**
  * Supported signal types
@@ -48,6 +49,7 @@ export interface SignalContext extends ModeSwitchContext {
   readonly cwd: string;
   readonly cmRoot: string;
   readonly mode: WorkflowMode;
+  readonly indexManager: StepIndexManager;
   getAbortController(): AbortController | null;
   getStepContext(): StepContext | null;
 }
@@ -61,4 +63,5 @@ export interface SignalManagerOptions {
   mode: WorkflowMode;
   cwd: string;
   cmRoot: string;
+  indexManager: StepIndexManager;
 }
