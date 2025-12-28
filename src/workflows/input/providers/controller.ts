@@ -8,6 +8,7 @@
 import { debug } from '../../../shared/logging/logger.js';
 import { executeWithActions } from '../../../agents/execution/index.js';
 import { AgentLoggerService, AgentMonitorService } from '../../../agents/monitoring/index.js';
+import { loadAgentConfig } from '../../../agents/runner/config.js';
 import { saveControllerConfig } from '../../../shared/workflows/controller.js';
 import { stripColorMarkers } from '../../../shared/formatters/logFileFormatter.js';
 import {
@@ -118,9 +119,11 @@ ${cleanOutput}
 Review the output above and respond appropriately, or use ACTION: NEXT to proceed.`
         : 'REMINDER: Always follow the rules and instructions given in your first message - that is your system prompt. Now continue.';
 
-      // Write controller header
+      // Write controller header with dynamic agent name
+      const agentConfig = await loadAgentConfig(config.agentId, this.cmRoot);
+      const controllerName = agentConfig.name || config.agentId;
       if (context.stepOutput.monitoringId !== undefined) {
-        loggerService.write(context.stepOutput.monitoringId, '\n' + formatControllerHeader('PO Agent') + '\n');
+        loggerService.write(context.stepOutput.monitoringId, '\n' + formatControllerHeader(controllerName) + '\n');
       }
 
       // Resume controller session - reuse existing monitoring entry to avoid duplicate agent/log registration
