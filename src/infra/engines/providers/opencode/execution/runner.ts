@@ -206,10 +206,8 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
     if (onTelemetry) {
       const captured = telemetryCapture.getCaptured();
       if (captured?.tokens) {
-        const totalIn =
-          (captured.tokens.input ?? 0) + (captured.tokens.cached ?? 0);
         onTelemetry({
-          tokensIn: totalIn,
+          tokensIn: captured.tokens.input ?? 0,
           tokensOut: captured.tokens.output ?? 0,
           cached: captured.tokens.cached,
           cost: captured.cost,

@@ -10,11 +10,11 @@ export function updateAgentTelemetryInList(
       ? {
           ...agent,
           telemetry: {
-            tokensIn: agent.telemetry.tokensIn + (telemetry.tokensIn ?? 0),
+            tokensIn: telemetry.tokensIn ?? agent.telemetry.tokensIn,
             tokensOut: agent.telemetry.tokensOut + (telemetry.tokensOut ?? 0),
-            cached: (agent.telemetry.cached ?? 0) + (telemetry.cached ?? 0) || undefined,
+            cached: Math.max(agent.telemetry.cached ?? 0, telemetry.cached ?? 0) || undefined,
             cost: (agent.telemetry.cost ?? 0) + (telemetry.cost ?? 0) || undefined,
-            duration: (agent.telemetry.duration ?? 0) + (telemetry.duration ?? 0) || undefined,
+            duration: telemetry.duration ?? agent.telemetry.duration,
           },
         }
       : agent,
