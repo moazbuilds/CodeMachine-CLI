@@ -19,18 +19,25 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /**
  * Get the path to the workflow-signals MCP server
  *
- * Uses CODEMACHINE_PACKAGE_ROOT for embedded/linked mode,
- * falls back to __dirname for direct source execution.
+ * When running from a compiled binary, __dirname resolves to Bun's virtual
+ * filesystem (/$bunfs/...) which doesn't exist on disk. In that case, we
+ * must use CODEMACHINE_PACKAGE_ROOT to get the real filesystem path.
  */
 export function getWorkflowSignalsMCPPath(): string {
-  const packageRoot = process.env.CODEMACHINE_PACKAGE_ROOT;
+  // Check if we're running from a compiled binary (Bun's virtual FS)
+  const isCompiledBinary = __dirname.startsWith('/$bunfs');
 
-  if (packageRoot) {
-    // Embedded or linked mode - use the extracted/installed location
+  if (isCompiledBinary) {
+    const packageRoot = process.env.CODEMACHINE_PACKAGE_ROOT;
+    if (!packageRoot) {
+      throw new Error(
+        'CODEMACHINE_PACKAGE_ROOT must be set when running from compiled binary'
+      );
+    }
     return path.join(packageRoot, 'src', 'infra', 'mcp', 'servers', 'workflow-signals', 'index.ts');
   }
 
-  // Dev mode - use relative path from this file
+  // Dev mode or bun link - use __dirname which points to real filesystem
   return path.resolve(__dirname, 'servers/workflow-signals/index.ts');
 }
 
