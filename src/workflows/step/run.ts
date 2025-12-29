@@ -216,25 +216,37 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
       session.setOutput(stepOutput);
       const loaded = session.loadChainedPrompts(output.chainedPrompts);
       if (loaded) {
+        // Has chained prompts - go to awaiting state
         session.markAwaiting();
         if (!machineCtx.autoMode) {
           ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
         }
+        ctx.machine.send({ type: 'STEP_COMPLETE', output: stepOutput });
+        return { output: stepOutput };
       } else if (session.promptQueue.length === 0) {
-        // Truly no prompts - complete the session
+        // No prompts - complete and go directly to next step
         await session.complete();
         ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+        await ctx.indexManager.stepCompleted(stepIndex);
+        ctx.machine.send({ type: 'SKIP' });
+        return { output: stepOutput };
       }
-      // If prompts exist but already loaded, no action needed - indexManager has the state
+      // If prompts exist but already loaded, fall through to STEP_COMPLETE
     } else if (output.chainedPrompts && output.chainedPrompts.length > 0) {
-      // No session - use indexManager directly
+      // No session but has chained prompts - go to awaiting state
       ctx.indexManager.initQueue(output.chainedPrompts, 0);
       if (!machineCtx.autoMode) {
         ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
       }
+      ctx.machine.send({ type: 'STEP_COMPLETE', output: stepOutput });
+      return { output: stepOutput };
     } else {
+      // No session, no chained prompts - go directly to next step
       ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
       ctx.indexManager.resetQueue();
+      await ctx.indexManager.stepCompleted(stepIndex);
+      ctx.machine.send({ type: 'SKIP' });
+      return { output: stepOutput };
     }
 
     ctx.machine.send({ type: 'STEP_COMPLETE', output: stepOutput });
