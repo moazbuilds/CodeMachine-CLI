@@ -38,16 +38,13 @@ export function TelemetryBar(props: TelemetryBarProps) {
 
   const totalText = () => {
     const cached = props.total.cached ?? 0
-    const newTokensIn = props.total.tokensIn - cached
-    const base = formatTokens(newTokensIn, props.total.tokensOut)
+    const base = formatTokens(props.total.tokensIn, props.total.tokensOut)
     return cached > 0 ? `${base} (${formatNumber(cached)} cached)` : base
   }
 
   // Compact token display - no "cached" info
   const compactTokenText = () => {
-    const cached = props.total.cached ?? 0
-    const newTokensIn = props.total.tokensIn - cached
-    return formatTokens(newTokensIn, props.total.tokensOut)
+    return formatTokens(props.total.tokensIn, props.total.tokensOut)
   }
 
   const showStatus = () => props.status === "awaiting" || props.status === "paused" || props.status === "stopped"

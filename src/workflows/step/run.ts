@@ -192,17 +192,20 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
       const targetIndex = postResult.newIndex + 1;
       if (targetIndex >= 0 && targetIndex <= stepIndex) {
         debug('[step/run] Loop directive: rewinding to step %d', targetIndex);
+        ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+        await ctx.indexManager.stepCompleted(stepIndex);
         machineCtx.currentStepIndex = targetIndex;
         return { output: stepOutput, newIndex: targetIndex };
       }
     }
 
-    // Checkpoint continued - skip chained prompts
+    // Checkpoint continued - skip chained prompts and go directly to next step
     if (postResult.checkpointContinued) {
       debug('[step/run] Checkpoint continued, advancing to next step');
       ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
       ctx.indexManager.resetQueue();
-      ctx.machine.send({ type: 'STEP_COMPLETE', output: stepOutput });
+      await ctx.indexManager.stepCompleted(stepIndex);
+      ctx.machine.send({ type: 'SKIP' });
       return { output: stepOutput, checkpointContinued: true };
     }
 
