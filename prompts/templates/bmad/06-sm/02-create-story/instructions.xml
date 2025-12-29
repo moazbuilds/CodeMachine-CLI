@@ -49,9 +49,8 @@
     This is the most important function in the entire development process!</critical>
   <critical>🔬 UTILIZE SUBPROCESSES AND SUBAGENTS: Use research subagents, subprocesses or parallel processing if available to thoroughly
     analyze different artifacts simultaneously and thoroughly</critical>
-  <critical>❓ SAVE QUESTIONS: If you think of questions or clarifications during analysis, save them for the end after the complete story is
-    written</critical>
   <critical>🎯 ZERO USER INTERVENTION: Process is fully automated - all data is pre-injected</critical>
+  <critical>🚫 DO NOT load/search/fetch: Epics, PRD, Architecture, UX Design Spec, Story Template, Story Checklist - these are already in-memory in source_documents above</critical>
 
   <step n="1" goal="Determine target story from sprint status">
     <action>From {sprint_status}, find the FIRST story (in order) where:
@@ -227,30 +226,13 @@
     <action>Save .codemachine/artifacts/sprint-status.yaml preserving all comments and structure</action>
 
     <action>Report completion</action>
-    <output>**🎯 ULTIMATE BMad Method STORY CONTEXT CREATED, {user_name}!**
+    <output>**🎯 Story Context Created**
 
       **Story Details:**
       - Story ID: {{story_id}}
       - Story Key: {{story_key}}
       - File: .codemachine/artifacts/stories/{{story_key}}.md
       - Status: ready-for-dev
-
-      **Next Steps:**
-      1. Review the comprehensive story in .codemachine/artifacts/stories/{{story_key}}.md
-      2. **Optional Quality Competition:** Run the scrum masters `*validate-create-story` to have a fresh LLM systematically review and
-      improve the story context
-      3. Run dev agents `dev-story` for optimized implementation
-      4. Run `code-review` when complete (auto-marks done)
-
-      **Quality Competition Option:** The `*validate-create-story` command runs the story context through an independent LLM in fresh
-      context that will:
-      - Systematically re-analyze all source documents
-      - Identify any misses, omissions, or improvements
-      - Compete to create a more comprehensive story context
-      - Present findings interactively for your approval
-      - Apply improvements to create the ultimate developer implementation guide
-
-      **The developer now has everything needed for flawless implementation!**
     </output>
   </step>
 

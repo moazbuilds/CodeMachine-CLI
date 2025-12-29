@@ -63,7 +63,6 @@ export default {
     separator("⟲ Story Loop ⟲"),
     resolveStep('bmad-stories', {}),
     resolveStep('bmad-dev', {}),
-    resolveStep('bmad-review', {}),
-
+    resolveModule('bmad-review', { loopSteps: 2 }),
   ],
 };

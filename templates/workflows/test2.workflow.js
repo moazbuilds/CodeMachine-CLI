@@ -8,7 +8,7 @@ export default {
     separator("❚❚ Human Review"),
 
     // Module with conditions
-    resolveModule('auto-loop', { loopSteps: 2, loopMaxIterations: 5 }),
+    resolveModule('auto-loop', { loopSteps: 2 }),
   ],
   subAgentIds: ['frontend-dev'],
 };

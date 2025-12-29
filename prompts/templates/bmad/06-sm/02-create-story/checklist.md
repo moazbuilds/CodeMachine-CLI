@@ -6,6 +6,8 @@ You are an independent quality validator in a **FRESH CONTEXT**. Your mission is
 
 **Your purpose is NOT just to validate - it's to FIX and PREVENT LLM developer mistakes, omissions, or disasters!**
 
+> 🚫 **REMINDER:** DO NOT load/search/fetch Epics, PRD, Architecture, UX Design Spec - these are already in-memory from source_documents.
+
 ### **🚨 CRITICAL MISTAKES TO PREVENT:**
 
 - **Reinventing wheels** - Creating duplicate functionality instead of reusing existing
@@ -48,7 +50,7 @@ You will systematically re-do the entire story creation process, but with a crit
 
 #### **2.1 Epics and Stories Analysis**
 
-- Extract **COMPLETE Epic {{epic_num}} context** from the Epics document:
+- The Epics document is already loaded in-memory. Analyze for **COMPLETE Epic {{epic_num}} context**:
   - Epic objectives and business value
   - ALL stories in this epic (for cross-story context)
   - Our specific story's requirements, acceptance criteria
@@ -57,7 +59,7 @@ You will systematically re-do the entire story creation process, but with a crit
 
 #### **2.2 Architecture Deep-Dive**
 
-- **Systematically scan the Architecture document for ANYTHING relevant to this story:**
+- The Architecture document is already loaded in-memory. Analyze for **ANYTHING relevant to this story:**
   - Technical stack with versions (languages, frameworks, libraries)
   - Code structure and organization patterns
   - API design patterns and contracts
@@ -211,86 +213,6 @@ You will systematically re-do the entire story creation process, but with a crit
 - Performance or efficiency improvements
 - Development workflow optimizations
 - Additional context for complex scenarios
-
----
-
-## **📋 INTERACTIVE IMPROVEMENT PROCESS**
-
-After completing your systematic analysis, present your findings to the user interactively:
-
-### **Step 5: Present Improvement Suggestions**
-
-```
-🎯 **STORY CONTEXT QUALITY REVIEW COMPLETE**
-
-**Story:** {{story_key}} - {{story_title}}
-
-I found {{critical_count}} critical issues, {{enhancement_count}} enhancements, and {{optimization_count}} optimizations.
-
-## **🚨 CRITICAL ISSUES (Must Fix)**
-
-{{list each critical issue with clear, actionable description}}
-
-## **⚡ ENHANCEMENT OPPORTUNITIES (Should Add)**
-
-{{list each enhancement with clear benefit description}}
-
-## **✨ OPTIMIZATIONS (Nice to Have)**
-
-{{list each optimization with benefit description}}
-
-## **🤖 LLM OPTIMIZATION (Token Efficiency & Clarity)**
-
-{{list each LLM optimization that will improve dev agent performance:
-- Reduce verbosity while maintaining completeness
-- Improve structure for better LLM processing
-- Make instructions more actionable and direct
-- Enhance clarity and reduce ambiguity}}
-```
-
-### **Step 6: Interactive User Selection**
-
-After presenting the suggestions, ask the user:
-
-```
-**IMPROVEMENT OPTIONS:**
-
-Which improvements would you like me to apply to the story?
-
-**Select from the numbered list above, or choose:**
-- **all** - Apply all suggested improvements
-- **critical** - Apply only critical issues
-- **select** - I'll choose specific numbers
-- **none** - Keep story as-is
-- **details** - Show me more details about any suggestion
-
-Your choice:
-```
-
-### **Step 7: Apply Selected Improvements**
-
-When user accepts improvements:
-
-- **Update the story file** at `.codemachine/artifacts/stories/{{story_key}}.md`
-- **Apply accepted changes** (make them look natural, as if they were always there)
-- **DO NOT reference** the review process, original LLM, or that changes were "added" or "enhanced"
-- **Ensure clean, coherent final story** that reads as if it was created perfectly the first time
-
-### **Step 8: Confirmation**
-
-After applying changes:
-
-```
-✅ **STORY IMPROVEMENTS APPLIED**
-
-Updated {{count}} sections in `.codemachine/artifacts/stories/{{story_key}}.md`
-
-The story now includes comprehensive developer guidance to prevent common implementation issues and ensure flawless execution.
-
-**Next Steps:**
-1. Review the updated story
-2. Run `dev-story` for implementation
-```
 
 ---
 

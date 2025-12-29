@@ -241,18 +241,6 @@ module.exports = [
       path.join(promptsDir, 'bmad', '07-dev', '01-dev-story', 'checklist.md'),
     ],
   },
-  {
-    id: 'bmad-review',
-    name: 'Amelia [Dev: Review]',
-    description: 'BMAD Developer for code review',
-    promptPath: [
-      path.join(promptsDir, 'bmad', 'shared', 'system-files-protection.md'),
-      path.join(promptsDir, 'bmad', '07-dev', 'amelia.md'),
-      path.join(promptsDir, 'bmad', '07-dev', '02-code-review', 'instructions.xml'),
-      path.join(promptsDir, 'bmad', '07-dev', '02-code-review', 'checklist.md'),
-    ],
-  },
-
   // Test agents
   {
     id: 'test-agent-1',
