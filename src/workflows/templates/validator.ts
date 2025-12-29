@@ -44,6 +44,7 @@ export function validateWorkflowTemplate(value: unknown): ValidationResult {
         modelReasoningEffort?: unknown;
         module?: unknown;
         executeOnce?: unknown;
+        interactive?: unknown;
         text?: unknown;
       };
 
@@ -88,6 +89,10 @@ export function validateWorkflowTemplate(value: unknown): ValidationResult {
 
         if (candidate.executeOnce !== undefined && typeof candidate.executeOnce !== 'boolean') {
           errors.push(`Step[${index}].executeOnce must be a boolean`);
+        }
+
+        if (candidate.interactive !== undefined && typeof candidate.interactive !== 'boolean') {
+          errors.push(`Step[${index}].interactive must be a boolean`);
         }
 
         if (candidate.module !== undefined) {

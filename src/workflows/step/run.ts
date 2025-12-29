@@ -17,6 +17,7 @@ import { loadAgentConfig } from '../../agents/runner/index.js';
 import { loadChainedPrompts } from '../../agents/runner/chained.js';
 import { beforeRun, afterRun, cleanupRun } from './hooks.js';
 import type { RunnerContext } from '../runner/types.js';
+import { resolveInteractiveBehavior } from './interactive.js';
 
 /**
  * Options for running a step
@@ -212,45 +213,54 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
     // Handle chained prompts via StepSession (uses indexManager as single source of truth)
     debug('[step/run] chainedPrompts: %d items', output.chainedPrompts?.length ?? 0);
     const session = ctx.getCurrentSession();
+
+    // Load chained prompts if available
+    let loaded = false;
     if (session) {
       session.setOutput(stepOutput);
-      const loaded = session.loadChainedPrompts(output.chainedPrompts);
-      if (loaded) {
-        // Has chained prompts - go to awaiting state
-        session.markAwaiting();
-        if (!machineCtx.autoMode) {
-          ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
-        }
-        ctx.machine.send({ type: 'STEP_COMPLETE', output: stepOutput });
-        return { output: stepOutput };
-      } else if (session.promptQueue.length === 0) {
-        // No prompts - complete and go directly to next step
-        await session.complete();
-        ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
-        await ctx.indexManager.stepCompleted(stepIndex);
-        ctx.machine.send({ type: 'SKIP' });
-        return { output: stepOutput };
-      }
-      // If prompts exist but already loaded, fall through to STEP_COMPLETE
+      loaded = session.loadChainedPrompts(output.chainedPrompts);
     } else if (output.chainedPrompts && output.chainedPrompts.length > 0) {
-      // No session but has chained prompts - go to awaiting state
       ctx.indexManager.initQueue(output.chainedPrompts, 0);
+      loaded = true;
+    }
+
+    // Determine if we have chained prompts (either just loaded or already in queue)
+    const hasChainedPrompts = loaded || (session?.promptQueue.length ?? 0) > 0;
+
+    // Resolve interactive behavior using single source of truth
+    const behavior = resolveInteractiveBehavior({
+      step,
+      autoMode: machineCtx.autoMode,
+      hasChainedPrompts,
+      stepIndex,
+    });
+
+    debug('[step/run] Scenario=%d, interactive=%s, hasChainedPrompts=%s, shouldWait=%s, runAutonomousLoop=%s',
+      behavior.scenario, step.interactive, hasChainedPrompts, behavior.shouldWait, behavior.runAutonomousLoop);
+
+    if (behavior.shouldWait || behavior.runAutonomousLoop) {
+      // Go to awaiting state:
+      // - shouldWait=true: wait for controller/user input (Scenarios 1-4, 7-8)
+      // - runAutonomousLoop=true: wait.ts will run autonomous prompt loop (Scenario 5)
+      if (session) {
+        session.markAwaiting();
+      }
       if (!machineCtx.autoMode) {
         ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
       }
       ctx.machine.send({ type: 'STEP_COMPLETE', output: stepOutput });
       return { output: stepOutput };
     } else {
-      // No session, no chained prompts - go directly to next step
+      // Scenario 6: Auto-advance (no prompts, interactive:false, auto mode)
+      if (session) {
+        await session.complete();
+      }
       ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
       ctx.indexManager.resetQueue();
       await ctx.indexManager.stepCompleted(stepIndex);
       ctx.machine.send({ type: 'SKIP' });
       return { output: stepOutput };
     }
-
-    ctx.machine.send({ type: 'STEP_COMPLETE', output: stepOutput });
-    return { output: stepOutput };
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       // Signal handlers (pause/skip) handle status updates and state transitions

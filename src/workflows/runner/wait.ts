@@ -10,6 +10,7 @@ import { AgentLoggerService } from '../../agents/monitoring/index.js';
 import type { InputContext } from '../input/index.js';
 import { getUniqueAgentId } from '../context/index.js';
 import { runStepResume } from '../step/run.js';
+import { resolveInteractiveBehavior } from '../step/interactive.js';
 import type { RunnerContext } from './types.js';
 
 export interface WaitCallbacks {
@@ -18,12 +19,67 @@ export interface WaitCallbacks {
 
 /**
  * Handle waiting state - get input from provider
+ *
+ * Uses resolveInteractiveBehavior() for all 8 scenarios:
+ * - Scenarios 1-4: Wait for controller/user input (shouldWait=true)
+ * - Scenario 5: Run autonomous prompt loop (runAutonomousLoop=true)
+ * - Scenario 6: Auto-advance to next step (queue exhausted after autonomous loop)
+ * - Scenarios 7-8: Invalid cases forced to interactive:true (shouldWait=true)
  */
 export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks): Promise<void> {
   const machineCtx = ctx.machine.context;
 
   debug('[Runner] Handling waiting state, autoMode=%s, paused=%s, promptQueue=%d items, queueIndex=%d',
     ctx.mode.autoMode, ctx.mode.paused, ctx.indexManager.promptQueue.length, ctx.indexManager.promptQueueIndex);
+
+  // Get queue state from session (uses indexManager as single source of truth)
+  const session = ctx.getCurrentSession();
+  const hasChainedPrompts = session
+    ? !session.isQueueExhausted
+    : !ctx.indexManager.isQueueExhausted();
+
+  // Get current step and resolve interactive behavior
+  const step = ctx.moduleSteps[machineCtx.currentStepIndex];
+  const stepUniqueAgentId = getUniqueAgentId(step, machineCtx.currentStepIndex);
+
+  // Resolve interactive behavior using single source of truth
+  const behavior = resolveInteractiveBehavior({
+    step,
+    autoMode: ctx.mode.autoMode,
+    hasChainedPrompts,
+    stepIndex: machineCtx.currentStepIndex,
+  });
+
+  debug('[Runner] Scenario=%d, shouldWait=%s, runAutonomousLoop=%s, wasForced=%s',
+    behavior.scenario, behavior.shouldWait, behavior.runAutonomousLoop, behavior.wasForced);
+
+  // Handle Scenarios 7-8: interactive:false in manual mode
+  // Behave like normal manual mode: ensure agent is awaiting and show prompt box
+  if (behavior.wasForced) {
+    ctx.emitter.logMessage(stepUniqueAgentId, 'Manual mode active. Waiting for your input to continue. Use auto mode for fully autonomous execution.');
+    ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'awaiting');
+  }
+
+  // Handle Scenario 5: Fully autonomous prompt loop (interactive:false + autoMode + chainedPrompts)
+  if (!ctx.mode.paused && behavior.runAutonomousLoop) {
+    debug('[Runner] Running autonomous prompt loop (Scenario 5)');
+    await runAutonomousPromptLoop(ctx);
+    return;
+  }
+
+  // Handle Scenario 6: Auto-advance (interactive:false + autoMode + no chainedPrompts)
+  // This can happen when queue is exhausted after autonomous loop
+  if (!ctx.mode.paused && !behavior.shouldWait && !behavior.runAutonomousLoop) {
+    debug('[Runner] Auto-advancing to next step (Scenario 6)');
+    if (session) {
+      await session.complete();
+    }
+    ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'completed');
+    ctx.indexManager.resetQueue();
+    await ctx.indexManager.stepCompleted(machineCtx.currentStepIndex);
+    ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
+    return;
+  }
 
   // Get provider from WorkflowMode (single source of truth)
   // WorkflowMode.getActiveProvider() automatically handles paused and autoMode state
@@ -33,33 +89,6 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
   } else if (!ctx.mode.autoMode) {
     debug('[Runner] Manual mode, using user input provider');
   }
-
-  // Get queue state from session (uses indexManager as single source of truth)
-  const session = ctx.getCurrentSession();
-  const hasChainedPrompts = session
-    ? !session.isQueueExhausted
-    : !ctx.indexManager.isQueueExhausted();
-
-  if (!ctx.mode.paused && !hasChainedPrompts && ctx.mode.autoMode) {
-    // Check if we're resuming a step (sessionId exists but no completedAt)
-    const stepData = await ctx.indexManager.getStepData(machineCtx.currentStepIndex);
-    const isResumingStep = stepData?.sessionId && !stepData.completedAt;
-
-    if (isResumingStep) {
-      // Resuming incomplete step - let controller decide
-      debug('[Runner] Resuming step in auto mode, letting controller handle it');
-    } else {
-      // No chained prompts, not paused, and in auto mode - auto-advance to next step
-      debug('[Runner] No chained prompts (auto mode), auto-advancing to next step');
-      await ctx.indexManager.stepCompleted(machineCtx.currentStepIndex);
-      ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
-      return;
-    }
-  }
-
-  // Build input context
-  const step = ctx.moduleSteps[machineCtx.currentStepIndex];
-  const stepUniqueAgentId = getUniqueAgentId(step, machineCtx.currentStepIndex);
 
   // Get queue state from session if available, otherwise from indexManager
   const queueState = session
@@ -129,6 +158,76 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
       ctx.machine.send({ type: 'STOP' });
       break;
   }
+}
+
+/**
+ * Run autonomous prompt loop (Scenario 5)
+ *
+ * Automatically sends the next chained prompt without controller/user involvement.
+ * Each prompt runs through the state machine naturally - when it completes,
+ * handleWaiting is called again and this function sends the next prompt.
+ *
+ * Used when interactive:false + autoMode + hasChainedPrompts.
+ */
+async function runAutonomousPromptLoop(ctx: RunnerContext): Promise<void> {
+  const machineCtx = ctx.machine.context;
+  const stepIndex = machineCtx.currentStepIndex;
+  const step = ctx.moduleSteps[stepIndex];
+  const uniqueAgentId = getUniqueAgentId(step, stepIndex);
+  const session = ctx.getCurrentSession();
+
+  // Check if queue is exhausted
+  const isExhausted = session
+    ? session.isQueueExhausted
+    : ctx.indexManager.isQueueExhausted();
+
+  if (isExhausted) {
+    // All prompts sent - complete step and advance to next
+    debug('[Runner:autonomous] Queue exhausted, completing step %d', stepIndex);
+    ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+    ctx.indexManager.resetQueue();
+    await ctx.indexManager.stepCompleted(stepIndex);
+    ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
+    return;
+  }
+
+  // Get next prompt
+  const nextPrompt = ctx.indexManager.getCurrentQueuedPrompt();
+  if (!nextPrompt) {
+    // No more prompts - complete step and advance
+    debug('[Runner:autonomous] No more prompts, completing step %d', stepIndex);
+    ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+    ctx.indexManager.resetQueue();
+    await ctx.indexManager.stepCompleted(stepIndex);
+    ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
+    return;
+  }
+
+  // Send the next prompt
+  const chainIndex = ctx.indexManager.promptQueueIndex;
+  debug('[Runner:autonomous] Sending prompt %d: %s...', chainIndex, nextPrompt.content.slice(0, 50));
+
+  // Advance queue
+  if (session) {
+    session.advanceQueue();
+  } else {
+    ctx.indexManager.advanceQueue();
+  }
+
+  // Track chain completion
+  await ctx.indexManager.chainCompleted(stepIndex, chainIndex);
+
+  // Resume step with the prompt - when it completes, state machine will
+  // transition back to awaiting and handleWaiting will be called again
+  ctx.machine.send({ type: 'RESUME' });
+  await runStepResume(ctx, {
+    resumePrompt: nextPrompt.content,
+    resumeMonitoringId: machineCtx.currentMonitoringId,
+    source: 'controller',
+  });
+  // After runStepResume completes, machine goes back to awaiting state
+  // and handleWaiting will be called again - it will detect Scenario 5
+  // and call this function again to send the next prompt
 }
 
 /**

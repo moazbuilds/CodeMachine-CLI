@@ -5,6 +5,7 @@ export interface StepOverrides {
   modelReasoningEffort?: string;
   engine?: string; // Dynamic engine type from registry
   executeOnce?: boolean;
+  interactive?: boolean; // Controls waiting behavior: true=wait for input, false=auto-advance
   tracks?: string[]; // Track names this step belongs to (e.g., ['bmad', 'enterprise'])
   conditions?: string[]; // Conditions required for this step (e.g., ['has_ui', 'has_api'])
 }
@@ -19,6 +20,7 @@ export interface WorkflowStep {
   engine?: string; // Dynamic engine type from registry
   module?: ModuleMetadata;
   executeOnce?: boolean;
+  interactive?: boolean; // Controls waiting behavior: true=wait for input, false=auto-advance
   tracks?: string[]; // Track names this step belongs to (e.g., ['bmad', 'enterprise'])
   conditions?: string[]; // Conditions required for this step (e.g., ['has_ui', 'has_api'])
 }
