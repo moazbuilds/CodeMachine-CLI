@@ -1,6 +1,6 @@
 ---
 title: 'Enhanced Dev Story Definition of Done Checklist'
-validation-target: 'Story markdown ({{story_path}})'
+validation-target: 'Story markdown (.codemachine/artifacts/stories/)'
 validation-criticality: 'HIGHEST'
 required-inputs:
   - 'Story markdown file with enhanced Dev Notes containing comprehensive implementation context'

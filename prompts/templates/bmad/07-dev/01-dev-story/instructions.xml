@@ -1,8 +1,4 @@
 <workflow>
-  <critical>The workflow execution engine is governed by: {project-root}/_bmad/core/tasks/workflow.xml</critical>
-  <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
-  <critical>Communicate all responses in {communication_language} and language MUST be tailored to {user_skill_level}</critical>
-  <critical>Generate all documents in {document_output_language}</critical>
   <critical>Only modify the story file in these areas: Tasks/Subtasks checkboxes, Dev Agent Record (Debug Log, Completion Notes), File List,
     Change Log, and Status</critical>
   <critical>Execute ALL steps in exact order; do NOT skip steps</critical>
@@ -10,16 +6,8 @@
     until the story is COMPLETE (all ACs satisfied and all tasks/subtasks checked) UNLESS a HALT condition is triggered or the USER gives
     other instruction.</critical>
   <critical>Do NOT schedule a "next session" or request review pauses unless a HALT condition applies. Only Step 6 decides completion.</critical>
-  <critical>User skill level ({user_skill_level}) affects conversation style ONLY, not code updates.</critical>
 
   <step n="1" goal="Find next ready story and load it" tag="sprint-status">
-    <check if="{{story_path}} is provided">
-      <action>Use {{story_path}} directly</action>
-      <action>Read COMPLETE story file</action>
-      <action>Extract story_key from filename or metadata</action>
-      <goto> anchor with id task_check</goto>
-    </check>
-
     <!-- Sprint-based story discovery -->
     <check if="{{sprint_status}} file exists">
       <critical>MUST read COMPLETE sprint-status.yaml file from start to end to preserve order</critical>
@@ -34,45 +22,8 @@
       </action>
 
       <check if="no ready-for-dev or in-progress story found">
-        <output>📋 No ready-for-dev stories found in sprint-status.yaml
-
-          **Current Sprint Status:** {{sprint_status_summary}}
-
-          **What would you like to do?**
-          1. Run `create-story` to create next story from epics with comprehensive context
-          2. Run `*validate-create-story` to improve existing stories before development (recommended quality check)
-          3. Specify a particular story file to develop (provide full path)
-          4. Check {{sprint_status}} file to see current sprint status
-
-          💡 **Tip:** Stories in `ready-for-dev` may not have been validated. Consider running `validate-create-story` first for a quality
-          check.
-        </output>
-        <ask>Choose option [1], [2], [3], or [4], or specify story file path:</ask>
-
-        <check if="user chooses '1'">
-          <action>HALT - Run create-story to create next story</action>
-        </check>
-
-        <check if="user chooses '2'">
-          <action>HALT - Run validate-create-story to improve existing stories</action>
-        </check>
-
-        <check if="user chooses '3'">
-          <ask>Provide the story file path to develop:</ask>
-          <action>Store user-provided story path as {{story_path}}</action>
-          <goto anchor="task_check" />
-        </check>
-
-        <check if="user chooses '4'">
-          <output>Loading {{sprint_status}} for detailed status review...</output>
-          <action>Display detailed sprint status analysis</action>
-          <action>HALT - User can review sprint status and provide story path</action>
-        </check>
-
-        <check if="user provides story file path">
-          <action>Store user-provided story path as {{story_path}}</action>
-          <goto anchor="task_check" />
-        </check>
+        <output>📋 No ready-for-dev stories found in sprint-status.yaml</output>
+        <action>HALT - No stories available for development</action>
       </check>
     </check>
 
@@ -84,28 +35,8 @@
       <action>Read each candidate story file to check Status section</action>
 
       <check if="no ready-for-dev stories found in story files">
-        <output>📋 No ready-for-dev stories found
-
-          **Available Options:**
-          1. Run `create-story` to create next story from epics with comprehensive context
-          2. Run `*validate-create-story` to improve existing stories
-          3. Specify which story to develop
-        </output>
-        <ask>What would you like to do? Choose option [1], [2], or [3]:</ask>
-
-        <check if="user chooses '1'">
-          <action>HALT - Run create-story to create next story</action>
-        </check>
-
-        <check if="user chooses '2'">
-          <action>HALT - Run validate-create-story to improve existing stories</action>
-        </check>
-
-        <check if="user chooses '3'">
-          <ask>It's unclear what story you want developed. Please provide the full path to the story file:</ask>
-          <action>Store user-provided story path as {{story_path}}</action>
-          <action>Continue with provided story file</action>
-        </check>
+        <output>📋 No ready-for-dev stories found</output>
+        <action>HALT - No stories available for development</action>
       </check>
 
       <check if="ready-for-dev story found in files">
@@ -131,7 +62,6 @@
       <goto step="6">Completion sequence</goto>
     </action>
     <action if="story file inaccessible">HALT: "Cannot develop story without access to story file"</action>
-    <action if="incomplete task or subtask requirements ambiguous">ASK user to clarify or HALT</action>
   </step>
 
   <step n="2" goal="Load project context and story information">
@@ -242,7 +172,6 @@
 
     <action>Document technical approach and decisions in Dev Agent Record → Implementation Plan</action>
 
-    <action if="new dependencies required beyond story specifications">HALT: "Additional dependencies need user approval"</action>
     <action if="3 consecutive implementation failures occur">HALT and request guidance</action>
     <action if="required configuration is missing">HALT: "Cannot proceed without necessary configuration files"</action>
 
@@ -370,40 +299,12 @@
     <action if="definition-of-done validation fails">HALT - Address DoD failures before completing</action>
   </step>
 
-  <step n="10" goal="Completion communication and user support">
+  <step n="10" goal="Completion summary">
     <action>Execute the enhanced definition-of-done checklist using the validation framework</action>
     <action>Prepare a concise summary in Dev Agent Record → Completion Notes</action>
 
-    <action>Communicate to {user_name} that story implementation is complete and ready for review</action>
-    <action>Summarize key accomplishments: story ID, story key, title, key changes made, tests added, files modified</action>
+    <action>Output completion summary to {user_name}: story ID, story key, title, key changes made, tests added, files modified</action>
     <action>Provide the story file path and current status (now "review")</action>
-
-    <action>Based on {user_skill_level}, ask if user needs any explanations about:
-      - What was implemented and how it works
-      - Why certain technical decisions were made
-      - How to test or verify the changes
-      - Any patterns, libraries, or approaches used
-      - Anything else they'd like clarified
-    </action>
-
-    <check if="user asks for explanations">
-      <action>Provide clear, contextual explanations tailored to {user_skill_level}</action>
-      <action>Use examples and references to specific code when helpful</action>
-    </check>
-
-    <action>Once explanations are complete (or user indicates no questions), suggest logical next steps</action>
-    <action>Recommended next steps (flexible based on project setup):
-      - Review the implemented story and test the changes
-      - Verify all acceptance criteria are met
-      - Ensure deployment readiness if applicable
-      - Run `code-review` workflow for peer review
-    </action>
-
-    <output>💡 **Tip:** For best results, run `code-review` using a **different** LLM than the one that implemented this story.</output>
-    <check if="{sprint_status} file exists">
-      <action>Suggest checking {sprint_status} to see project progress</action>
-    </check>
-    <action>Remain flexible - allow user to choose their own path or ask for other assistance</action>
   </step>
 
 </workflow>

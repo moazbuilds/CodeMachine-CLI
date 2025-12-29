@@ -62,6 +62,8 @@ export default {
     resolveStep('bmad-sprints', {}),
     separator("⟲ Story Loop ⟲"),
     resolveStep('bmad-stories', {}),
+    resolveStep('bmad-dev', {}),
+    resolveStep('bmad-review', {}),
 
   ],
 };

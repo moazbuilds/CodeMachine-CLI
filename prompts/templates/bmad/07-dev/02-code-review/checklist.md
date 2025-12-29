@@ -1,6 +1,6 @@
 # Senior Developer Review - Validation Checklist
 
-- [ ] Story file loaded from `{{story_path}}`
+- [ ] Story file loaded from `.codemachine/artifacts/stories/`
 - [ ] Story Status verified as reviewable (review)
 - [ ] Epic and Story IDs resolved ({{epic_num}}.{{story_num}})
 - [ ] Story Context located or warning recorded

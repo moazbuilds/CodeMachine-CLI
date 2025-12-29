@@ -232,7 +232,7 @@ module.exports = [
   },
   {
     id: 'bmad-dev',
-    name: 'Amelia [Dev: Story]',
+    name: 'Amelia [Dev: Build]',
     description: 'BMAD Developer for story implementation',
     promptPath: [
       path.join(promptsDir, 'bmad', 'shared', 'system-files-protection.md'),
@@ -243,7 +243,7 @@ module.exports = [
   },
   {
     id: 'bmad-review',
-    name: 'Amelia [Dev: Code Review]',
+    name: 'Amelia [Dev: Review]',
     description: 'BMAD Developer for code review',
     promptPath: [
       path.join(promptsDir, 'bmad', 'shared', 'system-files-protection.md'),
