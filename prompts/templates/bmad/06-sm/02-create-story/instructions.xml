@@ -254,4 +254,27 @@
     </output>
   </step>
 
+  <critical-rule name="No Re-fetching Injected Documents">
+    <principle>Do NOT re-fetch or search for documents that are already injected in source_documents above.</principle>
+    <priority>This rule takes precedence over any instruction that says to "load" or "read" these specific documents.</priority>
+
+    <already-injected description="These are pre-loaded in source_documents - use them directly, do NOT re-fetch">
+      <item>❌ Do NOT read/search for Epics - already in source_documents</item>
+      <item>❌ Do NOT read/search for PRD - already in source_documents</item>
+      <item>❌ Do NOT read/search for Architecture - already in source_documents</item>
+      <item>❌ Do NOT read/search for UX Design Spec - already in source_documents</item>
+      <item>❌ Do NOT read/search for Story Template - already in source_documents</item>
+      <item>❌ Do NOT read/search for Story Checklist - already in source_documents</item>
+    </already-injected>
+
+    <allowed description="These are NOT injected - you may fetch/research as instructed in the steps">
+      <item>✅ Git history analysis - run git commands as needed</item>
+      <item>✅ Previous story files - load from .codemachine/artifacts/stories/ as needed</item>
+      <item>✅ Web research - research latest technical information as needed</item>
+      <item>✅ Subagents/subprocesses - use for research tasks as needed</item>
+    </allowed>
+
+    <note>Your spawning agent pre-loaded the core documents into source_documents. For anything NOT in source_documents, follow the workflow steps normally.</note>
+  </critical-rule>
+
 </workflow>
