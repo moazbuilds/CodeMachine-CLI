@@ -161,7 +161,7 @@ export async function getTemplatePathFromTracking(cmRoot: string): Promise<strin
 
   if (!activeTemplate) {
     // No template tracked, return default
-    return path.join(templatesDir, 'default.workflow.js');
+    return path.join(templatesDir, 'bmad.workflow.js');
   }
 
   // Return full path from template name

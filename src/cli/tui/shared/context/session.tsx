@@ -9,7 +9,7 @@ export const { use: useSession, provider: SessionProvider } = createSimpleContex
   name: "Session",
   init: () => {
     const [store, setStore] = createStore({
-      templateName: "default",
+      templateName: "bmad",
       workflowCount: 0,
       lastRun: null as Date | null,
     })
