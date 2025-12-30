@@ -186,15 +186,13 @@ async function loadPromptsFromPath(
   try {
     const stat = await fs.stat(absolutePath);
 
-    if (stat.isFile() && absolutePath.endsWith('.md')) {
-      // Single file
+    if (stat.isFile()) {
       const prompt = await loadPromptFromFile(absolutePath, projectRoot);
       return prompt ? [prompt] : [];
     } else if (stat.isDirectory()) {
-      // Folder
       return loadPromptsFromFolder(absolutePath, projectRoot);
     } else {
-      debug(`chainedPromptsPath is neither a .md file nor directory: ${absolutePath}`);
+      debug(`chainedPromptsPath is neither a file nor directory: ${absolutePath}`);
       return [];
     }
   } catch {

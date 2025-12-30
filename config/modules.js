@@ -14,6 +14,10 @@ module.exports = [
       path.join(promptsDir, 'templates', 'bmad', '07-dev', '02-code-review', 'instructions.xml'),
       path.join(promptsDir, 'templates', 'bmad', '07-dev', '02-code-review', 'checklist.md'),
     ],
+    chainedPromptsPath: [
+      path.join(promptsDir, 'templates', 'bmad', '07-dev', '02-code-review', 'next-state.xml'),
+      path.join(promptsDir, 'templates', 'bmad', '07-dev', '02-code-review', 'ensure-loop.xml'),
+    ],
     behavior: {
       type: 'loop',
       action: 'stepBack',

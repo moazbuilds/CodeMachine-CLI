@@ -64,6 +64,10 @@ export function resolveModule(id: string, overrides: ModuleOverrides = {}): Work
     model,
     modelReasoningEffort,
     engine,
+    executeOnce: overrides.executeOnce,
+    interactive: overrides.interactive,
+    tracks: overrides.tracks,
+    conditions: overrides.conditions,
     module: {
       id: moduleEntry.id,
       behavior,

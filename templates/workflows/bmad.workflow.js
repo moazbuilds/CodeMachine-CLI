@@ -3,40 +3,16 @@ export default {
   controller: true,
 
   tracks: {
-    question: 'What is your project size? (only greenfield is tested)',
+    question: 'What is your project size?',
     options: {
-      small: {
-        label: 'Small Project',
-        description: 'Quick start with minimal planning overhead'
-      },
       medium: {
         label: 'Medium Project',
-        description: 'Balanced approach with optional research phase'
-      },
-      enterprise: {
-        label: 'Enterprise Project',
-        description: 'Full methodology with comprehensive analysis'
+        description: 'Balanced approach for greenfield projects'
       },
     },
   },
 
   conditionGroups: [
-    {
-      id: 'research_options',
-      question: 'What research approach do you prefer?',
-      multiSelect: false,
-      tracks: ['medium', 'enterprise'], // Only show for medium/enterprise tracks
-      conditions: {
-        know_project: {
-          label: 'I know my project',
-          description: 'Skip research phase - I have clear requirements ready'
-        },
-        use_analyst: {
-          label: 'Use Analyst',
-          description: 'Let the analyst research and gather requirements'
-        },
-      },
-    },
     {
       id: 'features',
       question: 'What features does your project have?',
@@ -51,7 +27,6 @@ export default {
   ],
 
   steps: [
-    resolveStep('bmad-analyst', {conditions: ['use_analyst']}),
     separator("∴ Planning Phase ∴"),
     resolveStep('bmad-pm', {}),
     resolveStep('bmad-ux', {conditions: ['has_ui']}),

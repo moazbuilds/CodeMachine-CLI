@@ -242,6 +242,7 @@ module.exports = [
       path.join(promptsDir, 'bmad', '07-dev', '01-dev-story', 'checklist.md'),
     ],
   },
+  
   // Test agents
   {
     id: 'test-agent-1',

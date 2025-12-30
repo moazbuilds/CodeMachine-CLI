@@ -195,32 +195,4 @@
     </output>
   </step>
 
-  <step n="6" goal="Write directive to control workflow continuation">
-    <critical>MANDATORY: Write to .codemachine/memory/directive.json to signal workflow</critical>
-
-    <check if="{{new_status}} == 'done'">
-      <action>Write to `.codemachine/memory/directive.json`:
-      ```json
-      {
-        "action": "loop",
-        "reason": "Story {{story_key}} complete - continuing to next story"
-      }
-      ```
-      </action>
-      <output>📋 Directive: loop - continuing to next story</output>
-    </check>
-
-    <check if="HIGH issues remain unfixed OR critical errors occurred">
-      <action>Write to `.codemachine/memory/directive.json`:
-      ```json
-      {
-        "action": "error",
-        "reason": "Code review failed: {{unfixed_issues_summary}}"
-      }
-      ```
-      </action>
-      <output>🛑 Directive: error - escalating to user for unresolved issues</output>
-    </check>
-  </step>
-
 </workflow>
