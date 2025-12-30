@@ -42,19 +42,16 @@ export async function handlePauseSignal(ctx: SignalContext): Promise<void> {
     return;
   }
 
-  // If in auto mode (running state), just switch to manual mode (don't set paused state)
-  // This allows user to re-enable auto mode without being blocked by paused state
+  // If in auto mode, switch to manual mode AND pause in one action
+  // Users expect 'p' to pause immediately, not require two presses
   const wasAutoMode = ctx.mode.autoMode;
   if (wasAutoMode) {
-    debug('[PauseSignal] Switching from auto to manual mode');
+    debug('[PauseSignal] Switching from auto to manual mode and pausing');
     // Persist to file first - this emits workflow:mode-change event
-    // Controller listens for this and aborts itself with switchToManual=true,
-    // returning __SWITCH_TO_MANUAL__ instead of stopping the workflow
+    // Controller listens for this and aborts itself with switchToManual=true
     await setAutonomousMode(ctx.cmRoot, false);
     ctx.mode.disableAutoMode();
-    // Don't set paused state - we're just switching modes, not pausing
-    debug('[PauseSignal] Auto mode disabled, returning');
-    return;
+    // Continue to pause logic below (don't return early)
   }
 
   if (ctx.machine.state === 'running' || ctx.machine.state === 'delegated') {
