@@ -147,6 +147,85 @@ async function executeTriggerAgent(options: {
 }
 
 /**
+ * Post-step action type for processPostStepDirectives
+ */
+export type PostStepAction =
+  | { type: 'advance' }
+  | { type: 'loop'; targetIndex: number; newActiveLoop: ActiveLoop | null }
+  | { type: 'stop' }
+  | { type: 'checkpoint' };
+
+/**
+ * Context for processPostStepDirectives
+ */
+export interface ProcessPostStepContext {
+  ctx: RunnerContext;
+  step: ModuleStep;
+  stepOutput: { output: string };
+  stepIndex: number;
+  uniqueAgentId: string;
+}
+
+/**
+ * Process post-step directives and return action
+ *
+ * This is a simplified wrapper around afterRun() that returns a clear action type.
+ * Used by autonomous prompt loops to check directives after chained prompts complete.
+ */
+export async function processPostStepDirectives(context: ProcessPostStepContext): Promise<PostStepAction> {
+  const { ctx, step, stepOutput, stepIndex, uniqueAgentId } = context;
+
+  // Get or create abort controller for afterRun
+  const abortController = ctx.getAbortController() ?? new AbortController();
+
+  const postResult = await afterRun({
+    step,
+    stepOutput,
+    cwd: ctx.cwd,
+    cmRoot: ctx.cmRoot,
+    index: stepIndex,
+    emitter: ctx.emitter,
+    uniqueAgentId,
+    abortController,
+    template: ctx.template,
+    loopCounters: ctx.getLoopCounters(),
+    activeLoop: ctx.getActiveLoop(),
+    engineType: step.engine ?? 'claude-code',
+    indexManager: ctx.indexManager,
+  });
+
+  // Handle results
+  if (postResult.workflowShouldStop) {
+    return { type: 'stop' };
+  }
+
+  if (postResult.checkpointContinued) {
+    return { type: 'checkpoint' };
+  }
+
+  // Handle loop - newIndex is the raw index from loop logic
+  if (postResult.newIndex !== undefined) {
+    // Update active loop state
+    if (postResult.newActiveLoop !== undefined) {
+      ctx.setActiveLoop(postResult.newActiveLoop);
+    }
+    // Return target index (add 1 because newIndex is 0-based target - 1)
+    return {
+      type: 'loop',
+      targetIndex: postResult.newIndex + 1,
+      newActiveLoop: postResult.newActiveLoop ?? null,
+    };
+  }
+
+  // Update active loop state for non-loop cases too
+  if (postResult.newActiveLoop !== undefined) {
+    ctx.setActiveLoop(postResult.newActiveLoop);
+  }
+
+  return { type: 'advance' };
+}
+
+/**
  * Handle post-execution directives: error → trigger → checkpoint → loop
  */
 export async function afterRun(options: AfterRunOptions): Promise<AfterRunResult> {

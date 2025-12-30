@@ -10,6 +10,11 @@ export default {
 
     // Module with conditions
     resolveModule('auto-loop', { loopSteps: 2 }),
+
+    // Test loop directive respect in Scenario 6
+    // This module has chained prompts that set loop directive
+    // After chained prompts complete, Scenario 6 should respect the loop directive
+    resolveModule('test-loop', { interactive: false, loopSteps: 1 }),
   ],
   subAgentIds: ['frontend-dev'],
 };

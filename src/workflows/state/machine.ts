@@ -155,7 +155,10 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
             // Controller mode -> delegated state
             {
               target: 'delegated',
-              guard: (ctx) => ctx.autoMode && !ctx.paused,
+              guard: (ctx) => {
+                const step = ctx.steps[ctx.currentStepIndex];
+                return ctx.autoMode && !ctx.paused && step?.interactive !== false;
+              },
               action: (ctx, event) => {
                 if (event.type === 'STEP_COMPLETE') {
                   ctx.currentOutput = event.output;

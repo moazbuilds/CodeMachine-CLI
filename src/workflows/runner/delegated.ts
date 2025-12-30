@@ -13,6 +13,7 @@ import { getUniqueAgentId } from '../context/index.js';
 import { runStepResume } from '../step/run.js';
 import { resolveInteractiveBehavior } from '../step/interactive.js';
 import { evaluateOnAdvance } from '../directives/index.js';
+import { processPostStepDirectives } from '../step/hooks.js';
 import type { RunnerContext } from './types.js';
 
 export interface DelegatedCallbacks {
@@ -72,15 +73,48 @@ export async function handleDelegated(ctx: RunnerContext, callbacks: DelegatedCa
 
   // Handle Scenario 6: Auto-advance (interactive:false + autoMode + no chainedPrompts)
   if (!behavior.shouldWait && !behavior.runAutonomousLoop) {
-    debug('[Runner:delegated] Auto-advancing to next step (Scenario 6)');
-    if (session) {
-      await session.complete();
+    // Process directives (including loop) with full context
+    const action = await processPostStepDirectives({
+      ctx,
+      step,
+      stepOutput: { output: machineCtx.currentOutput?.output ?? '' },
+      stepIndex: machineCtx.currentStepIndex,
+      uniqueAgentId: stepUniqueAgentId,
+    });
+
+    debug('[Runner:delegated:scenario6] Post-step action: %s', action.type);
+
+    switch (action.type) {
+      case 'stop':
+        ctx.machine.send({ type: 'STOP' });
+        return;
+
+      case 'checkpoint':
+        // Checkpoint was handled by afterRun, just stay in current state
+        return;
+
+      case 'loop':
+        // Loop directive processed - rewind to target step
+        debug('[Runner:delegated:scenario6] Loop to step %d', action.targetIndex);
+        ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'completed');
+        await ctx.indexManager.stepCompleted(machineCtx.currentStepIndex);
+        ctx.indexManager.resetQueue();
+        machineCtx.currentStepIndex = action.targetIndex;
+        ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
+        return;
+
+      case 'advance':
+      default:
+        debug('[Runner:delegated] Auto-advancing to next step (Scenario 6)');
+        if (session) {
+          await session.complete();
+        }
+        ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'completed');
+        ctx.indexManager.resetQueue();
+        await ctx.indexManager.stepCompleted(machineCtx.currentStepIndex);
+        ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
+        return;
     }
-    ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'completed');
-    ctx.indexManager.resetQueue();
-    await ctx.indexManager.stepCompleted(machineCtx.currentStepIndex);
-    ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
-    return;
   }
 
   // Scenarios 1-2: Controller provides input
@@ -225,23 +259,87 @@ async function runAutonomousPromptLoop(ctx: RunnerContext): Promise<void> {
     : ctx.indexManager.isQueueExhausted();
 
   if (isExhausted) {
-    debug('[Runner:delegated:autonomous] Queue exhausted, completing step %d', stepIndex);
-    ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
-    ctx.indexManager.resetQueue();
-    await ctx.indexManager.stepCompleted(stepIndex);
-    ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
-    return;
+    // Process directives (including loop) with full context
+    const action = await processPostStepDirectives({
+      ctx,
+      step,
+      stepOutput: { output: machineCtx.currentOutput?.output ?? '' },
+      stepIndex,
+      uniqueAgentId,
+    });
+
+    debug('[Runner:delegated:autonomous] Queue exhausted, post-step action: %s', action.type);
+
+    switch (action.type) {
+      case 'stop':
+        ctx.machine.send({ type: 'STOP' });
+        return;
+
+      case 'checkpoint':
+        // Checkpoint was handled by afterRun, just stay in current state
+        return;
+
+      case 'loop':
+        // Loop directive processed - rewind to target step
+        debug('[Runner:delegated:autonomous] Loop to step %d', action.targetIndex);
+        ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+        await ctx.indexManager.stepCompleted(stepIndex);
+        ctx.indexManager.resetQueue();
+        machineCtx.currentStepIndex = action.targetIndex;
+        ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
+        return;
+
+      case 'advance':
+      default:
+        debug('[Runner:delegated:autonomous] Completing step %d', stepIndex);
+        ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+        ctx.indexManager.resetQueue();
+        await ctx.indexManager.stepCompleted(stepIndex);
+        ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
+        return;
+    }
   }
 
   // Get next prompt
   const nextPrompt = ctx.indexManager.getCurrentQueuedPrompt();
   if (!nextPrompt) {
-    debug('[Runner:delegated:autonomous] No more prompts, completing step %d', stepIndex);
-    ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
-    ctx.indexManager.resetQueue();
-    await ctx.indexManager.stepCompleted(stepIndex);
-    ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
-    return;
+    // Fallback: queue not marked exhausted but no prompt available
+    const action = await processPostStepDirectives({
+      ctx,
+      step,
+      stepOutput: { output: machineCtx.currentOutput?.output ?? '' },
+      stepIndex,
+      uniqueAgentId,
+    });
+
+    debug('[Runner:delegated:autonomous] No prompts, post-step action: %s', action.type);
+
+    switch (action.type) {
+      case 'stop':
+        ctx.machine.send({ type: 'STOP' });
+        return;
+
+      case 'checkpoint':
+        return;
+
+      case 'loop':
+        debug('[Runner:delegated:autonomous] Loop to step %d', action.targetIndex);
+        ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+        await ctx.indexManager.stepCompleted(stepIndex);
+        ctx.indexManager.resetQueue();
+        machineCtx.currentStepIndex = action.targetIndex;
+        ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
+        return;
+
+      case 'advance':
+      default:
+        debug('[Runner:delegated:autonomous] Completing step %d', stepIndex);
+        ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+        ctx.indexManager.resetQueue();
+        await ctx.indexManager.stepCompleted(stepIndex);
+        ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
+        return;
+    }
   }
 
   // Send the next prompt

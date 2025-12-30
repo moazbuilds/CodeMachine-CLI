@@ -12,6 +12,7 @@ import { getUniqueAgentId } from '../context/index.js';
 import { runStepResume } from '../step/run.js';
 import { resolveInteractiveBehavior } from '../step/interactive.js';
 import { evaluateOnAdvance } from '../directives/index.js';
+import { processPostStepDirectives } from '../step/hooks.js';
 import type { RunnerContext } from './types.js';
 
 export interface WaitCallbacks {
@@ -247,25 +248,87 @@ async function runAutonomousPromptLoop(ctx: RunnerContext): Promise<void> {
     : ctx.indexManager.isQueueExhausted();
 
   if (isExhausted) {
-    // All prompts sent - complete step and advance to next
-    debug('[Runner:autonomous] Queue exhausted, completing step %d', stepIndex);
-    ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
-    ctx.indexManager.resetQueue();
-    await ctx.indexManager.stepCompleted(stepIndex);
-    ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
-    return;
+    // Process directives (including loop) with full context
+    const action = await processPostStepDirectives({
+      ctx,
+      step,
+      stepOutput: { output: machineCtx.currentOutput?.output ?? '' },
+      stepIndex,
+      uniqueAgentId,
+    });
+
+    debug('[Runner:autonomous] Queue exhausted, post-step action: %s', action.type);
+
+    switch (action.type) {
+      case 'stop':
+        ctx.machine.send({ type: 'STOP' });
+        return;
+
+      case 'checkpoint':
+        // Checkpoint was handled by afterRun, just stay in current state
+        return;
+
+      case 'loop':
+        // Loop directive processed - rewind to target step
+        debug('[Runner:autonomous] Loop to step %d', action.targetIndex);
+        ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+        await ctx.indexManager.stepCompleted(stepIndex);
+        ctx.indexManager.resetQueue();
+        machineCtx.currentStepIndex = action.targetIndex;
+        ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
+        return;
+
+      case 'advance':
+      default:
+        debug('[Runner:autonomous] Completing step %d', stepIndex);
+        ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+        ctx.indexManager.resetQueue();
+        await ctx.indexManager.stepCompleted(stepIndex);
+        ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
+        return;
+    }
   }
 
   // Get next prompt
   const nextPrompt = ctx.indexManager.getCurrentQueuedPrompt();
   if (!nextPrompt) {
-    // No more prompts - complete step and advance
-    debug('[Runner:autonomous] No more prompts, completing step %d', stepIndex);
-    ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
-    ctx.indexManager.resetQueue();
-    await ctx.indexManager.stepCompleted(stepIndex);
-    ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
-    return;
+    // Fallback: queue not marked exhausted but no prompt available
+    const action = await processPostStepDirectives({
+      ctx,
+      step,
+      stepOutput: { output: machineCtx.currentOutput?.output ?? '' },
+      stepIndex,
+      uniqueAgentId,
+    });
+
+    debug('[Runner:autonomous] No prompts, post-step action: %s', action.type);
+
+    switch (action.type) {
+      case 'stop':
+        ctx.machine.send({ type: 'STOP' });
+        return;
+
+      case 'checkpoint':
+        return;
+
+      case 'loop':
+        debug('[Runner:autonomous] Loop to step %d', action.targetIndex);
+        ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+        await ctx.indexManager.stepCompleted(stepIndex);
+        ctx.indexManager.resetQueue();
+        machineCtx.currentStepIndex = action.targetIndex;
+        ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
+        return;
+
+      case 'advance':
+      default:
+        debug('[Runner:autonomous] Completing step %d', stepIndex);
+        ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+        ctx.indexManager.resetQueue();
+        await ctx.indexManager.stepCompleted(stepIndex);
+        ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
+        return;
+    }
   }
 
   // Send the next prompt
