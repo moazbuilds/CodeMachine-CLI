@@ -217,10 +217,10 @@ export async function processPostStepDirectives(context: ProcessPostStepContext)
     if (postResult.newActiveLoop !== undefined) {
       ctx.setActiveLoop(postResult.newActiveLoop);
     }
-    // Return target index (add 1 because newIndex is 0-based target - 1)
+    // Return target index as-is (INPUT_RECEIVED will increment by 1)
     return {
       type: 'loop',
-      targetIndex: postResult.newIndex + 1,
+      targetIndex: postResult.newIndex,
       newActiveLoop: postResult.newActiveLoop ?? null,
     };
   }
