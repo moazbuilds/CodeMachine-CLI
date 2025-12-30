@@ -9,7 +9,7 @@
 import { debug } from '../../shared/logging/logger.js';
 import type { WorkflowEventBus } from '../events/event-bus.js';
 import type { OnboardConfig, OnboardResult, OnboardStep } from '../events/types.js';
-import type { TracksConfig, ConditionGroup, ChildConditionGroup } from '../templates/types.js';
+import type { TracksConfig, ConditionGroup } from '../templates/types.js';
 import type { AgentDefinition } from '../../shared/agents/config/types.js';
 import { OnboardingEmitter } from './emitter.js';
 import { initControllerAgent } from '../../shared/workflows/controller.js';
@@ -168,7 +168,7 @@ export class OnboardingService {
    */
   selectCondition(conditionId: string): void {
     const step = this.state.currentStep;
-    const isChild = step === 'condition_child';
+    const _isChild = step === 'condition_child';
     const groupIndex = this.state.currentGroupIndex;
 
     if (step === 'condition_group') {
@@ -256,7 +256,7 @@ export class OnboardingService {
       return;
     }
 
-    const controllerName = agent.name;
+    const controllerName = agent.name as string;
     debug('[OnboardingService] launching controller: "%s"', controllerName);
 
     // Emit launching started
@@ -380,7 +380,7 @@ export class OnboardingService {
       case 'controller':
         return (this.config.controllerAgents ?? []).map((a) => [
           a.id,
-          { label: a.name, description: a.description as string | undefined },
+          { label: a.name as string, description: a.description as string | undefined },
         ]);
       default:
         return [];

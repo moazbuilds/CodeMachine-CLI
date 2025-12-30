@@ -54,7 +54,7 @@ export async function handlePauseSignal(ctx: SignalContext): Promise<void> {
     // Continue to pause logic below (don't return early)
   }
 
-  if (ctx.machine.state === 'running' || ctx.machine.state === 'delegated') {
+  if (ctx.machine.state === 'running') {
     // Update UI status
     ctx.emitter.updateAgentStatus(stepContext.agentId, 'awaiting');
 

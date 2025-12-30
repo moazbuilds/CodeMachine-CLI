@@ -32,7 +32,7 @@ export function handleSkipSignal(ctx: SignalContext): void {
     // If in delegated state, abort the controller agent first
     if (wasDelegated) {
       debug('[SkipSignal] Aborting controller agent');
-      ctx.mode.getControllerInput().abort();
+      ctx.mode.getControllerInput()?.abort?.();
     }
 
     // Transition state machine to next step

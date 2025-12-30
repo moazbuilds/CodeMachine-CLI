@@ -392,7 +392,7 @@ export function OnboardView(props: OnboardViewProps) {
       >
         <Show when={currentStep() === 'launching' && props.service && props.eventBus}>
           <LaunchingView
-            controllerName={props.service!.getSelectedController()?.name ?? 'controller'}
+            controllerName={(props.service!.getSelectedController()?.name as string) ?? 'controller'}
             eventBus={props.eventBus!}
             service={props.service!}
           />

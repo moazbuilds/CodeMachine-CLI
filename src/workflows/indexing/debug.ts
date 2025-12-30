@@ -6,7 +6,7 @@
  */
 
 import { debug as baseDebug } from '../../shared/logging/logger.js';
-import type { StepData, ResumeInfo, StepLifecyclePhase, ResumeDecision } from './types.js';
+import type { StepData, ResumeInfo, StepLifecyclePhase } from './types.js';
 
 /**
  * Log a step lifecycle event

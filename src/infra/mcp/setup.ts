@@ -189,7 +189,7 @@ export function getCodexSettingsPath(
 /**
  * Parse simple TOML (enough for our config.toml needs)
  */
-function parseSimpleToml(content: string): string {
+function _parseSimpleToml(content: string): string {
   // Just return the content, we'll append to it
   return content;
 }

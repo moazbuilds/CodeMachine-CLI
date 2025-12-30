@@ -10,7 +10,6 @@ import {
   configureOpenCodeMCP,
   removeOpenCodeMCP,
   isOpenCodeMCPConfigured,
-  getOpenCodeSettingsPath,
 } from '../../../mcp/index.js';
 
 /**

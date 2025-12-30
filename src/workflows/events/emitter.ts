@@ -15,7 +15,6 @@ import type {
   AgentInfo,
   SeparatorInfo,
   WorkflowEvent,
-  ProgressState,
 } from './types.js';
 import type {
   AgentStatus,

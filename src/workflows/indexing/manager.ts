@@ -5,7 +5,7 @@
  * Manages both in-memory state and persistence to template.json.
  */
 
-import type { StepData, TemplateTracking, ResumeInfo } from './types.js';
+import type { StepData, ResumeInfo } from './types.js';
 import type { QueuedPrompt } from '../state/types.js';
 import { ResumeDecision, StepLifecyclePhase } from './types.js';
 import { readTrackingData, writeTrackingData } from './persistence.js';

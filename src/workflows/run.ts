@@ -17,7 +17,7 @@ import {
   getSelectedTrack,
   getSelectedConditions,
 } from '../shared/workflows/index.js';
-import { StepIndexManager, ResumeDecision } from './indexing/index.js';
+import { StepIndexManager } from './indexing/index.js';
 import { registry } from '../infra/engines/index.js';
 import { MonitoringCleanup } from '../agents/monitoring/index.js';
 import { WorkflowEventBus, WorkflowEventEmitter } from './events/index.js';

@@ -6,8 +6,6 @@
  */
 
 import { debug } from '../../shared/logging/logger.js';
-import { formatUserInput } from '../../shared/formatters/outputMarkers.js';
-import { AgentLoggerService } from '../../agents/monitoring/index.js';
 import type { InputContext } from '../input/index.js';
 import { getUniqueAgentId } from '../context/index.js';
 import { runStepResume } from '../step/run.js';
