@@ -104,6 +104,7 @@ export async function setActiveTemplate(cmRoot: string, templateName: string): P
           completedSteps: {},
           notCompletedSteps: [],
           resumeFromLastStep: true,
+          autonomousMode: true, // Default to auto mode
           // Preserve user preferences
           selectedTrack: existing.selectedTrack,
           selectedConditions: existing.selectedConditions,
@@ -118,6 +119,7 @@ export async function setActiveTemplate(cmRoot: string, templateName: string): P
         completedSteps: {},
         notCompletedSteps: [],
         resumeFromLastStep: true,
+        autonomousMode: true, // Default to auto mode
       };
     }
   } else {
@@ -128,6 +130,7 @@ export async function setActiveTemplate(cmRoot: string, templateName: string): P
       completedSteps: {},
       notCompletedSteps: [],
       resumeFromLastStep: true,
+      autonomousMode: true, // Default to auto mode
     };
   }
 

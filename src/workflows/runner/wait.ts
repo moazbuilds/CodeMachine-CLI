@@ -11,6 +11,7 @@ import type { InputContext } from '../input/index.js';
 import { getUniqueAgentId } from '../context/index.js';
 import { runStepResume } from '../step/run.js';
 import { resolveInteractiveBehavior } from '../step/interactive.js';
+import { evaluateOnAdvance } from '../directives/index.js';
 import type { RunnerContext } from './types.js';
 
 export interface WaitCallbacks {
@@ -132,8 +133,57 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
   switch (result.type) {
     case 'input':
       if (result.value === '') {
-        // Empty input = advance to next step
-        debug('[Runner] Empty input, marking agent completed and advancing');
+        // Check directive before advancing
+        const advanceAction = await evaluateOnAdvance(ctx.cwd);
+        debug('[Runner] Empty input, directive action: %s', advanceAction.type);
+
+        switch (advanceAction.type) {
+          case 'loop':
+            debug('[Runner] Directive: loop - staying on current step');
+            ctx.emitter.logMessage(stepUniqueAgentId, `Loop requested${advanceAction.reason ? `: ${advanceAction.reason}` : ''}`);
+            return;
+
+          case 'stop':
+            debug('[Runner] Directive: stop');
+            ctx.emitter.logMessage(stepUniqueAgentId, `Stop requested${advanceAction.reason ? `: ${advanceAction.reason}` : ''}`);
+            ctx.machine.send({ type: 'STOP' });
+            return;
+
+          case 'error':
+            debug('[Runner] Directive: error');
+            ctx.emitter.logMessage(stepUniqueAgentId, `Error: ${advanceAction.reason ?? 'Unknown error'}`);
+            ctx.emitter.setWorkflowStatus('error');
+            (process as NodeJS.EventEmitter).emit('workflow:error', { reason: advanceAction.reason });
+            ctx.machine.send({ type: 'STOP' });
+            return;
+
+          case 'checkpoint':
+            debug('[Runner] Directive: checkpoint');
+            ctx.emitter.logMessage(stepUniqueAgentId, `Checkpoint${advanceAction.reason ? `: ${advanceAction.reason}` : ''}`);
+            ctx.emitter.setCheckpointState({ active: true, reason: advanceAction.reason });
+            return;
+
+          case 'pause':
+            debug('[Runner] Directive: pause');
+            ctx.emitter.logMessage(stepUniqueAgentId, `Paused${advanceAction.reason ? `: ${advanceAction.reason}` : ''}`);
+            ctx.mode.pause();
+            machineCtx.paused = true;
+            return;
+
+          case 'trigger':
+            debug('[Runner] Directive: trigger agent %s', advanceAction.agentId);
+            ctx.emitter.logMessage(stepUniqueAgentId, `Triggering ${advanceAction.agentId}${advanceAction.reason ? `: ${advanceAction.reason}` : ''}`);
+            // TODO: Execute trigger agent, then advance
+            break;
+
+          case 'advance':
+          default:
+            // Continue with normal advance
+            break;
+        }
+
+        // Default: advance to next step
+        debug('[Runner] Advancing to next step');
         ctx.mode.resume();
         machineCtx.paused = false; // Keep machine context in sync
         ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'completed');

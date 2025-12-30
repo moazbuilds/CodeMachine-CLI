@@ -288,12 +288,9 @@ export function WorkflowShell(props: WorkflowShellProps) {
 
     debug('[TOGGLE] Current mode from file: %s, new mode: %s', currentMode, newMode)
 
-    // Check if controller is configured (required for autonomous mode)
-    if (newMode && !controllerState?.controllerConfig) {
-      debug('[TOGGLE] Cannot enable autonomous mode - no controller configured')
-      toast.show({ variant: "error", message: "Cannot enable: No controller configured", duration: 3000 })
-      return
-    }
+    // autoMode can work without controller:
+    // - Non-interactive steps (Scenarios 5-6) run autonomously without controller
+    // - Interactive steps without controller fall back to user input
 
     // Update UI state
     ui.actions.setAutonomousMode(newMode)

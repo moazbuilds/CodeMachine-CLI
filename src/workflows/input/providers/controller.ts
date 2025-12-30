@@ -30,6 +30,8 @@ import type {
 export interface ControllerInputProviderOptions {
   emitter: InputEventEmitter;
   getControllerConfig: () => Promise<ControllerConfig | null>;
+  /** Fallback provider when no controller configured (for interactive steps in autoMode) */
+  getUserInput: () => InputProvider;
   cwd: string;
   cmRoot: string;
   /** Workflow emitter for telemetry updates */
@@ -51,6 +53,7 @@ export class ControllerInputProvider implements InputProvider {
 
   private emitter: InputEventEmitter;
   private getControllerConfig: () => Promise<ControllerConfig | null>;
+  private getUserInput: () => InputProvider;
   private cwd: string;
   private cmRoot: string;
   private workflowEmitter?: WorkflowEventEmitter;
@@ -61,6 +64,7 @@ export class ControllerInputProvider implements InputProvider {
   constructor(options: ControllerInputProviderOptions) {
     this.emitter = options.emitter;
     this.getControllerConfig = options.getControllerConfig;
+    this.getUserInput = options.getUserInput;
     this.cwd = options.cwd;
     this.cmRoot = options.cmRoot;
     this.workflowEmitter = options.workflowEmitter;
@@ -82,8 +86,8 @@ export class ControllerInputProvider implements InputProvider {
 
     const config = await this.getControllerConfig();
     if (!config) {
-      debug('[Controller] No controller config, falling back to skip');
-      return { type: 'skip' };
+      debug('[Controller] No controller config, delegating to user input');
+      return this.getUserInput().getInput(context);
     }
 
     debug('[Controller] Getting input from controller agent: %s', config.agentId);

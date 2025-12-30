@@ -83,6 +83,7 @@ export class WorkflowRunner implements RunnerContext {
     this.controllerInput = new ControllerInputProvider({
       emitter: this.inputEmitter,
       getControllerConfig: () => this.getControllerConfig(),
+      getUserInput: () => this.userInput,
       cwd: this.cwd,
       cmRoot: this.cmRoot,
       workflowEmitter: this.emitter,
@@ -210,8 +211,10 @@ export class WorkflowRunner implements RunnerContext {
     debug('[Runner] Starting workflow');
 
     // Load initial auto mode state
+    // autoMode can work without controller for non-interactive steps (Scenarios 5-6)
+    // For interactive steps without controller, controller provider delegates to user input
     const controllerState = await loadControllerConfig(this.cmRoot);
-    if (controllerState?.autonomousMode && controllerState.controllerConfig) {
+    if (controllerState?.autonomousMode) {
       this.mode.enableAutoMode();
       // Sync machine context with mode state
       this.machine.context.autoMode = true;

@@ -17,6 +17,7 @@
 
 export * from './types.js';
 export * from './reader.js';
+export * from './onAdvance.js';
 export * from './loop/index.js';
 export * from './trigger/index.js';
 export * from './checkpoint/index.js';

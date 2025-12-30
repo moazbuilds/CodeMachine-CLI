@@ -61,8 +61,8 @@ export default {
     separator("∴ Implementation Phase ∴"),
     resolveStep('bmad-sprints', {}),
     separator("⟲ Story Loop ⟲"),
-    resolveStep('bmad-stories', {}),
-    resolveStep('bmad-dev', {}),
-    resolveModule('bmad-review', { loopSteps: 2 }),
+    resolveStep('bmad-stories', {interactive: false}),
+    resolveStep('bmad-dev', {interactive: false}),
+    resolveModule('bmad-review', {interactive: false, loopSteps: 2 }),
   ],
 };
