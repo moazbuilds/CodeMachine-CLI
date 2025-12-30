@@ -19,8 +19,8 @@ export function createAgentActions(ctx: AgentActionsContext) {
   function addAgent(agent: WorkflowState["agents"][number]): void {
     const state = ctx.getState()
     ctx.setState({ ...state, agents: [...state.agents, agent] })
-    // Auto-select if this agent is running (matches updateAgentStatus behavior)
-    if (agent.status === "running") {
+    // Auto-select if this agent is running or delegated (matches updateAgentStatus behavior)
+    if (agent.status === "running" || agent.status === "delegated") {
       ctx.selectItem(agent.id, "main", undefined, true)
     }
     ctx.notify()
@@ -34,7 +34,7 @@ export function createAgentActions(ctx: AgentActionsContext) {
         agent.id === agentId ? { ...agent, status } : agent,
       ),
     })
-    if (status === "running") {
+    if (status === "running" || status === "delegated") {
       ctx.selectItem(agentId, "main", undefined, true)
     }
     ctx.notifyImmediate()

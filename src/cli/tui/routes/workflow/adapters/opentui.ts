@@ -126,8 +126,8 @@ export class OpenTUIAdapter extends BaseUIAdapter {
 
       // Agent events
       case "agent:added": {
-        // Register with timer if starting as running
-        if (event.agent.status === "running") {
+        // Register with timer if starting as running or delegated
+        if (event.agent.status === "running" || event.agent.status === "delegated") {
           timerService.registerAgent(event.agent.id)
         }
         this.actions.addAgent({
@@ -137,7 +137,7 @@ export class OpenTUIAdapter extends BaseUIAdapter {
           model: event.agent.model,
           status: event.agent.status,
           telemetry: { tokensIn: 0, tokensOut: 0 },
-          startTime: event.agent.status === "running" ? Date.now() : 0,
+          startTime: (event.agent.status === "running" || event.agent.status === "delegated") ? Date.now() : 0,
           toolCount: 0,
           thinkingCount: 0,
           stepIndex: event.agent.stepIndex,
@@ -148,8 +148,8 @@ export class OpenTUIAdapter extends BaseUIAdapter {
       }
 
       case "agent:status":
-        // Register when starting to run
-        if (event.status === "running") {
+        // Register when starting to run or delegated (only on first event, not on resume)
+        if ((event.status === "running" || event.status === "delegated") && !timerService.hasAgent(event.agentId)) {
           timerService.registerAgent(event.agentId)
           this.actions.updateAgentStartTime(event.agentId, Date.now())
         }
@@ -202,8 +202,8 @@ export class OpenTUIAdapter extends BaseUIAdapter {
         break
 
       case "subagent:status":
-        // Register when starting to run
-        if (event.status === "running") {
+        // Register when starting to run (only on first running event, not on resume)
+        if (event.status === "running" && !timerService.hasAgent(event.subAgentId)) {
           timerService.registerAgent(event.subAgentId)
           this.actions.updateSubAgentStartTime(event.subAgentId, Date.now())
         }

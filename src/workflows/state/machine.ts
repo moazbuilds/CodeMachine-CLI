@@ -151,16 +151,31 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
           debug('[FSM] Entering running state, step %d/%d', ctx.currentStepIndex + 1, ctx.totalSteps);
         },
         on: {
-          STEP_COMPLETE: {
-            target: 'awaiting',
-            action: (ctx, event) => {
-              if (event.type === 'STEP_COMPLETE') {
-                ctx.currentOutput = event.output;
-                ctx.currentMonitoringId = event.output.monitoringId;
-                debug('[FSM] Step completed, output length: %d', event.output.output.length);
-              }
+          STEP_COMPLETE: [
+            // Controller mode -> delegated state
+            {
+              target: 'delegated',
+              guard: (ctx) => ctx.autoMode && !ctx.paused,
+              action: (ctx, event) => {
+                if (event.type === 'STEP_COMPLETE') {
+                  ctx.currentOutput = event.output;
+                  ctx.currentMonitoringId = event.output.monitoringId;
+                  debug('[FSM] Step completed (delegated), output length: %d', event.output.output.length);
+                }
+              },
             },
-          },
+            // Manual mode -> awaiting state
+            {
+              target: 'awaiting',
+              action: (ctx, event) => {
+                if (event.type === 'STEP_COMPLETE') {
+                  ctx.currentOutput = event.output;
+                  ctx.currentMonitoringId = event.output.monitoringId;
+                  debug('[FSM] Step completed (awaiting), output length: %d', event.output.output.length);
+                }
+              },
+            },
+          ],
           STEP_ERROR: {
             target: 'error',
             action: (ctx, event) => {
@@ -207,6 +222,13 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
           debug('[FSM] Entering awaiting state, autoMode: %s', ctx.autoMode);
         },
         on: {
+          DELEGATE: {
+            target: 'delegated',
+            action: (ctx) => {
+              ctx.autoMode = true;
+              debug('[FSM] Mode switched to autonomous, transitioning to delegated');
+            },
+          },
           RESUME: {
             target: 'running',
             action: () => {
@@ -251,6 +273,58 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
               guard: (ctx) => ctx.currentStepIndex >= ctx.totalSteps - 1,
             },
           ],
+          STOP: {
+            target: 'stopped',
+          },
+        },
+      },
+
+      delegated: {
+        onEnter: () => {
+          debug('[FSM] Entering delegated state (controller agent)');
+        },
+        on: {
+          INPUT_RECEIVED: [
+            {
+              target: 'running',
+              guard: (ctx) => ctx.currentStepIndex < ctx.totalSteps - 1,
+              action: (ctx, event) => {
+                if (event.type === 'INPUT_RECEIVED') {
+                  ctx.currentStepIndex += 1;
+                  debug('[FSM] Controller input received, advancing to step %d', ctx.currentStepIndex + 1);
+                }
+              },
+            },
+            {
+              target: 'completed',
+              guard: (ctx) => ctx.currentStepIndex >= ctx.totalSteps - 1,
+              action: () => {
+                debug('[FSM] Last step completed (delegated)');
+              },
+            },
+          ],
+          SKIP: [
+            {
+              target: 'running',
+              guard: (ctx) => ctx.currentStepIndex < ctx.totalSteps - 1,
+              action: (ctx) => {
+                ctx.currentStepIndex += 1;
+                debug('[FSM] Controller skipped, advancing to step %d', ctx.currentStepIndex + 1);
+              },
+            },
+            {
+              target: 'completed',
+              guard: (ctx) => ctx.currentStepIndex >= ctx.totalSteps - 1,
+            },
+          ],
+          PAUSE: {
+            target: 'awaiting',
+            action: (ctx) => {
+              ctx.autoMode = false;
+              ctx.paused = true;
+              debug('[FSM] Controller paused - switching to manual mode');
+            },
+          },
           STOP: {
             target: 'stopped',
           },

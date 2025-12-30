@@ -34,7 +34,7 @@ export function MainAgentNode(props: MainAgentNodeProps) {
 
   const color = () => props.agent.error ? themeCtx.theme.error : getStatusColor(props.agent.status, themeCtx.theme)
 
-  // Duration: running = live timer, completed = stored duration, queued = 00:00
+  // Duration: running/awaiting = live timer, completed = stored duration, queued = 00:00
   const duration = () => {
     const { duration: storedDuration, status } = props.agent
 
@@ -43,13 +43,13 @@ export function MainAgentNode(props: MainAgentNodeProps) {
       return formatDuration(storedDuration)
     }
 
-    // Running - live timer
-    if (status === "running") {
+    // Running, delegated, or awaiting - live timer (shows frozen time when paused)
+    if (status === "running" || status === "delegated" || status === "awaiting") {
       return timer.agentDuration(props.agent.id)
     }
 
-    // Queued/pending
-    return "00:00"
+    // Queued/pending - don't show duration
+    return ""
   }
 
   const hasLoopRound = () => props.agent.loopRound && props.agent.loopRound > 0
@@ -64,7 +64,7 @@ export function MainAgentNode(props: MainAgentNodeProps) {
       {/* Main line - use wrapMode="none" and overflow="hidden" to prevent text wrapping */}
       <box flexDirection="row" overflow="hidden">
         <text wrapMode="none" fg={themeCtx.theme.text}>{selectionPrefix()}</text>
-        <Show when={props.agent.status === "running"} fallback={
+        <Show when={props.agent.status === "running" || props.agent.status === "delegated"} fallback={
           <text wrapMode="none" fg={color()}>{getStatusIcon(props.agent.status)} </text>
         }>
           <Show when={timer.isPaused()} fallback={

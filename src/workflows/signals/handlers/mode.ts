@@ -23,9 +23,10 @@ export async function handleModeChangeSignal(
     data.autonomousMode
   );
 
-  // If in waiting state, let the provider's listener handle it
+  // If in waiting state (awaiting user input), let the provider's listener handle it
   // The provider will return __SWITCH_TO_AUTO__ or __SWITCH_TO_MANUAL__
   // and handleWaiting() will call setAutoMode()
+  // Note: 'delegated' state is treated like 'running' - controller is actively executing
   if (ctx.machine.state === 'awaiting') {
     debug('[ModeSignal] In awaiting state, provider will handle mode switch');
     return;

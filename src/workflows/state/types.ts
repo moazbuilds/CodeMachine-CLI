@@ -16,6 +16,7 @@ export type WorkflowState =
   | 'idle'              // Not started
   | 'running'           // Agent executing (input disabled)
   | 'awaiting'          // Awaiting user input (input enabled)
+  | 'delegated'         // Controller agent is running (autonomous mode)
   | 'completed'         // All steps done
   | 'stopped'           // User stopped
   | 'error';            // Fatal error
@@ -31,7 +32,8 @@ export type WorkflowEvent =
   | { type: 'RESUME' }
   | { type: 'SKIP' }
   | { type: 'PAUSE' }
-  | { type: 'STOP' };
+  | { type: 'STOP' }
+  | { type: 'DELEGATE' };  // Switch from awaiting to delegated (mode change to auto)
 
 /**
  * Output from a completed step

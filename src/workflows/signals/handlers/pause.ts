@@ -18,13 +18,31 @@ import type { SignalContext } from '../manager/types.js';
 export async function handlePauseSignal(ctx: SignalContext): Promise<void> {
   debug('[PauseSignal] workflow:pause received, state=%s', ctx.machine.state);
 
+  // In delegated state, the controller is running (not a step)
+  // Pause it like a normal step - transition to awaiting and open input box
+  if (ctx.machine.state === 'delegated') {
+    debug('[PauseSignal] Pausing delegated state');
+
+    // Persist mode change and emit event (controller will abort itself)
+    await setAutonomousMode(ctx.cmRoot, false);
+
+    // Transition FSM: delegated -> awaiting (sets autoMode=false, paused=true)
+    ctx.machine.send({ type: 'PAUSE' });
+
+    // Sync mode state
+    ctx.mode.pause();
+
+    debug('[PauseSignal] Delegated state paused, input box will open');
+    return;
+  }
+
   const stepContext = ctx.getStepContext();
   if (!stepContext) {
     debug('[PauseSignal] No step context, ignoring pause');
     return;
   }
 
-  // If in auto mode, just switch to manual mode (don't set paused state)
+  // If in auto mode (running state), just switch to manual mode (don't set paused state)
   // This allows user to re-enable auto mode without being blocked by paused state
   const wasAutoMode = ctx.mode.autoMode;
   if (wasAutoMode) {
@@ -39,7 +57,7 @@ export async function handlePauseSignal(ctx: SignalContext): Promise<void> {
     return;
   }
 
-  if (ctx.machine.state === 'running' || ctx.machine.state === 'awaiting') {
+  if (ctx.machine.state === 'running' || ctx.machine.state === 'delegated') {
     // Update UI status
     ctx.emitter.updateAgentStatus(stepContext.agentId, 'awaiting');
 

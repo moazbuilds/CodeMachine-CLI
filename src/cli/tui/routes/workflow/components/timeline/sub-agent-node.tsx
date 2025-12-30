@@ -24,7 +24,7 @@ export function SubAgentNode(props: SubAgentNodeProps) {
 
   const color = () => props.agent.error ? themeCtx.theme.error : getStatusColor(props.agent.status, themeCtx.theme)
 
-  // Duration: running = live timer, completed = stored duration, queued = 00:00
+  // Duration: running/awaiting = live timer, completed = stored duration, queued = 00:00
   const duration = () => {
     const { duration: storedDuration, status } = props.agent
 
@@ -33,13 +33,13 @@ export function SubAgentNode(props: SubAgentNodeProps) {
       return formatDuration(storedDuration)
     }
 
-    // Running - live timer
-    if (status === "running") {
+    // Running, delegated, or awaiting - live timer (shows frozen time when paused)
+    if (status === "running" || status === "delegated" || status === "awaiting") {
       return timer.agentDuration(props.agent.id)
     }
 
-    // Queued/pending
-    return "00:00"
+    // Queued/pending - don't show duration
+    return ""
   }
 
   // Selection indicator
@@ -48,7 +48,7 @@ export function SubAgentNode(props: SubAgentNodeProps) {
   return (
     <box flexDirection="row" paddingLeft={3}>
       <text fg={themeCtx.theme.text}>{selectionPrefix()}</text>
-      <Show when={props.agent.status === "running"} fallback={
+      <Show when={props.agent.status === "running" || props.agent.status === "delegated"} fallback={
         <text fg={color()}>{getStatusIcon(props.agent.status)} </text>
       }>
         <Show when={timer.isPaused()} fallback={

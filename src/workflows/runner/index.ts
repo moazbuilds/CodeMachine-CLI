@@ -33,9 +33,11 @@ import { shouldSkipStep, logSkipDebug } from '../step/skip.js';
 import type { WorkflowRunnerOptions, RunnerContext } from './types.js';
 import { runStepFresh } from '../step/run.js';
 import { handleWaiting } from './wait.js';
+import { handleDelegated } from './delegated.js';
 
 export type { WorkflowRunnerOptions, RunnerContext } from './types.js';
 export { handleWaiting } from './wait.js';
+export { handleDelegated } from './delegated.js';
 export * from './resume.js';
 
 /**
@@ -258,6 +260,10 @@ export class WorkflowRunner implements RunnerContext {
         await runStepFresh(this);
       } else if (state === 'awaiting') {
         await handleWaiting(this, {
+          setAutoMode: (enabled) => this.setAutoMode(enabled),
+        });
+      } else if (state === 'delegated') {
+        await handleDelegated(this, {
           setAutoMode: (enabled) => this.setAutoMode(enabled),
         });
       }

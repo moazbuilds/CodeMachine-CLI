@@ -9,6 +9,7 @@ export type AgentStatus =
   | "retrying"
   | "paused"
   | "awaiting"
+  | "delegated"
 
 export interface AgentTelemetry {
   tokensIn: number
