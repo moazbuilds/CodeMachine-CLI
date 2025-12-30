@@ -17,6 +17,20 @@ type LogLevel = keyof typeof LOG_LEVELS;
 
 let debugLogStream: fs.WriteStream | null = null;
 
+/**
+ * Global shutdown flag - when true, error/warn logs are suppressed
+ * Set this when handling SIGINT/Ctrl+C for clean exit
+ */
+let isShuttingDown = false;
+
+export function setShuttingDown(value: boolean): void {
+  isShuttingDown = value;
+}
+
+export function getShuttingDown(): boolean {
+  return isShuttingDown;
+}
+
 function resolveRequestedLevel(): string {
   const explicit = process.env.LOG_LEVEL;
   if (explicit && explicit.trim()) {
@@ -80,6 +94,7 @@ export function info(message: string, ...args: unknown[]): void {
 }
 
 export function warn(message: string, ...args: unknown[]): void {
+  if (isShuttingDown) return; // Suppress during graceful shutdown
   if (shouldLog('warn')) {
     // Write directly to stderr to bypass console hijacking
     const formatted = formatMessage(`[WARN] ${message}`, ...args);
@@ -88,6 +103,7 @@ export function warn(message: string, ...args: unknown[]): void {
 }
 
 export function error(message: string, ...args: unknown[]): void {
+  if (isShuttingDown) return; // Suppress during graceful shutdown
   if (shouldLog('error')) {
     // Write directly to stderr to bypass console hijacking
     const formatted = formatMessage(`[ERROR] ${message}`, ...args);

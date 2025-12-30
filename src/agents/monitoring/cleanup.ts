@@ -1,6 +1,7 @@
 import { AgentMonitorService } from './monitor.js';
 import { AgentLoggerService } from './logger.js';
 import * as logger from '../../shared/logging/logger.js';
+import { setShuttingDown } from '../../shared/logging/logger.js';
 import { killAllActiveProcesses } from '../../infra/process/spawn.js';
 
 /**
@@ -132,6 +133,9 @@ export class MonitoringCleanup {
     // Second Ctrl+C (after debounce): Stop workflow and exit
     logger.debug(`[${source}] Second Ctrl+C detected after ${timeSinceFirst}ms - stopping workflow and exiting`);
 
+    // Suppress all error/warn logs during graceful shutdown
+    setShuttingDown(true);
+
     // Emit workflow:skip to abort the currently running step
     (process as NodeJS.EventEmitter).emit('workflow:skip');
 
@@ -152,6 +156,9 @@ export class MonitoringCleanup {
    */
   private static async handleSignal(signal: string, message: string): Promise<void> {
     logger.debug(`Received ${signal}: ${message}`);
+
+    // Suppress all error/warn logs during graceful shutdown
+    setShuttingDown(true);
 
     // Kill all active child processes before cleanup
     logger.debug('Killing all active child processes...');
