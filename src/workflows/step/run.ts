@@ -134,6 +134,33 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
     ctx.emitter.updateAgentModel(uniqueAgentId, resolvedModel);
   }
 
+  // Pre-load chained prompts from agent config so UI can show step info immediately
+  const agentConfig = await loadAgentConfig(step.agentId, ctx.cwd);
+  if (agentConfig?.chainedPromptsPath) {
+    const selectedConditions = await getSelectedConditions(ctx.cmRoot);
+    const preloadedPrompts = await loadChainedPrompts(
+      agentConfig.chainedPromptsPath,
+      ctx.cwd,
+      selectedConditions
+    );
+    if (preloadedPrompts.length > 0) {
+      debug('[step/run] Pre-loaded %d chained prompts for UI', preloadedPrompts.length);
+      const session = ctx.getCurrentSession();
+      if (session) {
+        session.loadChainedPrompts(preloadedPrompts);
+      } else {
+        ctx.indexManager.initQueue(preloadedPrompts, 0);
+      }
+      // Emit input state immediately so UI shows chained prompts info
+      ctx.emitter.setInputState({
+        active: false, // Not active yet - agent is running
+        queuedPrompts: preloadedPrompts.map(p => ({ name: p.name, label: p.label, content: p.content })),
+        currentIndex: 0,
+        monitoringId: undefined, // Not yet known
+      });
+    }
+  }
+
   try {
     // Execute the step
     const output = await executeStep(step, ctx.cwd, {
@@ -248,6 +275,18 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
       if (!machineCtx.autoMode) {
         ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
       }
+
+      // Emit input state for fresh start so UI shows chained prompts info immediately
+      const queueState = session
+        ? session.getQueueState()
+        : { promptQueue: [...ctx.indexManager.promptQueue], promptQueueIndex: ctx.indexManager.promptQueueIndex };
+      ctx.emitter.setInputState({
+        active: !machineCtx.autoMode, // Only active input box in manual mode
+        queuedPrompts: queueState.promptQueue.map(p => ({ name: p.name, label: p.label, content: p.content })),
+        currentIndex: queueState.promptQueueIndex,
+        monitoringId: stepOutput.monitoringId,
+      });
+
       ctx.machine.send({ type: 'STEP_COMPLETE', output: stepOutput });
       return { output: stepOutput };
     } else {

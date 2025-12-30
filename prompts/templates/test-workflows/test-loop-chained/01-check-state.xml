@@ -1,4 +1,12 @@
 <step n="1" goal="Check current state">
   <action>Read `.codemachine/memory/directive.json` to see current directive state</action>
   <action>Report what you found</action>
+  <action>Write to `.codemachine/memory/directive.json`:
+  ```json
+  {
+    "action": "pause",
+    "reason": "Testing pause directive"
+  }
+  ```
+  </action>
 </step>

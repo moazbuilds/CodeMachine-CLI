@@ -72,15 +72,64 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
   // Handle Scenario 6: Auto-advance (interactive:false + autoMode + no chainedPrompts)
   // This can happen when queue is exhausted after autonomous loop
   if (!ctx.mode.paused && !behavior.shouldWait && !behavior.runAutonomousLoop) {
-    debug('[Runner] Auto-advancing to next step (Scenario 6)');
-    if (session) {
-      await session.complete();
+    const action = await processPostStepDirectives({
+      ctx,
+      step,
+      stepOutput: { output: machineCtx.currentOutput?.output ?? '' },
+      stepIndex: machineCtx.currentStepIndex,
+      uniqueAgentId: stepUniqueAgentId,
+    });
+
+    debug('[Runner:scenario6] Post-step action: %s', action.type);
+
+    switch (action.type) {
+      case 'stop':
+        ctx.machine.send({ type: 'STOP' });
+        return;
+
+      case 'checkpoint':
+        return;
+
+      case 'pause': {
+        debug('[Runner:scenario6] Directive: pause');
+        ctx.emitter.logMessage(stepUniqueAgentId, `Paused${action.reason ? `: ${action.reason}` : ''}`);
+        ctx.mode.pause();
+        machineCtx.paused = true;
+        ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'awaiting');
+        // Enable input box for user to resume
+        const pauseQueueState = session
+          ? session.getQueueState()
+          : { promptQueue: [...ctx.indexManager.promptQueue], promptQueueIndex: ctx.indexManager.promptQueueIndex };
+        ctx.emitter.setInputState({
+          active: true,
+          queuedPrompts: pauseQueueState.promptQueue.map(p => ({ name: p.name, label: p.label, content: p.content })),
+          currentIndex: pauseQueueState.promptQueueIndex,
+          monitoringId: machineCtx.currentMonitoringId,
+        });
+        return;
+      }
+
+      case 'loop':
+        debug('[Runner:scenario6] Loop to step %d', action.targetIndex);
+        ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'completed');
+        await ctx.indexManager.stepCompleted(machineCtx.currentStepIndex);
+        ctx.indexManager.resetQueue();
+        machineCtx.currentStepIndex = action.targetIndex;
+        ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
+        return;
+
+      case 'advance':
+      default:
+        debug('[Runner] Auto-advancing to next step (Scenario 6)');
+        if (session) {
+          await session.complete();
+        }
+        ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'completed');
+        ctx.indexManager.resetQueue();
+        await ctx.indexManager.stepCompleted(machineCtx.currentStepIndex);
+        ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
+        return;
     }
-    ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'completed');
-    ctx.indexManager.resetQueue();
-    await ctx.indexManager.stepCompleted(machineCtx.currentStepIndex);
-    ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
-    return;
   }
 
   // Get provider from WorkflowMode (single source of truth)
@@ -242,6 +291,27 @@ async function runAutonomousPromptLoop(ctx: RunnerContext): Promise<void> {
   const uniqueAgentId = getUniqueAgentId(step, stepIndex);
   const session = ctx.getCurrentSession();
 
+  // Check for pause directive BEFORE sending next prompt (regardless of queue state)
+  const pauseResult = await evaluateOnAdvance(ctx.cwd);
+  if (pauseResult.type === 'pause') {
+    debug('[Runner:autonomous] Directive: pause (before next prompt)');
+    ctx.emitter.logMessage(uniqueAgentId, `Paused${pauseResult.reason ? `: ${pauseResult.reason}` : ''}`);
+    ctx.mode.pause();
+    machineCtx.paused = true;
+    ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
+    // Enable input box for user to resume
+    const queueState = session
+      ? session.getQueueState()
+      : { promptQueue: [...ctx.indexManager.promptQueue], promptQueueIndex: ctx.indexManager.promptQueueIndex };
+    ctx.emitter.setInputState({
+      active: true,
+      queuedPrompts: queueState.promptQueue.map(p => ({ name: p.name, label: p.label, content: p.content })),
+      currentIndex: queueState.promptQueueIndex,
+      monitoringId: machineCtx.currentMonitoringId,
+    });
+    return;
+  }
+
   // Check if queue is exhausted
   const isExhausted = session
     ? session.isQueueExhausted
@@ -267,6 +337,25 @@ async function runAutonomousPromptLoop(ctx: RunnerContext): Promise<void> {
       case 'checkpoint':
         // Checkpoint was handled by afterRun, just stay in current state
         return;
+
+      case 'pause': {
+        debug('[Runner:autonomous] Directive: pause');
+        ctx.emitter.logMessage(uniqueAgentId, `Paused${action.reason ? `: ${action.reason}` : ''}`);
+        ctx.mode.pause();
+        machineCtx.paused = true;
+        ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
+        // Enable input box for user to resume
+        const pauseQueueState = session
+          ? session.getQueueState()
+          : { promptQueue: [...ctx.indexManager.promptQueue], promptQueueIndex: ctx.indexManager.promptQueueIndex };
+        ctx.emitter.setInputState({
+          active: true,
+          queuedPrompts: pauseQueueState.promptQueue.map(p => ({ name: p.name, label: p.label, content: p.content })),
+          currentIndex: pauseQueueState.promptQueueIndex,
+          monitoringId: machineCtx.currentMonitoringId,
+        });
+        return;
+      }
 
       case 'loop':
         // Loop directive processed - rewind to target step
@@ -310,6 +399,25 @@ async function runAutonomousPromptLoop(ctx: RunnerContext): Promise<void> {
 
       case 'checkpoint':
         return;
+
+      case 'pause': {
+        debug('[Runner:autonomous] Directive: pause (no prompts)');
+        ctx.emitter.logMessage(uniqueAgentId, `Paused${action.reason ? `: ${action.reason}` : ''}`);
+        ctx.mode.pause();
+        machineCtx.paused = true;
+        ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
+        // Enable input box for user to resume
+        const pauseQueueState = session
+          ? session.getQueueState()
+          : { promptQueue: [...ctx.indexManager.promptQueue], promptQueueIndex: ctx.indexManager.promptQueueIndex };
+        ctx.emitter.setInputState({
+          active: true,
+          queuedPrompts: pauseQueueState.promptQueue.map(p => ({ name: p.name, label: p.label, content: p.content })),
+          currentIndex: pauseQueueState.promptQueueIndex,
+          monitoringId: machineCtx.currentMonitoringId,
+        });
+        return;
+      }
 
       case 'loop':
         debug('[Runner:autonomous] Loop to step %d', action.targetIndex);

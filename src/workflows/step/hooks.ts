@@ -14,6 +14,7 @@ import type { StepIndexManager } from '../indexing/index.js';
 import { handleTriggerLogic } from '../directives/trigger/index.js';
 import { handleCheckpointLogic } from '../directives/checkpoint/index.js';
 import { handleErrorLogic } from '../directives/error/index.js';
+import { handlePauseLogic } from '../directives/pause/index.js';
 import type { WorkflowEventEmitter } from '../events/index.js';
 import { type ModuleStep, type WorkflowTemplate, isModuleStep } from '../templates/types.js';
 import { getUniqueAgentId } from '../context/index.js';
@@ -126,6 +127,8 @@ export interface AfterRunResult {
   stoppedByCheckpointQuit?: boolean;
   workflowShouldStop?: boolean;
   checkpointContinued?: boolean;
+  pauseRequested?: boolean;
+  pauseReason?: string;
 }
 
 /**
@@ -153,7 +156,8 @@ export type PostStepAction =
   | { type: 'advance' }
   | { type: 'loop'; targetIndex: number; newActiveLoop: ActiveLoop | null }
   | { type: 'stop' }
-  | { type: 'checkpoint' };
+  | { type: 'checkpoint' }
+  | { type: 'pause'; reason?: string };
 
 /**
  * Context for processPostStepDirectives
@@ -201,6 +205,10 @@ export async function processPostStepDirectives(context: ProcessPostStepContext)
 
   if (postResult.checkpointContinued) {
     return { type: 'checkpoint' };
+  }
+
+  if (postResult.pauseRequested) {
+    return { type: 'pause', reason: postResult.pauseReason };
   }
 
   // Handle loop - newIndex is the raw index from loop logic
@@ -302,6 +310,12 @@ export async function afterRun(options: AfterRunOptions): Promise<AfterRunResult
       return { shouldBreak: true, stoppedByCheckpointQuit: true, workflowShouldStop: true };
     }
     return { shouldBreak: false, checkpointContinued: true };
+  }
+
+  // Check for pause directive
+  const pauseResult = await handlePauseLogic(step, cwd, emitter);
+  if (pauseResult?.shouldPause) {
+    return { shouldBreak: false, pauseRequested: true, pauseReason: pauseResult.reason };
   }
 
   // Check for loop directive

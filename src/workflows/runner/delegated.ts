@@ -53,6 +53,19 @@ export async function handleDelegated(ctx: RunnerContext, callbacks: DelegatedCa
   // Update agent status to delegated
   ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'delegated');
 
+  // Emit input state so UI shows chained prompts info in delegated mode
+  const queueStateForUI = session
+    ? session.getQueueState()
+    : { promptQueue: [...ctx.indexManager.promptQueue], promptQueueIndex: ctx.indexManager.promptQueueIndex };
+  if (queueStateForUI.promptQueue.length > 0) {
+    ctx.emitter.setInputState({
+      active: false, // Not active - controller is running
+      queuedPrompts: queueStateForUI.promptQueue.map(p => ({ name: p.name, label: p.label, content: p.content })),
+      currentIndex: queueStateForUI.promptQueueIndex,
+      monitoringId: machineCtx.currentMonitoringId,
+    });
+  }
+
   // Resolve interactive behavior using actual mode state
   const behavior = resolveInteractiveBehavior({
     step,
