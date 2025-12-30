@@ -17,6 +17,7 @@ import {
 } from '../../../shared/formatters/outputMarkers.js';
 import type { ControllerConfig } from '../../../shared/workflows/template.js';
 import type { WorkflowEventEmitter } from '../../events/index.js';
+import { registry } from '../../../infra/engines/index.js';
 import type {
   InputProvider,
   InputContext,
@@ -126,6 +127,23 @@ Review the output above and respond appropriately, or use ACTION: NEXT to procee
       // Write controller header with dynamic agent name
       const agentConfig = await loadAgentConfig(config.agentId, this.cmRoot);
       const controllerName = agentConfig.name || config.agentId;
+
+      // Resolve engine and model from config or defaults
+      const defaultEngine = registry.getDefault();
+      const resolvedEngine = (agentConfig.engine as string) ?? defaultEngine?.metadata.id ?? 'unknown';
+      const engineModule = registry.get(resolvedEngine);
+      const resolvedModel = (agentConfig.model as string | undefined) ?? engineModule?.metadata.defaultModel;
+
+      // Emit controller info to UI
+      if (this.workflowEmitter) {
+        this.workflowEmitter.setControllerInfo(
+          config.agentId,
+          controllerName,
+          resolvedEngine,
+          resolvedModel
+        );
+      }
+
       if (context.stepOutput.monitoringId !== undefined) {
         loggerService.write(context.stepOutput.monitoringId, '\n' + formatControllerHeader(controllerName) + '\n');
       }

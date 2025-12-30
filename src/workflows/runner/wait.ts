@@ -99,6 +99,17 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
   debug('[Runner] Queue state source: %s, queueLen=%d, queueIndex=%d',
     session ? 'session' : 'indexManager', queueState.promptQueue.length, queueState.promptQueueIndex);
 
+  // For scenarios 7-8, emit input state immediately so UI shows prompt box
+  // This must happen BEFORE provider.getInput() to avoid race condition
+  if (behavior.wasForced) {
+    ctx.emitter.setInputState({
+      active: true,
+      queuedPrompts: queueState.promptQueue.map(p => ({ name: p.name, label: p.label, content: p.content })),
+      currentIndex: queueState.promptQueueIndex,
+      monitoringId: machineCtx.currentMonitoringId,
+    });
+  }
+
   const inputContext: InputContext = {
     stepOutput: machineCtx.currentOutput ?? { output: '' },
     stepIndex: machineCtx.currentStepIndex,
@@ -189,6 +200,7 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
         ctx.mode.resume();
         machineCtx.paused = false; // Keep machine context in sync
         ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'completed');
+        ctx.indexManager.resetQueue(); // Clear queue when advancing to prevent leaking to next step
         await ctx.indexManager.stepCompleted(machineCtx.currentStepIndex);
         ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
       } else {
@@ -202,6 +214,7 @@ export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks
       ctx.mode.resume();
       machineCtx.paused = false; // Keep machine context in sync
       ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'skipped');
+      ctx.indexManager.resetQueue(); // Clear queue when skipping to prevent leaking to next step
       await ctx.indexManager.stepCompleted(machineCtx.currentStepIndex);
       ctx.machine.send({ type: 'SKIP' });
       break;

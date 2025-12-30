@@ -250,6 +250,7 @@ export class WorkflowRunner implements RunnerContext {
 
         if (skipResult.skip) {
           debug('[Runner] Skipping step %d: %s', stepIndex, skipResult.reason);
+          this.indexManager.resetQueue(); // Clear queue to prevent leaking to next step
           this.machine.send({ type: 'SKIP' });
           continue;
         }

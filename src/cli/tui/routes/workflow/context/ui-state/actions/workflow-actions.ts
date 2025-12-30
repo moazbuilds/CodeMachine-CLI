@@ -4,7 +4,7 @@
  * Actions for managing workflow status and checkpoint state.
  */
 
-import type { WorkflowState, WorkflowStatus, LoopState, ChainedState, InputState, TriggeredAgentState } from "../types"
+import type { WorkflowState, WorkflowStatus, LoopState, ChainedState, InputState, TriggeredAgentState, ControllerState } from "../types"
 
 export type WorkflowActionsContext = {
   getState(): WorkflowState
@@ -147,6 +147,12 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
     ctx.notify()
   }
 
+  function setControllerState(controllerState: ControllerState | null): void {
+    const state = ctx.getState()
+    ctx.setState({ ...state, controllerState })
+    ctx.notify()
+  }
+
   return {
     setWorkflowName,
     setWorkflowStatus,
@@ -159,5 +165,6 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
     addSeparator,
     logMessage,
     setAutonomousMode,
+    setControllerState,
   }
 }

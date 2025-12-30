@@ -33,7 +33,8 @@ export type WorkflowEvent =
   | { type: 'SKIP' }
   | { type: 'PAUSE' }
   | { type: 'STOP' }
-  | { type: 'DELEGATE' };  // Switch from awaiting to delegated (mode change to auto)
+  | { type: 'DELEGATE' }   // Switch from awaiting to delegated (mode change to auto)
+  | { type: 'AWAIT' };     // Switch from delegated to awaiting (mode change to manual)
 
 /**
  * Output from a completed step

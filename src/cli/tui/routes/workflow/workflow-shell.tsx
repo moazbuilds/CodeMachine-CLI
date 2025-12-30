@@ -365,6 +365,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
           <box flexDirection="column" width={isTimelineCollapsed() ? "100%" : "65%"}>
             <OutputWindow
               currentAgent={currentAgent()}
+              controllerState={state().controllerState}
               availableWidth={Math.floor((dimensions()?.width ?? 80) * (isTimelineCollapsed() ? 1 : 0.65))}
               lines={logStream.lines}
               isLoading={logStream.isLoading}

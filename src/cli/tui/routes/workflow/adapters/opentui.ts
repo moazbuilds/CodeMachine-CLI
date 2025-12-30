@@ -7,7 +7,7 @@
 
 import type { WorkflowEvent } from "../../../../../workflows/events/index.js"
 import { debug } from "../../../../../shared/logging/logger.js"
-import type { AgentStatus, SubAgentState, LoopState, ChainedState, InputState, TriggeredAgentState } from "../state/types.js"
+import type { AgentStatus, SubAgentState, LoopState, ChainedState, InputState, TriggeredAgentState, ControllerState, WorkflowState } from "../state/types.js"
 import { BaseUIAdapter } from "./base.js"
 import type { UIAdapterOptions } from "./types.js"
 import { timerService } from "@tui/shared/services"
@@ -60,6 +60,8 @@ export interface UIActions {
   addSeparator(separator: { id: string; text: string; stepIndex: number }): void
   logMessage(agentId: string, message: string): void
   showToast?(variant: "success" | "error" | "info" | "warning", message: string): void
+  getState(): WorkflowState
+  setControllerState(controllerState: ControllerState | null): void
 }
 
 export interface OpenTUIAdapterOptions extends UIAdapterOptions {
@@ -180,6 +182,34 @@ export class OpenTUIAdapter extends BaseUIAdapter {
 
       case "agent:reset":
         this.actions.resetAgentForLoop(event.agentId, event.cycleNumber)
+        break
+
+      // Controller agent events
+      case "controller:info":
+        this.actions.setControllerState({
+          id: event.id,
+          name: event.name,
+          engine: event.engine,
+          model: event.model,
+        })
+        break
+
+      case "controller:engine":
+        {
+          const currentController = this.actions.getState().controllerState
+          if (currentController) {
+            this.actions.setControllerState({ ...currentController, engine: event.engine })
+          }
+        }
+        break
+
+      case "controller:model":
+        {
+          const currentController = this.actions.getState().controllerState
+          if (currentController) {
+            this.actions.setControllerState({ ...currentController, model: event.model })
+          }
+        }
         break
 
       // Sub-agent events

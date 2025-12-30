@@ -11,6 +11,7 @@ import type {
   SubAgentState,
   TriggeredAgentState,
   WorkflowStatus,
+  ControllerState,
 } from "../../state/types"
 
 export type Listener = () => void
@@ -52,6 +53,7 @@ export type UIActions = {
   addSeparator(separator: { id: string; text: string; stepIndex: number }): void
   logMessage(agentId: string, message: string): void
   setAutonomousMode(enabled: boolean): void
+  setControllerState(controllerState: ControllerState | null): void
 }
 
-export type { WorkflowState, AgentStatus, LoopState, ChainedState, InputState, SubAgentState, TriggeredAgentState, WorkflowStatus }
+export type { WorkflowState, AgentStatus, LoopState, ChainedState, InputState, SubAgentState, TriggeredAgentState, WorkflowStatus, ControllerState }

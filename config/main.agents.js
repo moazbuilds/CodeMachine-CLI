@@ -81,6 +81,7 @@ module.exports = [
       path.join(promptsDir, 'bmad', 'shared', 'system-files-protection.md'),
       path.join(promptsDir, 'bmad', 'controller', 'PO.md'),
     ],
+    engine: 'codex'
   },
 
   // BMAD agents

@@ -168,6 +168,10 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       const uniqueAgentId = getUniqueAgentId(step, moduleIndex);
       const isCompleted = moduleIndex < startIndex;
 
+      // Resolve model from step or engine default
+      const engineModule = registry.get(engineType);
+      const resolvedModel = step.model ?? engineModule?.metadata.defaultModel;
+
       debug('[Workflow] Module %d (step %d): agentId=%s, isCompleted=%s (moduleIndex %d < startIndex %d = %s)',
         moduleIndex, stepIndex, step.agentId, isCompleted, moduleIndex, startIndex, moduleIndex < startIndex);
 
@@ -179,7 +183,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         moduleSteps.length,
         stepIndex, // orderIndex: overall step position for timeline ordering
         isCompleted ? 'completed' : 'pending',
-        step.model
+        resolvedModel
       );
 
       // For completed agents, register their monitoringId from template.json

@@ -28,8 +28,20 @@ export interface DelegatedCallbacks {
 export async function handleDelegated(ctx: RunnerContext, callbacks: DelegatedCallbacks): Promise<void> {
   const machineCtx = ctx.machine.context;
 
-  debug('[Runner:delegated] Handling delegated state, promptQueue=%d items, queueIndex=%d',
-    ctx.indexManager.promptQueue.length, ctx.indexManager.promptQueueIndex);
+  debug('[Runner:delegated] Handling delegated state, promptQueue=%d items, queueIndex=%d, autoMode=%s',
+    ctx.indexManager.promptQueue.length, ctx.indexManager.promptQueueIndex, ctx.mode.autoMode);
+
+  // Get current step
+  const step = ctx.moduleSteps[machineCtx.currentStepIndex];
+  const stepUniqueAgentId = getUniqueAgentId(step, machineCtx.currentStepIndex);
+
+  // Check if auto mode was disabled - transition back to awaiting
+  if (!ctx.mode.autoMode) {
+    debug('[Runner:delegated] Auto mode disabled, transitioning to awaiting state');
+    ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'awaiting');
+    ctx.machine.send({ type: 'AWAIT' });
+    return;
+  }
 
   // Get queue state from session
   const session = ctx.getCurrentSession();
@@ -37,17 +49,13 @@ export async function handleDelegated(ctx: RunnerContext, callbacks: DelegatedCa
     ? !session.isQueueExhausted
     : !ctx.indexManager.isQueueExhausted();
 
-  // Get current step
-  const step = ctx.moduleSteps[machineCtx.currentStepIndex];
-  const stepUniqueAgentId = getUniqueAgentId(step, machineCtx.currentStepIndex);
-
   // Update agent status to delegated
   ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'delegated');
 
-  // Resolve interactive behavior
+  // Resolve interactive behavior using actual mode state
   const behavior = resolveInteractiveBehavior({
     step,
-    autoMode: true, // Always true in delegated state
+    autoMode: ctx.mode.autoMode,
     hasChainedPrompts,
     stepIndex: machineCtx.currentStepIndex,
   });
@@ -99,6 +107,13 @@ export async function handleDelegated(ctx: RunnerContext, callbacks: DelegatedCa
 
   // Get input from controller
   const result = await provider.getInput(inputContext);
+
+  // Check if we were skipped while waiting for controller
+  // (skip signal changes state from delegated to running)
+  if (ctx.machine.state !== 'delegated') {
+    debug('[Runner:delegated] State changed to %s while waiting, bailing out', ctx.machine.state);
+    return;
+  }
 
   debug('[Runner:delegated] Got controller result: type=%s', result.type);
 
@@ -168,6 +183,7 @@ export async function handleDelegated(ctx: RunnerContext, callbacks: DelegatedCa
         // Default: advance to next step
         debug('[Runner:delegated] Advancing to next step');
         ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'completed');
+        ctx.indexManager.resetQueue(); // Clear queue when advancing to prevent leaking to next step
         await ctx.indexManager.stepCompleted(machineCtx.currentStepIndex);
         ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
       } else {
@@ -179,6 +195,7 @@ export async function handleDelegated(ctx: RunnerContext, callbacks: DelegatedCa
     case 'skip':
       debug('[Runner:delegated] Controller requested skip');
       ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'skipped');
+      ctx.indexManager.resetQueue(); // Clear queue when skipping to prevent leaking to next step
       await ctx.indexManager.stepCompleted(machineCtx.currentStepIndex);
       ctx.machine.send({ type: 'SKIP' });
       break;

@@ -284,6 +284,13 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
           debug('[FSM] Entering delegated state (controller agent)');
         },
         on: {
+          AWAIT: {
+            target: 'awaiting',
+            action: (ctx) => {
+              ctx.autoMode = false;
+              debug('[FSM] Mode switched to manual, transitioning to awaiting');
+            },
+          },
           INPUT_RECEIVED: [
             {
               target: 'running',

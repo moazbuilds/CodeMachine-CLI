@@ -122,6 +122,13 @@ export interface SeparatorItem {
   stepIndex: number
 }
 
+export interface ControllerState {
+  id: string
+  name: string
+  engine: string
+  model?: string
+}
+
 export interface WorkflowState {
   workflowName: string
   version: string
@@ -151,6 +158,7 @@ export interface WorkflowState {
   agentIdMapVersion: number
   agentLogs: Map<string, string[]>
   autonomousMode: boolean
+  controllerState: ControllerState | null
 }
 
 export type ThemeLike = {

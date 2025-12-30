@@ -197,6 +197,43 @@ export class WorkflowEventEmitter {
   }
 
   // ─────────────────────────────────────────────────────────────────
+  // Controller Agent
+  // ─────────────────────────────────────────────────────────────────
+
+  /**
+   * Emit controller agent info (id, name, engine, model)
+   */
+  setControllerInfo(id: string, name: string, engine: string, model?: string): void {
+    this.bus.emit({
+      type: 'controller:info',
+      id,
+      name,
+      engine,
+      model,
+    });
+  }
+
+  /**
+   * Emit controller engine update
+   */
+  updateControllerEngine(engine: string): void {
+    this.bus.emit({
+      type: 'controller:engine',
+      engine,
+    });
+  }
+
+  /**
+   * Emit controller model update
+   */
+  updateControllerModel(model: string): void {
+    this.bus.emit({
+      type: 'controller:model',
+      model,
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────
   // Sub-Agents
   // ─────────────────────────────────────────────────────────────────
 

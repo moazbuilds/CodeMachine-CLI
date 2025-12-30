@@ -90,6 +90,11 @@ export type WorkflowEvent =
   | { type: 'agent:telemetry'; agentId: string; telemetry: Partial<AgentTelemetry> }
   | { type: 'agent:reset'; agentId: string; cycleNumber?: number }
 
+  // Controller agent events
+  | { type: 'controller:info'; id: string; name: string; engine: string; model?: string }
+  | { type: 'controller:engine'; engine: string }
+  | { type: 'controller:model'; model: string }
+
   // Sub-agent events
   | { type: 'subagent:added'; parentId: string; subAgent: SubAgentState }
   | { type: 'subagent:batch'; parentId: string; subAgents: SubAgentState[] }

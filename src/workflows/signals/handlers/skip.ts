@@ -20,9 +20,20 @@ export function handleSkipSignal(ctx: SignalContext): void {
     return;
   }
 
-  if (ctx.machine.state === 'running') {
+  if (ctx.machine.state === 'running' || ctx.machine.state === 'awaiting' || ctx.machine.state === 'delegated') {
+    const wasDelegated = ctx.machine.state === 'delegated';
+
     // Update UI status
     ctx.emitter.updateAgentStatus(stepContext.agentId, 'skipped');
+
+    // Clear queue to prevent leaking to next step
+    ctx.indexManager.resetQueue();
+
+    // If in delegated state, abort the controller agent first
+    if (wasDelegated) {
+      debug('[SkipSignal] Aborting controller agent');
+      ctx.mode.getControllerInput().abort();
+    }
 
     // Transition state machine to next step
     ctx.machine.send({ type: 'SKIP' });

@@ -13,7 +13,7 @@ import { ShimmerText } from "./shimmer-text"
 import { TypingText } from "./typing-text"
 import { LogLine } from "../shared/log-line"
 import { PromptLine, type PromptLineState } from "./prompt-line"
-import type { AgentState, SubAgentState, InputState } from "../../state/types"
+import type { AgentState, SubAgentState, InputState, ControllerState } from "../../state/types"
 
 // Rotating messages shown while connecting to agent
 const CONNECTING_MESSAGES = [
@@ -26,6 +26,7 @@ const CONNECTING_MESSAGES = [
 
 export interface OutputWindowProps {
   currentAgent: AgentState | SubAgentState | null
+  controllerState?: ControllerState | null
   lines: string[]
   isLoading: boolean
   isConnecting: boolean
@@ -75,6 +76,14 @@ export function OutputWindow(props: OutputWindowProps) {
     if (status === "failed") return themeCtx.theme.error
     return themeCtx.theme.warning
   }
+
+  // Check if controller is active (delegated state)
+  const isControllerActive = () => props.currentAgent?.status === "delegated" && props.controllerState != null
+
+  // Get display name/engine/model (controller when delegated, step agent otherwise)
+  const displayName = () => isControllerActive() ? props.controllerState!.name : props.currentAgent?.name
+  const displayEngine = () => isControllerActive() ? props.controllerState!.engine : props.currentAgent?.engine
+  const displayModel = () => isControllerActive() ? props.controllerState!.model : props.currentAgent?.model
 
   // Get connecting message
   const connectingMessage = () => {
@@ -171,12 +180,12 @@ export function OutputWindow(props: OutputWindowProps) {
                 <text fg={themeCtx.theme.border}>│  </text>
                 <text fg={themeCtx.theme.text}>{isRunning() && props.latestThinking ? "(╭ರ_•́)" : "(˶ᵔ ᵕ ᵔ˶)"}</text>
                 <text>  </text>
-                <text fg={themeCtx.theme.text} attributes={1}>{props.currentAgent!.name}</text>
+                <text fg={themeCtx.theme.text} attributes={1}>{displayName()}</text>
               </box>
               <box flexDirection="row" gap={1}>
-                <text fg={themeCtx.theme.info}>{props.currentAgent!.engine}</text>
-                <Show when={props.currentAgent!.model}>
-                  <text fg={themeCtx.theme.textMuted}>{props.currentAgent!.model}</text>
+                <text fg={themeCtx.theme.info}>{displayEngine()}</text>
+                <Show when={displayModel()}>
+                  <text fg={themeCtx.theme.textMuted}>{displayModel()}</text>
                 </Show>
                 <text fg={statusColor()}>● {props.currentAgent!.status}</text>
               </box>
@@ -189,13 +198,13 @@ export function OutputWindow(props: OutputWindowProps) {
               <text fg={themeCtx.theme.border}>│  </text>
               <text fg={themeCtx.theme.text}>{isRunning() && props.latestThinking ? "(╭ರ_•́)" : "(˶ᵔ ᵕ ᵔ˶)"}</text>
               <text>  </text>
-              <text fg={themeCtx.theme.text} attributes={1}>{props.currentAgent!.name}</text>
+              <text fg={themeCtx.theme.text} attributes={1}>{displayName()}</text>
             </box>
             <box flexDirection="row">
               <text fg={themeCtx.theme.border}>│  </text>
-              <text fg={themeCtx.theme.info}>{props.currentAgent!.engine}</text>
-              <Show when={props.currentAgent!.model}>
-                <text fg={themeCtx.theme.textMuted}> {props.currentAgent!.model}</text>
+              <text fg={themeCtx.theme.info}>{displayEngine()}</text>
+              <Show when={displayModel()}>
+                <text fg={themeCtx.theme.textMuted}> {displayModel()}</text>
               </Show>
               <text fg={statusColor()}> ● {props.currentAgent!.status}</text>
             </box>
