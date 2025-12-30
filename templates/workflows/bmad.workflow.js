@@ -38,6 +38,6 @@ export default {
     separator("⟲ Story Loop ⟲"),
     resolveStep('bmad-stories', {interactive: false}),
     resolveStep('bmad-dev', {interactive: false}),
-    resolveModule('bmad-review', {interactive: false, loopSteps: 3 }),
+    resolveModule('bmad-review', {interactive: false, loopSteps: 2 }),
   ],
 };
