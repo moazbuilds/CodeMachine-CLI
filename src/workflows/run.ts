@@ -19,7 +19,7 @@ import {
 } from '../shared/workflows/index.js';
 import { StepIndexManager } from './indexing/index.js';
 import { registry } from '../infra/engines/index.js';
-import { MonitoringCleanup } from '../agents/monitoring/index.js';
+import { MonitoringCleanup, AgentMonitorService } from '../agents/monitoring/index.js';
 import { WorkflowEventBus, WorkflowEventEmitter } from './events/index.js';
 import { validateSpecification } from '../runtime/services/index.js';
 import { WorkflowRunner } from './runner/index.js';
@@ -54,8 +54,33 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   // Set up cleanup handlers
   MonitoringCleanup.setup();
 
-  // Load template
+  // Load template (needed before we can set up the before-cleanup handler)
   const cmRoot = path.join(cwd, '.codemachine');
+  const indexManager = new StepIndexManager(cmRoot);
+
+  // Register callback to save session state before cleanup on Ctrl+C
+  // This ensures session/monitoring IDs are persisted even if the first turn hasn't completed
+  MonitoringCleanup.registerWorkflowHandlers({
+    onBeforeCleanup: async () => {
+      const monitor = AgentMonitorService.getInstance();
+      const activeAgents = monitor.getActiveAgents();
+
+      // Find root agents (no parentId) - these are the main step agents
+      const rootAgents = activeAgents.filter((agent) => !agent.parentId);
+
+      for (const agent of rootAgents) {
+        // Only save if agent has a sessionId (needed for resume)
+        if (agent.sessionId) {
+          const stepIndex = indexManager.currentStepIndex;
+          debug('[Workflow] Saving session state on Ctrl+C: step=%d, sessionId=%s, monitoringId=%d',
+            stepIndex, agent.sessionId, agent.id);
+          await indexManager.stepSessionInitialized(stepIndex, agent.sessionId, agent.id);
+        }
+      }
+    },
+  });
+
+  // Load template
   const templatePath = options.templatePath || (await getTemplatePathFromTracking(cmRoot));
   const { template } = await loadTemplateWithPath(cwd, templatePath);
 
@@ -107,9 +132,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     // @ts-expect-error - global export
     globalThis.__workflowEventBus = eventBus;
   }
-
-  // Create step index manager
-  const indexManager = new StepIndexManager(cmRoot);
 
   // Get resume info
   const resumeInfo = await indexManager.getResumeInfo();

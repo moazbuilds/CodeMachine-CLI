@@ -18,13 +18,19 @@ export class MonitoringCleanup {
   private static workflowHandlers: {
     onStop?: () => void;
     onExit?: () => void;
+    onBeforeCleanup?: () => Promise<void>;
   } = {};
 
   /**
    * Register callbacks invoked during the two-stage Ctrl+C flow.
+   * Merges with existing handlers (new handlers override existing ones for the same key).
    */
-  static registerWorkflowHandlers(handlers: { onStop?: () => void; onExit?: () => void }): void {
-    this.workflowHandlers = handlers;
+  static registerWorkflowHandlers(handlers: {
+    onStop?: () => void;
+    onExit?: () => void;
+    onBeforeCleanup?: () => Promise<void>;
+  }): void {
+    this.workflowHandlers = { ...this.workflowHandlers, ...handlers };
   }
 
   static clearWorkflowHandlers(): void {
@@ -138,6 +144,15 @@ export class MonitoringCleanup {
 
     // Emit workflow:skip to abort the currently running step
     (process as NodeJS.EventEmitter).emit('workflow:skip');
+
+    // Save session state for active agents before cleanup (for resume on restart)
+    if (this.workflowHandlers.onBeforeCleanup) {
+      try {
+        await this.workflowHandlers.onBeforeCleanup();
+      } catch (error) {
+        logger.debug('onBeforeCleanup failed:', error);
+      }
+    }
 
     // Stop active agents
     await this.stopActiveAgents();
