@@ -19,7 +19,7 @@ import { Workflow } from "@tui/routes/workflow"
 import { Onboard } from "@tui/routes/onboard"
 import { homedir } from "os"
 import { WorkflowEventBus, OnboardingService } from "../../workflows/events/index.js"
-import { debug, setDebugLogFile } from "../../shared/logging/logger.js"
+import { debug, setDebugLogFile, appDebug } from "../../shared/logging/logger.js"
 import { MonitoringCleanup } from "../../agents/monitoring/index.js"
 import path from "path"
 import { createRequire } from "node:module"
@@ -104,6 +104,7 @@ async function copyToSystemClipboard(text: string): Promise<void> {
 }
 
 export function App(props: { initialToast?: InitialToast }) {
+  appDebug('[AppShell] App component initializing')
   const dimensions = useTerminalDimensions()
   const themeCtx = useTheme()
   const session = useSession()
@@ -111,9 +112,11 @@ export function App(props: { initialToast?: InitialToast }) {
   const renderer = useRenderer()
   const toast = useToast()
   const kv = useKV()
+  appDebug('[AppShell] Hooks initialized')
 
   // Global error handler - any part of the app can emit 'app:error' to show a toast
   const handleAppError = (data: { message: string; duration?: number }) => {
+    appDebug('[AppShell] App error received: %s', data.message)
     toast.show({
       variant: "error",
       message: data.message,
@@ -143,8 +146,10 @@ export function App(props: { initialToast?: InitialToast }) {
   }
 
   const handleStartWorkflow = async () => {
+    appDebug('[AppShell] handleStartWorkflow called')
     const cwd = process.env.CODEMACHINE_CWD || process.cwd()
     const cmRoot = path.join(cwd, '.codemachine')
+    appDebug('[AppShell] cwd=%s, cmRoot=%s', cwd, cmRoot)
 
     // Initialize debug log file early (before onboarding) so all logs are captured
     const rawLogLevel = (process.env.LOG_LEVEL || '').trim().toLowerCase()
@@ -152,6 +157,7 @@ export function App(props: { initialToast?: InitialToast }) {
     const debugEnabled = rawLogLevel === 'debug' || (debugFlag !== '' && debugFlag !== '0' && debugFlag !== 'false')
     if (debugEnabled) {
       const debugLogPath = path.join(cwd, '.codemachine', 'logs', 'workflow-debug.log')
+      appDebug('[AppShell] Switching to workflow debug log: %s', debugLogPath)
       setDebugLogFile(debugLogPath)
     }
 
@@ -221,14 +227,17 @@ export function App(props: { initialToast?: InitialToast }) {
       }
     } catch (error) {
       // If template loading fails, proceed to workflow anyway
+      appDebug('[AppShell] Failed to check tracks/conditions: %s', error)
       console.error("Failed to check tracks/conditions:", error)
     }
 
     // No tracks/conditions or already selected - start workflow directly
+    appDebug('[AppShell] Starting workflow execution directly')
     startWorkflowExecution()
   }
 
   const startWorkflowExecution = () => {
+    appDebug('[AppShell] startWorkflowExecution called')
     const eventBus = new WorkflowEventBus()
     setWorkflowEventBus(eventBus)
     // @ts-expect-error - global export for workflow connection
@@ -236,12 +245,15 @@ export function App(props: { initialToast?: InitialToast }) {
 
     const cwd = process.env.CODEMACHINE_CWD || process.cwd()
     const specPath = path.join(cwd, '.codemachine', 'inputs', 'specifications.md')
+    appDebug('[AppShell] specPath=%s', specPath)
 
     pendingWorkflowStart = () => {
+      appDebug('[AppShell] Importing and running workflow')
       import("../../workflows/run.js").then(({ runWorkflow }) => {
         runWorkflow({ cwd, specificationPath: specPath }).catch((error) => {
           // Emit error event to show toast with actual error message
           const errorMsg = error instanceof Error ? error.message : String(error)
+          appDebug('[AppShell] Workflow error: %s', errorMsg)
           ;(process as NodeJS.EventEmitter).emit('app:error', { message: errorMsg })
         })
       })
@@ -249,6 +261,7 @@ export function App(props: { initialToast?: InitialToast }) {
 
     currentView = "workflow"
     setView("workflow")
+    appDebug('[AppShell] View set to workflow')
   }
 
   const handleOnboardComplete = async (result: { projectName?: string; trackId?: string; conditions?: string[]; controllerAgentId?: string }) => {
