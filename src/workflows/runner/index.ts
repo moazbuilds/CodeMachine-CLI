@@ -38,7 +38,6 @@ import { handleDelegated } from './delegated.js';
 export type { WorkflowRunnerOptions, RunnerContext } from './types.js';
 export { handleWaiting } from './wait.js';
 export { handleDelegated } from './delegated.js';
-export * from './resume.js';
 
 /**
  * Workflow runner class

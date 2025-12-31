@@ -18,6 +18,7 @@ import { loadChainedPrompts } from '../../agents/runner/chained.js';
 import { beforeRun, afterRun, cleanupRun } from './hooks.js';
 import type { RunnerContext } from '../runner/types.js';
 import { resolveInteractiveBehavior } from './interactive.js';
+import { handleCrashRecovery } from '../recovery/index.js';
 
 /**
  * Options for running a step
@@ -60,54 +61,22 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
 
   debug('[step/run] Running fresh step %d: %s', stepIndex, step.agentName);
 
-  // Check for resume data (existing session from previous run)
+  // Check for crash recovery
   const stepData = await ctx.indexManager.getStepData(stepIndex);
-  const isResuming = stepData?.sessionId && !stepData.completedAt;
+  const recoveryResult = await handleCrashRecovery({
+    stepData,
+    step,
+    stepIndex,
+    uniqueAgentId,
+    cwd: ctx.cwd,
+    cmRoot: ctx.cmRoot,
+    emitter: ctx.emitter,
+    machine: ctx.machine,
+    indexManager: ctx.indexManager,
+    session: ctx.getCurrentSession(),
+  });
 
-  // If resuming from crash, go directly to waiting state
-  if (isResuming) {
-    debug('[step/run] Found resume data, going to waiting state');
-
-    if (stepData.monitoringId !== undefined) {
-      ctx.emitter.registerMonitoringId(uniqueAgentId, stepData.monitoringId);
-    }
-
-    ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
-
-    machineCtx.currentMonitoringId = stepData.monitoringId;
-    machineCtx.currentOutput = {
-      output: '',
-      monitoringId: stepData.monitoringId,
-    };
-
-    // Restore queue from persisted completedChains
-    if (stepData.completedChains && stepData.completedChains.length > 0) {
-      const agentConfig = await loadAgentConfig(step.agentId, ctx.cwd);
-      if (agentConfig?.chainedPromptsPath) {
-        const selectedConditions = await getSelectedConditions(ctx.cmRoot);
-        const chainedPrompts = await loadChainedPrompts(
-          agentConfig.chainedPromptsPath,
-          ctx.cwd,
-          selectedConditions
-        );
-        if (chainedPrompts.length > 0) {
-          const resumeIndex = Math.max(...stepData.completedChains) + 1;
-          debug('[step/run] Restoring queue: %d prompts, resuming at index %d', chainedPrompts.length, resumeIndex);
-          const session = ctx.getCurrentSession();
-          if (session) {
-            session.initializeFromPersisted(chainedPrompts, resumeIndex);
-          } else {
-            // Session should always exist - use indexManager directly as fallback
-            ctx.indexManager.initQueue(chainedPrompts, resumeIndex);
-          }
-        }
-      }
-    }
-
-    ctx.machine.send({
-      type: 'STEP_COMPLETE',
-      output: { output: '', monitoringId: stepData.monitoringId },
-    });
+  if (recoveryResult.handled) {
     return null;
   }
 
