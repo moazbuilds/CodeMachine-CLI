@@ -21,8 +21,9 @@ jobs:
             target: linux-arm64
           - os: macos-14
             slug: codemachine-darwin-arm64
-          - os: macos-13
+          - os: macos-14
             slug: codemachine-darwin-x64
+            target: darwin-x64
           - os: windows-latest
             slug: codemachine-windows-x64
     steps:
