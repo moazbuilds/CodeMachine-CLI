@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { mkdirSync, rmSync, cpSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
-import { join, dirname, resolve } from 'node:path';
+import { join, dirname, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { platform, arch } from 'node:os';
 import { $ } from 'bun';
@@ -75,9 +75,10 @@ const resourceFiles = [
 ];
 
 // Generate simple imports file (no exports/mapping needed with --asset-naming)
+const manifestDir = join(repoRoot, 'src', 'shared', 'runtime');
 const imports = resourceFiles.map((abs) => {
-  // Manifest is at src/shared/runtime/, so need ../../../ to reach repo root
-  const rel = '../../../' + abs.replace(repoRoot + '/', '');
+  // Use path.relative for cross-platform compatibility, then normalize to forward slashes
+  const rel = relative(manifestDir, abs).replace(/\\/g, '/');
   return `import "${rel}" with { type: "file" };`;
 });
 
