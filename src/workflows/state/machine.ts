@@ -127,6 +127,7 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
     paused: false,
     cwd: process.cwd(),
     cmRoot: '',
+    continuationPromptSent: false,
     ...initialContext,
   };
 
@@ -196,6 +197,7 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
               guard: (ctx) => ctx.currentStepIndex < ctx.totalSteps - 1,
               action: (ctx) => {
                 ctx.currentStepIndex += 1;
+                ctx.continuationPromptSent = false;
                 debug('[FSM] Skipped during run, advancing to step %d', ctx.currentStepIndex + 1);
               },
             },
@@ -246,6 +248,7 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
               action: (ctx, event) => {
                 if (event.type === 'INPUT_RECEIVED') {
                   ctx.currentStepIndex += 1;
+                  ctx.continuationPromptSent = false;
                   debug('[FSM] Input received, advancing to step %d', ctx.currentStepIndex + 1);
                 }
               },
@@ -267,6 +270,7 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
               guard: (ctx) => ctx.currentStepIndex < ctx.totalSteps - 1,
               action: (ctx) => {
                 ctx.currentStepIndex += 1;
+                ctx.continuationPromptSent = false;
                 debug('[FSM] Skipped, advancing to step %d', ctx.currentStepIndex + 1);
               },
             },
@@ -291,6 +295,7 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
             target: 'awaiting',
             action: (ctx) => {
               ctx.autoMode = false;
+              ctx.continuationPromptSent = false; // Reset so next auto mode entry sends prompt
               debug('[FSM] Mode switched to manual, transitioning to awaiting');
             },
           },
@@ -301,6 +306,7 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
               action: (ctx, event) => {
                 if (event.type === 'INPUT_RECEIVED') {
                   ctx.currentStepIndex += 1;
+                  ctx.continuationPromptSent = false;
                   debug('[FSM] Controller input received, advancing to step %d', ctx.currentStepIndex + 1);
                 }
               },
@@ -319,6 +325,7 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
               guard: (ctx) => ctx.currentStepIndex < ctx.totalSteps - 1,
               action: (ctx) => {
                 ctx.currentStepIndex += 1;
+                ctx.continuationPromptSent = false;
                 debug('[FSM] Controller skipped, advancing to step %d', ctx.currentStepIndex + 1);
               },
             },
@@ -332,6 +339,7 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
             action: (ctx) => {
               ctx.autoMode = false;
               ctx.paused = true;
+              ctx.continuationPromptSent = false; // Reset so next auto mode entry sends prompt
               debug('[FSM] Controller paused - switching to manual mode');
             },
           },

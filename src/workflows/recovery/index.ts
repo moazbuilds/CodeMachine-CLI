@@ -6,6 +6,7 @@
  */
 
 import { debug } from '../../shared/logging/logger.js';
+import { DEFAULT_CONTINUATION_PROMPT } from '../../shared/prompts/index.js';
 import type { StepData } from '../indexing/types.js';
 import type { WorkflowEventEmitter } from '../events/index.js';
 import type { StepIndexManager } from '../indexing/index.js';
@@ -140,7 +141,6 @@ export async function handleCrashRecovery(
 
   // 3. Handle recovery based on mode
   const isAutoMode = machine.context.autoMode;
-  const recoveryPrompt = 'Continue where you left off. Review what was accomplished and proceed with the next logical step.';
 
   if (isAutoMode) {
     // Auto mode: Send recovery prompt directly before transitioning
@@ -152,12 +152,15 @@ export async function handleCrashRecovery(
     debug('[recovery] Auto mode: sending recovery prompt to agent');
     emitter.updateAgentStatus(uniqueAgentId, 'running');
 
+    // Mark continuation prompt as sent to prevent handleDelegated from sending again
+    machine.context.continuationPromptSent = true;
+
     // Transition to running state before sending prompt
     machine.send({ type: 'RESUME' });
 
     // Send recovery prompt and wait for agent response
     await options.sendRecoveryPrompt({
-      resumePrompt: recoveryPrompt,
+      resumePrompt: DEFAULT_CONTINUATION_PROMPT,
       resumeMonitoringId: stepData?.monitoringId,
       source: 'controller',
     });

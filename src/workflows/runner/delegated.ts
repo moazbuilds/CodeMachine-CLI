@@ -6,6 +6,7 @@
  */
 
 import { debug } from '../../shared/logging/logger.js';
+import { DEFAULT_CONTINUATION_PROMPT } from '../../shared/prompts/index.js';
 import type { InputContext } from '../input/index.js';
 import { getUniqueAgentId } from '../context/index.js';
 import { runStepResume } from '../step/run.js';
@@ -81,10 +82,61 @@ export async function handleDelegated(ctx: RunnerContext, callbacks: DelegatedCa
   debug('[Runner:delegated] Scenario=%d, shouldWait=%s, runAutonomousLoop=%s',
     behavior.scenario, behavior.shouldWait, behavior.runAutonomousLoop);
 
+  // Auto mode continuation: Send continuation prompt FIRST before any scenario handling
+  // This ensures agent gets a chance to continue when auto mode is enabled
+  if (!machineCtx.continuationPromptSent && machineCtx.currentOutput) {
+    debug('[Runner:delegated] Sending continuation prompt (first entry into auto mode)');
+
+    // Mark as sent to prevent re-sending on next entry
+    machineCtx.continuationPromptSent = true;
+
+    // Update status and transition to running
+    ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'running');
+    ctx.machine.send({ type: 'RESUME' });
+
+    // Track mode switch during execution (so pause works mid-turn)
+    let modeSwitchRequested: 'manual' | null = null;
+    const modeChangeHandler = (data: { autonomousMode: boolean }) => {
+      if (!data.autonomousMode) {
+        debug('[Runner:delegated] Mode change to manual during continuation prompt');
+        modeSwitchRequested = 'manual';
+        ctx.getAbortController()?.abort();
+      }
+    };
+    process.on('workflow:mode-change', modeChangeHandler);
+
+    try {
+      // Send continuation prompt and wait for agent response
+      await runStepResume(ctx, {
+        resumePrompt: DEFAULT_CONTINUATION_PROMPT,
+        resumeMonitoringId: machineCtx.currentMonitoringId,
+        source: 'controller',
+      });
+
+      debug('[Runner:delegated] Continuation prompt sent, agent responded');
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        if (modeSwitchRequested === 'manual') {
+          debug('[Runner:delegated] Continuation prompt aborted due to mode switch to manual');
+          ctx.emitter.updateAgentStatus(stepUniqueAgentId, 'awaiting');
+          await callbacks.setAutoMode(false);
+        }
+        return;
+      }
+      throw error;
+    } finally {
+      process.removeListener('workflow:mode-change', modeChangeHandler);
+    }
+
+    // After agent responds, state machine transitions back to delegated
+    // Next call to handleDelegated will proceed with scenario handling
+    return;
+  }
+
   // Handle Scenario 5: Fully autonomous prompt loop (interactive:false + autoMode + chainedPrompts)
   if (behavior.runAutonomousLoop) {
     debug('[Runner:delegated] Running autonomous prompt loop (Scenario 5)');
-    await runAutonomousPromptLoop(ctx);
+    await runAutonomousPromptLoop(ctx, callbacks);
     return;
   }
 
@@ -263,7 +315,7 @@ export async function handleDelegated(ctx: RunnerContext, callbacks: DelegatedCa
  *
  * Automatically sends the next chained prompt without controller involvement.
  */
-async function runAutonomousPromptLoop(ctx: RunnerContext): Promise<void> {
+async function runAutonomousPromptLoop(ctx: RunnerContext, callbacks: DelegatedCallbacks): Promise<void> {
   const machineCtx = ctx.machine.context;
   const stepIndex = machineCtx.currentStepIndex;
   const step = ctx.moduleSteps[stepIndex];
@@ -375,11 +427,37 @@ async function runAutonomousPromptLoop(ctx: RunnerContext): Promise<void> {
 
   // Resume step with the prompt
   ctx.machine.send({ type: 'RESUME' });
-  await runStepResume(ctx, {
-    resumePrompt: nextPrompt.content,
-    resumeMonitoringId: machineCtx.currentMonitoringId,
-    source: 'controller',
-  });
+
+  // Track mode switch during execution (so pause works mid-turn)
+  let modeSwitchRequested: 'manual' | null = null;
+  const modeChangeHandler = (data: { autonomousMode: boolean }) => {
+    if (!data.autonomousMode) {
+      debug('[Runner:delegated:autonomous] Mode change to manual during prompt execution');
+      modeSwitchRequested = 'manual';
+      ctx.getAbortController()?.abort();
+    }
+  };
+  process.on('workflow:mode-change', modeChangeHandler);
+
+  try {
+    await runStepResume(ctx, {
+      resumePrompt: nextPrompt.content,
+      resumeMonitoringId: machineCtx.currentMonitoringId,
+      source: 'controller',
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      if (modeSwitchRequested === 'manual') {
+        debug('[Runner:delegated:autonomous] Prompt execution aborted due to mode switch to manual');
+        ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
+        await callbacks.setAutoMode(false);
+      }
+      return;
+    }
+    throw error;
+  } finally {
+    process.removeListener('workflow:mode-change', modeChangeHandler);
+  }
 }
 
 /**

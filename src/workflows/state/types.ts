@@ -70,6 +70,10 @@ export interface WorkflowContext {
 
   // Error tracking
   lastError?: Error;
+
+  // Auto mode continuation tracking
+  // When true, continuation prompt has been sent for current step in delegated state
+  continuationPromptSent?: boolean;
 }
 
 /**
