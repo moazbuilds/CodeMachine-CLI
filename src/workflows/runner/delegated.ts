@@ -27,6 +27,12 @@ export interface DelegatedCallbacks {
 export async function handleDelegated(ctx: RunnerContext, callbacks: DelegatedCallbacks): Promise<void> {
   const machineCtx = ctx.machine.context;
 
+  // Sync paused state from machineCtx to mode (for crash recovery)
+  if (machineCtx.paused && !ctx.mode.paused) {
+    debug('[Runner:delegated] Syncing paused state from machineCtx to mode (recovery)');
+    ctx.mode.pause();
+  }
+
   debug('[Runner:delegated] Handling delegated state, promptQueue=%d items, queueIndex=%d, autoMode=%s',
     ctx.indexManager.promptQueue.length, ctx.indexManager.promptQueueIndex, ctx.mode.autoMode);
 

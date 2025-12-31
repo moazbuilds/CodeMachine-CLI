@@ -142,8 +142,8 @@ export class MonitoringCleanup {
     // Suppress all error/warn logs during graceful shutdown
     setShuttingDown(true);
 
-    // Emit workflow:skip to abort the currently running step
-    (process as NodeJS.EventEmitter).emit('workflow:skip');
+    // Emit workflow:stop to stop the workflow (not skip to next step)
+    (process as NodeJS.EventEmitter).emit('workflow:stop');
 
     // Save session state for active agents before cleanup (for resume on restart)
     if (this.workflowHandlers.onBeforeCleanup) {

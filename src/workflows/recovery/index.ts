@@ -31,6 +31,23 @@ export type {
 } from './types.js';
 
 /**
+ * Options for sending recovery prompt
+ */
+export interface SendRecoveryPromptOptions {
+  /** Prompt to send */
+  resumePrompt: string;
+  /** Monitoring ID for the session */
+  resumeMonitoringId?: number;
+  /** Source of the prompt */
+  source: 'controller';
+}
+
+/**
+ * Callback to send recovery prompt to agent
+ */
+export type SendRecoveryPromptFn = (options: SendRecoveryPromptOptions) => Promise<void>;
+
+/**
  * Options for handleCrashRecovery
  */
 export interface HandleCrashRecoveryOptions {
@@ -54,6 +71,8 @@ export interface HandleCrashRecoveryOptions {
   indexManager: StepIndexManager;
   /** Current session (optional) */
   session?: StepSession | null;
+  /** Callback to send recovery prompt (required for auto mode recovery) */
+  sendRecoveryPrompt?: SendRecoveryPromptFn;
 }
 
 /**
@@ -119,13 +138,46 @@ export async function handleCrashRecovery(
 
   const restoration = await restoreFromCrash(restoreCtx);
 
-  // 3. Transition state machine to awaiting
-  machine.send({
-    type: 'STEP_COMPLETE',
-    output: { output: '', monitoringId: stepData?.monitoringId },
-  });
+  // 3. Handle recovery based on mode
+  const isAutoMode = machine.context.autoMode;
+  const recoveryPrompt = 'Continue where you left off. Review what was accomplished and proceed with the next logical step.';
 
-  debug('[recovery] Crash recovery complete, transitioning to awaiting state');
+  if (isAutoMode) {
+    // Auto mode: Send recovery prompt directly before transitioning
+    // This centralizes all recovery logic here instead of scattering to wait.ts/delegated.ts
+    if (!options.sendRecoveryPrompt) {
+      throw new Error('[recovery] Auto mode crash recovery requires sendRecoveryPrompt callback');
+    }
+
+    debug('[recovery] Auto mode: sending recovery prompt to agent');
+    emitter.updateAgentStatus(uniqueAgentId, 'running');
+
+    // Transition to running state before sending prompt
+    machine.send({ type: 'RESUME' });
+
+    // Send recovery prompt and wait for agent response
+    await options.sendRecoveryPrompt({
+      resumePrompt: recoveryPrompt,
+      resumeMonitoringId: stepData?.monitoringId,
+      source: 'controller',
+    });
+
+    debug('[recovery] Recovery prompt sent, agent responded');
+
+    // After agent responds, the state machine will have transitioned to awaiting/delegated
+    // The normal flow will continue from there (chained prompts, etc.)
+    debug('[recovery] Crash recovery complete (auto mode)');
+  } else {
+    // Manual mode: Pause and wait for user input
+    machine.context.paused = true;
+
+    machine.send({
+      type: 'STEP_COMPLETE',
+      output: { output: '', monitoringId: stepData?.monitoringId },
+    });
+
+    debug('[recovery] Crash recovery complete, transitioning to awaiting state (manual mode, paused)');
+  }
 
   return { handled: true, detection, restoration };
 }

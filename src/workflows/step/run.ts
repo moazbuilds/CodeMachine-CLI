@@ -74,6 +74,14 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
     machine: ctx.machine,
     indexManager: ctx.indexManager,
     session: ctx.getCurrentSession(),
+    // Callback to send recovery prompt - centralizes all recovery logic in recovery module
+    sendRecoveryPrompt: async (options) => {
+      await runStepResume(ctx, {
+        resumePrompt: options.resumePrompt,
+        resumeMonitoringId: options.resumeMonitoringId,
+        source: options.source,
+      });
+    },
   });
 
   if (recoveryResult.handled) {

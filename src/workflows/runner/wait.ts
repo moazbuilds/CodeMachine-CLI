@@ -31,18 +31,25 @@ export interface WaitCallbacks {
 export async function handleWaiting(ctx: RunnerContext, callbacks: WaitCallbacks): Promise<void> {
   const machineCtx = ctx.machine.context;
 
+  // Sync paused state from machineCtx to mode (for crash recovery)
+  // Recovery sets machineCtx.paused directly, mode needs to be synced
+  if (machineCtx.paused && !ctx.mode.paused) {
+    debug('[Runner] Syncing paused state from machineCtx to mode (recovery)');
+    ctx.mode.pause();
+  }
+
   debug('[Runner] Handling waiting state, autoMode=%s, paused=%s, promptQueue=%d items, queueIndex=%d',
     ctx.mode.autoMode, ctx.mode.paused, ctx.indexManager.promptQueue.length, ctx.indexManager.promptQueueIndex);
+
+  // Get current step info
+  const step = ctx.moduleSteps[machineCtx.currentStepIndex];
+  const stepUniqueAgentId = getUniqueAgentId(step, machineCtx.currentStepIndex);
 
   // Get queue state from session (uses indexManager as single source of truth)
   const session = ctx.getCurrentSession();
   const hasChainedPrompts = session
     ? !session.isQueueExhausted
     : !ctx.indexManager.isQueueExhausted();
-
-  // Get current step and resolve interactive behavior
-  const step = ctx.moduleSteps[machineCtx.currentStepIndex];
-  const stepUniqueAgentId = getUniqueAgentId(step, machineCtx.currentStepIndex);
 
   // Resolve interactive behavior using single source of truth
   const behavior = resolveInteractiveBehavior({

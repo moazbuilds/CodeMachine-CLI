@@ -58,42 +58,44 @@ export async function restoreFromCrash(ctx: CrashRestoreContext): Promise<CrashR
     monitoringId: stepData.monitoringId,
   };
 
-  // 4. Restore queue from completedChains
+  // 4. Restore queue from agent config (always try, not just when completedChains exists)
   let queueRestored = false;
   let promptCount = 0;
   let resumeIndex = 0;
 
-  if (stepData.completedChains && stepData.completedChains.length > 0) {
-    const agentConfig = await loadAgentConfig(step.agentId, cwd);
+  // Always try to load chained prompts from agent config
+  const agentConfig = await loadAgentConfig(step.agentId, cwd);
 
-    if (agentConfig?.chainedPromptsPath) {
-      const selectedConditions = await getSelectedConditions(cmRoot);
-      const chainedPrompts = await loadChainedPrompts(
-        agentConfig.chainedPromptsPath,
-        cwd,
-        selectedConditions
+  if (agentConfig?.chainedPromptsPath) {
+    const selectedConditions = await getSelectedConditions(cmRoot);
+    const chainedPrompts = await loadChainedPrompts(
+      agentConfig.chainedPromptsPath,
+      cwd,
+      selectedConditions
+    );
+
+    if (chainedPrompts.length > 0) {
+      // Use completedChains to determine resume index (or 0 if none completed yet)
+      resumeIndex = stepData.completedChains && stepData.completedChains.length > 0
+        ? getNextChainIndex(stepData)
+        : 0;
+      promptCount = chainedPrompts.length;
+
+      debug(
+        '[recovery/restore] Restoring queue: %d prompts, resuming at index %d (completedChains=%d)',
+        promptCount,
+        resumeIndex,
+        stepData.completedChains?.length ?? 0
       );
 
-      if (chainedPrompts.length > 0) {
-        // Use existing helper to calculate resume index
-        resumeIndex = getNextChainIndex(stepData);
-        promptCount = chainedPrompts.length;
-
-        debug(
-          '[recovery/restore] Restoring queue: %d prompts, resuming at index %d',
-          promptCount,
-          resumeIndex
-        );
-
-        // Use session if available, otherwise fall back to indexManager directly
-        if (session) {
-          session.initializeFromPersisted(chainedPrompts, resumeIndex);
-        } else {
-          indexManager.initQueue(chainedPrompts, resumeIndex);
-        }
-
-        queueRestored = true;
+      // Use session if available, otherwise fall back to indexManager directly
+      if (session) {
+        session.initializeFromPersisted(chainedPrompts, resumeIndex);
+      } else {
+        indexManager.initQueue(chainedPrompts, resumeIndex);
       }
+
+      queueRestored = true;
     }
   }
 
