@@ -120,9 +120,11 @@ export async function runCodemachineCli(argv: string[] = process.argv): Promise<
     .option('-d, --dir <path>', 'Target workspace directory', process.cwd())
     .option('--spec <path>', 'Path to the planning specification file', DEFAULT_SPEC_PATH)
     .action(async (options) => {
+      appDebug('[CLI] Action handler entered');
       // Set CWD immediately (lightweight, no I/O)
       const cwd = options.dir || process.cwd();
       process.env.CODEMACHINE_CWD = cwd;
+      appDebug('[CLI] CWD set to %s', cwd);
 
       // Start background initialization (non-blocking, fire-and-forget)
       // This runs while TUI is visible and user is reading/thinking
@@ -134,10 +136,16 @@ export async function runCodemachineCli(argv: string[] = process.argv): Promise<
 
       // Launch TUI immediately - don't wait for background init
       // Import via launcher to scope SolidJS transform to TUI only
-      appDebug('[CLI] Launching TUI');
+      appDebug('[CLI] Importing TUI launcher');
       const { startTUI } = await import('../cli/tui/launcher.js');
-      await startTUI();
-      appDebug('[CLI] TUI exited');
+      appDebug('[CLI] TUI launcher imported, calling startTUI()');
+      try {
+        await startTUI();
+        appDebug('[CLI] TUI exited normally');
+      } catch (tuiError) {
+        appDebug('[CLI] TUI error: %s', tuiError);
+        throw tuiError;
+      }
     });
 
   // Lazy load CLI commands only if user uses subcommands

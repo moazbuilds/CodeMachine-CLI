@@ -25,12 +25,22 @@ appDebug('[Launcher] isDev=%s', isDev);
 if (isDev) {
   appDebug('[Launcher] Loading OpenTUI preload');
   await import("@opentui/solid/preload")
+  appDebug('[Launcher] OpenTUI preload loaded');
 }
 
 // Dynamic import ensures app.js is loaded AFTER preload is registered (in dev)
 export async function startTUI() {
+  appDebug('[Launcher] startTUI() called');
   appDebug('[Launcher] Importing TUI app module');
-  const app = await import("./app.js");
-  appDebug('[Launcher] Starting TUI app');
-  return app.startTUI();
+  try {
+    const app = await import("./app.js");
+    appDebug('[Launcher] app.js imported successfully');
+    appDebug('[Launcher] Calling app.startTUI()');
+    const result = await app.startTUI();
+    appDebug('[Launcher] app.startTUI() returned');
+    return result;
+  } catch (err) {
+    appDebug('[Launcher] Error: %s', err);
+    throw err;
+  }
 }
