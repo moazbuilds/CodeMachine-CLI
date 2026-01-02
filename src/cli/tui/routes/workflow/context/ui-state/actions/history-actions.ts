@@ -46,8 +46,9 @@ export function createHistoryActions(ctx: HistoryActionsContext) {
               telemetry: { tokensIn: 0, tokensOut: 0 },
               toolCount: 0,
               thinkingCount: 0,
-              startTime: Date.now(),
+              startTime: 0, // Reset to 0, will be set when agent starts running
               endTime: undefined,
+              duration: undefined, // Clear stored duration so live timer is used
               error: undefined,
             }
           : a,

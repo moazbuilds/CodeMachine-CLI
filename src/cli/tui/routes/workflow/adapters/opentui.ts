@@ -155,10 +155,13 @@ export class OpenTUIAdapter extends BaseUIAdapter {
           timerService.registerAgent(event.agentId)
           this.actions.updateAgentStartTime(event.agentId, Date.now())
         }
-        // Complete and store duration when done
+        // Complete and store duration when done (only if agent was being tracked)
+        // Skip if agent not in timer - this happens when completed is emitted after a loop reset
         if (event.status === "completed" || event.status === "failed" || event.status === "skipped") {
-          const duration = timerService.completeAgent(event.agentId)
-          this.actions.updateAgentDuration(event.agentId, duration)
+          if (timerService.hasAgent(event.agentId)) {
+            const duration = timerService.completeAgent(event.agentId)
+            this.actions.updateAgentDuration(event.agentId, duration)
+          }
         }
         this.actions.updateAgentStatus(event.agentId, event.status)
         break
@@ -181,6 +184,10 @@ export class OpenTUIAdapter extends BaseUIAdapter {
         break
 
       case "agent:reset":
+        // Clear agent from timer if still tracked, allowing fresh registration on next run
+        if (timerService.hasAgent(event.agentId)) {
+          timerService.completeAgent(event.agentId)
+        }
         this.actions.resetAgentForLoop(event.agentId, event.cycleNumber)
         break
 
@@ -237,10 +244,12 @@ export class OpenTUIAdapter extends BaseUIAdapter {
           timerService.registerAgent(event.subAgentId)
           this.actions.updateSubAgentStartTime(event.subAgentId, Date.now())
         }
-        // Complete and store duration when done
+        // Complete and store duration when done (only if sub-agent was being tracked)
         if (event.status === "completed" || event.status === "failed" || event.status === "skipped") {
-          const duration = timerService.completeAgent(event.subAgentId)
-          this.actions.updateSubAgentDuration(event.subAgentId, duration)
+          if (timerService.hasAgent(event.subAgentId)) {
+            const duration = timerService.completeAgent(event.subAgentId)
+            this.actions.updateSubAgentDuration(event.subAgentId, duration)
+          }
         }
         this.actions.updateSubAgentStatus(event.subAgentId, event.status)
         break
