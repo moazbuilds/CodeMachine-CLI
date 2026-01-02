@@ -17,7 +17,6 @@ import { loadAgentConfig } from '../../agents/runner/index.js';
 import { loadChainedPrompts } from '../../agents/runner/chained.js';
 import { beforeRun, afterRun, cleanupRun } from './hooks.js';
 import type { RunnerContext } from '../runner/types.js';
-import { resolveInteractiveBehavior } from './interactive.js';
 import { handleCrashRecovery } from '../recovery/index.js';
 
 /**
@@ -58,6 +57,10 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
   const stepIndex = machineCtx.currentStepIndex;
   const step = ctx.moduleSteps[stepIndex];
   const uniqueAgentId = getUniqueAgentId(step, stepIndex);
+
+  // Sync indexManager's stepIndex with FSM's currentStepIndex
+  // This ensures queue operations use the correct step index
+  ctx.indexManager.setCurrentStepIndex(stepIndex);
 
   debug('[step/run] Running fresh step %d: %s', stepIndex, step.agentName);
 
@@ -209,6 +212,7 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
       debug('[step/run] Checkpoint continued, advancing to next step');
       ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
       ctx.indexManager.resetQueue();
+      ctx.emitter.setInputState(null);
       await ctx.indexManager.stepCompleted(stepIndex);
       ctx.machine.send({ type: 'SKIP' });
       return { output: stepOutput, checkpointContinued: true };
@@ -218,65 +222,23 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
     debug('[step/run] chainedPrompts: %d items', output.chainedPrompts?.length ?? 0);
     const session = ctx.getCurrentSession();
 
-    // Load chained prompts if available
-    let loaded = false;
+    // Load chained prompts and mark session as awaiting
     if (session) {
       session.setOutput(stepOutput);
-      loaded = session.loadChainedPrompts(output.chainedPrompts);
+      session.loadChainedPrompts(output.chainedPrompts);
+      session.markAwaiting();
     } else if (output.chainedPrompts && output.chainedPrompts.length > 0) {
       ctx.indexManager.initQueue(output.chainedPrompts, 0);
-      loaded = true;
     }
 
-    // Determine if we have chained prompts (either just loaded or already in queue)
-    const hasChainedPrompts = loaded || (session?.promptQueue.length ?? 0) > 0;
+    // Store output in machine context for mode handlers
+    machineCtx.currentOutput = stepOutput;
+    machineCtx.currentMonitoringId = stepOutput.monitoringId;
 
-    // Resolve interactive behavior using single source of truth
-    const behavior = resolveInteractiveBehavior({
-      step,
-      autoMode: machineCtx.autoMode,
-      hasChainedPrompts,
-      stepIndex,
-    });
-
-    debug('[step/run] Scenario=%d, interactive=%s, hasChainedPrompts=%s, shouldWait=%s, runAutonomousLoop=%s',
-      behavior.scenario, step.interactive, hasChainedPrompts, behavior.shouldWait, behavior.runAutonomousLoop);
-
-    if (behavior.shouldWait || behavior.runAutonomousLoop) {
-      // Go to awaiting state:
-      // - shouldWait=true: wait for controller/user input (Scenarios 1-4, 7-8)
-      // - runAutonomousLoop=true: wait.ts will run autonomous prompt loop (Scenario 5)
-      if (session) {
-        session.markAwaiting();
-      }
-      if (!machineCtx.autoMode) {
-        ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
-      }
-
-      // Emit input state for fresh start so UI shows chained prompts info immediately
-      const queueState = session
-        ? session.getQueueState()
-        : { promptQueue: [...ctx.indexManager.promptQueue], promptQueueIndex: ctx.indexManager.promptQueueIndex };
-      ctx.emitter.setInputState({
-        active: !machineCtx.autoMode, // Only active input box in manual mode
-        queuedPrompts: queueState.promptQueue.map(p => ({ name: p.name, label: p.label, content: p.content })),
-        currentIndex: queueState.promptQueueIndex,
-        monitoringId: stepOutput.monitoringId,
-      });
-
-      ctx.machine.send({ type: 'STEP_COMPLETE', output: stepOutput });
-      return { output: stepOutput };
-    } else {
-      // Scenario 6: Auto-advance (no prompts, interactive:false, auto mode)
-      if (session) {
-        await session.complete();
-      }
-      ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
-      ctx.indexManager.resetQueue();
-      await ctx.indexManager.stepCompleted(stepIndex);
-      ctx.machine.send({ type: 'SKIP' });
-      return { output: stepOutput };
-    }
+    // Transition to awaiting state - mode handlers take over from here
+    // They will resolve scenario and handle accordingly (input, auto-send, auto-advance)
+    ctx.machine.send({ type: 'STEP_COMPLETE', output: stepOutput });
+    return { output: stepOutput };
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       // Signal handlers (pause/skip) handle status updates and state transitions

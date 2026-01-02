@@ -26,8 +26,9 @@ export function handleSkipSignal(ctx: SignalContext): void {
     // Update UI status
     ctx.emitter.updateAgentStatus(stepContext.agentId, 'skipped');
 
-    // Clear queue to prevent leaking to next step
+    // Clear queue and UI state to prevent leaking to next step
     ctx.indexManager.resetQueue();
+    ctx.emitter.setInputState(null);
 
     // If in delegated state, abort the controller agent first
     if (wasDelegated) {

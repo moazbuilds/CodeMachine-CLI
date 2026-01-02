@@ -32,12 +32,13 @@ import { shouldSkipStep, logSkipDebug } from '../step/skip.js';
 
 import type { WorkflowRunnerOptions, RunnerContext } from './types.js';
 import { runStepFresh } from '../step/run.js';
-import { handleWaiting } from './wait.js';
-import { handleDelegated } from './delegated.js';
+import { handleWaiting, handleDelegated } from './core.js';
 
 export type { WorkflowRunnerOptions, RunnerContext } from './types.js';
-export { handleWaiting } from './wait.js';
-export { handleDelegated } from './delegated.js';
+export { handleWaiting, handleDelegated } from './core.js';
+
+// Re-export mode types for external use
+export type { ModeHandlerCallbacks } from './modes/types.js';
 
 /**
  * Workflow runner class
@@ -250,6 +251,7 @@ export class WorkflowRunner implements RunnerContext {
         if (skipResult.skip) {
           debug('[Runner] Skipping step %d: %s', stepIndex, skipResult.reason);
           this.indexManager.resetQueue(); // Clear queue to prevent leaking to next step
+          this.emitter.setInputState(null); // Clear UI state
           this.machine.send({ type: 'SKIP' });
           continue;
         }

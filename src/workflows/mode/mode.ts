@@ -70,6 +70,19 @@ export class WorkflowMode {
    * Enable auto (controller) mode
    */
   enableAutoMode(): void {
+    if (this._autoMode && !this._paused) {
+      return;
+    }
+
+    // Clear paused state when enabling auto mode
+    const wasPaused = this._paused;
+    if (wasPaused) {
+      debug('[WorkflowMode] Clearing paused state (enabling auto mode)');
+      this._paused = false;
+      this.emit({ type: 'resumed' });
+    }
+
+    // Already in auto mode, just needed to clear pause
     if (this._autoMode) {
       return;
     }
@@ -87,6 +100,9 @@ export class WorkflowMode {
     newProvider.activate?.();
 
     this.emit({ type: 'mode-changed', autoMode: true });
+
+    // Emit process event so UI updates
+    (process as NodeJS.EventEmitter).emit('workflow:mode-change', { autonomousMode: true });
   }
 
   /**
@@ -110,6 +126,9 @@ export class WorkflowMode {
     newProvider.activate?.();
 
     this.emit({ type: 'mode-changed', autoMode: false });
+
+    // Emit process event so UI updates
+    (process as NodeJS.EventEmitter).emit('workflow:mode-change', { autonomousMode: false });
   }
 
   /**
@@ -124,19 +143,18 @@ export class WorkflowMode {
   }
 
   /**
-   * Pause the workflow (switches to user input until resumed)
+   * Pause the workflow (disables auto mode and switches to user input)
    */
   pause(): void {
     if (this._paused) {
       return;
     }
 
-    debug('[WorkflowMode] Pausing');
+    debug('[WorkflowMode] Pausing (disabling auto mode)');
 
-    // If we were in auto mode, deactivate controller and activate user
+    // Disable auto mode - this properly deactivates controller and activates user
     if (this._autoMode) {
-      this.providers.controllerInput.deactivate?.();
-      this.providers.userInput.activate?.();
+      this.disableAutoMode();
     }
 
     this._paused = true;

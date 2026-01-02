@@ -12,9 +12,11 @@ export { selectEngine, EngineAuthCache, authCache } from './engine.js';
 export { beforeRun, afterRun, cleanupRun, type BeforeRunOptions, type AfterRunResult } from './hooks.js';
 export { runStepFresh, runStepResume, type RunStepOptions, type RunStepResult } from './run.js';
 export { shouldSkipStep, logSkipDebug, type ActiveLoop, type SkipCheckOptions } from './skip.js';
+// Scenario resolution
 export {
-  resolveInteractiveBehavior,
-  type InteractiveBehavior,
-  type InteractiveScenario,
-  type ResolveInteractiveOptions,
-} from './interactive.js';
+  resolveScenario,
+  type ScenarioId,
+  type ScenarioConfig,
+  type ResolvedScenario,
+  type ResolveScenarioOptions,
+} from './scenarios/index.js';

@@ -164,6 +164,7 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
                 if (event.type === 'STEP_COMPLETE') {
                   ctx.currentOutput = event.output;
                   ctx.currentMonitoringId = event.output.monitoringId;
+                  ctx.continuationPromptSent = true; // Fresh completion - no continuation prompt needed
                   debug('[FSM] Step completed (delegated), output length: %d', event.output.output.length);
                 }
               },
