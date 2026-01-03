@@ -12,6 +12,7 @@ export class StatusService {
   private readonly monitor: AgentMonitorService;
   private emitter: WorkflowEventEmitter | null = null;
   private idMap = new Map<number, string>(); // monitoringId → uniqueAgentId
+  private skippedIds = new Set<number>(); // monitoringIds that were skipped
 
   private constructor() {
     this.monitor = AgentMonitorService.getInstance();
@@ -38,8 +39,30 @@ export class StatusService {
     return this.idMap.get(monitoringId);
   }
 
+  // Reverse lookup: uniqueAgentId → monitoringId
+  getMonitoringId(uniqueAgentId: string): number | undefined {
+    for (const [monitoringId, agentId] of this.idMap.entries()) {
+      if (agentId === uniqueAgentId) {
+        return monitoringId;
+      }
+    }
+    return undefined;
+  }
+
   clear(monitoringId: number): void {
     this.idMap.delete(monitoringId);
+    this.skippedIds.delete(monitoringId);
+  }
+
+  // Check if agent was skipped (cleanup uses this to avoid overwriting)
+  isSkipped(monitoringId: number): boolean {
+    return this.skippedIds.has(monitoringId);
+  }
+
+  // Mark skipped by monitoring ID (for cleanup coordination)
+  markSkipped(monitoringId: number): void {
+    this.skippedIds.add(monitoringId);
+    this.emitStatus(monitoringId, 'skipped');
   }
 
   // Status updates (DB + UI)
@@ -61,6 +84,32 @@ export class StatusService {
   async run(id: number): Promise<void> {
     await this.monitor.markRunning(id);
     this.emitStatus(id, 'running');
+  }
+
+  /**
+   * Handle agent abort/error - centralizes decision logic for status after abort.
+   * Checks: skipped → paused → has sessionId (pause) → fail
+   */
+  async handleAbort(id: number, error?: Error): Promise<void> {
+    // Don't overwrite skipped status
+    if (this.isSkipped(id)) {
+      return;
+    }
+
+    const agent = this.monitor.getAgent(id);
+
+    // Already paused, nothing to do
+    if (agent?.status === 'paused') {
+      return;
+    }
+
+    // Has sessionId = resumable → mark as paused
+    if (agent?.sessionId) {
+      await this.pause(id);
+    } else {
+      // No sessionId = can't resume → mark as failed
+      await this.fail(id, error ?? new Error('Aborted'));
+    }
   }
 
   // UI-only status updates (take uniqueAgentId string, no DB update)

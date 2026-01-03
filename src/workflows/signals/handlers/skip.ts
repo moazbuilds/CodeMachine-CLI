@@ -24,9 +24,19 @@ export function handleSkipSignal(ctx: SignalContext): void {
   if (ctx.machine.state === 'running' || ctx.machine.state === 'awaiting' || ctx.machine.state === 'delegated') {
     const wasDelegated = ctx.machine.state === 'delegated';
 
-    // Update UI status
+    // Update UI status and mark as skipped (prevents cleanup from overwriting)
     const status = StatusService.getInstance();
     status.skipped(stepContext.agentId);
+
+    // Mark by monitoring ID so handleAbort knows not to overwrite
+    // Try machine context first, fall back to reverse lookup from uniqueAgentId
+    const monitoringId = ctx.machine.context.currentMonitoringId ?? status.getMonitoringId(stepContext.agentId);
+    if (monitoringId) {
+      status.markSkipped(monitoringId);
+      debug('[SkipSignal] Marked monitoringId=%d as skipped', monitoringId);
+    } else {
+      debug('[SkipSignal] Warning: Could not find monitoringId for %s', stepContext.agentId);
+    }
 
     // Clear queue and UI state to prevent leaking to next step
     ctx.indexManager.resetQueue();

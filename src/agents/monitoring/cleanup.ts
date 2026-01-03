@@ -214,17 +214,9 @@ export class MonitoringCleanup {
 
         for (const agent of runningAgents) {
           try {
-            // Mark agent based on resumability (has sessionId)
-            if (agent.sessionId) {
-              // Agent has sessionId = resumable → mark as paused
-              await status.pause(agent.id);
-              logger.debug(`Marked agent ${agent.id} (${agent.name}) as paused (resumable)`);
-            } else {
-              // No sessionId = can't resume → mark as failed
-              const errorMsg = error || new Error(`Agent ${reason}: ${agent.name}`);
-              await status.fail(agent.id, errorMsg);
-              logger.debug(`Marked agent ${agent.id} (${agent.name}) as failed`);
-            }
+            // Handle abort status (skipped check + paused/failed logic)
+            const errorMsg = error || new Error(`Agent ${reason}: ${agent.name}`);
+            await status.handleAbort(agent.id, errorMsg);
 
             // Close log stream (now async)
             await loggerService.closeStream(agent.id);
