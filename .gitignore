@@ -20,3 +20,5 @@ package-lock.json
 .codemachine/prompts
 .codemachine/agents
 .codemachine/template.json
+.specstory
+.cursorindexingignore
