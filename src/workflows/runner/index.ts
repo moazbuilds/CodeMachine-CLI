@@ -297,6 +297,12 @@ export class WorkflowRunner implements RunnerContext {
     this.mode.setAutoMode(enabled);
     // Sync machine context with mode state
     this.machine.context.autoMode = enabled;
+
+    // When enabling auto mode, also clear paused state
+    // Auto mode and paused are mutually exclusive
+    if (enabled && this.machine.context.paused) {
+      this.machine.context.paused = false;
+    }
   }
 
   /**
