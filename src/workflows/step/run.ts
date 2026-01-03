@@ -6,7 +6,7 @@
  */
 
 import { debug } from '../../shared/logging/logger.js';
-import { AgentMonitorService } from '../../agents/monitoring/index.js';
+import { AgentMonitorService, StatusService } from '../../agents/monitoring/index.js';
 import type { StepOutput as StateStepOutput } from '../state/index.js';
 import { getUniqueAgentId } from '../context/index.js';
 import { executeStep } from './execute.js';
@@ -57,6 +57,7 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
   const stepIndex = machineCtx.currentStepIndex;
   const step = ctx.moduleSteps[stepIndex];
   const uniqueAgentId = getUniqueAgentId(step, stepIndex);
+  const status = StatusService.getInstance();
 
   // Sync indexManager's stepIndex with FSM's currentStepIndex
   // This ensures queue operations use the correct step index
@@ -200,7 +201,7 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
       const targetIndex = postResult.newIndex + 1;
       if (targetIndex >= 0 && targetIndex <= stepIndex) {
         debug('[step/run] Loop directive: rewinding to step %d', targetIndex);
-        ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+        status.completed(uniqueAgentId);
         await ctx.indexManager.stepCompleted(stepIndex);
         machineCtx.currentStepIndex = targetIndex;
         return { output: stepOutput, newIndex: targetIndex };
@@ -210,7 +211,7 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
     // Checkpoint continued - skip chained prompts and go directly to next step
     if (postResult.checkpointContinued) {
       debug('[step/run] Checkpoint continued, advancing to next step');
-      ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+      status.completed(uniqueAgentId);
       ctx.indexManager.resetQueue();
       ctx.emitter.setInputState(null);
       await ctx.indexManager.stepCompleted(stepIndex);
@@ -247,7 +248,7 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
     }
 
     debug('[step/run] Step error: %s', (error as Error).message);
-    ctx.emitter.updateAgentStatus(uniqueAgentId, 'failed');
+    status.failed(uniqueAgentId);
     ctx.machine.send({ type: 'STEP_ERROR', error: error as Error });
     return null;
   } finally {
@@ -268,6 +269,7 @@ export async function runStepResume(
   const stepIndex = machineCtx.currentStepIndex;
   const step = ctx.moduleSteps[stepIndex];
   const uniqueAgentId = getUniqueAgentId(step, stepIndex);
+  const status = StatusService.getInstance();
 
   debug('[step/run] Resuming step %d with input: %s...', stepIndex, options.resumePrompt?.slice(0, 50));
 
@@ -333,13 +335,13 @@ export async function runStepResume(
 
     // Transition back to awaiting state
     ctx.machine.send({ type: 'STEP_COMPLETE', output: stepOutput });
-    ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
+    status.awaiting(uniqueAgentId);
 
     return { output: stepOutput };
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       debug('[step/run] Resume aborted');
-      ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
+      status.awaiting(uniqueAgentId);
       return null;
     }
 

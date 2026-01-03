@@ -13,6 +13,7 @@ import {
   sendQueuedPrompt,
 } from '../actions/index.js';
 import { getUniqueAgentId } from '../../context/index.js';
+import { StatusService } from '../../../agents/monitoring/index.js';
 
 /**
  * Check if queue is exhausted
@@ -69,7 +70,8 @@ function handlePause(
   debug('[modes/autonomous] Pausing workflow');
   ctx.mode.pause();
   machineCtx.paused = true;
-  ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
+  const status = StatusService.getInstance();
+  status.awaiting(uniqueAgentId);
   emitPauseInputState(ctx);
 
   return { type: 'pause', reason };
@@ -125,25 +127,29 @@ export const autonomousHandler: ModeHandler = {
         case 'pause':
           return handlePause(ctx, action.reason);
 
-        case 'loop':
+        case 'loop': {
           debug('[modes/autonomous] Loop to step %d', action.targetIndex);
-          ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+          const status = StatusService.getInstance();
+          status.completed(uniqueAgentId);
           await ctx.indexManager.stepCompleted(stepIndex);
           ctx.indexManager.resetQueue();
           ctx.emitter.setInputState(null);
           machineCtx.currentStepIndex = action.targetIndex;
           ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
           return action;
+        }
 
         case 'advance':
-        default:
+        default: {
           debug('[modes/autonomous] Completing step %d', stepIndex);
-          ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+          const status = StatusService.getInstance();
+          status.completed(uniqueAgentId);
           ctx.indexManager.resetQueue();
           ctx.emitter.setInputState(null);
           await ctx.indexManager.stepCompleted(stepIndex);
           ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
           return { type: 'advance' };
+        }
       }
     }
 
@@ -166,25 +172,29 @@ export const autonomousHandler: ModeHandler = {
         case 'pause':
           return handlePause(ctx, action.reason);
 
-        case 'loop':
+        case 'loop': {
           debug('[modes/autonomous] Loop to step %d', action.targetIndex);
-          ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+          const status = StatusService.getInstance();
+          status.completed(uniqueAgentId);
           await ctx.indexManager.stepCompleted(stepIndex);
           ctx.indexManager.resetQueue();
           ctx.emitter.setInputState(null);
           machineCtx.currentStepIndex = action.targetIndex;
           ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
           return action;
+        }
 
         case 'advance':
-        default:
+        default: {
           debug('[modes/autonomous] Completing step %d', stepIndex);
-          ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+          const status = StatusService.getInstance();
+          status.completed(uniqueAgentId);
           ctx.indexManager.resetQueue();
           ctx.emitter.setInputState(null);
           await ctx.indexManager.stepCompleted(stepIndex);
           ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
           return { type: 'advance' };
+        }
       }
     }
 

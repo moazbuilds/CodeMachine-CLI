@@ -13,7 +13,7 @@ import { MemoryAdapter } from '../../../infra/fs/memory-adapter.js';
 import { MemoryStore } from '../../../agents/index.js';
 import { processPromptString } from '../../../shared/prompts/index.js';
 import type { WorkflowEventEmitter } from '../../events/index.js';
-import { AgentMonitorService, AgentLoggerService } from '../../../agents/monitoring/index.js';
+import { AgentMonitorService, AgentLoggerService, StatusService } from '../../../agents/monitoring/index.js';
 
 export interface TriggerExecutionOptions {
   triggerAgentId: string;
@@ -130,22 +130,27 @@ export async function executeTriggerAgent(options: TriggerExecutionOptions): Pro
       timestamp: new Date().toISOString(),
     });
 
-    if (emitter) {
-      emitter.updateAgentStatus(triggerAgentId, 'completed');
-    }
-
-    if (monitor && monitoringAgentId !== undefined) {
-      await monitor.complete(monitoringAgentId);
+    // Use StatusService for coordinated DB + UI updates
+    if (monitoringAgentId !== undefined) {
+      const status = StatusService.getInstance();
+      status.register(monitoringAgentId, triggerAgentId);
+      await status.complete(monitoringAgentId);
+    } else {
+      // No monitoring - just update UI
+      const status = StatusService.getInstance();
+      status.completed(triggerAgentId);
     }
   } catch (triggerError) {
     if (monitor && monitoringAgentId !== undefined) {
+      const status = StatusService.getInstance();
+      status.register(monitoringAgentId, triggerAgentId);
       const agent = monitor.getAgent(monitoringAgentId);
       if (agent?.sessionId) {
         // Agent has sessionId = resumable → mark as paused
-        await monitor.markPaused(monitoringAgentId);
+        await status.pause(monitoringAgentId);
       } else {
         // No sessionId = can't resume → mark as failed
-        await monitor.fail(monitoringAgentId, triggerError as Error);
+        await status.fail(monitoringAgentId, triggerError as Error);
       }
     }
     throw triggerError;

@@ -13,6 +13,7 @@ import { resolveScenario, type ResolvedScenario } from '../step/scenarios/index.
 import { getUniqueAgentId } from '../context/index.js';
 import { DEFAULT_CONTINUATION_PROMPT } from '../../shared/prompts/index.js';
 import { runStepResume } from '../step/run.js';
+import { StatusService } from '../../agents/monitoring/index.js';
 
 /**
  * Sync paused state from machineCtx to mode
@@ -99,7 +100,8 @@ async function handleContinuationPrompt(
   machineCtx.continuationPromptSent = true;
 
   // Update status and transition to running
-  ctx.emitter.updateAgentStatus(uniqueAgentId, 'running');
+  const status = StatusService.getInstance();
+  status.running(uniqueAgentId);
   ctx.machine.send({ type: 'RESUME' });
 
   // Track mode switch during execution
@@ -126,7 +128,7 @@ async function handleContinuationPrompt(
     if (error instanceof Error && error.name === 'AbortError') {
       if (modeSwitchRequested) {
         debug('[Runner:core] Continuation prompt aborted due to mode switch to manual');
-        ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
+        status.awaiting(uniqueAgentId);
         await callbacks.setAutoMode(false);
       }
       return true; // Handled
@@ -169,10 +171,12 @@ export async function handleState(
     ctx.indexManager.promptQueueIndex
   );
 
+  const status = StatusService.getInstance();
+
   // Check if auto mode was disabled in delegated state
   if (fsmState === 'delegated' && !ctx.mode.autoMode) {
     debug('[Runner:core] Auto mode disabled, transitioning to awaiting state');
-    ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
+    status.awaiting(uniqueAgentId);
     ctx.machine.send({ type: 'AWAIT' });
     return;
   }
@@ -187,7 +191,7 @@ export async function handleState(
 
   // Update agent status for delegated state
   if (fsmState === 'delegated') {
-    ctx.emitter.updateAgentStatus(uniqueAgentId, 'delegated');
+    status.delegated(uniqueAgentId);
   }
 
   // Resolve scenario

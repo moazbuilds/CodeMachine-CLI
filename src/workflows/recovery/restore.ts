@@ -13,6 +13,7 @@ import { getNextChainIndex } from '../indexing/lifecycle.js';
 import { loadAgentConfig } from '../../agents/runner/index.js';
 import { loadChainedPrompts } from '../../agents/runner/chained.js';
 import { getSelectedConditions } from '../../shared/workflows/template.js';
+import { StatusService } from '../../agents/monitoring/index.js';
 import type { CrashRestoreContext, CrashRestoreResult } from './types.js';
 
 /**
@@ -49,7 +50,8 @@ export async function restoreFromCrash(ctx: CrashRestoreContext): Promise<CrashR
   }
 
   // 2. Update agent status to awaiting
-  emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
+  const status = StatusService.getInstance();
+  status.awaiting(uniqueAgentId);
 
   // 3. Set machine context
   machineContext.currentMonitoringId = stepData.monitoringId;

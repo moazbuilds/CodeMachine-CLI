@@ -19,7 +19,7 @@ import {
 } from '../shared/workflows/index.js';
 import { StepIndexManager } from './indexing/index.js';
 import { registry } from '../infra/engines/index.js';
-import { MonitoringCleanup, AgentMonitorService } from '../agents/monitoring/index.js';
+import { MonitoringCleanup, AgentMonitorService, StatusService } from '../agents/monitoring/index.js';
 import { WorkflowEventBus, WorkflowEventEmitter } from './events/index.js';
 import { validateSpecification } from '../runtime/services/index.js';
 import { WorkflowRunner } from './runner/index.js';
@@ -133,6 +133,10 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     globalThis.__workflowEventBus = eventBus;
   }
 
+  // Initialize status coordinator
+  const status = StatusService.getInstance();
+  status.setEmitter(emitter);
+
   // Get resume info
   const resumeInfo = await indexManager.getResumeInfo();
   const startIndex = resumeInfo.startIndex;
@@ -237,6 +241,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     emitter,
     startIndex,
     indexManager,
+    status,
   });
 
   // Cleanup function for MCP

@@ -10,7 +10,7 @@ import type { RunnerContext } from '../types.js';
 import type { ModeHandlerResult, ModeHandlerCallbacks } from '../modes/types.js';
 import { runStepResume } from '../../step/run.js';
 import { formatUserInput } from '../../../shared/formatters/outputMarkers.js';
-import { AgentLoggerService } from '../../../agents/monitoring/index.js';
+import { AgentLoggerService, StatusService } from '../../../agents/monitoring/index.js';
 import { getUniqueAgentId } from '../../context/index.js';
 
 /**
@@ -131,6 +131,8 @@ export async function resumeWithInput(
     modeSwitchRequested = mode;
   });
 
+  const status = StatusService.getInstance();
+
   try {
     await runStepResume(ctx, {
       resumePrompt: input,
@@ -139,18 +141,18 @@ export async function resumeWithInput(
     });
 
     // Step completed successfully, back to awaiting
-    ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
+    status.awaiting(uniqueAgentId);
     return { type: 'continue' };
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       if (modeSwitchRequested) {
         debug('[actions/resume] Step aborted due to mode switch to %s', modeSwitchRequested);
-        ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
+        status.awaiting(uniqueAgentId);
         await callbacks.setAutoMode(modeSwitchRequested === 'auto');
         return { type: 'modeSwitch', to: modeSwitchRequested };
       }
       // Aborted for other reason (pause, skip)
-      ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
+      status.awaiting(uniqueAgentId);
       return { type: 'continue' };
     }
     throw error;

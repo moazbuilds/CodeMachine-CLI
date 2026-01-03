@@ -13,7 +13,7 @@
  */
 
 import { debug } from '../../shared/logging/logger.js';
-import { AgentMonitorService } from '../../agents/monitoring/index.js';
+import { StatusService } from '../../agents/monitoring/index.js';
 import type { StepOutput } from '../state/types.js';
 import type { QueuedPrompt } from '../indexing/index.js';
 import type {
@@ -125,11 +125,12 @@ export class StepSession {
     debug('[StepSession] Completing session');
     this.markCompleted();
 
-    // Mark monitoring agent as complete
+    // Mark monitoring agent as complete via StatusService (DB + UI)
     if (this._monitoringId !== undefined) {
-      const monitor = AgentMonitorService.getInstance();
+      const status = StatusService.getInstance();
+      status.register(this._monitoringId, this.config.uniqueAgentId);
       debug('[StepSession] Marking monitoring agent %d as completed', this._monitoringId);
-      await monitor.complete(this._monitoringId);
+      await status.complete(this._monitoringId);
     }
   }
 

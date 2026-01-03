@@ -9,6 +9,7 @@ import { debug } from '../../../shared/logging/logger.js';
 import type { ModeHandler, ModeHandlerContext, ModeHandlerResult } from './types.js';
 import { processDirectives, advanceToNextStep } from '../actions/index.js';
 import { getUniqueAgentId } from '../../context/index.js';
+import { StatusService } from '../../../agents/monitoring/index.js';
 
 /**
  * Get queue state for UI emission
@@ -40,7 +41,8 @@ function handlePause(
   ctx.emitter.logMessage(uniqueAgentId, `Paused${reason ? `: ${reason}` : ''}`);
   ctx.mode.pause();
   machineCtx.paused = true;
-  ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
+  const status = StatusService.getInstance();
+  status.awaiting(uniqueAgentId);
 
   // Enable input box for user to resume
   ctx.emitter.setInputState({
@@ -99,15 +101,17 @@ export const continuousHandler: ModeHandler = {
       case 'pause':
         return handlePause(ctx, action.reason);
 
-      case 'loop':
+      case 'loop': {
         debug('[modes/continuous] Loop to step %d', action.targetIndex);
-        ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+        const status = StatusService.getInstance();
+        status.completed(uniqueAgentId);
         await ctx.indexManager.stepCompleted(stepIndex);
         ctx.indexManager.resetQueue();
         ctx.emitter.setInputState(null);
         machineCtx.currentStepIndex = action.targetIndex;
         ctx.machine.send({ type: 'INPUT_RECEIVED', input: '' });
         return action;
+      }
 
       case 'advance':
       default:

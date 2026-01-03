@@ -16,6 +16,7 @@ import {
   resetDirective,
 } from '../actions/index.js';
 import { getUniqueAgentId } from '../../context/index.js';
+import { StatusService } from '../../../agents/monitoring/index.js';
 
 /**
  * Get queue state from session or indexManager
@@ -89,11 +90,13 @@ async function processInputResult(
 
   debug('[modes/interactive] Processing input result: type=%s', result.type);
 
+  const status = StatusService.getInstance();
+
   // Handle special switch-to-manual signal
   if (result.type === 'input' && result.value === '__SWITCH_TO_MANUAL__') {
     debug('[modes/interactive] Switching to manual mode');
     await callbacks.setAutoMode(false);
-    ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
+    status.awaiting(uniqueAgentId);
     return { type: 'modeSwitch', to: 'manual' };
   }
 
@@ -174,7 +177,8 @@ export const interactiveHandler: ModeHandler = {
 
     // Update agent status for user-facing scenarios
     if (scenario.inputSource === 'user') {
-      ctx.emitter.updateAgentStatus(uniqueAgentId, 'awaiting');
+      const status = StatusService.getInstance();
+      status.awaiting(uniqueAgentId);
     }
 
     // Get appropriate input provider based on scenario

@@ -8,6 +8,7 @@ import { debug } from '../../../shared/logging/logger.js';
 import type { RunnerContext } from '../types.js';
 import type { ModeHandlerResult } from '../modes/types.js';
 import { getUniqueAgentId } from '../../context/index.js';
+import { StatusService } from '../../../agents/monitoring/index.js';
 
 /**
  * Advance to next step
@@ -23,13 +24,15 @@ export async function advanceToNextStep(ctx: RunnerContext): Promise<ModeHandler
 
   debug('[actions/advance] Advancing from step %d to next step', stepIndex);
 
+  const status = StatusService.getInstance();
+
   // Complete session if exists
   if (session) {
     await session.complete();
   }
 
   // Update UI
-  ctx.emitter.updateAgentStatus(uniqueAgentId, 'completed');
+  status.completed(uniqueAgentId);
 
   // Reset queue and UI state to prevent leaking to next step
   ctx.indexManager.resetQueue();
@@ -61,12 +64,14 @@ export async function skipStep(ctx: RunnerContext): Promise<ModeHandlerResult> {
 
   debug('[actions/advance] Skipping step %d', stepIndex);
 
+  const status = StatusService.getInstance();
+
   // Resume from paused state
   ctx.mode.resume();
   machineCtx.paused = false;
 
   // Update UI
-  ctx.emitter.updateAgentStatus(uniqueAgentId, 'skipped');
+  status.skipped(uniqueAgentId);
 
   // Reset queue and UI state to prevent leaking to next step
   ctx.indexManager.resetQueue();

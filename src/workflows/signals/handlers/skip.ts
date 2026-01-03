@@ -7,6 +7,7 @@
 
 import { debug } from '../../../shared/logging/logger.js';
 import type { SignalContext } from '../manager/types.js';
+import { StatusService } from '../../../agents/monitoring/index.js';
 
 /**
  * Handle skip signal
@@ -24,7 +25,8 @@ export function handleSkipSignal(ctx: SignalContext): void {
     const wasDelegated = ctx.machine.state === 'delegated';
 
     // Update UI status
-    ctx.emitter.updateAgentStatus(stepContext.agentId, 'skipped');
+    const status = StatusService.getInstance();
+    status.skipped(stepContext.agentId);
 
     // Clear queue and UI state to prevent leaking to next step
     ctx.indexManager.resetQueue();

@@ -13,6 +13,7 @@ import type { StepIndexManager } from '../indexing/index.js';
 import type { StateMachine } from '../state/types.js';
 import type { ModuleStep } from '../templates/types.js';
 import type { StepSession } from '../session/index.js';
+import { StatusService } from '../../agents/monitoring/index.js';
 
 import { detectCrashRecovery } from './detect.js';
 import { restoreFromCrash } from './restore.js';
@@ -150,7 +151,8 @@ export async function handleCrashRecovery(
     }
 
     debug('[recovery] Auto mode: sending recovery prompt to agent');
-    emitter.updateAgentStatus(uniqueAgentId, 'running');
+    const status = StatusService.getInstance();
+    status.running(uniqueAgentId);
 
     // Mark continuation prompt as sent to prevent handleDelegated from sending again
     machine.context.continuationPromptSent = true;

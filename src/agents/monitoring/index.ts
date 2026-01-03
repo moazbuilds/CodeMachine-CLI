@@ -13,6 +13,7 @@ export { AgentMonitorService, type AgentTreeNode } from './monitor';
 export { AgentLoggerService } from './logger';
 export { AgentRegistry } from './registry';
 export { MonitoringCleanup } from './cleanup';
+export { StatusService } from './status';
 export { agentRecordToSubAgentState, convertChildrenToSubAgents } from './converters';
 export type {
   AgentRecord,

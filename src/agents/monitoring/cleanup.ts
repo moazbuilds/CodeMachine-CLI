@@ -1,5 +1,6 @@
 import { AgentMonitorService } from './monitor.js';
 import { AgentLoggerService } from './logger.js';
+import { StatusService } from './status.js';
 import * as logger from '../../shared/logging/logger.js';
 import { setShuttingDown } from '../../shared/logging/logger.js';
 import { killAllActiveProcesses } from '../../infra/process/spawn.js';
@@ -204,6 +205,7 @@ export class MonitoringCleanup {
     try {
       const monitor = AgentMonitorService.getInstance();
       const loggerService = AgentLoggerService.getInstance();
+      const status = StatusService.getInstance();
 
       const runningAgents = monitor.getActiveAgents();
 
@@ -215,12 +217,12 @@ export class MonitoringCleanup {
             // Mark agent based on resumability (has sessionId)
             if (agent.sessionId) {
               // Agent has sessionId = resumable → mark as paused
-              await monitor.markPaused(agent.id);
+              await status.pause(agent.id);
               logger.debug(`Marked agent ${agent.id} (${agent.name}) as paused (resumable)`);
             } else {
               // No sessionId = can't resume → mark as failed
               const errorMsg = error || new Error(`Agent ${reason}: ${agent.name}`);
-              await monitor.fail(agent.id, errorMsg);
+              await status.fail(agent.id, errorMsg);
               logger.debug(`Marked agent ${agent.id} (${agent.name}) as failed`);
             }
 

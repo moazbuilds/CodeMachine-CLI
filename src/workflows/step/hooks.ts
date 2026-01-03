@@ -19,6 +19,7 @@ import type { WorkflowEventEmitter } from '../events/index.js';
 import { type ModuleStep, type WorkflowTemplate, isModuleStep } from '../templates/types.js';
 import { getUniqueAgentId } from '../context/index.js';
 import type { RunnerContext } from '../runner/types.js';
+import { StatusService } from '../../agents/monitoring/index.js';
 
 /**
  * Options for beforeRun hook
@@ -73,7 +74,8 @@ export function beforeRun(options: BeforeRunOptions): BeforeRunResult {
   });
 
   // Update UI
-  ctx.emitter.updateAgentStatus(uniqueAgentId, 'running');
+  const status = StatusService.getInstance();
+  status.running(uniqueAgentId);
 
   // Reset directive file (only for fresh start)
   if (!isResume) {
@@ -278,7 +280,8 @@ export async function afterRun(options: AfterRunOptions): Promise<AfterRunResult
       });
     } catch (triggerError) {
       if (triggerError instanceof Error && triggerError.name === 'AbortError') {
-        emitter.updateAgentStatus(triggeredAgentId, 'skipped');
+        const status = StatusService.getInstance();
+        status.skipped(triggeredAgentId);
       }
     }
   }

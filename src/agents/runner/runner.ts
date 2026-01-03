@@ -6,7 +6,7 @@ import { MemoryAdapter } from '../../infra/fs/memory-adapter.js';
 import { MemoryStore } from '../index.js';
 import { loadAgentConfig } from './config.js';
 import { loadChainedPrompts, type ChainedPrompt } from './chained.js';
-import { AgentMonitorService, AgentLoggerService } from '../monitoring/index.js';
+import { AgentMonitorService, AgentLoggerService, StatusService } from '../monitoring/index.js';
 
 export type { ChainedPrompt } from './chained.js';
 import type { ParsedTelemetry } from '../../infra/engines/core/types.js';
@@ -291,6 +291,7 @@ export async function executeAgent(
   // Initialize monitoring with engine/model info (unless explicitly disabled)
   const monitor = !disableMonitoring ? AgentMonitorService.getInstance() : null;
   const loggerService = !disableMonitoring ? AgentLoggerService.getInstance() : null;
+  const status = !disableMonitoring ? StatusService.getInstance() : null;
   let monitoringAgentId: number | undefined;
 
   if (monitor && loggerService) {
@@ -299,9 +300,16 @@ export async function executeAgent(
       monitoringAgentId = resumeMonitoringId;
       debug(`[AgentRunner] RESUME: Using existing monitoringId=%d, skipping registration`, monitoringAgentId);
 
-      // Mark as running again (was paused)
-      await monitor.markRunning(monitoringAgentId);
-      debug(`[AgentRunner] RESUME: Marked agent as running`);
+      // Register ID mapping and mark as running (DB + UI)
+      if (status && uniqueAgentId) {
+        status.register(monitoringAgentId, uniqueAgentId);
+        await status.run(monitoringAgentId);
+        debug(`[AgentRunner] RESUME: Marked agent as running via StatusService`);
+      } else {
+        // Fallback: no uniqueAgentId, use monitor directly
+        await monitor.markRunning(monitoringAgentId);
+        debug(`[AgentRunner] RESUME: Marked agent as running (no uniqueAgentId)`);
+      }
 
       // Register monitoring ID with UI so it can load existing logs
       if (ui && uniqueAgentId) {
@@ -321,6 +329,11 @@ export async function executeAgent(
         modelName: model,
       });
       debug(`[AgentRunner] NEW: Registered with monitoringId=%d`, monitoringAgentId);
+
+      // Register ID mapping for status coordination
+      if (status && uniqueAgentId) {
+        status.register(monitoringAgentId, uniqueAgentId);
+      }
 
       // Store FULL prompt for debug mode logging (not the display prompt)
       // In debug mode, we want to see the complete composite prompt with template + input files
@@ -443,9 +456,13 @@ export async function executeAgent(
 
     // Mark agent as completed (only for fresh execution, not resume)
     // During resume, the agent stays in running/awaiting state for continued conversation
-    if (!isResume && monitor && monitoringAgentId !== undefined) {
+    if (!isResume && monitoringAgentId !== undefined) {
       debug(`[AgentRunner] Marking agent %d as completed`, monitoringAgentId);
-      await monitor.complete(monitoringAgentId);
+      if (status) {
+        await status.complete(monitoringAgentId);
+      } else if (monitor) {
+        await monitor.complete(monitoringAgentId);
+      }
       // Note: Don't close stream here - workflow may write more messages
       // Streams will be closed by cleanup handlers or monitoring service shutdown
     } else if (isResume) {
@@ -479,7 +496,7 @@ export async function executeAgent(
     debug(`[AgentRunner] Error during execution: %s`, (err as Error).message);
 
     // Mark agent status based on resumability (has sessionId)
-    if (monitor && monitoringAgentId !== undefined) {
+    if (monitoringAgentId !== undefined && monitor) {
       const agent = monitor.getAgent(monitoringAgentId);
       debug(`[AgentRunner] Agent status: %s, sessionId: %s`, agent?.status ?? '(not found)', agent?.sessionId ?? '(none)');
 
@@ -488,11 +505,19 @@ export async function executeAgent(
       } else if (agent?.sessionId) {
         // Agent has sessionId = resumable → mark as paused
         debug(`[AgentRunner] Agent %d has sessionId, marking as paused`, monitoringAgentId);
-        await monitor.markPaused(monitoringAgentId);
+        if (status) {
+          await status.pause(monitoringAgentId);
+        } else {
+          await monitor.markPaused(monitoringAgentId);
+        }
       } else {
         // No sessionId = can't resume → mark as failed
         debug(`[AgentRunner] Marking agent %d as failed`, monitoringAgentId);
-        await monitor.fail(monitoringAgentId, err as Error);
+        if (status) {
+          await status.fail(monitoringAgentId, err as Error);
+        } else {
+          await monitor.fail(monitoringAgentId, err as Error);
+        }
       }
       // Note: Don't close stream here - workflow may write more messages
       // Streams will be closed by cleanup handlers or monitoring service shutdown

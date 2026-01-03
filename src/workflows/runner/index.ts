@@ -29,6 +29,7 @@ import { StepSession } from '../session/index.js';
 import { getUniqueAgentId } from '../context/index.js';
 import type { StepIndexManager } from '../indexing/index.js';
 import { shouldSkipStep, logSkipDebug } from '../step/skip.js';
+import type { StatusService } from '../../agents/monitoring/index.js';
 
 import type { WorkflowRunnerOptions, RunnerContext } from './types.js';
 import { runStepFresh } from '../step/run.js';
@@ -54,6 +55,7 @@ export class WorkflowRunner implements RunnerContext {
   readonly template: WorkflowTemplate;
   readonly mode: WorkflowMode;
   readonly indexManager: StepIndexManager;
+  readonly status: StatusService;
 
   private userInput: UserInputProvider;
   private controllerInput: ControllerInputProvider;
@@ -68,6 +70,7 @@ export class WorkflowRunner implements RunnerContext {
     this.emitter = options.emitter;
     this.template = options.template;
     this.indexManager = options.indexManager;
+    this.status = options.status;
 
     // Filter to only module steps
     this.moduleSteps = options.template.steps.filter(

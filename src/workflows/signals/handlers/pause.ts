@@ -8,7 +8,7 @@
  */
 
 import { debug } from '../../../shared/logging/logger.js';
-import { AgentMonitorService } from '../../../agents/monitoring/index.js';
+import { AgentMonitorService, StatusService } from '../../../agents/monitoring/index.js';
 import { setAutonomousMode } from '../../../shared/workflows/controller.js';
 import type { SignalContext } from '../manager/types.js';
 
@@ -56,7 +56,8 @@ export async function handlePauseSignal(ctx: SignalContext): Promise<void> {
 
   if (ctx.machine.state === 'running') {
     // Update UI status
-    ctx.emitter.updateAgentStatus(stepContext.agentId, 'awaiting');
+    const status = StatusService.getInstance();
+    status.awaiting(stepContext.agentId);
 
     // Transition state machine
     ctx.machine.send({ type: 'PAUSE' });

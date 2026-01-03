@@ -16,6 +16,7 @@ import type { WorkflowEventEmitter } from '../events/emitter.js';
 import { debug } from '../../shared/logging/logger.js';
 import type { ActiveLoop } from '../directives/loop/types.js';
 import type { StepIndexManager } from '../indexing/index.js';
+import { StatusService } from '../../agents/monitoring/index.js';
 
 // Re-export for backwards compatibility
 export type { ActiveLoop };
@@ -57,12 +58,14 @@ export async function shouldSkipStep(
   // Use provided unique agent ID or fall back to step.agentId
   const agentId = uniqueAgentId ?? step.agentId;
 
+  const status = StatusService.getInstance();
+
   // Skip step if executeOnce is true and it's already completed
   if (step.executeOnce) {
     const isCompleted = await indexManager.isStepCompleted(index);
     if (isCompleted) {
       debug('[Indexing:Skip] Step %d (%s) skipped - executeOnce already completed', index, step.agentName);
-      emitter?.updateAgentStatus(agentId, 'skipped');
+      status.skipped(agentId);
       return { skip: true, reason: `${step.agentName} skipped (already completed).` };
     }
   }
@@ -70,7 +73,7 @@ export async function shouldSkipStep(
   // Skip step if it's in the active loop's skip list
   if (activeLoop?.skip.includes(step.agentId)) {
     debug('[Indexing:Skip] Step %d (%s) skipped - in active loop skip list', index, step.agentName);
-    emitter?.updateAgentStatus(agentId, 'skipped');
+    status.skipped(agentId);
     return { skip: true, reason: `${step.agentName} skipped (loop configuration).` };
   }
 
