@@ -103,6 +103,20 @@ export class AgentMonitorService {
   }
 
   /**
+   * Mark agent as skipped
+   */
+  async markSkipped(id: number): Promise<void> {
+    const agent = this.repository.get(id);
+    if (!agent) {
+      logger.warn(`Attempted to mark non-existent agent ${id} as skipped`);
+      return;
+    }
+
+    this.repository.update(id, { status: 'skipped' });
+    logger.debug(`Agent ${id} (${agent.name}) marked as skipped`);
+  }
+
+  /**
    * Mark agent as failed
    */
   async fail(id: number, error: Error | string): Promise<void> {

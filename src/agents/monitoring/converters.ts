@@ -1,4 +1,4 @@
-import type { AgentRecord } from './types.js';
+import type { AgentRecord, AgentStatus } from './types.js';
 import type { SubAgentState, AgentStatus as UIAgentStatus } from '../../cli/tui/routes/workflow/state/types.js';
 
 /**
@@ -65,7 +65,7 @@ export function convertChildrenToSubAgents(
 /**
  * Convert monitoring agent status to UI agent status
  */
-function convertStatus(monitoringStatus: 'running' | 'completed' | 'failed' | 'paused'): UIAgentStatus {
+function convertStatus(monitoringStatus: AgentStatus): UIAgentStatus {
   switch (monitoringStatus) {
     case 'running':
       return 'running';
@@ -78,6 +78,8 @@ function convertStatus(monitoringStatus: 'running' | 'completed' | 'failed' | 'p
     case 'paused':
       // Old UI doesn't have paused, map to pending
       return 'pending';
+    case 'skipped':
+      return 'skipped';
     default:
       return 'pending';
   }

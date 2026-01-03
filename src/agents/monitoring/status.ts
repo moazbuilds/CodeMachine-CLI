@@ -60,8 +60,9 @@ export class StatusService {
   }
 
   // Mark skipped by monitoring ID (for cleanup coordination)
-  markSkipped(monitoringId: number): void {
+  async markSkipped(monitoringId: number): Promise<void> {
     this.skippedIds.add(monitoringId);
+    await this.monitor.markSkipped(monitoringId);
     this.emitStatus(monitoringId, 'skipped');
   }
 

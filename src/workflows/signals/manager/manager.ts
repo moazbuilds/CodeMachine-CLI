@@ -74,7 +74,11 @@ export class SignalManager implements SignalContext {
     );
 
     // Skip signal (Ctrl+S while agent running)
-    const skipHandler = () => handleSkipSignal(this);
+    const skipHandler = () => {
+      handleSkipSignal(this).catch(err =>
+        debug('[SignalManager] Skip handler error: %s', err.message)
+      );
+    };
     process.on('workflow:skip', skipHandler);
     this.cleanupFns.push(() =>
       process.removeListener('workflow:skip', skipHandler)

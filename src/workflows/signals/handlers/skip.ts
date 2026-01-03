@@ -12,7 +12,7 @@ import { StatusService } from '../../../agents/monitoring/index.js';
 /**
  * Handle skip signal
  */
-export function handleSkipSignal(ctx: SignalContext): void {
+export async function handleSkipSignal(ctx: SignalContext): Promise<void> {
   debug('[SkipSignal] workflow:skip received, state=%s', ctx.machine.state);
 
   const stepContext = ctx.getStepContext();
@@ -32,7 +32,7 @@ export function handleSkipSignal(ctx: SignalContext): void {
     // Try machine context first, fall back to reverse lookup from uniqueAgentId
     const monitoringId = ctx.machine.context.currentMonitoringId ?? status.getMonitoringId(stepContext.agentId);
     if (monitoringId) {
-      status.markSkipped(monitoringId);
+      await status.markSkipped(monitoringId);
       debug('[SkipSignal] Marked monitoringId=%d as skipped', monitoringId);
     } else {
       debug('[SkipSignal] Warning: Could not find monitoringId for %s', stepContext.agentId);
