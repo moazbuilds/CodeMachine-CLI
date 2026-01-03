@@ -67,12 +67,6 @@ function printTreeNode(
   const idLine = buildIdLine(agent, statusText, mode);
   console.log(`${prefix}${isLast ? ' ' : '│'}   ${idLine}`);
 
-  if (agent.prompt.length > 60) {
-    console.log(`${prefix}${isLast ? ' ' : '│'}   ${chalk.dim('Prompt:')} ${agent.prompt.substring(0, 57)}...`);
-  } else {
-    console.log(`${prefix}${isLast ? ' ' : '│'}   ${chalk.dim('Prompt:')} ${agent.prompt}`);
-  }
-
   // Show run range for offline agents OR completed/failed children in active trees
   if (mode === 'offline' || agent.status !== 'running') {
     console.log(

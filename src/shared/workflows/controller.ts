@@ -14,6 +14,8 @@ const TEMPLATE_TRACKING_FILE = 'template.json';
 interface TemplateTracking {
   autonomousMode?: boolean;
   controllerConfig?: ControllerConfig;
+  resumeFromLastStep?: boolean;
+  lastUpdated?: string;
   [key: string]: unknown;
 }
 
@@ -175,6 +177,10 @@ export async function saveControllerConfig(
   data.autonomousMode = autonomousMode;
   data.controllerConfig = config;
   data.lastUpdated = new Date().toISOString();
+  // Ensure resumeFromLastStep is set for crash recovery
+  if (data.resumeFromLastStep === undefined) {
+    data.resumeFromLastStep = true;
+  }
 
   await writeFile(trackingPath, JSON.stringify(data, null, 2), 'utf8');
 }
@@ -199,6 +205,10 @@ export async function setAutonomousMode(cmRoot: string, enabled: boolean): Promi
 
   data.autonomousMode = enabled;
   data.lastUpdated = new Date().toISOString();
+  // Ensure resumeFromLastStep is set for crash recovery
+  if (data.resumeFromLastStep === undefined) {
+    data.resumeFromLastStep = true;
+  }
 
   await writeFile(trackingPath, JSON.stringify(data, null, 2), 'utf8');
 
