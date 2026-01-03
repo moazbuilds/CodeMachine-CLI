@@ -212,14 +212,20 @@ export class MonitoringCleanup {
 
         for (const agent of runningAgents) {
           try {
-            // Mark agent as failed with appropriate error
-            const errorMsg = error || new Error(`Agent ${reason}: ${agent.name}`);
-            await monitor.fail(agent.id, errorMsg);
+            // Mark agent based on resumability (has sessionId)
+            if (agent.sessionId) {
+              // Agent has sessionId = resumable → mark as paused
+              await monitor.markPaused(agent.id);
+              logger.debug(`Marked agent ${agent.id} (${agent.name}) as paused (resumable)`);
+            } else {
+              // No sessionId = can't resume → mark as failed
+              const errorMsg = error || new Error(`Agent ${reason}: ${agent.name}`);
+              await monitor.fail(agent.id, errorMsg);
+              logger.debug(`Marked agent ${agent.id} (${agent.name}) as failed`);
+            }
 
             // Close log stream (now async)
             await loggerService.closeStream(agent.id);
-
-            logger.debug(`Marked agent ${agent.id} (${agent.name}) as ${reason}`);
           } catch (cleanupError) {
             logger.error(`Failed to cleanup agent ${agent.id}:`, cleanupError);
           }

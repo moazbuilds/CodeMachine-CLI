@@ -46,6 +46,8 @@ export interface StepExecutorOptions {
   resumeSessionId?: string;
   /** Selected conditions for filtering conditional chained prompt paths */
   selectedConditions?: string[];
+  /** Callback when monitoring ID is registered (for early access before execution completes) */
+  onMonitoringRegistered?: (monitoringId: number) => void;
 }
 
 async function ensureProjectScaffold(cwd: string): Promise<void> {

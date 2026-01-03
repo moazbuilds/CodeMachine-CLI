@@ -273,62 +273,15 @@ export class AgentMonitorService {
   }
 
   /**
-   * Validate agent status using PID and auto-mark as failed if process exited
+   * Return agent as-is without auto-marking
+   * Status updates are now handled explicitly by the workflow runner:
+   * - complete() for successful completion
+   * - fail() for errors
+   * - markPaused() for resumable process exits
+   * - markRunning() for resume
    */
   private validateAndCleanupAgent(agent: AgentRecord): AgentRecord {
-    // Skip if not running (includes paused, completed, failed) or no PID
-    if (agent.status !== 'running' || !agent.pid) {
-      return agent;
-    }
-
-    if (AgentMonitorService.isProcessAlive(agent.pid)) {
-      return agent;
-    }
-
-    const endTime = new Date().toISOString();
-    const duration = new Date(endTime).getTime() - new Date(agent.startTime).getTime();
-    const failureUpdate: Partial<AgentRecord> = {
-      status: 'failed',
-      endTime,
-      duration,
-      error: 'Process terminated unexpectedly'
-    };
-
-    // Fire and forget - don't block read operations
-    try {
-      this.repository.update(agent.id, failureUpdate);
-    } catch (err) {
-      logger.warn(`Failed to update agent ${agent.id} status: ${err}`);
-    }
-
-    logger.debug(
-      `Agent ${agent.id} (${agent.name}) marked as failed: process ${agent.pid} is no longer running`
-    );
-
-    // Return optimistically updated agent (don't wait for disk write)
-    return { ...agent, ...failureUpdate };
-  }
-
-  /**
-   * Lightweight PID check (signal 0) to determine if process is alive
-   */
-  private static isProcessAlive(pid: number): boolean {
-    if (!pid || pid <= 0) {
-      return false;
-    }
-
-    try {
-      process.kill(pid, 0);
-      return true;
-    } catch (error: unknown) {
-      if (error && typeof error === 'object' && 'code' in error) {
-        const code = (error as NodeJS.ErrnoException).code;
-        if (code === 'EPERM') {
-          return true;
-        }
-      }
-      return false;
-    }
+    return agent;
   }
 
   private buildTreeNode(agent: AgentRecord): AgentTreeNode {

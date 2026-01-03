@@ -139,7 +139,14 @@ export async function executeTriggerAgent(options: TriggerExecutionOptions): Pro
     }
   } catch (triggerError) {
     if (monitor && monitoringAgentId !== undefined) {
-      await monitor.fail(monitoringAgentId, triggerError as Error);
+      const agent = monitor.getAgent(monitoringAgentId);
+      if (agent?.sessionId) {
+        // Agent has sessionId = resumable → mark as paused
+        await monitor.markPaused(monitoringAgentId);
+      } else {
+        // No sessionId = can't resume → mark as failed
+        await monitor.fail(monitoringAgentId, triggerError as Error);
+      }
     }
     throw triggerError;
   }

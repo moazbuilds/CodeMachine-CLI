@@ -478,15 +478,21 @@ export async function executeAgent(
   } catch (err) {
     debug(`[AgentRunner] Error during execution: %s`, (err as Error).message);
 
-    // Mark agent as failed (unless already paused - that means intentional abort)
+    // Mark agent status based on resumability (has sessionId)
     if (monitor && monitoringAgentId !== undefined) {
       const agent = monitor.getAgent(monitoringAgentId);
-      debug(`[AgentRunner] Agent status: %s`, agent?.status ?? '(not found)');
-      if (agent?.status !== 'paused') {
+      debug(`[AgentRunner] Agent status: %s, sessionId: %s`, agent?.status ?? '(not found)', agent?.sessionId ?? '(none)');
+
+      if (agent?.status === 'paused') {
+        debug(`[AgentRunner] Agent is already paused, not changing status`);
+      } else if (agent?.sessionId) {
+        // Agent has sessionId = resumable → mark as paused
+        debug(`[AgentRunner] Agent %d has sessionId, marking as paused`, monitoringAgentId);
+        await monitor.markPaused(monitoringAgentId);
+      } else {
+        // No sessionId = can't resume → mark as failed
         debug(`[AgentRunner] Marking agent %d as failed`, monitoringAgentId);
         await monitor.fail(monitoringAgentId, err as Error);
-      } else {
-        debug(`[AgentRunner] Agent is paused, not marking as failed`);
       }
       // Note: Don't close stream here - workflow may write more messages
       // Streams will be closed by cleanup handlers or monitoring service shutdown
