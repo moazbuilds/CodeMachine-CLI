@@ -62,7 +62,7 @@ if (process.stdout.isTTY && !shouldSkipSplash) {
 
 appDebug('[Boot] Importing remaining modules');
 import { Command } from 'commander';
-import { existsSync, realpathSync } from 'node:fs';
+import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 appDebug('[Boot] Imports complete');
 
@@ -71,6 +71,7 @@ const DEFAULT_SPEC_PATH = '.codemachine/inputs/specifications.md';
 /**
  * Background initialization - runs AFTER TUI is visible
  * Loads heavy modules and performs I/O operations while user reads UI
+ * Note: .codemachine folder initialization is handled by workflow run, not here
  */
 async function initializeInBackground(cwd: string): Promise<void> {
   const cmRoot = path.join(cwd, '.codemachine');

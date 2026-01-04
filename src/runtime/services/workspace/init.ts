@@ -1,14 +1,15 @@
 import * as path from 'node:path';
 
-import { loadWorkflowModule, isWorkflowTemplate } from '../../../workflows/index.js';
-import { setActiveTemplate } from '../../../shared/workflows/index.js';
 import { CLI_ROOT_CANDIDATES, debugLog, loadAgents } from './discovery.js';
 import { ensureDir, ensureSpecificationsTemplate, mirrorAgentsToJson } from './fs-utils.js';
 
-export type WorkspaceBootstrapOptions = {
-  projectRoot?: string;
-  cwd?: string; // target working directory for this run
-  templatePath?: string; // path to workflow template
+export type WorkspaceStructureOptions = {
+  cwd?: string;
+};
+
+export type MirrorSubAgentsOptions = {
+  cwd: string;
+  subAgentIds: string[];
 };
 
 function resolveDesiredCwd(explicitCwd?: string): string {
@@ -16,33 +17,18 @@ function resolveDesiredCwd(explicitCwd?: string): string {
 }
 
 /**
- * Ensures workspace scaffolding under `.codemachine/` and prepares the working directory.
+ * Ensures workspace folder structure under `.codemachine/`.
+ * Does NOT load or mirror any agents - that's handled separately by mirrorSubAgents.
  * Idempotent and safe to run repeatedly.
  */
-export async function bootstrapWorkspace(options?: WorkspaceBootstrapOptions): Promise<void> {
+export async function ensureWorkspaceStructure(options?: WorkspaceStructureOptions): Promise<void> {
   const desiredCwd = resolveDesiredCwd(options?.cwd);
 
-  // Prepare workspace-rooted scaffolding directory tree.
-  const workspaceRoot = desiredCwd;
-
-  const agentRoots = Array.from(
-    new Set([
-      options?.projectRoot,
-      workspaceRoot,
-      ...(CLI_ROOT_CANDIDATES ?? [])
-    ].filter((root): root is string => Boolean(root)))
-  );
-
-  // Ensure the working directory exists and use it for this process.
+  // Ensure the working directory exists
   await ensureDir(desiredCwd);
-  try {
-    process.chdir(desiredCwd);
-  } catch {
-    // If chdir fails, continue without throwing to avoid blocking other bootstrap steps.
-  }
 
-  // Prepare .codemachine tree under the workspace root.
-  const cmRoot = path.join(workspaceRoot, '.codemachine');
+  // Prepare .codemachine tree
+  const cmRoot = path.join(desiredCwd, '.codemachine');
   const agentsDir = path.join(cmRoot, 'agents');
   const inputsDir = path.join(cmRoot, 'inputs');
   const memoryDir = path.join(cmRoot, 'memory');
@@ -61,32 +47,37 @@ export async function bootstrapWorkspace(options?: WorkspaceBootstrapOptions): P
     ensureDir(logsDir)
   ]);
 
-  // Ensure specifications template exists (do not overwrite if present).
+  // Ensure specifications template exists (do not overwrite if present)
   await ensureSpecificationsTemplate(inputsDir);
+}
 
-  // Load workflow template and extract sub-agent IDs (if templatePath provided)
-  let agentIdsToLoad: string[] | undefined;
+/**
+ * Mirrors sub-agents to `.codemachine/agents/` based on template's subAgentIds.
+ * Should only be called when the template has subAgentIds defined.
+ */
+export async function mirrorSubAgents(options: MirrorSubAgentsOptions): Promise<void> {
+  const { cwd, subAgentIds } = options;
 
-  if (options?.templatePath) {
-    try {
-      const template = await loadWorkflowModule(options.templatePath);
-      if (isWorkflowTemplate(template)) {
-        const templateName = path.basename(options.templatePath);
-        agentIdsToLoad = template.subAgentIds ?? [];
-
-        // Save template to template.json
-        await setActiveTemplate(cmRoot, templateName);
-
-        debugLog('Loaded template with sub-agents', { templateName, subAgentIds: agentIdsToLoad });
-      }
-    } catch (error) {
-      debugLog('Failed to load workflow template', { error });
-      // Continue with no filtering if template fails to load
-    }
+  if (!subAgentIds || subAgentIds.length === 0) {
+    debugLog('No subAgentIds to mirror, skipping');
+    return;
   }
 
-  // Load agents and mirror to JSON (filtered by template's subAgentIds if provided)
-  const { subAgents } = await loadAgents(agentRoots, agentIdsToLoad);
-  debugLog('Mirroring agents', { agentRoots, agentCount: subAgents.length, filtered: !!agentIdsToLoad });
+  const agentRoots = Array.from(
+    new Set([
+      cwd,
+      ...(CLI_ROOT_CANDIDATES ?? [])
+    ].filter((root): root is string => Boolean(root)))
+  );
+
+  const cmRoot = path.join(cwd, '.codemachine');
+  const agentsDir = path.join(cmRoot, 'agents');
+
+  // Ensure agents directory exists
+  await ensureDir(agentsDir);
+
+  // Load and mirror only the specified sub-agents
+  const { subAgents } = await loadAgents(agentRoots, subAgentIds);
+  debugLog('Mirroring agents', { agentRoots, agentCount: subAgents.length, subAgentIds });
   await mirrorAgentsToJson(agentsDir, subAgents, agentRoots);
 }

@@ -4,7 +4,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { loadWorkflowModule, isWorkflowTemplate, WorkflowTemplate } from '../../workflows/index.js';
 import { hasTemplateChanged, setActiveTemplate } from '../../shared/workflows/index.js';
-import { bootstrapWorkspace } from '../../runtime/services/workspace/index.js';
+import { ensureWorkspaceStructure, mirrorSubAgents } from '../../runtime/services/workspace/index.js';
 import { selectFromMenu, type SelectionChoice } from '../utils/selection-menu.js';
 import { isModuleStep } from '../../workflows/templates/types.js';
 import { resolvePackageRoot } from '../../shared/runtime/root.js';
@@ -38,8 +38,14 @@ async function handleTemplateSelectionSuccess(template: WorkflowTemplate, templa
     }
   });
 
+  // Ensure workspace structure exists first (needed for template tracking file)
+  await ensureWorkspaceStructure({ cwd });
+
   // Check if template changed and regenerate agents folder
   const changed = await hasTemplateChanged(cmRoot, templateFileName);
+
+  // Update active template tracking
+  await setActiveTemplate(cmRoot, templateFileName);
 
   if (changed) {
     console.log('\n🔄 Template changed, regenerating agents...');
@@ -49,20 +55,15 @@ async function handleTemplateSelectionSuccess(template: WorkflowTemplate, templa
       await rm(agentsDir, { recursive: true, force: true });
     }
 
-    // Update active template tracking
-    await setActiveTemplate(cmRoot, templateFileName);
-
-    // Regenerate agents folder with new template
-    await bootstrapWorkspace({
-      cwd,
-      templatePath: templateFilePath
-    });
-
-    console.log('✅ Agents regenerated successfully');
+    // Mirror sub-agents if template has subAgentIds
+    if (template.subAgentIds && template.subAgentIds.length > 0) {
+      await mirrorSubAgents({ cwd, subAgentIds: template.subAgentIds });
+      console.log('✅ Agents regenerated successfully');
+    } else {
+      console.log('✓ Template has no sub-agents to mirror');
+    }
   } else {
     console.log('\n✓ Template unchanged, agents folder up to date');
-    // Still update tracking even if unchanged (in case this is first time setting)
-    await setActiveTemplate(cmRoot, templateFileName);
   }
 
   console.log(`\n✅ Template saved to .codemachine/template.json`);

@@ -37,7 +37,7 @@ export async function validateSpecification(specificationPath: string): Promise<
     await mkdir(path.dirname(absolute), { recursive: true });
     await writeFile(absolute, DEFAULT_SPEC_TEMPLATE, { encoding: 'utf8' });
 
-    const message = `Spec file created at:\n${absolute}\n\nPlease add your project requirements:\n1. Open the file in your editor\n2. Describe your goals and constraints\n3. Save and run /start again`;
+    const message = `Spec file created. Please write your specs at: ${absolute}`;
     throw new ValidationError(message, absolute);
   }
 
@@ -45,7 +45,7 @@ export async function validateSpecification(specificationPath: string): Promise<
 
   // Check if empty or still has default template content
   if (trimmed.length === 0 || trimmed === DEFAULT_SPEC_TEMPLATE.trim()) {
-    const message = `Spec file is empty:\n${absolute}\n\nPlease add your project requirements:\n1. Open the file in your editor\n2. Describe your goals and constraints\n3. Save and run /start again`;
+    const message = `Spec file is empty. Please write your specs at: ${absolute}`;
     throw new ValidationError(message, absolute);
   }
 }

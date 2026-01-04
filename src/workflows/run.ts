@@ -22,6 +22,7 @@ import { registry } from '../infra/engines/index.js';
 import { MonitoringCleanup, AgentMonitorService, StatusService } from '../agents/monitoring/index.js';
 import { WorkflowEventBus, WorkflowEventEmitter } from './events/index.js';
 import { validateSpecification } from '../runtime/services/index.js';
+import { ensureWorkspaceStructure, mirrorSubAgents } from '../runtime/services/workspace/index.js';
 import { WorkflowRunner } from './runner/index.js';
 import { getUniqueAgentId } from './context/index.js';
 import { setupWorkflowMCP, cleanupWorkflowMCP } from './mcp.js';
@@ -35,6 +36,9 @@ export type { WorkflowStep, WorkflowTemplate };
 export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<void> {
   const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd();
   const specificationPath = options.specificationPath || path.resolve(cwd, '.codemachine', 'inputs', 'specifications.md');
+
+  // Ensure workspace structure exists (creates .codemachine folder tree)
+  await ensureWorkspaceStructure({ cwd });
 
   // Validate specification
   await validateSpecification(specificationPath);
@@ -85,6 +89,12 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   const { template } = await loadTemplateWithPath(cwd, templatePath);
 
   debug('[Workflow] Using template: %s', template.name);
+
+  // Mirror sub-agents if template has subAgentIds
+  if (template.subAgentIds && template.subAgentIds.length > 0) {
+    debug('[Workflow] Mirroring %d sub-agents', template.subAgentIds.length);
+    await mirrorSubAgents({ cwd, subAgentIds: template.subAgentIds });
+  }
 
   // Setup MCP servers for workflow signal tools (use cwd for project root settings)
   const mcpResult = await setupWorkflowMCP(template, cwd);
