@@ -84,14 +84,45 @@ function formatStreamJsonLine(line: string): string | null {
       }
     }
 
-    // Handle root-level tool_call messages
+    // Handle root-level tool_call messages (Cursor format)
+    // Structure: { type: "tool_call", subtype: "started"|"completed", tool_call: { lsToolCall: {...} } }
     if (json.type === 'tool_call') {
+      // Extract tool name from tool_call object key (e.g., "lsToolCall" -> "ls")
+      const toolCallObj = json.tool_call;
+      const toolKey = Object.keys(toolCallObj || {}).find((k: string) => k.endsWith('ToolCall'));
+      const toolName = toolKey ? toolKey.replace('ToolCall', '') : 'tool';
+
       if (json.subtype === 'started') {
-        // Don't show on start - will show with final color when tool_result arrives
-        return null;
+        // Show tool starting
+        return formatCommand(toolName, 'started');
       } else if (json.subtype === 'completed') {
-        // Skip completed events - the result will be shown via tool_result
-        return null;
+        // Show tool completed with result (like OpenCode's tool_use)
+        const toolData = toolCallObj?.[toolKey!];
+        const result = toolData?.result;
+
+        if (result?.error) {
+          const errorMsg = typeof result.error === 'string'
+            ? result.error
+            : (result.error?.message || JSON.stringify(result.error));
+          return formatCommand(toolName, 'error') + '\n' + formatResult(errorMsg, true);
+        } else if (result?.success !== undefined) {
+          // Get a preview of the success result
+          let preview: string;
+          const success = result.success;
+          if (typeof success === 'string') {
+            const trimmed = success.trim();
+            preview = trimmed.length > 150 ? trimmed.substring(0, 150) + '...' : trimmed;
+          } else if (success === null || success === undefined) {
+            preview = 'done';
+          } else {
+            // For objects, try to extract meaningful preview
+            const successStr = JSON.stringify(success);
+            preview = successStr.length > 150 ? successStr.substring(0, 150) + '...' : successStr;
+          }
+          return formatCommand(toolName, 'success') + '\n' + formatResult(preview || 'done', false);
+        }
+        // Fallback for unknown result format
+        return formatCommand(toolName, 'success');
       }
     }
 
