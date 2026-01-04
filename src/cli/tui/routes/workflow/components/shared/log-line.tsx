@@ -78,6 +78,42 @@ export interface LogLineProps {
 }
 
 /**
+ * Styled text segment from inline markdown parsing
+ */
+interface TextSegment {
+  text: string
+  bold?: boolean
+  code?: boolean
+}
+
+/**
+ * Parse inline markdown and return styled segments
+ * Handles **bold** and `code` patterns
+ */
+function parseInlineMarkdown(text: string): TextSegment[] {
+  const segments: TextSegment[] = []
+  const regex = /(\*\*([^*]+)\*\*|`([^`]+)`)/g
+  let lastIndex = 0
+  let match
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({ text: text.slice(lastIndex, match.index) })
+    }
+    if (match[2]) {
+      segments.push({ text: match[2], bold: true })
+    } else if (match[3]) {
+      segments.push({ text: match[3], code: true })
+    }
+    lastIndex = regex.lastIndex
+  }
+  if (lastIndex < text.length) {
+    segments.push({ text: text.slice(lastIndex) })
+  }
+  return segments.length ? segments : [{ text }]
+}
+
+/**
  * Map attribute names to OpenTUI TextAttributes flags
  */
 function getTextAttributes(parsed: ParsedMarker): number {
@@ -173,32 +209,46 @@ export function LogLine(props: LogLineProps) {
   const bulletSymbol = () => prefixInfo().type === 'bullet' ? '• ' : ''
   const bulletWidth = () => prefixInfo().type === 'bullet' ? 2 : 0
 
-  // Word-wrapped lines
+  // Word-wrapped lines (wrap the raw text, then parse segments per line)
   const wrappedLines = createMemo(() => {
     const width = maxWidth() - bulletWidth()
     return wordWrap(displayText(), width)
   })
 
+  // Get background color for the line
+  const bgColor = () => {
+    if (isUserInput()) return themeCtx.theme.backgroundElement
+    if (isControllerOutput()) return themeCtx.theme.controllerBackground
+    return undefined
+  }
+
   return (
     <box flexDirection="column" width={maxWidth()}>
       <For each={wrappedLines()}>
-        {(line, index) => (
-          <box flexDirection="row">
-            <Show when={prefixInfo().type === 'bullet' && index() === 0}>
-              <text fg={themeCtx.theme.textMuted}>{bulletSymbol()}</text>
-            </Show>
-            <Show when={prefixInfo().type === 'bullet' && index() > 0}>
-              <text>  </text>
-            </Show>
-            <text
-              fg={lineColor()}
-              bg={isUserInput() ? themeCtx.theme.backgroundElement : isControllerOutput() ? themeCtx.theme.controllerBackground : undefined}
-              attributes={textAttrs()}
-            >
-              {line}
-            </text>
-          </box>
-        )}
+        {(line, index) => {
+          const lineSegments = parseInlineMarkdown(line)
+          return (
+            <box flexDirection="row">
+              <Show when={prefixInfo().type === 'bullet' && index() === 0}>
+                <text fg={themeCtx.theme.textMuted}>{bulletSymbol()}</text>
+              </Show>
+              <Show when={prefixInfo().type === 'bullet' && index() > 0}>
+                <text>  </text>
+              </Show>
+              <For each={lineSegments}>
+                {(segment) => (
+                  <text
+                    fg={segment.code ? themeCtx.theme.purple : lineColor()}
+                    bg={bgColor()}
+                    attributes={segment.bold ? (textAttrs() | TextAttributes.BOLD) : textAttrs()}
+                  >
+                    {segment.text}
+                  </text>
+                )}
+              </For>
+            </box>
+          )
+        }}
       </For>
     </box>
   )
@@ -246,6 +296,9 @@ export function LogLineInline(props: { line: string }) {
     return text
   })
 
+  // Parse inline markdown segments
+  const segments = createMemo(() => parseInlineMarkdown(displayText()))
+
   // Get prefix symbol for bullet points
   const bulletSymbol = () => prefixInfo().type === 'bullet' ? '• ' : ''
 
@@ -254,12 +307,16 @@ export function LogLineInline(props: { line: string }) {
       <Show when={prefixInfo().type === 'bullet'}>
         <text fg={themeCtx.theme.textMuted}>{bulletSymbol()}</text>
       </Show>
-      <text
-        fg={lineColor()}
-        attributes={textAttrs()}
-      >
-        {displayText()}
-      </text>
+      <For each={segments()}>
+        {(segment) => (
+          <text
+            fg={segment.code ? themeCtx.theme.purple : lineColor()}
+            attributes={segment.bold ? (textAttrs() | TextAttributes.BOLD) : textAttrs()}
+          >
+            {segment.text}
+          </text>
+        )}
+      </For>
     </box>
   )
 }

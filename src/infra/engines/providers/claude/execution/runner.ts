@@ -120,11 +120,8 @@ function formatStreamJsonLine(line: string): string | null {
       const totalCached = cacheRead + cacheCreation;
       const totalIn = json.usage.input_tokens + totalCached;
 
-      // Format telemetry line with rich formatting
-      const durationStr = formatDuration(json.duration_ms);
-      const costStr = formatCost(json.total_cost_usd);
-      const tokensStr = formatTokens(totalIn, json.usage.output_tokens, totalCached > 0 ? totalCached : undefined);
-      return addMarker('GRAY', `${SYMBOL_BULLET} `, 'DIM') + `${durationStr} ${addMarker('GRAY', '│', 'DIM')} ${costStr} ${addMarker('GRAY', '│', 'DIM')} ${tokensStr}`;
+      // Format telemetry line with unified format (matches other engines)
+      return `⏱️  Tokens: ${totalIn}in/${json.usage.output_tokens}out${totalCached > 0 ? ` (${totalCached} cached)` : ''}`;
     }
 
     return null;
