@@ -9,21 +9,12 @@ export interface RunAgentOptions {
   model?: string; // Model to use (e.g., 'sonnet', 'opus', 'haiku')
 }
 
-export function shouldSkipClaude(): boolean {
-  return process.env.CODEMACHINE_SKIP_CLAUDE === '1';
-}
-
 export async function runClaudePrompt(options: {
   agentId: string;
   prompt: string;
   cwd: string;
   model?: string;
 }): Promise<void> {
-  if (shouldSkipClaude()) {
-    console.log(`[dry-run] ${options.agentId}: ${options.prompt.slice(0, 80)}...`);
-    return;
-  }
-
   await runClaude({
     prompt: options.prompt,
     workingDir: options.cwd,
@@ -67,11 +58,6 @@ export async function runAgent(
         // Ignore stderr write errors
       }
     });
-
-  if (shouldSkipClaude()) {
-    logStdout(`[dry-run] ${agentId}: ${prompt.slice(0, 120)}...`);
-    return '';
-  }
 
   let buffered = '';
   const result = await runClaude({

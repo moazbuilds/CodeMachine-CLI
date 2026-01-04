@@ -10,10 +10,6 @@ export interface RunAgentOptions {
   agent?: string;
 }
 
-export function shouldSkipOpenCode(): boolean {
-  return process.env.CODEMACHINE_SKIP_OPENCODE === '1';
-}
-
 export async function runOpenCodePrompt(options: {
   agentId: string;
   prompt: string;
@@ -21,11 +17,6 @@ export async function runOpenCodePrompt(options: {
   model?: string;
   agent?: string;
 }): Promise<void> {
-  if (shouldSkipOpenCode()) {
-    console.log(`[dry-run] ${options.agentId}: ${options.prompt.slice(0, 80)}...`);
-    return;
-  }
-
   await runOpenCode({
     prompt: options.prompt,
     workingDir: options.cwd,
@@ -70,11 +61,6 @@ export async function runAgent(
         // Ignore stderr write errors
       }
     });
-
-  if (shouldSkipOpenCode()) {
-    logStdout(`[dry-run] ${agentId}: ${prompt.slice(0, 120)}...`);
-    return '';
-  }
 
   let buffered = '';
   const result = await runOpenCode({

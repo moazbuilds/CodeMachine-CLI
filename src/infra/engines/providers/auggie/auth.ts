@@ -11,6 +11,7 @@ import {
   createCredentialFile,
 } from '../../core/auth.js';
 import { metadata } from './metadata.js';
+import { ENV } from './config.js';
 
 const SENTINEL_FILE = 'auth.json';
 
@@ -18,7 +19,7 @@ const SENTINEL_FILE = 'auth.json';
  * Resolves the Auggie home directory
  */
 function resolveAuggieHome(customPath?: string): string {
-  const configured = customPath ?? process.env.AUGGIE_HOME;
+  const configured = customPath ?? process.env[ENV.AUGGIE_HOME];
   const target = configured ? expandHomeDir(configured) : path.join(homedir(), '.codemachine', 'auggie');
   return target;
 }
@@ -82,11 +83,6 @@ export async function ensureAuth(forceLogin = false): Promise<boolean> {
   if (!cliInstalled) {
     displayCliNotInstalledError(metadata);
     throw new Error(`${metadata.name} is not installed.`);
-  }
-
-  if (process.env.CODEMACHINE_SKIP_AUTH === '1') {
-    await createCredentialFile(sentinelPath, {});
-    return true;
   }
 
   // Run interactive login via Auggie CLI

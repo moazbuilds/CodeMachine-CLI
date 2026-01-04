@@ -5,6 +5,7 @@ import { spawnProcess } from '../../../../process/spawn.js';
 import { buildCursorExecCommand } from './commands.js';
 import { metadata } from '../metadata.js';
 import { expandHomeDir } from '../../../../../shared/utils/index.js';
+import { ENV } from '../config.js';
 import { formatThinking, formatCommand, formatResult, formatStatus } from '../../../../../shared/formatters/outputMarkers.js';
 import { debug } from '../../../../../shared/logging/logger.js';
 
@@ -26,8 +27,6 @@ export interface RunCursorResult {
   stdout: string;
   stderr: string;
 }
-
-const ANSI_ESCAPE_SEQUENCE = new RegExp(String.raw`\u001B\[[0-9;?]*[ -/]*[@-~]`, 'g');
 
 // Track tool names for associating with results
 const toolNameMap = new Map<string, string>();
@@ -165,8 +164,8 @@ export async function runCursor(options: RunCursorOptions): Promise<RunCursorRes
   }
 
   // Set up CURSOR_CONFIG_DIR for authentication
-  const cursorConfigDir = process.env.CURSOR_CONFIG_DIR
-    ? expandHomeDir(process.env.CURSOR_CONFIG_DIR)
+  const cursorConfigDir = process.env[ENV.CURSOR_HOME]
+    ? expandHomeDir(process.env[ENV.CURSOR_HOME]!)
     : path.join(homedir(), '.codemachine', 'cursor');
 
   const mergedEnv = {
@@ -175,7 +174,6 @@ export async function runCursor(options: RunCursorOptions): Promise<RunCursorRes
     CURSOR_CONFIG_DIR: cursorConfigDir,
   };
 
-  const plainLogs = (process.env.CODEMACHINE_PLAIN_LOGS || '').toString() === '1';
   // Force pipe mode to ensure text normalization is applied
   const inheritTTY = false;
 
@@ -187,11 +185,6 @@ export async function runCursor(options: RunCursorOptions): Promise<RunCursorRes
     // When we see \r followed by text, it means the text should overwrite what came before
     // So we keep only the text after the last \r in each line
     result = result.replace(/^.*\r([^\r\n]*)/gm, '$1');
-
-    if (plainLogs) {
-      // Plain mode: strip all ANSI sequences
-      result = result.replace(ANSI_ESCAPE_SEQUENCE, '');
-    }
 
     // Clean up line endings
     result = result

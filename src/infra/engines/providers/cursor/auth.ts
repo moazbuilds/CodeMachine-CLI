@@ -14,6 +14,7 @@ import {
   checkCredentialExists,
 } from '../../core/auth.js';
 import { metadata } from './metadata.js';
+import { ENV } from './config.js';
 
 export interface CursorAuthOptions {
   cursorConfigDir?: string;
@@ -27,8 +28,8 @@ export function resolveCursorConfigDir(options?: CursorAuthOptions): string {
     return expandHomeDir(options.cursorConfigDir);
   }
 
-  if (process.env.CURSOR_CONFIG_DIR) {
-    return expandHomeDir(process.env.CURSOR_CONFIG_DIR);
+  if (process.env[ENV.CURSOR_HOME]) {
+    return expandHomeDir(process.env[ENV.CURSOR_HOME]!);
   }
 
   // Authentication is shared globally
@@ -78,13 +79,6 @@ export async function ensureAuth(options?: CursorAuthOptions): Promise<boolean> 
     }
   } catch {
     // Config file doesn't exist
-  }
-
-  if (process.env.CODEMACHINE_SKIP_AUTH === '1') {
-    // Create a placeholder for testing/dry-run mode
-    await ensureAuthDirectory(configDir);
-    await createCredentialFile(configPath, { version: 1 });
-    return true;
   }
 
   // Check if CLI is installed

@@ -13,6 +13,7 @@ import {
   getNextAuthAction,
 } from '../../core/auth.js';
 import { metadata } from './metadata.js';
+import { ENV } from './config.js';
 
 export interface MistralAuthOptions {
   mistralConfigDir?: string;
@@ -24,8 +25,8 @@ export function resolveMistralConfigDir(options?: MistralAuthOptions): string {
     return expandHomeDir(options.mistralConfigDir);
   }
 
-  if (process.env.MISTRAL_CONFIG_DIR) {
-    return expandHomeDir(process.env.MISTRAL_CONFIG_DIR);
+  if (process.env[ENV.MISTRAL_HOME]) {
+    return expandHomeDir(process.env[ENV.MISTRAL_HOME]!);
   }
 
   return path.join(homedir(), '.codemachine', 'mistral');
@@ -35,8 +36,8 @@ function resolveVibeHome(options?: MistralAuthOptions): string {
   if (options?.mistralConfigDir) {
     return expandHomeDir(options.mistralConfigDir);
   }
-  if (process.env.VIBE_HOME) {
-    return expandHomeDir(process.env.VIBE_HOME);
+  if (process.env[ENV.MISTRAL_HOME]) {
+    return expandHomeDir(process.env[ENV.MISTRAL_HOME]!);
   }
   // default under codemachine
   return path.join(homedir(), '.codemachine', 'vibe');
@@ -115,13 +116,6 @@ export async function ensureAuth(options?: MistralAuthOptions): Promise<boolean>
     return true;
   } catch {
     // Credentials file doesn't exist
-  }
-
-  if (process.env.CODEMACHINE_SKIP_AUTH === '1') {
-    // Create a placeholder for testing/dry-run mode
-    await ensureAuthDirectory(vibeHome);
-    await writeFile(credPath, 'MISTRAL_API_KEY=placeholder', { encoding: 'utf8' });
-    return true;
   }
 
   // Check if CLI is installed (Mistral uses --help instead of --version)

@@ -13,12 +13,13 @@ import {
   getNextAuthAction,
 } from '../../core/auth.js';
 import { metadata } from './metadata.js';
+import { ENV } from './config.js';
 
 /**
  * Resolves the Codex home directory
  */
 async function resolveCodexHome(codexHome?: string): Promise<string> {
-  const rawPath = codexHome ?? process.env.CODEX_HOME ?? path.join(homedir(), '.codemachine', 'codex');
+  const rawPath = codexHome ?? process.env[ENV.CODEX_HOME] ?? path.join(homedir(), '.codemachine', 'codex');
   const targetHome = expandHomeDir(rawPath);
   await ensureAuthDirectory(targetHome);
   return targetHome;
@@ -49,11 +50,6 @@ export async function ensureAuth(): Promise<boolean> {
     return true;
   } catch {
     // Auth file doesn't exist
-  }
-
-  if (process.env.CODEMACHINE_SKIP_AUTH === '1') {
-    await createCredentialFile(authPath, {});
-    return true;
   }
 
   // Check if CLI is installed

@@ -5,6 +5,7 @@ import { spawnProcess } from '../../../../process/spawn.js';
 import { buildClaudeExecCommand } from './commands.js';
 import { metadata } from '../metadata.js';
 import { expandHomeDir } from '../../../../../shared/utils/index.js';
+import { ENV } from '../config.js';
 import { createTelemetryCapture } from '../../../../../shared/telemetry/index.js';
 import type { ParsedTelemetry } from '../../../core/types.js';
 import {
@@ -38,8 +39,6 @@ export interface RunClaudeResult {
   stdout: string;
   stderr: string;
 }
-
-const ANSI_ESCAPE_SEQUENCE = new RegExp(String.raw`\u001B\[[0-9;?]*[ -/]*[@-~]`, 'g');
 
 /**
  * Build the final resume prompt combining steering instruction with user message
@@ -146,8 +145,8 @@ export async function runClaude(options: RunClaudeOptions): Promise<RunClaudeRes
   }
 
   // Set up CLAUDE_CONFIG_DIR for authentication
-  const claudeConfigDir = process.env.CLAUDE_CONFIG_DIR
-    ? expandHomeDir(process.env.CLAUDE_CONFIG_DIR)
+  const claudeConfigDir = process.env[ENV.CLAUDE_HOME]
+    ? expandHomeDir(process.env[ENV.CLAUDE_HOME]!)
     : path.join(homedir(), '.codemachine', 'claude');
 
   const mergedEnv = {
@@ -156,7 +155,6 @@ export async function runClaude(options: RunClaudeOptions): Promise<RunClaudeRes
     CLAUDE_CONFIG_DIR: claudeConfigDir,
   };
 
-  const plainLogs = (process.env.CODEMACHINE_PLAIN_LOGS || '').toString() === '1';
   // Force pipe mode to ensure text normalization is applied
   const inheritTTY = false;
 
@@ -168,11 +166,6 @@ export async function runClaude(options: RunClaudeOptions): Promise<RunClaudeRes
     // When we see \r followed by text, it means the text should overwrite what came before
     // So we keep only the text after the last \r in each line
     result = result.replace(/^.*\r([^\r\n]*)/gm, '$1');
-
-    if (plainLogs) {
-      // Plain mode: strip all ANSI sequences
-      result = result.replace(ANSI_ESCAPE_SEQUENCE, '');
-    }
 
     // Clean up line endings
     result = result

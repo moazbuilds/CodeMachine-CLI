@@ -4,6 +4,7 @@ import { spawnProcess } from '../../../../process/spawn.js';
 import { buildOpenCodeRunCommand } from './commands.js';
 import { metadata } from '../metadata.js';
 import { resolveOpenCodeHome } from '../auth.js';
+import { ENV } from '../config.js';
 import { formatCommand, formatResult, formatStatus, formatMessage } from '../../../../../shared/formatters/outputMarkers.js';
 import { logger } from '../../../../../shared/logging/index.js';
 import { createTelemetryCapture } from '../../../../../shared/telemetry/index.js';
@@ -30,8 +31,6 @@ export interface RunOpenCodeResult {
   stderr: string;
 }
 
-const ANSI_ESCAPE_SEQUENCE = new RegExp(String.raw`\u001B\[[0-9;?]*[ -/]*[@-~]`, 'g');
-
 /**
  * Build the final resume prompt - just pass through the prompt as-is
  * The caller (controller.ts) is responsible for building the proper message
@@ -49,7 +48,7 @@ function resolveRunnerEnv(env?: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 
   // Set all three XDG environment variables to subdirectories under OPENCODE_HOME
   // This centralizes all OpenCode data under ~/.codemachine/opencode by default
-  const opencodeHome = resolveOpenCodeHome(runnerEnv.OPENCODE_HOME);
+  const opencodeHome = resolveOpenCodeHome(runnerEnv[ENV.OPENCODE_HOME]);
 
   if (shouldApplyDefault('XDG_CONFIG_HOME', env)) {
     runnerEnv.XDG_CONFIG_HOME = path.join(opencodeHome, 'config');
@@ -69,12 +68,7 @@ function resolveRunnerEnv(env?: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 const truncate = (value: string, length = 100): string =>
   value.length > length ? `${value.slice(0, length)}...` : value;
 
-function cleanAnsi(text: string, plainLogs: boolean): string {
-  if (!plainLogs) return text;
-  return text.replace(ANSI_ESCAPE_SEQUENCE, '');
-}
-
-function formatToolUse(part: unknown, plainLogs: boolean): string {
+function formatToolUse(part: unknown): string {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const partObj = (typeof part === 'object' && part !== null ? part : {}) as Record<string, any>;
   const tool = partObj?.tool ?? 'tool';
@@ -88,7 +82,7 @@ function formatToolUse(part: unknown, plainLogs: boolean): string {
         : state?.output
           ? JSON.stringify(state.output)
           : '';
-    const output = cleanAnsi(outputRaw?.trim() ?? '', plainLogs);
+    const output = outputRaw?.trim() ?? '';
     if (output) {
       return `${base}\n${formatResult(output, false)}`;
     }
@@ -101,7 +95,7 @@ function formatToolUse(part: unknown, plainLogs: boolean): string {
     (state?.input && Object.keys(state.input).length > 0 ? JSON.stringify(state.input) : '');
 
   if (previewSource) {
-    const preview = cleanAnsi(previewSource.trim(), plainLogs);
+    const preview = previewSource.trim();
     return `${base}\n${formatResult(truncate(preview), false)}`;
   }
 
@@ -130,7 +124,7 @@ function formatStepEvent(type: string, part: unknown): string | null {
   return tokenSummary;
 }
 
-function formatErrorEvent(error: unknown, plainLogs: boolean): string {
+function formatErrorEvent(error: unknown): string {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const errorObj = (typeof error === 'object' && error !== null ? error : {}) as Record<string, any>;
   const dataMessage =
@@ -142,8 +136,7 @@ function formatErrorEvent(error: unknown, plainLogs: boolean): string {
           ? errorObj.name
           : 'OpenCode reported an unknown error';
 
-  const cleaned = cleanAnsi(dataMessage, plainLogs);
-  return `${formatCommand('OpenCode Error', 'error')}\n${formatResult(cleaned, true)}`;
+  return `${formatCommand('OpenCode Error', 'error')}\n${formatResult(dataMessage, true)}`;
 }
 
 export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenCodeResult> {
@@ -172,8 +165,6 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
   }
 
   const runnerEnv = resolveRunnerEnv(env);
-  const plainLogs =
-    (env?.CODEMACHINE_PLAIN_LOGS ?? process.env.CODEMACHINE_PLAIN_LOGS ?? '').toString() === '1';
   const { command, args } = buildOpenCodeRunCommand({ model, agent, resumeSessionId });
 
   logger.debug(
@@ -233,7 +224,7 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
     let formatted: string | null = null;
     switch (parsedObj.type) {
       case 'tool_use':
-        formatted = formatToolUse(parsedObj.part, plainLogs);
+        formatted = formatToolUse(parsedObj.part);
         break;
       case 'step_start':
         if (isFirstStep) {
@@ -247,10 +238,7 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
         break;
       case 'text': {
         const textPart = parsedObj.part;
-        const rawText =
-          typeof textPart?.text === 'string'
-            ? cleanAnsi(textPart.text, plainLogs)
-            : '';
+        const rawText = typeof textPart?.text === 'string' ? textPart.text : '';
         // Strip leading newlines - OpenCode adds these for terminal formatting
         // which we handle ourselves via formatMessage
         const textValue = rawText.replace(/^\n+/, '');
@@ -259,7 +247,7 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
         break;
       }
       case 'error':
-        formatted = formatErrorEvent(parsedObj.error, plainLogs);
+        formatted = formatErrorEvent(parsedObj.error);
         // Capture error for later (OpenCode may exit 0 even on errors)
         if (!capturedError && parsedObj.error) {
           const errorObj = parsedObj.error as Record<string, unknown>;
@@ -287,11 +275,6 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
 
     // Handle carriage returns that cause line overwrites
     result = result.replace(/^.*\r([^\r\n]*)/gm, '$1');
-
-    // Strip ANSI sequences in plain mode
-    if (plainLogs) {
-      result = result.replace(ANSI_ESCAPE_SEQUENCE, '');
-    }
 
     // Collapse excessive newlines
     result = result.replace(/\n{3,}/g, '\n\n');
@@ -321,9 +304,8 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
       },
       onStderr: (chunk) => {
         const normalized = normalizeChunk(chunk);
-        const cleaned = cleanAnsi(normalized, plainLogs);
-        stderrBuffer += cleaned;
-        onErrorData?.(cleaned);
+        stderrBuffer += normalized;
+        onErrorData?.(normalized);
       },
       signal: abortSignal,
       timeout,

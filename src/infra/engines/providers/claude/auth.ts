@@ -13,6 +13,7 @@ import {
   getNextAuthAction,
 } from '../../core/auth.js';
 import { metadata } from './metadata.js';
+import { ENV } from './config.js';
 
 export interface ClaudeAuthOptions {
   claudeConfigDir?: string;
@@ -26,8 +27,8 @@ export function resolveClaudeConfigDir(options?: ClaudeAuthOptions): string {
     return expandHomeDir(options.claudeConfigDir);
   }
 
-  if (process.env.CLAUDE_CONFIG_DIR) {
-    return expandHomeDir(process.env.CLAUDE_CONFIG_DIR);
+  if (process.env[ENV.CLAUDE_HOME]) {
+    return expandHomeDir(process.env[ENV.CLAUDE_HOME]!);
   }
 
   // Authentication is shared globally
@@ -91,14 +92,6 @@ export async function ensureAuth(options?: ClaudeAuthOptions): Promise<boolean> 
     return true;
   } catch {
     // Credentials file doesn't exist
-  }
-
-  if (process.env.CODEMACHINE_SKIP_AUTH === '1') {
-    // Create a placeholder for testing/dry-run mode
-    const claudeDir = path.dirname(credPath);
-    await ensureAuthDirectory(claudeDir);
-    await createCredentialFile(credPath, {});
-    return true;
   }
 
   // Check if CLI is installed

@@ -9,21 +9,12 @@ export interface RunAgentOptions {
   model?: string; // Model to use (e.g., 'auto', 'gpt-5', 'sonnet-4.5')
 }
 
-export function shouldSkipCursor(): boolean {
-  return process.env.CODEMACHINE_SKIP_CURSOR === '1';
-}
-
 export async function runCursorPrompt(options: {
   agentId: string;
   prompt: string;
   cwd: string;
   model?: string;
 }): Promise<void> {
-  if (shouldSkipCursor()) {
-    console.log(`[dry-run] ${options.agentId}: ${options.prompt.slice(0, 80)}...`);
-    return;
-  }
-
   await runCursor({
     prompt: options.prompt,
     workingDir: options.cwd,
@@ -67,11 +58,6 @@ export async function runAgent(
         // Ignore stderr write errors
       }
     });
-
-  if (shouldSkipCursor()) {
-    logStdout(`[dry-run] ${agentId}: ${prompt.slice(0, 120)}...`);
-    return '';
-  }
 
   let buffered = '';
   const result = await runCursor({

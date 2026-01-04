@@ -27,9 +27,13 @@ export interface ClaudeSettings {
 // ============================================================================
 
 /**
- * Get Claude Code settings file path
+ * Get Claude Code MCP settings file path
  *
- * @param scope - 'project' for .claude/settings.json, 'user' for ~/.codemachine/claude/settings.json
+ * Claude reads MCP configuration from:
+ * - Project scope: .mcp.json in project directory
+ * - User scope: .claude.json in CLAUDE_CONFIG_DIR (defaults to ~/.codemachine/claude)
+ *
+ * @param scope - 'project' for .mcp.json, 'user' for .claude.json
  * @param projectDir - Project directory (required for 'project' scope)
  */
 export function getSettingsPath(scope: ConfigScope, projectDir?: string): string {
@@ -37,9 +41,13 @@ export function getSettingsPath(scope: ConfigScope, projectDir?: string): string
     if (!projectDir) {
       throw new Error('projectDir required for project scope');
     }
-    return path.join(projectDir, '.claude', 'settings.json');
+    return path.join(projectDir, '.mcp.json');
   }
-  return path.join(homedir(), '.codemachine', 'claude', 'settings.json');
+  // User scope: Claude reads from .claude.json in CLAUDE_CONFIG_DIR
+  const claudeConfigDir = process.env.CLAUDE_CONFIG_DIR
+    ? process.env.CLAUDE_CONFIG_DIR
+    : path.join(homedir(), '.codemachine', 'claude');
+  return path.join(claudeConfigDir, '.claude.json');
 }
 
 // ============================================================================

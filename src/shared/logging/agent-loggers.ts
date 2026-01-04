@@ -6,9 +6,8 @@ type AgentLogger = (chunk: string) => void;
 
 const passthrough: ColorizeFn = (input) => input;
 
-const disableAgentColors = (process.env.CODEMACHINE_PLAIN_LOGS || '').toString() === '1';
 const hasTty = Boolean(process.stdout.isTTY || process.stderr.isTTY);
-const supportsColor = !disableAgentColors && hasTty && (chalk.level ?? 0) > 0;
+const supportsColor = hasTty && (chalk.level ?? 0) > 0;
 
 const COLOR_PALETTE: ColorizeFn[] = supportsColor
   ? [

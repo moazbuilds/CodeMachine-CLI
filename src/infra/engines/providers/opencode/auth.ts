@@ -10,6 +10,7 @@ import {
   createCredentialFile,
 } from '../../core/auth.js';
 import { metadata } from './metadata.js';
+import { ENV } from './config.js';
 
 const SENTINEL_FILE = 'auth.json';
 
@@ -17,7 +18,7 @@ const SENTINEL_FILE = 'auth.json';
  * Resolves the OpenCode home directory (base for all XDG paths)
  */
 function resolveOpenCodeHome(customPath?: string): string {
-  const configured = customPath ?? process.env.OPENCODE_HOME;
+  const configured = customPath ?? process.env[ENV.OPENCODE_HOME];
   const target = configured ? expandHomeDir(configured) : path.join(homedir(), '.codemachine', 'opencode');
   return target;
 }
@@ -84,11 +85,6 @@ export async function ensureAuth(forceLogin = false): Promise<boolean> {
   if (!isCliInstalled(metadata.cliBinary)) {
     displayCliNotInstalledError(metadata);
     throw new Error(`${metadata.name} CLI is not installed.`);
-  }
-
-  if (process.env.CODEMACHINE_SKIP_AUTH === '1') {
-    await createCredentialFile(sentinelPath, {});
-    return true;
   }
 
   // Set up XDG environment variables for OpenCode

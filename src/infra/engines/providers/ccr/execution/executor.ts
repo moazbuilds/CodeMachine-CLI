@@ -9,21 +9,12 @@ export interface RunAgentOptions {
   model?: string; // Model to use (e.g., 'sonnet', 'opus', 'haiku')
 }
 
-export function shouldSkipCcr(): boolean {
-  return process.env.CODEMACHINE_SKIP_CCR === '1';
-}
-
 export async function runCcrPrompt(options: {
   agentId: string;
   prompt: string;
   cwd: string;
   model?: string;
 }): Promise<void> {
-  if (shouldSkipCcr()) {
-    console.log(`[dry-run] ${options.agentId}: ${options.prompt.slice(0, 80)}...`);
-    return;
-  }
-
   await runCcr({
     prompt: options.prompt,
     workingDir: options.cwd,
@@ -67,11 +58,6 @@ export async function runAgent(
         // Ignore stderr write errors
       }
     });
-
-  if (shouldSkipCcr()) {
-    logStdout(`[dry-run] ${agentId}: ${prompt.slice(0, 120)}...`);
-    return '';
-  }
 
   let buffered = '';
   const result = await runCcr({

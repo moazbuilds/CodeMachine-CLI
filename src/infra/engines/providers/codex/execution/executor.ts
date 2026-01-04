@@ -8,20 +8,11 @@ export interface RunAgentOptions {
   timeout?: number; // Timeout in milliseconds (default: 1800000ms = 30 minutes)
 }
 
-export function shouldSkipCodex(): boolean {
-  return process.env.CODEMACHINE_SKIP_CODEX === '1';
-}
-
 export async function runCodexPrompt(options: {
   agentId: string;
   prompt: string;
   cwd: string;
 }): Promise<void> {
-  if (shouldSkipCodex()) {
-    console.log(`[dry-run] ${options.agentId}: ${options.prompt.slice(0, 80)}...`);
-    return;
-  }
-
   await runCodex({
     prompt: options.prompt,
     workingDir: options.cwd,
@@ -64,11 +55,6 @@ export async function runAgent(
         // Ignore stderr write errors
       }
     });
-
-  if (shouldSkipCodex()) {
-    logStdout(`[dry-run] ${agentId}: ${prompt.slice(0, 120)}...`);
-    return '';
-  }
 
   let buffered = '';
   const result = await runCodex({

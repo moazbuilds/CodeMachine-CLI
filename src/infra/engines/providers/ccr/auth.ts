@@ -12,6 +12,7 @@ import {
   getNextAuthAction,
 } from '../../core/auth.js';
 import { metadata } from './metadata.js';
+import { ENV } from './config.js';
 
 export interface CcrAuthOptions {
   ccrConfigDir?: string;
@@ -25,8 +26,8 @@ export function resolveCcrConfigDir(options?: CcrAuthOptions): string {
     return expandHomeDir(options.ccrConfigDir);
   }
 
-  if (process.env.CCR_CONFIG_DIR) {
-    return expandHomeDir(process.env.CCR_CONFIG_DIR);
+  if (process.env[ENV.CCR_HOME]) {
+    return expandHomeDir(process.env[ENV.CCR_HOME]!);
   }
 
   // Authentication is shared globally

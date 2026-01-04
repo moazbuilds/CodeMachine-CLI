@@ -18,3 +18,14 @@ export function resolveModel(model?: string): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
+/**
+ * Default timeout for Auggie operations (30 minutes)
+ */
+export const DEFAULT_TIMEOUT = 1800000;
+
+/**
+ * Environment variable names
+ */
+export const ENV = {
+  AUGGIE_HOME: 'CODEMACHINE_AUGGIE_HOME',
+} as const;

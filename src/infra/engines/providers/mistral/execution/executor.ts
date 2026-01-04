@@ -9,21 +9,12 @@ export interface RunAgentOptions {
   model?: string; // Model to use (e.g., 'devstral-2', 'mistral-large', 'mistral-medium', 'mistral-small')
 }
 
-export function shouldSkipMistral(): boolean {
-  return process.env.CODEMACHINE_SKIP_MISTRAL === '1';
-}
-
 export async function runMistralPrompt(options: {
   agentId: string;
   prompt: string;
   cwd: string;
   model?: string;
 }): Promise<void> {
-  if (shouldSkipMistral()) {
-    console.log(`[dry-run] ${options.agentId}: ${options.prompt.slice(0, 80)}...`);
-    return;
-  }
-
   await runMistral({
     prompt: options.prompt,
     workingDir: options.cwd,
@@ -67,11 +58,6 @@ export async function runAgent(
         // Ignore stderr write errors
       }
     });
-
-  if (shouldSkipMistral()) {
-    logStdout(`[dry-run] ${agentId}: ${prompt.slice(0, 120)}...`);
-    return '';
-  }
 
   let buffered = '';
   const result = await runMistral({

@@ -21,3 +21,15 @@ export function resolveModel(model?: string): string | undefined {
   const trimmed = model?.trim();
   return trimmed ? trimmed : undefined;
 }
+
+/**
+ * Default timeout for OpenCode operations (30 minutes)
+ */
+export const DEFAULT_TIMEOUT = 1800000;
+
+/**
+ * Environment variable names
+ */
+export const ENV = {
+  OPENCODE_HOME: 'CODEMACHINE_OPENCODE_HOME',
+} as const;

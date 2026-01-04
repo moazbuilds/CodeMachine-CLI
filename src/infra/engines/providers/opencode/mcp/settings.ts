@@ -7,11 +7,11 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { homedir } from 'os';
 import { debug } from '../../../../../shared/logging/logger.js';
 import type { ConfigScope } from '../../../../mcp/types.js';
 import { getServerPath as getWorkflowSignalsPath } from '../../../../mcp/servers/workflow-signals/config.js';
 import { getServerPath as getAgentCoordinationPath } from '../../../../mcp/servers/agent-coordination/config.js';
+import { resolveOpenCodeHome } from '../auth.js';
 
 // ============================================================================
 // TYPES
@@ -49,9 +49,7 @@ export function getSettingsPath(scope: ConfigScope, projectDir?: string): string
     return path.join(projectDir, 'opencode.json');
   }
   return path.join(
-    homedir(),
-    '.codemachine',
-    'opencode',
+    resolveOpenCodeHome(),
     'config',
     'opencode',
     'opencode.json'

@@ -5,6 +5,7 @@ import { spawnProcess } from '../../../../process/spawn.js';
 import { buildCcrExecCommand } from './commands.js';
 import { metadata } from '../metadata.js';
 import { expandHomeDir } from '../../../../../shared/utils/index.js';
+import { ENV } from '../config.js';
 import { logger } from '../../../../../shared/logging/index.js';
 import { createTelemetryCapture } from '../../../../../shared/telemetry/index.js';
 import { formatThinking, formatCommand, formatResult } from '../../../../../shared/formatters/outputMarkers.js';
@@ -27,8 +28,6 @@ export interface RunCcrResult {
   stdout: string;
   stderr: string;
 }
-
-const ANSI_ESCAPE_SEQUENCE = new RegExp(String.raw`\u001B\[[0-9;?]*[ -/]*[@-~]`, 'g');
 
 /**
  * Build the final resume prompt combining steering instruction with user message
@@ -133,8 +132,8 @@ export async function runCcr(options: RunCcrOptions): Promise<RunCcrResult> {
   }
 
   // Set up CCR_CONFIG_DIR for authentication
-  const ccrConfigDir = process.env.CCR_CONFIG_DIR
-    ? expandHomeDir(process.env.CCR_CONFIG_DIR)
+  const ccrConfigDir = process.env[ENV.CCR_HOME]
+    ? expandHomeDir(process.env[ENV.CCR_HOME]!)
     : path.join(homedir(), '.codemachine', 'ccr');
 
   const mergedEnv = {
@@ -143,7 +142,6 @@ export async function runCcr(options: RunCcrOptions): Promise<RunCcrResult> {
     CCR_CONFIG_DIR: ccrConfigDir,
   };
 
-  const plainLogs = (process.env.CODEMACHINE_PLAIN_LOGS || '').toString() === '1';
   // Force pipe mode to ensure text normalization is applied
   const inheritTTY = false;
 
@@ -155,11 +153,6 @@ export async function runCcr(options: RunCcrOptions): Promise<RunCcrResult> {
     // When we see \r followed by text, it means the text should overwrite what came before
     // So we keep only the text after the last \r in each line
     result = result.replace(/^.*\r([^\r\n]*)/gm, '$1');
-
-    if (plainLogs) {
-      // Plain mode: strip all ANSI sequences
-      result = result.replace(ANSI_ESCAPE_SEQUENCE, '');
-    }
 
     // Clean up line endings
     result = result
