@@ -10,7 +10,8 @@ import * as path from 'path';
 import { homedir } from 'os';
 import { debug } from '../../../../../shared/logging/logger.js';
 import type { ConfigScope, MCPServerConfig } from '../../../../mcp/types.js';
-import { getServerPath } from '../../../../mcp/servers/workflow-signals/config.js';
+import { getServerPath as getWorkflowSignalsPath } from '../../../../mcp/servers/workflow-signals/config.js';
+import { getServerPath as getAgentCoordinationPath } from '../../../../mcp/servers/agent-coordination/config.js';
 
 // ============================================================================
 // TYPES
@@ -86,9 +87,22 @@ export async function writeSettings(
 export function getWorkflowSignalsConfig(workflowDir: string): MCPServerConfig {
   return {
     command: 'bun',
-    args: ['run', getServerPath()],
+    args: ['run', getWorkflowSignalsPath()],
     env: {
       WORKFLOW_DIR: workflowDir,
+    },
+  };
+}
+
+/**
+ * Get agent-coordination MCP server configuration for Claude format
+ */
+export function getAgentCoordinationConfig(workingDir: string): MCPServerConfig {
+  return {
+    command: 'bun',
+    args: ['run', getAgentCoordinationPath()],
+    env: {
+      CODEMACHINE_WORKING_DIR: workingDir,
     },
   };
 }

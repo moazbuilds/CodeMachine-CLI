@@ -10,7 +10,8 @@ import * as path from 'path';
 import { homedir } from 'os';
 import { debug } from '../../../../../shared/logging/logger.js';
 import type { ConfigScope } from '../../../../mcp/types.js';
-import { getServerPath } from '../../../../mcp/servers/workflow-signals/config.js';
+import { getServerPath as getWorkflowSignalsPath } from '../../../../mcp/servers/workflow-signals/config.js';
+import { getServerPath as getAgentCoordinationPath } from '../../../../mcp/servers/agent-coordination/config.js';
 
 // ============================================================================
 // TYPES
@@ -95,14 +96,25 @@ export async function writeSettings(
 // ============================================================================
 
 /**
- * Get MCP server configuration for OpenCode format
+ * Get workflow-signals MCP server configuration for OpenCode format
  *
  * OpenCode uses: { type, command[], enabled }
  */
-export function getMCPServerConfig(): OpenCodeMCPServer {
+export function getWorkflowSignalsConfig(): OpenCodeMCPServer {
   return {
     type: 'local',
-    command: ['bun', 'run', getServerPath()],
+    command: ['bun', 'run', getWorkflowSignalsPath()],
+    enabled: true,
+  };
+}
+
+/**
+ * Get agent-coordination MCP server configuration for OpenCode format
+ */
+export function getAgentCoordinationConfig(): OpenCodeMCPServer {
+  return {
+    type: 'local',
+    command: ['bun', 'run', getAgentCoordinationPath()],
     enabled: true,
   };
 }

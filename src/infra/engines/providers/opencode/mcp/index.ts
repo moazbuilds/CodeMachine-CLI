@@ -35,7 +35,8 @@ export {
   getSettingsPath,
   readSettings,
   writeSettings,
-  getMCPServerConfig,
+  getWorkflowSignalsConfig,
+  getAgentCoordinationConfig,
   type OpenCodeMCPServer,
   type OpenCodeSettings,
 } from './settings.js';

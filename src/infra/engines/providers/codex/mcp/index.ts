@@ -35,7 +35,9 @@ export {
   getSettingsPath,
   readConfig,
   writeConfig,
-  generateMCPSection,
-  removeWorkflowSignalsSections,
-  hasWorkflowSignalsSection,
+  generateWorkflowSignalsSection,
+  generateAgentCoordinationSection,
+  generateAllMCPSections,
+  removeAllMCPSections,
+  hasMCPSections,
 } from './settings.js';

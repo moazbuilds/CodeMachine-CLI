@@ -21,24 +21,24 @@ export const codexAdapter: MCPAdapter = {
   getSettingsPath: settings.getSettingsPath,
 
   async configure(workflowDir: string, scope: ConfigScope): Promise<void> {
-    debug('[MCP:codex] Configuring workflow-signals (scope: %s)', scope);
+    debug('[MCP:codex] Configuring MCP servers (scope: %s)', scope);
 
     try {
       const configPath = settings.getSettingsPath(scope, workflowDir);
       const existingContent = await settings.readConfig(configPath);
 
-      // Remove any existing workflow-signals sections
-      const cleanedContent = settings.removeWorkflowSignalsSections(existingContent);
-      debug('[MCP:codex] Cleaned existing workflow-signals sections');
+      // Remove any existing MCP sections
+      const cleanedContent = settings.removeAllMCPSections(existingContent);
+      debug('[MCP:codex] Cleaned existing MCP sections');
 
-      // Generate new section and combine
-      const newSection = settings.generateMCPSection(workflowDir);
+      // Generate new sections and combine
+      const newSections = settings.generateAllMCPSections(workflowDir);
       const finalContent = cleanedContent
-        ? cleanedContent + '\n\n' + newSection
-        : newSection;
+        ? cleanedContent + '\n\n' + newSections
+        : newSections;
 
       await settings.writeConfig(configPath, finalContent);
-      debug('[MCP:codex] Configuration complete');
+      debug('[MCP:codex] Configuration complete (workflow-signals, agent-coordination)');
     } catch (error) {
       throw new MCPConfigError(
         `Failed to configure: ${(error as Error).message}`,
@@ -49,7 +49,7 @@ export const codexAdapter: MCPAdapter = {
   },
 
   async cleanup(workflowDir: string, scope: ConfigScope): Promise<void> {
-    debug('[MCP:codex] Cleaning up workflow-signals (scope: %s)', scope);
+    debug('[MCP:codex] Cleaning up MCP servers (scope: %s)', scope);
 
     try {
       const configPath = settings.getSettingsPath(scope, workflowDir);
@@ -60,7 +60,7 @@ export const codexAdapter: MCPAdapter = {
         return;
       }
 
-      const cleanedContent = settings.removeWorkflowSignalsSections(existingContent);
+      const cleanedContent = settings.removeAllMCPSections(existingContent);
       await settings.writeConfig(configPath, cleanedContent);
       debug('[MCP:codex] Cleanup complete');
     } catch (error) {
@@ -73,7 +73,7 @@ export const codexAdapter: MCPAdapter = {
     try {
       const configPath = settings.getSettingsPath(scope, workflowDir);
       const content = await settings.readConfig(configPath);
-      const configured = settings.hasWorkflowSignalsSection(content);
+      const configured = settings.hasMCPSections(content);
       debug('[MCP:codex] isConfigured: %s', configured);
       return configured;
     } catch {

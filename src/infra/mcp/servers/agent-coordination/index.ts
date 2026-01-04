@@ -1,0 +1,298 @@
+#!/usr/bin/env node
+/**
+ * Agent Coordination MCP Server
+ *
+ * A Model Context Protocol (MCP) server that provides tools for executing
+ * codemachine agents and querying their status.
+ *
+ * This server wraps CoordinatorService to allow external tools (Claude Code,
+ * Codex, etc.) to run agents via MCP tool calls.
+ *
+ * Usage:
+ *   bun run src/infra/mcp/servers/agent-coordination/index.ts
+ */
+
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js';
+
+import { agentCoordinationTools } from './tools.js';
+import { RunAgentsSchema, GetAgentStatusSchema, ListAvailableAgentsSchema } from './schemas.js';
+import type { ExecutionResult } from './schemas.js';
+import { executeAgents, queryAgentStatus, getActiveAgents, listAvailableAgents } from './executor.js';
+import type { AvailableAgent } from './executor.js';
+import type { AgentRecord } from '../../../../agents/monitoring/types.js';
+
+// ============================================================================
+// MCP SERVER
+// ============================================================================
+
+const server = new Server(
+  {
+    name: 'agent-coordination',
+    version: '1.0.0',
+  },
+  {
+    capabilities: {
+      tools: {},
+    },
+  }
+);
+
+// ============================================================================
+// LIST TOOLS HANDLER
+// ============================================================================
+
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  return {
+    tools: agentCoordinationTools,
+  };
+});
+
+// ============================================================================
+// CALL TOOL HANDLER
+// ============================================================================
+
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const { name, arguments: args } = request.params;
+
+  try {
+    // ========================================================================
+    // RUN_AGENTS
+    // ========================================================================
+    if (name === 'run_agents') {
+      const validated = RunAgentsSchema.parse(args);
+      const result = await executeAgents(validated);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: formatExecutionResult(result),
+          },
+        ],
+      };
+    }
+
+    // ========================================================================
+    // GET_AGENT_STATUS
+    // ========================================================================
+    if (name === 'get_agent_status') {
+      const validated = GetAgentStatusSchema.parse(args);
+      const agents = queryAgentStatus(validated);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: formatAgentRecords(agents),
+          },
+        ],
+      };
+    }
+
+    // ========================================================================
+    // LIST_ACTIVE_AGENTS
+    // ========================================================================
+    if (name === 'list_active_agents') {
+      const agents = getActiveAgents();
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text:
+              agents.length === 0
+                ? 'No agents currently running.'
+                : formatAgentRecords(agents),
+          },
+        ],
+      };
+    }
+
+    // ========================================================================
+    // LIST_AVAILABLE_AGENTS
+    // ========================================================================
+    if (name === 'list_available_agents') {
+      const validated = ListAvailableAgentsSchema.parse(args);
+      const agents = await listAvailableAgents(validated);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text:
+              agents.length === 0
+                ? 'No agents found in catalog.'
+                : formatAvailableAgents(agents),
+          },
+        ],
+      };
+    }
+
+    // ========================================================================
+    // UNKNOWN TOOL
+    // ========================================================================
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Unknown tool: ${name}`,
+        },
+      ],
+      isError: true,
+    };
+  } catch (error) {
+    // Handle Zod validation errors
+    if (error && typeof error === 'object' && 'errors' in error) {
+      const zodError = error as { errors: Array<{ path: string[]; message: string }> };
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Validation Error:\n${zodError.errors.map((e) => `- ${e.path.join('.')}: ${e.message}`).join('\n')}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    // Execution errors
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Execution Error: ${message}`,
+        },
+      ],
+      isError: true,
+    };
+  }
+});
+
+// ============================================================================
+// FORMATTERS
+// ============================================================================
+
+/**
+ * Format execution result for MCP response
+ */
+function formatExecutionResult(result: ExecutionResult): string {
+  const lines: string[] = [
+    `Coordination ${result.success ? 'SUCCEEDED' : 'FAILED'}`,
+    `Duration: ${result.duration_ms}ms`,
+    '',
+    'Agent Results:',
+  ];
+
+  for (const r of result.results) {
+    const status = r.success ? '[OK]' : '[FAIL]';
+    lines.push(`  ${status} ${r.name} (ID: ${r.agentId})`);
+    if (r.prompt) {
+      const truncated = r.prompt.length > 80 ? r.prompt.slice(0, 77) + '...' : r.prompt;
+      lines.push(`      Prompt: ${truncated}`);
+    }
+    if (r.error) {
+      lines.push(`      Error: ${r.error}`);
+    }
+    if (r.tailApplied) {
+      lines.push(`      Output limited to last ${r.tailApplied} lines`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Format agent records for MCP response
+ */
+function formatAgentRecords(agents: AgentRecord[]): string {
+  if (agents.length === 0) {
+    return 'No matching agents found.';
+  }
+
+  const lines: string[] = [`Found ${agents.length} agent(s):`, ''];
+
+  for (const a of agents) {
+    const statusIcon: Record<string, string> = {
+      running: '[RUN]',
+      completed: '[OK]',
+      failed: '[FAIL]',
+      paused: '[PAUSE]',
+      skipped: '[SKIP]',
+    };
+    lines.push(`${statusIcon[a.status] || '[?]'} ID:${a.id} ${a.name}`);
+    lines.push(`    Status: ${a.status}`);
+    lines.push(`    Started: ${a.startTime}`);
+    if (a.duration !== undefined) {
+      lines.push(`    Duration: ${a.duration}ms`);
+    }
+    if (a.error) {
+      lines.push(`    Error: ${a.error}`);
+    }
+    if (a.parentId) {
+      lines.push(`    Parent: ${a.parentId}`);
+    }
+    if (a.sessionId) {
+      lines.push(`    Session: ${a.sessionId}`);
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Format available agents catalog for MCP response
+ */
+function formatAvailableAgents(agents: AvailableAgent[]): string {
+  const lines: string[] = [`Available agents (${agents.length}):`, ''];
+
+  // Group by role for better organization
+  const controllers = agents.filter((a) => a.role === 'controller');
+  const regular = agents.filter((a) => a.role !== 'controller');
+
+  if (controllers.length > 0) {
+    lines.push('Controller agents (autonomous mode):');
+    for (const a of controllers) {
+      const meta: string[] = [];
+      if (a.engine) meta.push(`engine:${a.engine}`);
+      if (a.model) meta.push(`model:${a.model}`);
+      lines.push(`  - ${a.id}${meta.length ? ` (${meta.join(', ')})` : ''}`);
+    }
+    lines.push('');
+  }
+
+  if (regular.length > 0) {
+    lines.push('Standard agents:');
+    for (const a of regular) {
+      const meta: string[] = [];
+      if (a.engine) meta.push(`engine:${a.engine}`);
+      if (a.model) meta.push(`model:${a.model}`);
+      lines.push(`  - ${a.id}${meta.length ? ` (${meta.join(', ')})` : ''}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+// ============================================================================
+// MAIN
+// ============================================================================
+
+async function main(): Promise<void> {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+
+  // Log to stderr (stdout is for MCP protocol)
+  console.error('[agent-coordination] MCP server running');
+}
+
+main().catch((error) => {
+  console.error('[agent-coordination] Fatal error:', error);
+  process.exit(1);
+});

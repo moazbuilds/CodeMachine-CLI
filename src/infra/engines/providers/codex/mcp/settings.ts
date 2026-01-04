@@ -10,7 +10,11 @@ import * as path from 'path';
 import { homedir } from 'os';
 import { debug } from '../../../../../shared/logging/logger.js';
 import type { ConfigScope } from '../../../../mcp/types.js';
-import { getServerPath, getMCPInfraDir } from '../../../../mcp/servers/workflow-signals/config.js';
+import {
+  getServerPath as getWorkflowSignalsPath,
+  getMCPInfraDir,
+} from '../../../../mcp/servers/workflow-signals/config.js';
+import { getServerPath as getAgentCoordinationPath } from '../../../../mcp/servers/agent-coordination/config.js';
 
 // ============================================================================
 // PATH RESOLUTION
@@ -70,8 +74,8 @@ export async function writeConfig(configPath: string, content: string): Promise<
  *
  * Codex uses TOML format with: command, args, cwd, startup_timeout_sec, env
  */
-export function generateMCPSection(workflowDir: string): string {
-  const serverPath = getServerPath();
+export function generateWorkflowSignalsSection(workflowDir: string): string {
+  const serverPath = getWorkflowSignalsPath();
   const mcpDir = getMCPInfraDir();
 
   const lines = [
@@ -89,20 +93,55 @@ export function generateMCPSection(workflowDir: string): string {
 }
 
 /**
- * Remove workflow-signals sections from TOML content
- *
- * Cleans all workflow-signals related lines including malformed entries.
+ * Generate TOML section for agent-coordination MCP server
  */
-export function removeWorkflowSignalsSections(content: string): string {
+export function generateAgentCoordinationSection(workingDir: string): string {
+  const serverPath = getAgentCoordinationPath();
+  const mcpDir = getMCPInfraDir();
+
+  const lines = [
+    '[mcp_servers."agent-coordination"]',
+    'command = "bun"',
+    `args = ["run", "${serverPath}"]`,
+    `cwd = "${mcpDir}"`,
+    'startup_timeout_sec = 60',
+    '',
+    '[mcp_servers."agent-coordination".env]',
+    `CODEMACHINE_WORKING_DIR = "${workingDir}"`,
+  ];
+
+  return lines.join('\n');
+}
+
+/**
+ * Generate all MCP sections
+ */
+export function generateAllMCPSections(workflowDir: string): string {
+  return [
+    generateWorkflowSignalsSection(workflowDir),
+    '',
+    generateAgentCoordinationSection(workflowDir),
+  ].join('\n');
+}
+
+/**
+ * Remove all codemachine MCP server sections from TOML content
+ *
+ * Cleans workflow-signals and agent-coordination related lines including malformed entries.
+ */
+export function removeAllMCPSections(content: string): string {
   const lines = content.split('\n');
   const cleanedLines: string[] = [];
   let skipUntilNextSection = false;
 
+  // Patterns for our MCP servers
+  const mcpServerPatterns = ['workflow-signals', 'agent-coordination'];
+
   for (const line of lines) {
     const trimmed = line.trim();
 
-    // Check if this is a workflow-signals section (any variant)
-    if (trimmed.startsWith('[') && trimmed.includes('workflow-signals')) {
+    // Check if this is one of our MCP server sections
+    if (trimmed.startsWith('[') && mcpServerPatterns.some((p) => trimmed.includes(p))) {
       skipUntilNextSection = true;
       continue;
     }
@@ -113,16 +152,16 @@ export function removeWorkflowSignalsSections(content: string): string {
       continue;
     }
 
-    // If we hit a new section that's NOT workflow-signals, stop skipping
+    // If we hit a new section that's NOT one of our MCP servers, stop skipping
     if (
       skipUntilNextSection &&
       trimmed.startsWith('[') &&
-      !trimmed.includes('workflow-signals')
+      !mcpServerPatterns.some((p) => trimmed.includes(p))
     ) {
       skipUntilNextSection = false;
     }
 
-    // Skip lines while in workflow-signals section
+    // Skip lines while in our MCP server section
     if (skipUntilNextSection) {
       continue;
     }
@@ -134,11 +173,13 @@ export function removeWorkflowSignalsSections(content: string): string {
 }
 
 /**
- * Check if config contains workflow-signals section
+ * Check if config contains any codemachine MCP server sections
  */
-export function hasWorkflowSignalsSection(content: string): boolean {
+export function hasMCPSections(content: string): boolean {
   return (
     content.includes('[mcp_servers."workflow-signals"]') ||
-    content.includes('[mcp_servers.workflow-signals]')
+    content.includes('[mcp_servers.workflow-signals]') ||
+    content.includes('[mcp_servers."agent-coordination"]') ||
+    content.includes('[mcp_servers.agent-coordination]')
   );
 }

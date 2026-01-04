@@ -21,7 +21,7 @@ export const claudeAdapter: MCPAdapter = {
   getSettingsPath: settings.getSettingsPath,
 
   async configure(workflowDir: string, scope: ConfigScope): Promise<void> {
-    debug('[MCP:claude] Configuring workflow-signals (scope: %s)', scope);
+    debug('[MCP:claude] Configuring MCP servers (scope: %s)', scope);
 
     try {
       const settingsPath = settings.getSettingsPath(scope, workflowDir);
@@ -33,8 +33,11 @@ export const claudeAdapter: MCPAdapter = {
       // Add/update workflow-signals MCP server
       data.mcpServers['workflow-signals'] = settings.getWorkflowSignalsConfig(workflowDir);
 
+      // Add/update agent-coordination MCP server
+      data.mcpServers['agent-coordination'] = settings.getAgentCoordinationConfig(workflowDir);
+
       await settings.writeSettings(settingsPath, data);
-      debug('[MCP:claude] Configuration complete');
+      debug('[MCP:claude] Configuration complete (workflow-signals, agent-coordination)');
     } catch (error) {
       throw new MCPConfigError(
         `Failed to configure: ${(error as Error).message}`,
@@ -45,18 +48,29 @@ export const claudeAdapter: MCPAdapter = {
   },
 
   async cleanup(workflowDir: string, scope: ConfigScope): Promise<void> {
-    debug('[MCP:claude] Cleaning up workflow-signals (scope: %s)', scope);
+    debug('[MCP:claude] Cleaning up MCP servers (scope: %s)', scope);
 
     try {
       const settingsPath = settings.getSettingsPath(scope, workflowDir);
       const data = await settings.readSettings(settingsPath);
 
-      if (data.mcpServers && 'workflow-signals' in data.mcpServers) {
-        delete data.mcpServers['workflow-signals'];
+      let cleaned = false;
+      if (data.mcpServers) {
+        if ('workflow-signals' in data.mcpServers) {
+          delete data.mcpServers['workflow-signals'];
+          cleaned = true;
+        }
+        if ('agent-coordination' in data.mcpServers) {
+          delete data.mcpServers['agent-coordination'];
+          cleaned = true;
+        }
+      }
+
+      if (cleaned) {
         await settings.writeSettings(settingsPath, data);
         debug('[MCP:claude] Cleanup complete');
       } else {
-        debug('[MCP:claude] No workflow-signals config to cleanup');
+        debug('[MCP:claude] No MCP servers to cleanup');
       }
     } catch (error) {
       // Ignore cleanup errors - file might not exist
@@ -68,7 +82,11 @@ export const claudeAdapter: MCPAdapter = {
     try {
       const settingsPath = settings.getSettingsPath(scope, workflowDir);
       const data = await settings.readSettings(settingsPath);
-      const configured = !!(data.mcpServers && 'workflow-signals' in data.mcpServers);
+      // Check if at least one of our servers is configured
+      const configured = !!(
+        data.mcpServers &&
+        ('workflow-signals' in data.mcpServers || 'agent-coordination' in data.mcpServers)
+      );
       debug('[MCP:claude] isConfigured: %s', configured);
       return configured;
     } catch {
