@@ -149,11 +149,22 @@ export async function runClaude(options: RunClaudeOptions): Promise<RunClaudeRes
     ? expandHomeDir(process.env[ENV.CLAUDE_HOME]!)
     : path.join(homedir(), '.codemachine', 'claude');
 
-  const mergedEnv = {
+  const mergedEnv: NodeJS.ProcessEnv = {
     ...process.env,
     ...(env ?? {}),
     CLAUDE_CONFIG_DIR: claudeConfigDir,
   };
+
+  // Apply API override environment variables if set
+  if (process.env[ENV.ANTHROPIC_BASE_URL]) {
+    mergedEnv.ANTHROPIC_BASE_URL = process.env[ENV.ANTHROPIC_BASE_URL];
+  }
+  if (process.env[ENV.ANTHROPIC_AUTH_TOKEN]) {
+    mergedEnv.ANTHROPIC_AUTH_TOKEN = process.env[ENV.ANTHROPIC_AUTH_TOKEN];
+  }
+  if (process.env[ENV.ANTHROPIC_API_KEY]) {
+    mergedEnv.ANTHROPIC_API_KEY = process.env[ENV.ANTHROPIC_API_KEY];
+  }
 
   // Force pipe mode to ensure text normalization is applied
   const inheritTTY = false;
