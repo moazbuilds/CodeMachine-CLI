@@ -288,8 +288,6 @@ async function main(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  // Log to stderr (stdout is for MCP protocol)
-  console.error('[agent-coordination] MCP server running');
 }
 
 main().catch((error) => {

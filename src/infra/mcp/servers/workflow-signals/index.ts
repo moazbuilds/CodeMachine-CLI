@@ -250,9 +250,6 @@ async function main(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  // Log to stderr (stdout is for MCP protocol)
-  console.error(`[workflow-signals] MCP server running`);
-  console.error(`[workflow-signals] SIGNAL_DIR: ${signalQueue.getSignalDir()}`);
 }
 
 main().catch((error) => {
