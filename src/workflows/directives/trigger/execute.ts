@@ -5,12 +5,9 @@
  * This bypasses the workflow and allows triggering any agent, even outside the workflow.
  */
 
-import * as path from 'node:path';
 import type { EngineType } from '../../../infra/engines/index.js';
 import { getEngine, registry } from '../../../infra/engines/index.js';
 import { loadAgentConfig, loadAgentTemplate } from '../../../agents/runner/index.js';
-import { MemoryAdapter } from '../../../infra/fs/memory-adapter.js';
-import { MemoryStore } from '../../../agents/index.js';
 import { processPromptString } from '../../../shared/prompts/index.js';
 import type { WorkflowEventEmitter } from '../../events/index.js';
 import { AgentMonitorService, AgentLoggerService, StatusService } from '../../../agents/monitoring/index.js';
@@ -89,9 +86,6 @@ export async function executeTriggerAgent(options: TriggerExecutionOptions): Pro
       emitter.addTriggeredAgent(sourceAgentId, triggeredAgentData);
     }
 
-    const memoryDir = path.resolve(cwd, '.codemachine', 'memory');
-    const adapter = new MemoryAdapter(memoryDir);
-    const store = new MemoryStore(adapter);
     const compositePrompt = triggeredAgentTemplate;
 
     let totalTriggeredStdout = '';
@@ -120,14 +114,6 @@ export async function executeTriggerAgent(options: TriggerExecutionOptions): Pro
         }
       },
       abortSignal,
-    });
-
-    const triggeredStdout = triggeredResult.stdout || totalTriggeredStdout;
-    const triggeredSlice = triggeredStdout.slice(-2000);
-    await store.append({
-      agentId: triggerAgentId,
-      content: triggeredSlice,
-      timestamp: new Date().toISOString(),
     });
 
     // Use StatusService for coordinated DB + UI updates

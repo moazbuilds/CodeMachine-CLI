@@ -1,8 +1,4 @@
-import * as path from 'node:path';
-
 import { runCodex } from './runner.js';
-import { MemoryAdapter } from '../../../../fs/memory-adapter.js';
-import { MemoryStore } from '../../../../../agents/index.js';
 
 export interface RunAgentOptions {
   abortSignal?: AbortSignal;
@@ -89,15 +85,5 @@ export async function runAgent(
   });
 
   const stdout = buffered || result.stdout || '';
-  try {
-    const memoryDir = path.resolve(cwd, '.codemachine', 'memory');
-    const adapter = new MemoryAdapter(memoryDir);
-    const store = new MemoryStore(adapter);
-    if (stdout.trim()) {
-      await store.append({ agentId, content: stdout, timestamp: new Date().toISOString() });
-    }
-  } catch {
-    // best-effort memory persistence
-  }
   return stdout;
 }

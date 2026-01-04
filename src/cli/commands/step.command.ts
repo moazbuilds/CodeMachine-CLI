@@ -1,8 +1,5 @@
 import type { Command } from 'commander';
-import * as path from 'node:path';
 
-import { MemoryAdapter } from '../../infra/fs/memory-adapter.js';
-import { MemoryStore } from '../../agents/index.js';
 import { loadAgentTemplate, loadAgentConfig } from '../../agents/runner/index.js';
 import { getEngine } from '../../infra/engines/index.js';
 import type { EngineType } from '../../infra/engines/index.js';
@@ -113,12 +110,7 @@ async function executeStep(
   const model = options.model ?? (agentConfig.model as string | undefined) ?? engineModule.metadata.defaultModel;
   const modelReasoningEffort = options.reasoning ?? (agentConfig.modelReasoningEffort as 'low' | 'medium' | 'high' | undefined) ?? engineModule.metadata.defaultModelReasoningEffort;
 
-  // Set up memory (write-only, no read)
-  const memoryDir = path.resolve(workingDir, '.codemachine', 'memory');
-  const adapter = new MemoryAdapter(memoryDir);
-  const store = new MemoryStore(adapter);
-
-  // Build composite prompt without memory
+  // Build composite prompt
   let compositePrompt: string;
   if (additionalPrompt) {
     // If additional prompt provided, append it as a REQUEST section
@@ -165,15 +157,6 @@ async function executeStep(
     });
 
     stopSpinner(spinnerState);
-
-    // Store output in memory
-    const stdout = result.stdout || totalStdout;
-    const slice = stdout.slice(-2000);
-    await store.append({
-      agentId,
-      content: slice,
-      timestamp: new Date().toISOString(),
-    });
 
     console.log(formatAgentLog(agentId, `${agentConfig.name} has completed their work.`));
     console.log('\n' + '═'.repeat(80) + '\n');

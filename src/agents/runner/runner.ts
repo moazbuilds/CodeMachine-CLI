@@ -1,9 +1,5 @@
-import * as path from 'node:path';
-
 import type { EngineType } from '../../infra/engines/index.js';
 import { getEngine } from '../../infra/engines/index.js';
-import { MemoryAdapter } from '../../infra/fs/memory-adapter.js';
-import { MemoryStore } from '../index.js';
 import { loadAgentConfig } from './config.js';
 import { loadChainedPrompts, type ChainedPrompt } from './chained.js';
 import { AgentMonitorService, AgentLoggerService, StatusService } from '../monitoring/index.js';
@@ -347,11 +343,6 @@ export async function executeAgent(
     }
   }
 
-  // Set up memory
-  const memoryDir = path.resolve(workingDir, '.codemachine', 'memory');
-  const adapter = new MemoryAdapter(memoryDir);
-  const store = new MemoryStore(adapter);
-
   // Get engine and execute
   // NOTE: Prompt is already complete - no template loading or building here
   const engine = getEngine(engineType);
@@ -439,15 +430,7 @@ export async function executeAgent(
       timeout,
     });
 
-    // Store output in memory
-    // Prefer totalStdout (formatted text from onData) over result.stdout (raw JSON)
     const stdout = totalStdout || result.stdout;
-    const slice = stdout.slice(-2000);
-    await store.append({
-      agentId,
-      content: slice,
-      timestamp: new Date().toISOString(),
-    });
 
     debug(`[AgentRunner] Engine execution completed, outputLength=%d`, totalStdout.length);
 
