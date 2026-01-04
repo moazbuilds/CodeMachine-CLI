@@ -1,4 +1,5 @@
 import { runOpenCode } from './runner.js';
+import { renderToChalk } from '../../../../../shared/formatters/outputMarkers.js';
 
 export interface RunAgentOptions {
   abortSignal?: AbortSignal;
@@ -32,7 +33,7 @@ export async function runOpenCodePrompt(options: {
     agent: options.agent,
     onData: (chunk) => {
       try {
-        process.stdout.write(chunk);
+        process.stdout.write(renderToChalk(chunk));
       } catch {
         // Ignore stdout write errors
       }
@@ -56,7 +57,7 @@ export async function runAgent(
   const logStdout: (chunk: string) => void = options.logger
     ?? ((chunk: string) => {
       try {
-        process.stdout.write(chunk);
+        process.stdout.write(renderToChalk(chunk));
       } catch {
         // Ignore stdout write errors
       }

@@ -146,10 +146,8 @@ async function replacePlaceholders(
     const resolved = resolvePlaceholderPath(placeholderName, cwd, config);
 
     if (!resolved) {
-      console.warn(
-        `Warning: Placeholder {${isOptional ? '!' : ''}${placeholderName}} found in prompt but not defined in config/placeholders.js`
-      );
-      return { placeholderName, content: '', isOptional };
+      // Placeholder not defined in config - skip it entirely (leave as-is in prompt)
+      return null;
     }
 
     const { filePath, baseDir } = resolved;
@@ -171,7 +169,9 @@ async function replacePlaceholders(
   });
 
   // Wait for all placeholders to load in parallel
-  const loadedPlaceholders = await Promise.all(loadTasks);
+  const loadedPlaceholders = (await Promise.all(loadTasks)).filter(
+    (result): result is NonNullable<typeof result> => result !== null
+  );
 
   // Replace all placeholders with their loaded content
   for (const { placeholderName, content } of loadedPlaceholders) {

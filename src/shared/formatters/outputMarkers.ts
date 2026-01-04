@@ -16,6 +16,8 @@
  *   [CYAN:ITALIC] - Cyan italic text
  */
 
+import chalk, { type ChalkInstance } from 'chalk'
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -692,4 +694,75 @@ export function wrap(text: string, width: number): string[] {
   }
 
   return lines
+}
+
+// ============================================================================
+// Chalk Rendering (for direct console output)
+// ============================================================================
+
+/**
+ * Map color names to chalk methods
+ */
+function getChalkColor(color: Lowercase<MarkerColor> | null): ChalkInstance {
+  switch (color) {
+    case 'gray': return chalk.gray
+    case 'green': return chalk.green
+    case 'red': return chalk.red
+    case 'orange': return chalk.hex('#FFA500')
+    case 'yellow': return chalk.yellow
+    case 'cyan': return chalk.cyan
+    case 'magenta': return chalk.magenta
+    case 'blue': return chalk.blue
+    default: return chalk
+  }
+}
+
+/**
+ * Apply chalk attributes to a chalk instance
+ */
+function applyChalkAttributes(chalkInstance: ChalkInstance, attributes: Set<Lowercase<MarkerAttribute>>): ChalkInstance {
+  let result = chalkInstance
+  for (const attr of attributes) {
+    switch (attr) {
+      case 'bold': result = result.bold; break
+      case 'dim': result = result.dim; break
+      case 'italic': result = result.italic; break
+      case 'underline': result = result.underline; break
+      case 'inverse': result = result.inverse; break
+      case 'strikethrough': result = result.strikethrough; break
+    }
+  }
+  return result
+}
+
+/**
+ * Render a single line with markers to chalk-colored output
+ */
+function renderLineToChalk(line: string): string {
+  const parsed = parseMarker(line)
+
+  if (!parsed.color && parsed.attributes.size === 0) {
+    // No formatting, return as-is
+    return parsed.text
+  }
+
+  let chalkInstance = getChalkColor(parsed.color)
+  chalkInstance = applyChalkAttributes(chalkInstance, parsed.attributes)
+
+  return chalkInstance(parsed.text)
+}
+
+/**
+ * Render text with markers to chalk-colored output for direct console display.
+ * Processes each line and converts markers like [CYAN], [GRAY:BOLD] to actual colors.
+ *
+ * @example
+ * const output = formatStatus('Loading...')  // Returns "[CYAN]> Loading..."
+ * console.log(renderToChalk(output))         // Prints in actual cyan color
+ */
+export function renderToChalk(text: string): string {
+  // Process each line separately to handle multi-line output
+  const lines = text.split('\n')
+  const renderedLines = lines.map(line => renderLineToChalk(line))
+  return renderedLines.join('\n')
 }

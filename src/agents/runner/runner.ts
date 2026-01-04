@@ -7,6 +7,7 @@ import { AgentMonitorService, AgentLoggerService, StatusService } from '../monit
 export type { ChainedPrompt } from './chained.js';
 import type { ParsedTelemetry } from '../../infra/engines/core/types.js';
 import { formatForLogFile } from '../../shared/formatters/logFileFormatter.js';
+import { renderToChalk } from '../../shared/formatters/outputMarkers.js';
 import { info, error, debug } from '../../shared/logging/logger.js';
 
 /**
@@ -381,7 +382,8 @@ export async function executeAgent(
           logger(chunk);
         } else {
           try {
-            process.stdout.write(chunk);
+            // Convert markers to chalk colors for direct console output
+            process.stdout.write(renderToChalk(chunk));
           } catch {
             // ignore streaming failures
           }

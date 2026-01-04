@@ -1,4 +1,5 @@
 import { runAuggie } from './runner.js';
+import { renderToChalk } from '../../../../../shared/formatters/outputMarkers.js';
 
 function shouldSkipAuggie(): boolean {
   return (process.env.CODEMACHINE_SKIP_AUGGIE || '').toString() === '1';
@@ -21,7 +22,7 @@ export async function runAuggiePrompt(options: {
     model: options.model,
     onData: (chunk) => {
       try {
-        process.stdout.write(chunk);
+        process.stdout.write(renderToChalk(chunk));
       } catch {
         // Ignore stdout write errors
       }
