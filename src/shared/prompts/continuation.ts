@@ -12,4 +12,4 @@
  * 2. Entering delegated state - to prompt agent before controller decides
  */
 export const DEFAULT_CONTINUATION_PROMPT =
-  'Continue where you left off. Review what was accomplished and proceed with the next logical step.';
+  'continue';
