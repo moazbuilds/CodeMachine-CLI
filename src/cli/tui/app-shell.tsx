@@ -125,6 +125,13 @@ export function App(props: { initialToast?: InitialToast }) {
   }
   ;(process as NodeJS.EventEmitter).on('app:error', handleAppError)
 
+  // Return to home handler - triggered when user confirms exit from workflow
+  const handleReturnHome = () => {
+    currentView = "home"
+    setView("home")
+  }
+  ;(process as NodeJS.EventEmitter).on('workflow:return-home', handleReturnHome)
+
   const [ctrlCPressed, setCtrlCPressed] = createSignal(false)
   let ctrlCTimeout: NodeJS.Timeout | null = null
   const [view, setView] = createSignal<"home" | "onboard" | "workflow">("home")

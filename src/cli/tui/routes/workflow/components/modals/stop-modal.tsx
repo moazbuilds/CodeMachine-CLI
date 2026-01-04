@@ -60,7 +60,7 @@ export function StopModal(props: StopModalProps) {
     <ModalBase width={modalWidth()}>
       <ModalHeader title="Stop Workflow" icon="!" iconColor={themeCtx.theme.error} />
       <box paddingLeft={2} paddingRight={2} paddingTop={1} paddingBottom={1}>
-        <text fg={themeCtx.theme.text}>Do you really want to stop the workflow?</text>
+        <text fg={themeCtx.theme.text}>Return to home screen? Your workflow will be saved and ready to resume.</text>
       </box>
       <box flexDirection="row" justifyContent="center" gap={2} paddingBottom={1}>
         <box

@@ -249,6 +249,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
     setShowStopModal(false)
     ;(process as NodeJS.EventEmitter).emit("workflow:user-stop")
     ;(process as NodeJS.EventEmitter).emit("workflow:stop")
+    ;(process as NodeJS.EventEmitter).emit("workflow:return-home")
   }
 
   const handleStopCancel = () => {
