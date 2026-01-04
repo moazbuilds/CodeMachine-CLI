@@ -341,7 +341,11 @@ export async function runStepResume(
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       debug('[step/run] Resume aborted');
-      status.awaiting(uniqueAgentId);
+      // Don't overwrite skipped status - signal handlers already set the correct status
+      const monitoringId = options.resumeMonitoringId ?? machineCtx.currentMonitoringId ?? status.getMonitoringId(uniqueAgentId);
+      if (!monitoringId || !status.isSkipped(monitoringId)) {
+        status.awaiting(uniqueAgentId);
+      }
       return null;
     }
 

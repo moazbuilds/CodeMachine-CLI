@@ -152,7 +152,11 @@ export async function resumeWithInput(
         return { type: 'modeSwitch', to: modeSwitchRequested };
       }
       // Aborted for other reason (pause, skip)
-      status.awaiting(uniqueAgentId);
+      // Don't overwrite skipped status - signal handlers already set the correct status
+      const effectiveMonitoringId = monitoringId ?? machineCtx.currentMonitoringId ?? status.getMonitoringId(uniqueAgentId);
+      if (!effectiveMonitoringId || !status.isSkipped(effectiveMonitoringId)) {
+        status.awaiting(uniqueAgentId);
+      }
       return { type: 'continue' };
     }
     throw error;
