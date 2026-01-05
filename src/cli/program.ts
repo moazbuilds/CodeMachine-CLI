@@ -1,7 +1,6 @@
 import { createRequire } from 'module';
 import { Command } from 'commander';
 import {
-  registerStartCommand,
   registerTemplatesCommand,
   registerAuthCommands,
   registerRunCommand,
@@ -28,7 +27,6 @@ export async function registerCli(program: Command): Promise<void> {
       console.log('Model Context Protocol support coming soon');
     });
 
-  registerStartCommand(program);
   registerTemplatesCommand(program);
   registerAuthCommands(program);
   registerAgentsCommand(program);
