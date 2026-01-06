@@ -59,17 +59,39 @@ function resolveCommandExecutable(command: string): string {
 export function killAllActiveProcesses(): void {
   for (const child of activeProcesses) {
     try {
-      child.kill('SIGTERM');
-      // Force kill after 1 second if still running
-      setTimeout(() => {
+      // Kill process group on Unix (for wrapper scripts like CCR/Claude that spawn children)
+      // Using negative PID kills the entire process group, not just the direct child
+      if (process.platform !== 'win32' && child.pid) {
         try {
-          if (!child.killed) {
-            child.kill('SIGKILL');
-          }
+          process.kill(-child.pid, 'SIGTERM');
+          // Force kill after 1 second if still running
+          setTimeout(() => {
+            try {
+              process.kill(-child.pid!, 'SIGKILL');
+            } catch {
+              // Process group already dead
+            }
+          }, 1000);
         } catch {
-          // Process already dead
+          // Fallback to killing just the child if process group kill fails
+          if (!child.killed) {
+            child.kill('SIGTERM');
+          }
         }
-      }, 1000);
+      } else {
+        // Windows or no PID: use child.kill()
+        child.kill('SIGTERM');
+        // Force kill after 1 second if still running
+        setTimeout(() => {
+          try {
+            if (!child.killed) {
+              child.kill('SIGKILL');
+            }
+          } catch {
+            // Process already dead
+          }
+        }, 1000);
+      }
     } catch {
       // Ignore errors during cleanup
     }

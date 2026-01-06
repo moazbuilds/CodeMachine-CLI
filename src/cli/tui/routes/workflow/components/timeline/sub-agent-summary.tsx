@@ -9,7 +9,6 @@
 import { Show } from "solid-js"
 import { useTheme } from "@tui/shared/context/theme"
 import type { SubAgentState } from "../../state/types"
-import { formatTokens } from "../../state/formatters"
 
 export interface SubAgentSummaryProps {
   subAgents: SubAgentState[]
@@ -27,12 +26,12 @@ export function SubAgentSummary(props: SubAgentSummaryProps) {
   const arrow = () => (props.isExpanded ? "▼" : "▶")
   const showArrow = () => props.isSelected
 
-  // Count by status
+  // Count by status (sub-agents can only be running, completed, or failed)
   const statusStr = () => {
     const counts = {
       completed: 0,
       running: 0,
-      pending: 0,
+      failed: 0,
     }
 
     for (const agent of props.subAgents) {
@@ -42,24 +41,11 @@ export function SubAgentSummary(props: SubAgentSummaryProps) {
     }
 
     const parts: string[] = []
-    if (counts.completed > 0) parts.push(`${counts.completed} completed`)
+    if (counts.completed > 0) parts.push(`${counts.completed} done`)
     if (counts.running > 0) parts.push(`${counts.running} running`)
-    if (counts.pending > 0) parts.push(`${counts.pending} pending`)
+    if (counts.failed > 0) parts.push(`${counts.failed} failed`)
 
     return parts.join(", ")
-  }
-
-  // Aggregate tokens
-  const tokenStr = () => {
-    let totalIn = 0
-    let totalOut = 0
-
-    for (const agent of props.subAgents) {
-      totalIn += agent.telemetry.tokensIn
-      totalOut += agent.telemetry.tokensOut
-    }
-
-    return totalIn > 0 || totalOut > 0 ? formatTokens(totalIn, totalOut) : ""
   }
 
   // Selection indicator
@@ -71,7 +57,6 @@ export function SubAgentSummary(props: SubAgentSummaryProps) {
         <text fg={themeCtx.theme.text}>{selectionPrefix()}</text>
         <text fg={themeCtx.theme.textMuted}>
           {arrow()} Sub-agents: {statusStr()}
-          <Show when={tokenStr()}> • {tokenStr()}</Show>
         </text>
       </box>
     </Show>
