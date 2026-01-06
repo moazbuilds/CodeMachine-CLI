@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, stat } from 'node:fs/promises';
 
 const DEFAULT_SPEC_TEMPLATE = `# Project Specifications
 
@@ -28,24 +28,37 @@ export class ValidationError extends Error {
 
 export async function validateSpecification(specificationPath: string): Promise<void> {
   const absolute = path.resolve(specificationPath);
-  let specificationContents: string;
 
+  // Check if path exists and what type it is
   try {
-    specificationContents = await readFile(absolute, { encoding: 'utf8' });
-  } catch (_error) {
-    // File doesn't exist - create it with default template
-    await mkdir(path.dirname(absolute), { recursive: true });
-    await writeFile(absolute, DEFAULT_SPEC_TEMPLATE, { encoding: 'utf8' });
+    const stats = await stat(absolute);
+    if (stats.isDirectory()) {
+      throw new ValidationError(`Spec path should be a file, not a directory: ${absolute}`, absolute);
+    }
+  } catch (error) {
+    // Re-throw ValidationError
+    if (error instanceof ValidationError) {
+      throw error;
+    }
 
-    const message = `Spec file created. Please write your specs at: ${absolute}`;
-    throw new ValidationError(message, absolute);
+    const nodeError = error as NodeJS.ErrnoException;
+    if (nodeError.code === 'ENOENT') {
+      // File doesn't exist - create it with default template
+      await mkdir(path.dirname(absolute), { recursive: true });
+      await writeFile(absolute, DEFAULT_SPEC_TEMPLATE, { encoding: 'utf8' });
+      throw new ValidationError(`Spec file created. Please write your specs at: ${absolute}`, absolute);
+    }
+
+    // Unexpected error - wrap it
+    throw new ValidationError(`Failed to access spec file: ${nodeError.message}`, absolute);
   }
 
+  // File exists and is not a directory - read it
+  const specificationContents = await readFile(absolute, { encoding: 'utf8' });
   const trimmed = specificationContents.trim();
 
   // Check if empty or still has default template content
   if (trimmed.length === 0 || trimmed === DEFAULT_SPEC_TEMPLATE.trim()) {
-    const message = `Spec file is empty. Please write your specs at: ${absolute}`;
-    throw new ValidationError(message, absolute);
+    throw new ValidationError(`Spec file is empty. Please write your specs at: ${absolute}`, absolute);
   }
 }

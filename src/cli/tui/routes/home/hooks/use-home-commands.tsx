@@ -11,7 +11,7 @@ import { useDialog } from "@tui/shared/context/dialog"
 import { useSession } from "@tui/shared/context/session"
 import { SelectMenu } from "@tui/shared/components/select-menu"
 import * as path from "node:path"
-import { getAbsoluteSpecPath, HOME_COMMANDS } from "../config/commands"
+import { HOME_COMMANDS } from "../config/commands"
 
 export interface UseHomeCommandsOptions {
   onStartWorkflow?: () => void
@@ -60,11 +60,10 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
   }
 
   const handleStartCommand = async () => {
-    const specPath = getAbsoluteSpecPath()
-
     try {
-      const { validateSpecification } = await import("../../../../../workflows/run.js")
-      await validateSpecification(specPath)
+      // Pre-flight check - validates specification if required by template
+      const { checkSpecificationRequired } = await import("../../../../../workflows/preflight.js")
+      await checkSpecificationRequired()
     } catch (error) {
       if (error instanceof Error) {
         toast.show({
@@ -78,7 +77,6 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
 
     if (options.onStartWorkflow) {
       options.onStartWorkflow()
-      return
     }
   }
 

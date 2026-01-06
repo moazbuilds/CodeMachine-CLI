@@ -120,6 +120,9 @@ export async function runCodemachineCli(argv: string[] = process.argv): Promise<
       // Set CWD immediately (lightweight, no I/O)
       const cwd = options.dir || process.cwd();
       process.env.CODEMACHINE_CWD = cwd;
+      if (options.spec && options.spec !== DEFAULT_SPEC_PATH) {
+        process.env.CODEMACHINE_SPEC_PATH = path.resolve(cwd, options.spec);
+      }
       appDebug('[CLI] CWD set to %s', cwd);
 
       // Start background initialization (non-blocking, fire-and-forget)

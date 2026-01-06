@@ -1,5 +1,6 @@
 export default {
   name: 'CodeMachine-One Workflow',
+  specification: true,
   steps: [
     resolveStep('init', { executeOnce: true }), // Initialize development environment
     resolveStep('principal-analyst', { executeOnce: true }), // Review specifications and identify critical ambiguities

@@ -93,6 +93,7 @@ export interface WorkflowTemplate {
   tracks?: TracksConfig; // Track selection with question and options
   conditionGroups?: ConditionGroup[]; // Grouped conditions with optional nested children
   controller?: boolean; // Enables autonomous mode with controller agent selection
+  specification?: boolean; // If true, requires specification file before workflow can start
 }
 
 export type ModuleName = ModuleStep['agentId'];
@@ -100,7 +101,6 @@ export type ModuleName = ModuleStep['agentId'];
 export interface RunWorkflowOptions {
   cwd?: string;
   templatePath?: string;
-  specificationPath?: string;
 }
 
 export interface TaskManagerOptions {

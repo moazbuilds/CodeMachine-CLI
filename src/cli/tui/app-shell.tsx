@@ -24,9 +24,8 @@ import { MonitoringCleanup } from "../../agents/monitoring/index.js"
 import path from "path"
 import { createRequire } from "node:module"
 import { resolvePackageJson } from "../../shared/runtime/root.js"
-import { getSelectedTrack, setSelectedTrack, hasSelectedConditions, setSelectedConditions, getProjectName, setProjectName, getControllerAgents, loadControllerConfig } from "../../shared/workflows/index.js"
-import { loadTemplate } from "../../workflows/templates/loader.js"
-import { getTemplatePathFromTracking } from "../../shared/workflows/template.js"
+import { setSelectedTrack, setSelectedConditions, setProjectName } from "../../shared/workflows/index.js"
+import { checkOnboardingRequired, needsOnboarding } from "../../workflows/preflight.js"
 import type { TracksConfig, ConditionGroup } from "../../workflows/templates/types"
 import type { AgentDefinition } from "../../shared/agents/config/types"
 import type { InitialToast } from "./app"
@@ -168,39 +167,23 @@ export function App(props: { initialToast?: InitialToast }) {
       setDebugLogFile(debugLogPath)
     }
 
-    // Check if tracks/conditions exist and no selection yet
+    // Run pre-flight checks
     try {
-      const templatePath = await getTemplatePathFromTracking(cmRoot)
-      const template = await loadTemplate(cwd, templatePath)
-      const selectedTrack = await getSelectedTrack(cmRoot)
-      const conditionsSelected = await hasSelectedConditions(cmRoot)
-      const existingProjectName = await getProjectName(cmRoot)
+      const onboardingNeeds = await checkOnboardingRequired({ cwd })
+      const { template, controllerAgents } = onboardingNeeds
 
-      const hasTracks = template.tracks && Object.keys(template.tracks.options).length > 0
-      const hasConditionGroups = template.conditionGroups && template.conditionGroups.length > 0
-      const needsTrackSelection = hasTracks && !selectedTrack
-      const needsConditionsSelection = hasConditionGroups && !conditionsSelected
-      const needsProjectName = !existingProjectName
-
-      // Check if workflow requires controller selection
-      // Skip if controller session already exists
-      let controllers: AgentDefinition[] = []
-      const existingControllerConfig = await loadControllerConfig(cmRoot)
-      const hasExistingControllerSession = existingControllerConfig?.controllerConfig?.sessionId
-      if (template.controller === true && !hasExistingControllerSession) {
-        controllers = await getControllerAgents(cwd)
-      }
-      const needsControllerSelection = controllers.length > 0
-
-      // If project name, tracks, conditions, or controller need selection, show onboard view
-      if (needsProjectName || needsTrackSelection || needsConditionsSelection || needsControllerSelection) {
+      // If any onboarding is needed, show onboard view
+      if (needsOnboarding(onboardingNeeds)) {
         debug('[AppShell] Starting onboarding flow')
 
-        // Store config for Onboard component (backward compatibility)
+        const hasTracks = template.tracks && Object.keys(template.tracks.options).length > 0
+        const hasConditionGroups = template.conditionGroups && template.conditionGroups.length > 0
+
+        // Store config for Onboard component
         if (hasTracks) setTemplateTracks(template.tracks!)
         if (hasConditionGroups) setTemplateConditionGroups(template.conditionGroups!)
-        if (needsControllerSelection) setControllerAgents(controllers)
-        setInitialProjectName(existingProjectName)
+        if (onboardingNeeds.needsControllerSelection) setControllerAgents(controllerAgents)
+        setInitialProjectName(null)
 
         // Create event bus and service for onboarding
         const eventBus = new WorkflowEventBus()
@@ -209,8 +192,8 @@ export function App(props: { initialToast?: InitialToast }) {
         const service = new OnboardingService(eventBus, {
           tracks: hasTracks ? template.tracks : undefined,
           conditionGroups: hasConditionGroups ? template.conditionGroups : undefined,
-          controllerAgents: needsControllerSelection ? controllers : undefined,
-          initialProjectName: existingProjectName,
+          controllerAgents: onboardingNeeds.needsControllerSelection ? controllerAgents : undefined,
+          initialProjectName: onboardingNeeds.needsProjectName ? undefined : undefined,
           cwd,
           cmRoot,
         })
@@ -233,12 +216,12 @@ export function App(props: { initialToast?: InitialToast }) {
         return
       }
     } catch (error) {
-      // If template loading fails, proceed to workflow anyway
-      appDebug('[AppShell] Failed to check tracks/conditions: %s', error)
-      console.error("Failed to check tracks/conditions:", error)
+      // If pre-flight check fails, proceed to workflow anyway
+      appDebug('[AppShell] Failed pre-flight check: %s', error)
+      console.error("Failed pre-flight check:", error)
     }
 
-    // No tracks/conditions or already selected - start workflow directly
+    // No onboarding needed - start workflow directly
     appDebug('[AppShell] Starting workflow execution directly')
     startWorkflowExecution()
   }
@@ -257,7 +240,7 @@ export function App(props: { initialToast?: InitialToast }) {
     pendingWorkflowStart = () => {
       appDebug('[AppShell] Importing and running workflow')
       import("../../workflows/run.js").then(({ runWorkflow }) => {
-        runWorkflow({ cwd, specificationPath: specPath }).catch((error) => {
+        runWorkflow({ cwd }).catch((error) => {
           // Emit error event to show toast with actual error message
           const errorMsg = error instanceof Error ? error.message : String(error)
           appDebug('[AppShell] Workflow error: %s', errorMsg)

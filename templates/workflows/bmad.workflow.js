@@ -1,6 +1,7 @@
 export default {
   name: 'BMAD Method',
   controller: true,
+  specification: true,
 
   tracks: {
     question: 'What is your project size?',

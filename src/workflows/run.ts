@@ -21,27 +21,29 @@ import { StepIndexManager } from './indexing/index.js';
 import { registry } from '../infra/engines/index.js';
 import { MonitoringCleanup, AgentMonitorService, StatusService } from '../agents/monitoring/index.js';
 import { WorkflowEventBus, WorkflowEventEmitter } from './events/index.js';
-import { validateSpecification } from '../runtime/services/index.js';
 import { ensureWorkspaceStructure, mirrorSubAgents } from '../runtime/services/workspace/index.js';
 import { WorkflowRunner } from './runner/index.js';
 import { getUniqueAgentId } from './context/index.js';
 import { setupWorkflowMCP, cleanupWorkflowMCP } from './mcp.js';
 
-export { validateSpecification, ValidationError } from '../runtime/services/index.js';
+// Re-export from preflight for backward compatibility
+export { ValidationError, checkWorkflowCanStart, checkSpecificationRequired, checkOnboardingRequired, needsOnboarding } from './preflight.js';
 export type { WorkflowStep, WorkflowTemplate };
 
 /**
- * Run a workflow with validation
+ * Run a workflow
+ * Note: Pre-flight checks (specification validation) should be done via preflight.ts before calling this
  */
 export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<void> {
   const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd();
-  const specificationPath = options.specificationPath || path.resolve(cwd, '.codemachine', 'inputs', 'specifications.md');
 
   // Ensure workspace structure exists (creates .codemachine folder tree)
   await ensureWorkspaceStructure({ cwd });
 
-  // Validate specification
-  await validateSpecification(specificationPath);
+  // Load template
+  const cmRoot = path.join(cwd, '.codemachine');
+  const templatePath = options.templatePath || (await getTemplatePathFromTracking(cmRoot));
+  const { template } = await loadTemplateWithPath(cwd, templatePath);
 
   // Clear screen for TUI
   if (process.stdout.isTTY) {
@@ -58,8 +60,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   // Set up cleanup handlers
   MonitoringCleanup.setup();
 
-  // Load template (needed before we can set up the before-cleanup handler)
-  const cmRoot = path.join(cwd, '.codemachine');
+  // Initialize index manager for step tracking
   const indexManager = new StepIndexManager(cmRoot);
 
   // Register callback to save session state before cleanup on Ctrl+C
@@ -83,10 +84,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       }
     },
   });
-
-  // Load template
-  const templatePath = options.templatePath || (await getTemplatePathFromTracking(cmRoot));
-  const { template } = await loadTemplateWithPath(cwd, templatePath);
 
   debug('[Workflow] Using template: %s', template.name);
 
