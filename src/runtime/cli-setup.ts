@@ -62,7 +62,7 @@ if (process.stdout.isTTY && !shouldSkipSplash) {
 
 appDebug('[Boot] Importing remaining modules');
 import { Command } from 'commander';
-import { realpathSync } from 'node:fs';
+import { realpathSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 appDebug('[Boot] Imports complete');
 
@@ -80,14 +80,9 @@ async function initializeInBackground(cwd: string): Promise<void> {
   if (!existsSync(cmRoot)) {
     appDebug('[Init] Bootstrapping workspace (first run)');
     // Lazy load bootstrap utilities (only on first run)
-    const { bootstrapWorkspace } = await import('./services/workspace/index.js');
-    const { resolvePackageRoot } = await import('../shared/runtime/root.js');
+    const { ensureWorkspaceStructure } = await import('./services/workspace/index.js');
 
-    const packageRoot = resolvePackageRoot(import.meta.url, 'runtime setup');
-    const templatesDir = path.resolve(packageRoot, 'templates', 'workflows');
-    const defaultTemplate = path.join(templatesDir, 'codemachine.workflow.js');
-
-    await bootstrapWorkspace({ cwd, templatePath: defaultTemplate });
+    await ensureWorkspaceStructure({ cwd });
     appDebug('[Init] Workspace bootstrapped');
   }
 
