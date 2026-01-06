@@ -19,7 +19,7 @@ module.exports = {
     product_brief: path.join('.codemachine', 'artifacts', 'product-brief-*.md'),
     prd: path.join('.codemachine', 'artifacts', 'prd-*.md'),
     ux_design_spec: path.join('.codemachine', 'artifacts', 'ux-design-spec-*.md'),
-    architecture: path.join('.codemachine', 'artifacts', 'architecture-*.md'),
+    bmad_architecture: path.join('.codemachine', 'artifacts', 'architecture-*.md'),
     epics: path.join('.codemachine', 'artifacts', 'epics-*.md'),
   },
 

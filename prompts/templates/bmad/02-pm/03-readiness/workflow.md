@@ -27,7 +27,7 @@ This uses **step-file architecture** for disciplined execution:
 
 ## ARCHITECTURE
 
-{architecture}
+{bmad_architecture}
 
 ## EPICS
 
