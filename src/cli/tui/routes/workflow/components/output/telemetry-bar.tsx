@@ -9,7 +9,7 @@
 import { Show } from "solid-js"
 import { useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
-import { formatTokens, formatNumber } from "../../state/formatters"
+import { formatTokens } from "../../state/formatters"
 import type { WorkflowStatus } from "../../state/types"
 
 export interface TelemetryBarProps {
@@ -19,7 +19,6 @@ export interface TelemetryBarProps {
   total: {
     tokensIn: number
     tokensOut: number
-    cached?: number
   }
   autonomousMode?: boolean
 }
@@ -37,9 +36,7 @@ export function TelemetryBar(props: TelemetryBarProps) {
   const isCompact = () => (dimensions()?.width ?? 80) < COMPACT_WIDTH
 
   const totalText = () => {
-    const cached = props.total.cached ?? 0
-    const base = formatTokens(props.total.tokensIn, props.total.tokensOut)
-    return cached > 0 ? `${base} (${formatNumber(cached)} cached)` : base
+    return formatTokens(props.total.tokensIn, props.total.tokensOut)
   }
 
   // Compact token display - no "cached" info

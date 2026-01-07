@@ -176,6 +176,8 @@ export class WorkflowEventEmitter {
    * Mirrors: ui.updateAgentTelemetry(agentId, telemetry)
    */
   updateAgentTelemetry(agentId: string, telemetry: Partial<AgentTelemetry>): void {
+    debug('[TELEMETRY:3-EMITTER] [STEP-AGENT] agent:telemetry event → agentId=%s, tokensIn=%s, tokensOut=%s, cached=%s',
+      agentId, telemetry.tokensIn, telemetry.tokensOut, telemetry.cached);
     this.bus.emit({
       type: 'agent:telemetry',
       agentId,
@@ -229,6 +231,18 @@ export class WorkflowEventEmitter {
     this.bus.emit({
       type: 'controller:model',
       model,
+    });
+  }
+
+  /**
+   * Emit controller telemetry update
+   */
+  updateControllerTelemetry(telemetry: Partial<AgentTelemetry>): void {
+    debug('[TELEMETRY:3-EMITTER] [CONTROLLER] controller:telemetry event → tokensIn=%s, tokensOut=%s, cached=%s',
+      telemetry.tokensIn, telemetry.tokensOut, telemetry.cached);
+    this.bus.emit({
+      type: 'controller:telemetry',
+      telemetry,
     });
   }
 

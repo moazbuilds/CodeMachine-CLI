@@ -1,3 +1,5 @@
+import { debug } from '../../../../shared/logging/logger.js';
+
 interface CapturedTelemetry {
   duration?: number;
   cost?: number;
@@ -29,12 +31,16 @@ export function parseTelemetry(json: unknown): CapturedTelemetry | null {
     // Only capture final "stop" steps, skip intermediate "tool-calls" steps
     // "stop" steps have the complete context size, "tool-calls" are partial
     if (data.part?.reason !== 'stop') {
+      debug('[TELEMETRY:1-PARSER] step_finish reason=%s (skipped, not stop)', data.part?.reason);
       return null;
     }
 
     if (data.part?.tokens) {
       const tokens = data.part.tokens;
       const cache = (tokens.cache?.read || 0) + (tokens.cache?.write || 0);
+
+      debug('[TELEMETRY:1-PARSER] CAPTURED step_finish:stop → input=%d, output=%d, cached=%d, cost=%s',
+        tokens.input, tokens.output, cache, data.part.cost);
 
       return {
         tokens: {

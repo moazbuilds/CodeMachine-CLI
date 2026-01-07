@@ -41,10 +41,12 @@ export interface ActionParseResult {
  * Target for telemetry forwarding
  */
 export interface TelemetryTarget {
-  /** Unique agent ID for UI updates */
+  /** Unique agent ID for UI updates (not used for controller telemetry) */
   uniqueAgentId: string;
   /** Event emitter for telemetry updates */
   emitter: WorkflowEventEmitter;
+  /** If true, route telemetry to controller instead of agent */
+  isController?: boolean;
 }
 
 /**

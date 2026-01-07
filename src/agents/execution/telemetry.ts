@@ -22,20 +22,34 @@ import type { ParsedTelemetry, TelemetryTarget, TelemetryCallback } from './type
  *   onTelemetry,
  * });
  * ```
+ *
+ * For controller telemetry:
+ * ```typescript
+ * const onTelemetry = createTelemetryCallback({
+ *   uniqueAgentId: '', // not used for controller
+ *   emitter: workflowEmitter,
+ *   isController: true,
+ * });
+ * ```
  */
 export function createTelemetryCallback(target: TelemetryTarget): TelemetryCallback {
-  const { uniqueAgentId, emitter } = target;
+  const { uniqueAgentId, emitter, isController } = target;
 
   return (telemetry: ParsedTelemetry) => {
-    emitter.updateAgentTelemetry(uniqueAgentId, telemetry);
+    if (isController) {
+      emitter.updateControllerTelemetry(telemetry);
+    } else {
+      emitter.updateAgentTelemetry(uniqueAgentId, telemetry);
+    }
   };
 }
 
 /**
  * Optionally creates a telemetry callback based on provided options
  *
- * Returns undefined if telemetry target is incomplete (missing uniqueAgentId or emitter).
- * This is the primary helper for conditional telemetry setup.
+ * Returns undefined if telemetry target is incomplete:
+ * - For regular agents: missing uniqueAgentId or emitter
+ * - For controller: missing emitter (uniqueAgentId not required)
  *
  * Usage:
  * ```typescript
@@ -50,7 +64,21 @@ export function createTelemetryCallback(target: TelemetryTarget): TelemetryCallb
 export function maybeCreateTelemetryCallback(
   target: Partial<TelemetryTarget> | undefined
 ): TelemetryCallback | undefined {
-  if (!target?.uniqueAgentId || !target?.emitter) {
+  if (!target?.emitter) {
+    return undefined;
+  }
+
+  // For controller, uniqueAgentId is not required
+  if (target.isController) {
+    return createTelemetryCallback({
+      uniqueAgentId: '', // not used for controller
+      emitter: target.emitter,
+      isController: true,
+    });
+  }
+
+  // For regular agents, uniqueAgentId is required
+  if (!target.uniqueAgentId) {
     return undefined;
   }
 

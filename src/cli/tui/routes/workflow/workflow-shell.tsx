@@ -181,22 +181,41 @@ export function WorkflowShell(props: WorkflowShellProps) {
 
   const logStream = useLogStream(() => currentAgent()?.monitoringId)
 
-  const totalTelemetry = createMemo(() => {
-    const s = state()
+  // Memoized total telemetry - only recalculates when agent/subagent/controller telemetry actually changes
+  const totalTelemetry = createMemo((prev: { tokensIn: number; tokensOut: number; cached?: number } | undefined) => {
+    const agents = state().agents
+    const subAgents = state().subAgents
+    const controller = state().controllerState
     let tokensIn = 0, tokensOut = 0, cached = 0
-    for (const agent of s.agents) {
+
+    for (const agent of agents) {
       tokensIn += agent.telemetry.tokensIn
       tokensOut += agent.telemetry.tokensOut
       cached += agent.telemetry.cached ?? 0
     }
-    for (const subAgents of s.subAgents.values()) {
-      for (const sub of subAgents) {
+    for (const subs of subAgents.values()) {
+      for (const sub of subs) {
         tokensIn += sub.telemetry.tokensIn
         tokensOut += sub.telemetry.tokensOut
         cached += sub.telemetry.cached ?? 0
       }
     }
-    return { tokensIn, tokensOut, cached: cached > 0 ? cached : undefined }
+    // Include controller telemetry
+    if (controller?.telemetry) {
+      tokensIn += controller.telemetry.tokensIn
+      tokensOut += controller.telemetry.tokensOut
+      cached += controller.telemetry.cached ?? 0
+    }
+
+    const result = { tokensIn, tokensOut, cached: cached > 0 ? cached : undefined }
+
+    // Only log when values actually change
+    if (!prev || prev.tokensIn !== tokensIn || prev.tokensOut !== tokensOut || prev.cached !== result.cached) {
+      debug('[TELEMETRY:6-TOTAL] totalTokensIn=%d, totalTokensOut=%d, totalCached=%s',
+        tokensIn, tokensOut, result.cached)
+    }
+
+    return result
   })
 
   const isCheckpointActive = () => state().checkpointState?.active ?? false

@@ -5,6 +5,7 @@
 import type {
   WorkflowState,
   AgentStatus,
+  AgentTelemetry,
   LoopState,
   ChainedState,
   InputState,
@@ -54,6 +55,9 @@ export type UIActions = {
   logMessage(agentId: string, message: string): void
   setAutonomousMode(enabled: boolean): void
   setControllerState(controllerState: ControllerState | null): void
+  updateControllerTelemetry(telemetry: Partial<AgentTelemetry>): void
+  /** Reset state for a new workflow */
+  reset(workflowName: string): void
 }
 
-export type { WorkflowState, AgentStatus, LoopState, ChainedState, InputState, SubAgentState, TriggeredAgentState, WorkflowStatus, ControllerState }
+export type { WorkflowState, AgentStatus, AgentTelemetry, LoopState, ChainedState, InputState, SubAgentState, TriggeredAgentState, WorkflowStatus, ControllerState }

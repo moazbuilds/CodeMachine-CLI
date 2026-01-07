@@ -127,6 +127,7 @@ export interface ControllerState {
   name: string
   engine: string
   model?: string
+  telemetry: AgentTelemetry
 }
 
 export interface WorkflowState {

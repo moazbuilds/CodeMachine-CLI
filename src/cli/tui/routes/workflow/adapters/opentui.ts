@@ -62,6 +62,9 @@ export interface UIActions {
   showToast?(variant: "success" | "error" | "info" | "warning", message: string): void
   getState(): WorkflowState
   setControllerState(controllerState: ControllerState | null): void
+  updateControllerTelemetry(telemetry: { tokensIn?: number; tokensOut?: number; cached?: number; cost?: number }): void
+  /** Reset state for a new workflow */
+  reset(workflowName: string): void
 }
 
 export interface OpenTUIAdapterOptions extends UIAdapterOptions {
@@ -102,6 +105,9 @@ export class OpenTUIAdapter extends BaseUIAdapter {
     switch (event.type) {
       // Workflow events
       case "workflow:started":
+        // Reset state for new workflow - ensures clean slate
+        debug('[ADAPTER] workflow:started - resetting state for: %s', event.workflowName)
+        this.actions.reset(event.workflowName)
         // Reset timer for new workflow (will auto-start on first agent)
         timerService.reset()
         this.actions.setWorkflowName(event.workflowName)
@@ -175,6 +181,8 @@ export class OpenTUIAdapter extends BaseUIAdapter {
         break
 
       case "agent:telemetry":
+        debug('[TELEMETRY:4-ADAPTER] [STEP-AGENT] Received agent:telemetry → agentId=%s, tokensIn=%s, tokensOut=%s, cached=%s',
+          event.agentId, event.telemetry.tokensIn, event.telemetry.tokensOut, event.telemetry.cached)
         this.actions.updateAgentTelemetry(event.agentId, {
           tokensIn: event.telemetry.tokensIn,
           tokensOut: event.telemetry.tokensOut,
@@ -192,14 +200,18 @@ export class OpenTUIAdapter extends BaseUIAdapter {
         break
 
       // Controller agent events
-      case "controller:info":
+      case "controller:info": {
+        // Preserve existing telemetry when controller info is updated (controller runs multiple times)
+        const existingController = this.actions.getState().controllerState
         this.actions.setControllerState({
           id: event.id,
           name: event.name,
           engine: event.engine,
           model: event.model,
+          telemetry: existingController?.telemetry ?? { tokensIn: 0, tokensOut: 0 },
         })
         break
+      }
 
       case "controller:engine":
         {
@@ -217,6 +229,17 @@ export class OpenTUIAdapter extends BaseUIAdapter {
             this.actions.setControllerState({ ...currentController, model: event.model })
           }
         }
+        break
+
+      case "controller:telemetry":
+        debug('[TELEMETRY:4-ADAPTER] [CONTROLLER] Received controller:telemetry → tokensIn=%s, tokensOut=%s, cached=%s',
+          event.telemetry.tokensIn, event.telemetry.tokensOut, event.telemetry.cached)
+        this.actions.updateControllerTelemetry({
+          tokensIn: event.telemetry.tokensIn,
+          tokensOut: event.telemetry.tokensOut,
+          cached: event.telemetry.cached,
+          cost: event.telemetry.cost,
+        })
         break
 
       // Sub-agent events
