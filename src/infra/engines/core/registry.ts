@@ -13,6 +13,7 @@ import ccrEngine from '../providers/ccr/index.js';
 import opencodeEngine from '../providers/opencode/index.js';
 import auggieEngine from '../providers/auggie/index.js';
 import mistralEngine from '../providers/mistral/index.js';
+import copilotEngine from '../providers/copilot/index.js';
 
 /**
  * Engine Registry - Singleton that manages all available engines
@@ -35,6 +36,7 @@ class EngineRegistry {
     const engineModules = [
       opencodeEngine,
       claudeEngine,
+      copilotEngine,
       codexEngine,
       cursorEngine,
       mistralEngine,

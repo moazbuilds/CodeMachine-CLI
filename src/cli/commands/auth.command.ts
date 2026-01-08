@@ -115,7 +115,8 @@ export async function handleLogin(providerId: string): Promise<void> {
     return;
   }
 
-  await engine.auth.ensureAuth();
+  // Pass true to force interactive login (TUI has already destroyed the renderer)
+  await engine.auth.ensureAuth(true);
   console.log(`${engine.metadata.name} authentication successful.`);
 }
 
