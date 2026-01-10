@@ -25,19 +25,6 @@
 
 ---
 
-> **⚠️ Early Development Notice:** This project is in early development and is not yet ready for production use. Features may change, break, or be incomplete.
-
-<p align="center">
-  <a href="https://discord.gg/vS3A5UDNSq">
-    <img src="https://raw.githubusercontent.com/moazbuilds/CodeMachine-CLI/main/docs/assets/discord-badge.png" alt="Join our Discord" width="200">
-  </a>
-  &nbsp;&nbsp;
-  <a href="https://www.reddit.com/r/CodeMachine/">
-    <img src="https://raw.githubusercontent.com/moazbuilds/CodeMachine-CLI/main/docs/assets/reddit-badge.png" alt="Join our Reddit" width="200">
-  </a><br>
-  <sub>Join our growing Discord and Reddit communities of developers building with CodeMachine!</sub>
-</p>
-
 ## Why CodeMachine?
 
 *   **Customizable, End-to-End Workflows:** Architect sophisticated orchestration pipelines for any scale, from executing simple scripts to managing multi-day, complex development cycles.
@@ -199,6 +186,17 @@ CodeMachine is built with contributions from amazing developers. Special thanks 
 
 <p align="center">
 Found a bug or have a feature idea? Check our <strong><a href="./CONTRIBUTING.md">Contributing Guide</a></strong> to get started.
+</p>
+
+<p align="center">
+  <a href="https://discord.gg/vS3A5UDNSq">
+    <img src="https://raw.githubusercontent.com/moazbuilds/CodeMachine-CLI/main/docs/assets/discord-badge.png" alt="Join our Discord" width="200">
+  </a>
+  &nbsp;&nbsp;
+  <a href="https://www.reddit.com/r/CodeMachine/">
+    <img src="https://raw.githubusercontent.com/moazbuilds/CodeMachine-CLI/main/docs/assets/reddit-badge.png" alt="Join our Reddit" width="200">
+  </a><br>
+  <sub>Join our growing Discord and Reddit communities of developers building with CodeMachine!</sub>
 </p>
 
 ---
