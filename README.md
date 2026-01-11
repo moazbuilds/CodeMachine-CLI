@@ -7,14 +7,16 @@
 </p>
 
 <p align="center">
-  <img src="./docs/assets/nova-banner.png" alt="v0.8 Nova Edition" width="250">
+  <img src="./docs/assets/nova-banner.png" alt="v0.8 Nova Edition" width="400">
 </p>
 
-> **🌟 v0.8 NOVA EDITION is here - a massive update.**
->
-> New architecture, breaking changes, and a completely refreshed experience.
->
-> [See what's changed →](./docs/changelog.md)
+<p align="center">
+  <strong>🌟 v0.8 NOVA EDITION is here - a massive update.</strong><br>
+  New architecture, breaking changes, and a completely refreshed experience.<br>
+  <a href="./docs/changelog.md">See what's changed →</a>
+</p>
+
+---
 
 <p align="center">
   <strong>CodeMachine</strong> is a reliable, CLI-native orchestration platform built on coding agents that lets you turn complex coding objectives into repeatable, automated pipelines - with context engineering tools and agent observability - so you can build a workflow once and run it confidently on demand. ⚡️<br></p>
@@ -26,23 +28,13 @@
 
 ---
 
-## Why CodeMachine?
-
-*   **Build Once, Run Forever:** Define complex workflows once and execute them reliably on every project - stop rebuilding the same patterns manually.
-*   **Multi-Agent Orchestration:** Assign different coding agents to different tasks - use one for planning, another for implementation, another for review.
-*   **Parallel Execution:** Run multiple agents simultaneously on different parts of your workflow for faster results.
-*   **Long-Running Workflows:** Execute workflows for hours or days - CodeMachine handles persistence so you don't have to babysit.
-*   **Context Engineering:** Centralize prompts, manage dynamic context, and control what each agent sees at each step.
-*   **Agent Observability:** Trace agent behavior, monitor execution, and refine your workflows with visibility into what's happening.
----
-
-## Is CodeMachine For You?
-
-**Coding agents are powerful - until the workflow gets repetitive.**
+**Coding agents are powerful - until the objectives get repetitive.**
 
 When you're doing the same complex workflow for the 10th time - manually chaining sessions, managing context, rebuilding patterns - you become the bottleneck.
 
 CodeMachine doesn't replace your agents. It orchestrates them.
+
+## Is CodeMachine For You?
 
 **When CodeMachine makes sense:**
 - You're doing similar complex workflows repeatedly
@@ -79,6 +71,17 @@ That's it.
 
 ---
 
+## Why CodeMachine?
+
+*   **Build Once, Run Forever:** Define complex workflows once and execute them reliably on every project - stop rebuilding the same patterns manually.
+*   **Multi-Agent Orchestration:** Assign different coding agents to different tasks - use one for planning, another for implementation, another for review.
+*   **Parallel Execution:** Run multiple agents simultaneously on different parts of your workflow for faster results.
+*   **Long-Running Workflows:** Execute workflows for hours or days - CodeMachine handles persistence so you don't have to babysit.
+*   **Context Engineering:** Centralize prompts, manage dynamic context, and control what each agent sees at each step.
+*   **Agent Observability:** Trace agent behavior, monitor execution, and refine your workflows with visibility into what's happening.
+
+---
+
 ## 🛠️ How It Works
 
 CodeMachine resources live at `~/.codemachine/resources/{version}/` with three core folders:
@@ -111,7 +114,7 @@ CodeMachine ships with ready-to-use workflows. Pick one, customize it, or build 
   </thead>
   <tbody>
     <tr>
-      <td><strong><a href="https://github.com/bmad-code-org/BMAD-METHOD">🚀 BMAD</a></strong> <em>(Featured)</em></td>
+      <td><strong><a href="https://github.com/bmad-code-org/BMAD-METHOD">🚀 BMAD</a></strong> <em>(Default)</em></td>
       <td>Breakthrough Method for Agile AI-Driven Development - full project lifecycle from ideation to deployment</td>
     </tr>
     <tr>
