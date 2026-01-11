@@ -25,6 +25,9 @@ Added MKDocs integration, improving the project's documentation infrastructure.
 ### [LegendEvent](https://github.com/LegendEvent)
 Reported and fixed a critical bug in the OpenCode engine integration, helping improve stability and reliability.
 
+### [Srikanth](https://github.com/ghostincli)
+Added Mistral Vibe engine support, expanding CodeMachine's integration with Mistral's AI capabilities.
+
 ## Other Contributors
 
 - [Sam Tregar](https://github.com/samtregar)
