@@ -347,6 +347,24 @@ export function WorkflowShell(props: WorkflowShellProps) {
 
 
 
+  // Single-agent auto-collapse logic
+  // We use a flag to run this only once when the workflow structure is known
+  let hasCheckedSingleAgent = false
+  createEffect(() => {
+    const s = state()
+    // Steps are resolved and agents are added
+    if (!hasCheckedSingleAgent && s.totalSteps > 0 && s.agents.length > 0) {
+      if (s.totalSteps === 1) {
+        debug('[SHELL] Single agent workflow detected, collapsing timeline')
+        // Only collapse if currently open
+        if (!s.timelineCollapsed) {
+          ui.actions.toggleTimeline()
+        }
+      }
+      hasCheckedSingleAgent = true
+    }
+  })
+
   const getMonitoringId = (uiAgentId: string): number | undefined => {
     const s = state()
     const mainAgent = s.agents.find((a) => a.id === uiAgentId)

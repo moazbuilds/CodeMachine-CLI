@@ -21,9 +21,7 @@ export interface TelemetryBarProps {
     tokensOut: number
     cached?: number
   }
-  cached?: number
-}
-autonomousMode ?: AutonomousMode
+  autonomousMode?: AutonomousMode
 }
 
 /**
