@@ -328,40 +328,16 @@ export function WorkflowShell(props: WorkflowShellProps) {
     }
   }
 
-  // Effect to collapse timeline for single-agent workflows
+
+  // Single-agent auto-collapse logic (Strict)
   createEffect(() => {
     const s = state()
-    // Check if we have determined the total steps and have agents
-    if (s.totalSteps === 1 && s.agents.length >= 1 && !s.timelineCollapsed) {
-      // Only if we haven't manually toggled it? 
-      // For now, force collapse if it's a single step workflow.
-      // We can use a ref or just rely on this effect running once if we check a flag.
-      // But createEffect runs on dependencies.
-      // Let's use untracked or just set it once.
-      // Actually, we can just call toggleTimeline if it's not collapsed.
-      // Use a local signal to ensure we only do this once per workflow load?
-      // The UI state persists, so we should be careful.
-      // But totalSteps is usually set at start.
-    }
-  })
-
-
-
-  // Single-agent auto-collapse logic
-  // We use a flag to run this only once when the workflow structure is known
-  let hasCheckedSingleAgent = false
-  createEffect(() => {
-    const s = state()
-    // Steps are resolved and agents are added
-    if (!hasCheckedSingleAgent && s.totalSteps > 0 && s.agents.length > 0) {
-      if (s.totalSteps === 1) {
-        debug('[SHELL] Single agent workflow detected, collapsing timeline')
-        // Only collapse if currently open
-        if (!s.timelineCollapsed) {
-          ui.actions.toggleTimeline()
-        }
+    // Always check: if single agent, enforce collapse
+    if (s.agents.length === 1) {
+      if (!s.timelineCollapsed) {
+        debug('[SHELL] Single agent detected, strictly collapsing timeline')
+        ui.actions.toggleTimeline()
       }
-      hasCheckedSingleAgent = true
     }
   })
 
@@ -379,7 +355,18 @@ export function WorkflowShell(props: WorkflowShellProps) {
   // Keyboard navigation
   useWorkflowKeyboard({
     getState: state,
-    actions: ui.actions,
+    actions: {
+      ...ui.actions,
+      toggleTimeline: () => {
+        const s = state()
+        // Prevent toggle if single agent (strict mode)
+        if (s.agents.length === 1) {
+          toast.show({ variant: "warning", message: "Timeline is locked for single-agent workflows", duration: 3000 })
+          return
+        }
+        ui.actions.toggleTimeline()
+      }
+    },
     calculateVisibleItems: getVisibleItems,
     isModalBlocking: () => isCheckpointActive() || modals.isLogViewerActive() || modals.isHistoryActive() || modals.isHistoryLogViewerActive() || showStopModal() || isErrorModalActive(),
     isPromptBoxFocused: () => isPromptBoxFocused(),
