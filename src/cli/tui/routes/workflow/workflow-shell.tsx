@@ -107,27 +107,34 @@ export function WorkflowShell(props: WorkflowShellProps) {
   }
 
   // Mode change listener - syncs UI state when autonomousMode changes
-  const handleModeChange = (data: { autonomousMode: boolean }) => {
+  const handleModeChange = (data: { autonomousMode: string }) => {
     debug('[MODE-CHANGE] Received event: autonomousMode=%s', data.autonomousMode)
-    ui.actions.setAutonomousMode(data.autonomousMode)
+    // Validate that the string is a valid AutonomousMode
+    if (['true', 'false', 'never', 'always'].includes(data.autonomousMode)) {
+      ui.actions.setAutonomousMode(data.autonomousMode as any)
+    }
   }
 
   onMount(async () => {
-    ;(process as NodeJS.EventEmitter).on('workflow:error', handleWorkflowError)
-    ;(process as NodeJS.EventEmitter).on('workflow:stopping', handleStopping)
-    ;(process as NodeJS.EventEmitter).on('workflow:user-stop', handleUserStop)
-    ;(process as NodeJS.EventEmitter).on('workflow:mode-change', handleModeChange)
+    ; (process as NodeJS.EventEmitter).on('workflow:error', handleWorkflowError)
+      ; (process as NodeJS.EventEmitter).on('workflow:stopping', handleStopping)
+      ; (process as NodeJS.EventEmitter).on('workflow:user-stop', handleUserStop)
+      ; (process as NodeJS.EventEmitter).on('workflow:mode-change', handleModeChange)
 
     // Load initial autonomous mode state
     const cmRoot = path.join(resolvePath(props.currentDir), '.codemachine')
     debug('onMount - loading controller config from: %s', cmRoot)
     const controllerState = await loadControllerConfig(cmRoot)
     debug('onMount - controllerState: %s', JSON.stringify(controllerState))
+
+    // Set autonomous mode from file if present, otherwise default is 'true'
     if (controllerState?.autonomousMode) {
-      debug('onMount - setting autonomousMode to true')
-      ui.actions.setAutonomousMode(true)
+      debug('onMount - setting autonomousMode to %s', controllerState.autonomousMode)
+      if (['true', 'false', 'never', 'always'].includes(controllerState.autonomousMode)) {
+        ui.actions.setAutonomousMode(controllerState.autonomousMode as any)
+      }
     } else {
-      debug('onMount - autonomousMode not enabled in config')
+      debug('onMount - autonomousMode not enabled in config, using default (true)')
     }
 
     if (props.eventBus) {
@@ -146,10 +153,10 @@ export function WorkflowShell(props: WorkflowShellProps) {
   })
 
   onCleanup(() => {
-    ;(process as NodeJS.EventEmitter).off('workflow:error', handleWorkflowError)
-    ;(process as NodeJS.EventEmitter).off('workflow:stopping', handleStopping)
-    ;(process as NodeJS.EventEmitter).off('workflow:user-stop', handleUserStop)
-    ;(process as NodeJS.EventEmitter).off('workflow:mode-change', handleModeChange)
+    ; (process as NodeJS.EventEmitter).off('workflow:error', handleWorkflowError)
+      ; (process as NodeJS.EventEmitter).off('workflow:stopping', handleStopping)
+      ; (process as NodeJS.EventEmitter).off('workflow:user-stop', handleUserStop)
+      ; (process as NodeJS.EventEmitter).off('workflow:mode-change', handleModeChange)
     if (adapter) {
       adapter.stop()
       adapter.disconnect()
@@ -204,13 +211,13 @@ export function WorkflowShell(props: WorkflowShellProps) {
   const handleCheckpointContinue = () => {
     ui.actions.setCheckpointState(null)
     ui.actions.setWorkflowStatus("running")
-    ;(process as NodeJS.EventEmitter).emit("checkpoint:continue")
+      ; (process as NodeJS.EventEmitter).emit("checkpoint:continue")
   }
 
   const handleCheckpointQuit = () => {
     ui.actions.setCheckpointState(null)
     ui.actions.setWorkflowStatus("stopped")
-    ;(process as NodeJS.EventEmitter).emit("checkpoint:quit")
+      ; (process as NodeJS.EventEmitter).emit("checkpoint:quit")
   }
 
   // Check if we have queued prompts (chained mode)
@@ -247,9 +254,9 @@ export function WorkflowShell(props: WorkflowShellProps) {
 
   const handleStopConfirm = () => {
     setShowStopModal(false)
-    ;(process as NodeJS.EventEmitter).emit("workflow:user-stop")
-    ;(process as NodeJS.EventEmitter).emit("workflow:stop")
-    ;(process as NodeJS.EventEmitter).emit("workflow:return-home")
+      ; (process as NodeJS.EventEmitter).emit("workflow:user-stop")
+      ; (process as NodeJS.EventEmitter).emit("workflow:stop")
+      ; (process as NodeJS.EventEmitter).emit("workflow:return-home")
   }
 
   const handleStopCancel = () => {
@@ -259,7 +266,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
   // Unified prompt submit handler - uses single workflow:input event
   const handlePromptSubmit = (prompt: string) => {
     if (isWaitingForInput()) {
-      ;(process as NodeJS.EventEmitter).emit("workflow:input", { prompt: prompt || undefined })
+      ; (process as NodeJS.EventEmitter).emit("workflow:input", { prompt: prompt || undefined })
       setIsPromptBoxFocused(false)
     }
   }
@@ -267,14 +274,14 @@ export function WorkflowShell(props: WorkflowShellProps) {
   // Skip all remaining prompts
   const handleSkip = () => {
     if (isWaitingForInput()) {
-      ;(process as NodeJS.EventEmitter).emit("workflow:input", { skip: true })
+      ; (process as NodeJS.EventEmitter).emit("workflow:input", { skip: true })
       setIsPromptBoxFocused(false)
     }
   }
 
   // Pause the workflow (aborts current step)
   const pauseWorkflow = () => {
-    ;(process as NodeJS.EventEmitter).emit("workflow:pause")
+    ; (process as NodeJS.EventEmitter).emit("workflow:pause")
   }
 
   // Toggle autonomous mode on/off
@@ -284,14 +291,22 @@ export function WorkflowShell(props: WorkflowShellProps) {
     // Read current state from file (source of truth)
     const controllerState = await loadControllerConfig(cmRoot)
     debug('[TOGGLE] controllerState: %s', JSON.stringify(controllerState))
-    const currentMode = controllerState?.autonomousMode ?? false
-    const newMode = !currentMode
+
+    const currentMode = controllerState?.autonomousMode ?? 'true' // Default to true if not set
+
+    // Prevent toggle if locked
+    if (currentMode === 'never' || currentMode === 'always') {
+      toast.show({
+        variant: "warning",
+        message: "Autonomous mode is locked by workflow configuration",
+        duration: 3000
+      })
+      return
+    }
+
+    const newMode = currentMode === 'true' ? 'false' : 'true'
 
     debug('[TOGGLE] Current mode from file: %s, new mode: %s', currentMode, newMode)
-
-    // autoMode can work without controller:
-    // - Non-interactive steps (Scenarios 5-6) run autonomously without controller
-    // - Interactive steps without controller fall back to user input
 
     // Update UI state
     ui.actions.setAutonomousMode(newMode)
@@ -301,17 +316,36 @@ export function WorkflowShell(props: WorkflowShellProps) {
       await persistAutonomousMode(cmRoot, newMode)
       debug('[TOGGLE] Successfully persisted autonomousMode=%s', newMode)
       toast.show({
-        variant: newMode ? "success" : "warning",
-        message: newMode ? "Autonomous mode enabled" : "Autonomous mode disabled",
+        variant: newMode === 'true' ? "success" : "warning",
+        message: newMode === 'true' ? "Autonomous mode enabled" : "Autonomous mode disabled",
         duration: 3000
       })
     } catch (err) {
       debug('[TOGGLE] Failed to persist autonomousMode: %s', err)
       // Revert UI state on error
-      ui.actions.setAutonomousMode(currentMode)
+      ui.actions.setAutonomousMode(currentMode as any)
       toast.show({ variant: "error", message: "Failed to toggle autonomous mode", duration: 3000 })
     }
   }
+
+  // Effect to collapse timeline for single-agent workflows
+  createEffect(() => {
+    const s = state()
+    // Check if we have determined the total steps and have agents
+    if (s.totalSteps === 1 && s.agents.length >= 1 && !s.timelineCollapsed) {
+      // Only if we haven't manually toggled it? 
+      // For now, force collapse if it's a single step workflow.
+      // We can use a ref or just rely on this effect running once if we check a flag.
+      // But createEffect runs on dependencies.
+      // Let's use untracked or just set it once.
+      // Actually, we can just call toggleTimeline if it's not collapsed.
+      // Use a local signal to ensure we only do this once per workflow load?
+      // The UI state persists, so we should be careful.
+      // But totalSteps is usually set at start.
+    }
+  })
+
+
 
   const getMonitoringId = (uiAgentId: string): number | undefined => {
     const s = state()
@@ -346,7 +380,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
     canFocusPromptBox: () => isWaitingForInput() && isShowingRunningAgent() && !isPromptBoxFocused(),
     focusPromptBox: () => setIsPromptBoxFocused(true),
     exitPromptBoxFocus: () => setIsPromptBoxFocused(false),
-    isAutonomousMode: () => state().autonomousMode,
+    isAutonomousMode: () => state().autonomousMode === 'true' || state().autonomousMode === 'always',
     toggleAutonomousMode,
   })
 

@@ -10,7 +10,7 @@ import { Show } from "solid-js"
 import { useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
 import { formatTokens, formatNumber } from "../../state/formatters"
-import type { WorkflowStatus } from "../../state/types"
+import type { WorkflowStatus, AutonomousMode } from "../../state/types"
 
 export interface TelemetryBarProps {
   workflowName: string
@@ -21,7 +21,9 @@ export interface TelemetryBarProps {
     tokensOut: number
     cached?: number
   }
-  autonomousMode?: boolean
+  cached?: number
+}
+autonomousMode ?: AutonomousMode
 }
 
 /**
@@ -85,9 +87,9 @@ export function TelemetryBar(props: TelemetryBarProps) {
           <text fg={themeCtx.theme.text}> • </text>
           <text fg={statusColor()}>{statusText()}</text>
         </Show>
-        <Show when={props.autonomousMode}>
+        <Show when={props.autonomousMode === 'true' || props.autonomousMode === 'always'}>
           <text fg={themeCtx.theme.text}> • </text>
-          <text fg={themeCtx.theme.primary}>AUTO</text>
+          <text fg={themeCtx.theme.primary}>{props.autonomousMode === 'always' ? 'AUTO (LOCKED)' : 'AUTO'}</text>
         </Show>
       </box>
 

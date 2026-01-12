@@ -16,6 +16,8 @@ import type {
 
 export type Listener = () => void
 
+export type AutonomousMode = "true" | "false" | "never" | "always"
+
 export type UIActions = {
   getState(): WorkflowState
   subscribe(fn: Listener): () => void
@@ -52,7 +54,7 @@ export type UIActions = {
   resetAgentForLoop(agentId: string, cycleNumber?: number): void
   addSeparator(separator: { id: string; text: string; stepIndex: number }): void
   logMessage(agentId: string, message: string): void
-  setAutonomousMode(enabled: boolean): void
+  setAutonomousMode(enabled: AutonomousMode): void
   setControllerState(controllerState: ControllerState | null): void
 }
 

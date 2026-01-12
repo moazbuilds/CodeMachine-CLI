@@ -19,6 +19,8 @@ export interface AgentTelemetry {
   duration?: number
 }
 
+export type AutonomousMode = "true" | "false" | "never" | "always"
+
 export interface AgentState {
   id: string
   name: string
@@ -157,7 +159,7 @@ export interface WorkflowState {
   workflowStatus: WorkflowStatus
   agentIdMapVersion: number
   agentLogs: Map<string, string[]>
-  autonomousMode: boolean
+  autonomousMode: AutonomousMode
   controllerState: ControllerState | null
 }
 
