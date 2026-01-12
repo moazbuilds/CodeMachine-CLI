@@ -8,6 +8,8 @@
 import { Show, For } from "solid-js"
 import { useTheme } from "@tui/shared/context/theme"
 import { LogLine } from "../../shared/log-line"
+import { LogTable } from "../../shared/log-table"
+import { groupLinesWithTables } from "../../shared/markdown-table"
 
 export interface LogContentProps {
   lines: string[]
@@ -65,8 +67,15 @@ export function LogContent(props: LogContentProps) {
             viewportCulling={true}
             focused={true}
           >
-            <For each={props.lines}>
-              {(line) => <LogLine line={line || " "} />}
+            <For each={groupLinesWithTables(props.lines)}>
+              {(group) => (
+                <Show
+                  when={group.type === 'table'}
+                  fallback={<LogLine line={group.lines[0] || " "} />}
+                >
+                  <LogTable lines={group.lines} />
+                </Show>
+              )}
             </For>
           </scrollbox>
         </Show>

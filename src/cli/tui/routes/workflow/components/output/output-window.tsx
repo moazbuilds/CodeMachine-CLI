@@ -12,6 +12,8 @@ import { useTheme } from "@tui/shared/context/theme"
 import { ShimmerText } from "./shimmer-text"
 import { TypingText } from "./typing-text"
 import { LogLine } from "../shared/log-line"
+import { LogTable } from "../shared/log-table"
+import { groupLinesWithTables } from "../shared/markdown-table"
 import { PromptLine, type PromptLineState } from "./prompt-line"
 import type { AgentState, SubAgentState, InputState, ControllerState } from "../../state/types"
 
@@ -243,7 +245,16 @@ export function OutputWindow(props: OutputWindowProps) {
               viewportCulling={true}
               focused={!props.isPromptBoxFocused}
             >
-              <For each={props.lines}>{(line) => <LogLine line={line} />}</For>
+              <For each={groupLinesWithTables(props.lines)}>
+                {(group) => (
+                  <Show
+                    when={group.type === 'table'}
+                    fallback={<LogLine line={group.lines[0]} />}
+                  >
+                    <LogTable lines={group.lines} />
+                  </Show>
+                )}
+              </For>
             </scrollbox>
           </Show>
 
