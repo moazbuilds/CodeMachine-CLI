@@ -53,6 +53,10 @@ export interface UseWorkflowKeyboardOptions {
   isAutonomousMode?: () => boolean
   /** Toggle autonomous mode on/off */
   toggleAutonomousMode?: () => void
+  /** Check if controller agent is currently active */
+  isControllerActive?: () => boolean
+  /** Show transition confirmation modal (controller -> workflow) */
+  showTransitionConfirmation?: () => void
 }
 
 /**
@@ -64,6 +68,16 @@ export function useWorkflowKeyboard(options: UseWorkflowKeyboardOptions) {
     debug('Key event: %s', JSON.stringify({ name: evt.name, shift: evt.shift, ctrl: evt.ctrl, meta: evt.meta }))
 
     // === GLOBAL SHORTCUTS (always work) ===
+
+    // Shift+Enter - Finish controller conversation (show transition modal)
+    if (evt.shift && evt.name === "return") {
+      if (options.isControllerActive?.()) {
+        evt.preventDefault()
+        debug('Shift+Enter pressed in controller step - showing transition modal')
+        options.showTransitionConfirmation?.()
+        return
+      }
+    }
 
     // Shift+Tab - toggle autonomous mode
     if (evt.shift && evt.name === "tab") {
@@ -115,6 +129,45 @@ export function useWorkflowKeyboard(options: UseWorkflowKeyboardOptions) {
     // When a modal is open (checkpoint, stop, log viewer, history),
     // let the modal handle its own keyboard events
     if (options.isModalBlocking()) {
+      return
+    }
+
+    // === CONTROLLER MODE ===
+    // When controller is active, limited shortcuts available
+    // Tab is handled above in global shortcuts
+    if (options.isControllerActive?.()) {
+      // Right arrow - re-focus prompt box (if unfocused)
+      if (evt.name === "right") {
+        if (options.canFocusPromptBox?.()) {
+          evt.preventDefault()
+          options.focusPromptBox?.()
+          return
+        }
+      }
+
+      // Esc - show stop confirmation (only when prompt box is NOT focused)
+      // When prompt box is focused, Esc just exits focus (handled above)
+      if (evt.name === "escape" && options.canStop() && !options.isPromptBoxFocused()) {
+        evt.preventDefault()
+        options.showStopConfirmation()
+        return
+      }
+
+      // P key - pause workflow (useful to see what controller is doing)
+      if (evt.name === "p") {
+        evt.preventDefault()
+        options.pauseWorkflow()
+        return
+      }
+
+      // H key - open history view
+      if (evt.name === "h") {
+        evt.preventDefault()
+        options.openHistory()
+        return
+      }
+
+      // Block all other shortcuts in controller mode
       return
     }
 

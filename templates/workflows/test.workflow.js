@@ -1,6 +1,6 @@
 export default {
   name: 'Test Workflow',
-  controller: true,
+  controller: controller('bmad-po', {}),
   tracks: {
     question: 'What type of project workflow do you want?',
     options: {

@@ -64,12 +64,13 @@ export class WorkflowEventEmitter {
   /**
    * Emit workflow started event
    */
-  workflowStarted(workflowName: string, totalSteps: number): void {
-    debug('[Emitter] workflow:started name=%s totalSteps=%d', workflowName, totalSteps);
+  workflowStarted(workflowName: string, totalSteps: number, controllerAgentId?: string): void {
+    debug('[Emitter] workflow:started name=%s totalSteps=%d controllerId=%s', workflowName, totalSteps, controllerAgentId ?? '(none)');
     this.bus.emit({
       type: 'workflow:started',
       workflowName,
       totalSteps,
+      controllerAgentId,
     });
   }
 

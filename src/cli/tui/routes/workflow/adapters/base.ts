@@ -41,6 +41,15 @@ export abstract class BaseUIAdapter implements IWorkflowUI {
     }
 
     this.eventBus = eventBus;
+
+    // Replay history if available to catch missed events
+    const history = eventBus.getHistory();
+    if (history.length > 0) {
+      history.forEach((event) => {
+        this.handleEvent(event);
+      });
+    }
+
     this.unsubscribe = eventBus.subscribe((event) => {
       this.handleEvent(event);
     });

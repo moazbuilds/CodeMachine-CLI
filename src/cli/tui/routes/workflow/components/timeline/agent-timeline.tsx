@@ -73,7 +73,7 @@ export function AgentTimeline(props: AgentTimelineProps) {
         when={layout().length > 0}
         fallback={
           <box paddingLeft={1}>
-            <text fg={themeCtx.theme.textMuted}>No agents to display yet.</text>
+            <text fg={themeCtx.theme.textMuted}>Initializing workflow...</text>
           </box>
         }
       >

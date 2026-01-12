@@ -16,7 +16,10 @@ import {
   getTemplatePathFromTracking,
   getSelectedTrack,
   getSelectedConditions,
+  getControllerAgents,
+  initControllerAgent,
 } from '../shared/workflows/index.js';
+import { isModuleStep } from './templates/types.js';
 import { StepIndexManager } from './indexing/index.js';
 import { registry } from '../infra/engines/index.js';
 import { MonitoringCleanup, AgentMonitorService, StatusService } from '../agents/monitoring/index.js';
@@ -103,9 +106,11 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   }
 
   // Sync agent configurations
+  const moduleStepsForSync = template.steps.filter(
+    (step): step is import('./templates/types.js').ModuleStep => step.type === 'module'
+  );
   const workflowAgents = Array.from(
-    template.steps
-      .filter((step) => step.type === 'module')
+    moduleStepsForSync
       .reduce((acc, step) => {
         const id = step.agentId?.trim();
         if (!id) return acc;
@@ -117,7 +122,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
           modelReasoningEffort: step.modelReasoningEffort ?? existing.modelReasoningEffort,
         });
         return acc;
-      }, new Map<string, { id: string; model?: unknown; modelReasoningEffort?: unknown }>()).values(),
+      }, new Map<string, { id: string; model?: string; modelReasoningEffort?: string }>()).values(),
   );
 
   if (workflowAgents.length > 0) {
@@ -129,10 +134,25 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     }
   }
 
-  // Get event bus
+  // Get event bus (prioritize explicitly passed instance)
   // @ts-expect-error - global export from app.tsx
-  const eventBus: WorkflowEventBus = globalThis.__workflowEventBus ?? new WorkflowEventBus();
+  const eventBus: WorkflowEventBus = options.eventBus ?? globalThis.__workflowEventBus ?? new WorkflowEventBus();
+
+  if (options.eventBus) {
+    debug('[Workflow] Using explicitly passed EventBus');
+  } else if ((globalThis as any).__workflowEventBus) {
+    debug('[Workflow] Using global EventBus');
+  } else {
+    debug('[Workflow] Created new EventBus (Warning: might be disconnected from UI)');
+  }
+
+  // Enable history to handle race conditions where UI connects late
+
   const emitter = new WorkflowEventEmitter(eventBus);
+
+  // Enable history to ensure early events (like workflow:started and agent:added)
+  // are received by the TUI adapter when it connects later
+  eventBus.enableHistory();
 
   // @ts-expect-error - global export
   if (!globalThis.__workflowEventBus) {
@@ -156,9 +176,76 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   debug('[Workflow] selectedTrack: %s', selectedTrack);
   debug('[Workflow] selectedConditions: %O', selectedConditions);
 
+  // Inject controller step if present
+  // This ensures the controller conversation happens as the first step (Step 0)
+  // The indexManager will handle skipping it if already completed (resumed)
+  const stepsToRun = [...template.steps];
+
+  if (template.controller) {
+    let controllerStep: import('./templates/types.js').ModuleStep | undefined;
+
+    // Check if it's an object with type 'controller' (fuzzy check instead of isModuleStep)
+    const isControllerObj = typeof template.controller === 'object' &&
+      template.controller !== null &&
+      (template.controller as any).type === 'controller';
+
+    if (isControllerObj || isModuleStep(template.controller as any)) {
+      // New format: controller() function returning ModuleStep
+      controllerStep = {
+        ...template.controller as any,
+        type: 'controller', // Ensure type is set
+        interactive: true, // Always interactive
+      };
+    } else if (template.controller === true) {
+      // Legacy format: boolean true
+      // Find the first available controller agent
+      const controllers = await getControllerAgents(cwd);
+      if (controllers.length > 0) {
+        const agent = controllers[0];
+        controllerStep = {
+          type: 'controller',
+          agentId: agent.id as string,
+          agentName: (agent.name || agent.id) as string,
+          promptPath: (agent.promptPath as string | string[]) || '',
+          interactive: true,
+        };
+        debug('[Workflow] Legacy controller: true resolved to agent %s', agent.id);
+      } else {
+        debug('[Workflow] Warning: controller: true requested but no controller agents found');
+      }
+    }
+
+    if (controllerStep) {
+      // Initialize controller session (saves to template.json)
+      // We start in manual mode so the conversation happens interactively
+      debug('[Workflow] Initializing controller agent %s', controllerStep.agentId);
+      await initControllerAgent(
+        controllerStep.agentId,
+        controllerStep.promptPath,
+        cwd,
+        cmRoot,
+        { initialAutonomousMode: false }
+      );
+
+      // Detect and remove duplicate controller step from the main steps list
+      // This handles the edge case where user defined controller in both 'controller' and 'steps'
+      const duplicateIndex = stepsToRun.findIndex(step =>
+        isModuleStep(step) && step.agentId === controllerStep!.agentId
+      );
+
+      if (duplicateIndex !== -1) {
+        debug('[Workflow] Removed duplicate controller step from steps list at index %d', duplicateIndex);
+        stepsToRun.splice(duplicateIndex, 1);
+      }
+
+      debug('[Workflow] Injecting controller step: %s', controllerStep.agentId);
+      stepsToRun.unshift(controllerStep as WorkflowStep);
+    }
+  }
+
   // Filter steps by track and conditions
-  debug('[Workflow] Filtering %d template steps...', template.steps.length);
-  const visibleSteps = template.steps.filter((step, idx) => {
+  debug('[Workflow] Filtering %d template steps...', stepsToRun.length);
+  const visibleSteps = stepsToRun.filter((step, idx) => {
     // Separators are always included (visual dividers only)
     if (step.type === 'separator') {
       debug('[Workflow] Step %d: type=separator → included (visual separator)', idx);
@@ -183,11 +270,16 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   });
   debug('[Workflow] Visible steps after filtering: %d', visibleSteps.length);
 
-  // Count module steps for total
-  const moduleSteps = visibleSteps.filter(s => s.type === 'module');
+  // Count module steps for total (including controller)
+  const moduleSteps = visibleSteps.filter(s => s.type === 'module' || s.type === 'controller');
 
-  // Emit workflow started
-  emitter.workflowStarted(template.name, moduleSteps.length);
+  // Find controller agent ID for the TUI (if present)
+  const controllerStep = visibleSteps.find(s => s.type === 'controller');
+  const controllerAgentId = controllerStep && isModuleStep(controllerStep) ? controllerStep.agentId : undefined;
+
+  // Emit workflow started (with controller ID if present)
+  debug('[Workflow] Emitting workflow:started: name=%s, totalSteps=%d, controllerId=%s', template.name, moduleSteps.length, controllerAgentId ?? '(none)');
+  emitter.workflowStarted(template.name, moduleSteps.length, controllerAgentId);
 
   // Pre-populate timeline
   debug('[Workflow] ========== TIMELINE POPULATION ==========');
@@ -195,11 +287,13 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   let moduleIndex = 0;
   for (let stepIndex = 0; stepIndex < visibleSteps.length; stepIndex++) {
     const step = visibleSteps[stepIndex];
-    if (step.type === 'module') {
+    if (step.type === 'module' || step.type === 'controller') {
       const defaultEngine = registry.getDefault();
       const engineType = step.engine ?? defaultEngine?.metadata.id ?? 'unknown';
       const uniqueAgentId = getUniqueAgentId(step, moduleIndex);
       const isCompleted = moduleIndex < startIndex;
+
+      debug('[Workflow] Emitting agent:added: index=%d, uniqueId=%s, name=%s', moduleIndex, uniqueAgentId, step.agentName);
 
       // Resolve model from step or engine default
       const engineModule = registry.get(engineType);
@@ -254,7 +348,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   // Cleanup function for MCP
   const doMCPCleanup = async () => {
     debug('[Workflow] Cleaning up MCP...');
-    await cleanupWorkflowMCP(template, cwd).catch(() => {});
+    await cleanupWorkflowMCP(template, cwd).catch(() => { });
   };
 
   // Handle SIGINT (Ctrl+C) for cleanup

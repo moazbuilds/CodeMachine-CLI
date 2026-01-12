@@ -52,8 +52,8 @@ export function LaunchingView(props: LaunchingViewProps) {
       props.onError?.(event.error)
     })
 
-    // Trigger the launch
-    props.service.launchController()
+    // Trigger the launch (startControllerConversation handles the launching step)
+    void props.service.startControllerConversation()
 
     onCleanup(() => {
       unsubMonitor()

@@ -51,9 +51,9 @@ export function FooterHints(props: FooterHintsProps) {
         </text>
       </Show>
 
-      <Show when={props.currentStep() === 'controller'}>
+      <Show when={props.currentStep() === 'controller_conversation'}>
         <text fg={themeCtx.theme.textMuted}>
-          [Up/Down] Navigate  [Enter] Select  [Esc] Cancel
+          [Enter] Start Workflow  [Esc] Cancel
         </text>
       </Show>
     </box>

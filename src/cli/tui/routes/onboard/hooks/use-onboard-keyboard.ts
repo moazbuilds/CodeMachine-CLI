@@ -22,7 +22,7 @@ export interface OnboardKeyboardHandlers {
   onChildSelection?: (conditionId: string) => void
   /** Legacy handler for child condition confirm (multi-select) */
   onChildConfirm?: () => void
-  /** Legacy handler for controller selection */
+  /** Legacy handler for controller selection (deprecated - controller is from template) */
   onControllerSelect?: (controllerId: string) => void
   /** Legacy handler for cancel */
   onCancel?: () => void
@@ -109,16 +109,13 @@ export function useOnboardKeyboard(options: UseOnboardKeyboardOptions): void {
       if (useService()) {
         if (step === 'tracks') {
           service!.selectTrack(id as string)
-        } else if (step === 'controller') {
-          service!.selectController(id as string)
         } else if (step === 'condition_group' || step === 'condition_child') {
           service!.selectCondition(id as string)
         }
+        // Note: controller_conversation doesn't use Enter for selection
       } else {
         if (step === 'tracks') {
           handlers?.onTrackSelect?.(id as string)
-        } else if (step === 'controller') {
-          handlers?.onControllerSelect?.(id as string)
         } else if (step === 'condition_group') {
           handlers?.onGroupSelection?.(id as string)
         } else if (step === 'condition_child') {
@@ -143,6 +140,12 @@ export function useOnboardKeyboard(options: UseOnboardKeyboardOptions): void {
       } else {
         handlers?.onCancel?.()
       }
+    } else if (evt.name === "return" && evt.ctrl && step === 'controller_conversation') {
+      // Ctrl+Enter to start workflow from controller conversation
+      evt.preventDefault()
+      if (useService()) {
+        service!.completeControllerConversation()
+      }
     } else if (evt.name && /^[1-9]$/.test(evt.name)) {
       const num = parseInt(evt.name, 10)
       if (num >= 1 && num <= entries.length) {
@@ -153,16 +156,13 @@ export function useOnboardKeyboard(options: UseOnboardKeyboardOptions): void {
         if (useService()) {
           if (step === 'tracks') {
             service!.selectTrack(id as string)
-          } else if (step === 'controller') {
-            service!.selectController(id as string)
           } else if (step === 'condition_group' || step === 'condition_child') {
             service!.selectCondition(id as string)
           }
+          // Note: controller_conversation doesn't use number keys for selection
         } else {
           if (step === 'tracks') {
             handlers?.onTrackSelect?.(id as string)
-          } else if (step === 'controller') {
-            handlers?.onControllerSelect?.(id as string)
           } else if (step === 'condition_group') {
             handlers?.onGroupSelection?.(id as string)
           } else if (step === 'condition_child') {

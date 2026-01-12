@@ -20,12 +20,12 @@ const STATIC_PLACEHOLDERS: Record<string, () => string> = {
 };
 
 // Context-dependent placeholders (loaded from template.json)
-const CONTEXT_PLACEHOLDERS = ['project_name'] as const;
+const CONTEXT_PLACEHOLDERS = ['project_name', 'selected_track', 'selected_conditions'] as const;
 
 /**
  * Gets built-in placeholder content.
  * For static placeholders (date, datetime, timestamp), returns value immediately.
- * For context placeholders (project_name), loads from template.json.
+ * For context placeholders (project_name, selected_track, selected_conditions), loads from template.json.
  */
 export async function getBuiltInContent(
   name: string,
@@ -40,6 +40,15 @@ export async function getBuiltInContent(
   // Check context-dependent placeholders
   if (name === 'project_name') {
     return loadProjectName(cwd);
+  }
+
+  if (name === 'selected_track') {
+    return loadSelectedTrack(cwd);
+  }
+
+  if (name === 'selected_conditions') {
+    const conditions = await loadSelectedConditions(cwd);
+    return conditions ? JSON.stringify(conditions) : null;
   }
 
   return null;
@@ -66,6 +75,44 @@ async function loadProjectName(cwd: string): Promise<string | null> {
     const content = await readFile(templatePath, 'utf8');
     const data = JSON.parse(content);
     return data.projectName ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Loads selected track from template.json
+ */
+async function loadSelectedTrack(cwd: string): Promise<string | null> {
+  const templatePath = path.join(cwd, CM_FOLDER, TEMPLATE_FILE);
+
+  if (!existsSync(templatePath)) {
+    return null;
+  }
+
+  try {
+    const content = await readFile(templatePath, 'utf8');
+    const data = JSON.parse(content);
+    return data.selectedTrack ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Loads selected conditions from template.json
+ */
+async function loadSelectedConditions(cwd: string): Promise<string[] | null> {
+  const templatePath = path.join(cwd, CM_FOLDER, TEMPLATE_FILE);
+
+  if (!existsSync(templatePath)) {
+    return null;
+  }
+
+  try {
+    const content = await readFile(templatePath, 'utf8');
+    const data = JSON.parse(content);
+    return Array.isArray(data.selectedConditions) ? data.selectedConditions : null;
   } catch {
     return null;
   }

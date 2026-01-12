@@ -100,8 +100,8 @@ export function OnboardView(props: OnboardViewProps) {
         return currentGroup()?.question ?? ""
       case 'condition_child':
         return currentChildContext()?.question ?? ""
-      case 'controller':
-        return "Select a controller agent for autonomous mode:"
+      case 'controller_conversation':
+        return "Chat with controller to prepare for the workflow"
       case 'launching':
         return "Initializing controller agent..."
       default:
@@ -133,8 +133,9 @@ export function OnboardView(props: OnboardViewProps) {
         const ctx = currentChildContext()
         return ctx ? Object.entries(ctx.conditions) : []
       }
-      case 'controller':
-        return props.controllerAgents?.map(a => [a.id, a] as const) ?? []
+      case 'controller_conversation':
+        // Controller is from template, no selection needed
+        return []
       default:
         return []
     }
@@ -198,9 +199,9 @@ export function OnboardView(props: OnboardViewProps) {
     if (nextIdx < groups.length) {
       setCurrentGroupIndex(nextIdx)
       setCurrentStep('condition_group')
-    } else if (hasControllers()) {
-      setCurrentStep('controller')
     } else {
+      // Note: controller_conversation is handled after onboarding completes,
+      // not as a selection step
       props.onComplete({
         projectName: projectName(),
         trackId: selectedTrackId(),
@@ -258,9 +259,8 @@ export function OnboardView(props: OnboardViewProps) {
         setCurrentStep('tracks')
       } else if (hasConditionGroups()) {
         setCurrentStep('condition_group')
-      } else if (hasControllers()) {
-        setCurrentStep('controller')
       } else {
+        // Note: controller_conversation is handled after onboarding completes
         props.onComplete({ projectName: props.initialProjectName })
       }
     }
@@ -284,9 +284,8 @@ export function OnboardView(props: OnboardViewProps) {
           setCurrentStep('tracks')
         } else if (hasConditionGroups()) {
           setCurrentStep('condition_group')
-        } else if (hasControllers()) {
-          setCurrentStep('controller')
         } else {
+          // Note: controller_conversation is handled after onboarding completes
           props.onComplete({ projectName: name })
         }
       },
@@ -295,9 +294,8 @@ export function OnboardView(props: OnboardViewProps) {
         setCurrentGroupIndex(0)
         if (hasConditionGroups()) {
           setCurrentStep('condition_group')
-        } else if (hasControllers()) {
-          setCurrentStep('controller')
         } else {
+          // Note: controller_conversation is handled after onboarding completes
           props.onComplete({ projectName: projectName(), trackId })
         }
       },
@@ -353,12 +351,13 @@ export function OnboardView(props: OnboardViewProps) {
         setSelectedConditions(prev => new Set([...prev, ...selections]))
         processNextChildQuestion()
       },
-      onControllerSelect: (controllerId) => {
+      onControllerSelect: (_controllerId) => {
+        // Controller is now specified in template, not selected by user
+        // This handler is kept for backward compatibility but shouldn't be called
         props.onComplete({
           projectName: projectName(),
           trackId: selectedTrackId(),
           conditions: Array.from(selectedConditions()),
-          controllerAgentId: controllerId,
         })
       },
       onCancel: () => props.onCancel?.(),
@@ -392,7 +391,7 @@ export function OnboardView(props: OnboardViewProps) {
       >
         <Show when={currentStep() === 'launching' && props.service && props.eventBus}>
           <LaunchingView
-            controllerName={(props.service!.getSelectedController()?.name as string) ?? 'controller'}
+            controllerName={(props.service!.getController()?.agentName) ?? 'controller'}
             eventBus={props.eventBus!}
             service={props.service!}
           />

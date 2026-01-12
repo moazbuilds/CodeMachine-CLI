@@ -1,6 +1,6 @@
 export default {
   name: 'Test2 Workflow',
-  controller: true,
+  controller: controller('bmad-po', {}),
   steps: [
     // No filtering - always runs
     resolveStep('test-agent-1', { interactive: false } ),

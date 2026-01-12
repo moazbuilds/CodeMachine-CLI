@@ -4,13 +4,16 @@
  * Backend state machine for the onboarding flow.
  * Manages state transitions and emits events through the OnboardingEmitter.
  * All state changes are logged via the debug logger.
+ *
+ * Note: Controller selection has been removed. Controllers are now specified
+ * directly in the workflow template via controller(). After onboarding,
+ * if a controller is configured, the conversation step begins automatically.
  */
 
 import { debug } from '../../shared/logging/logger.js';
 import type { WorkflowEventBus } from '../events/event-bus.js';
 import type { OnboardConfig, OnboardResult, OnboardStep } from '../events/types.js';
-import type { TracksConfig, ConditionGroup } from '../templates/types.js';
-import type { AgentDefinition } from '../../shared/agents/config/types.js';
+import type { TracksConfig, ConditionGroup, ModuleStep } from '../templates/types.js';
 import { OnboardingEmitter } from './emitter.js';
 import { initControllerAgent } from '../../shared/workflows/controller.js';
 
@@ -22,7 +25,6 @@ interface OnboardingState {
   projectName: string;
   selectedTrackId?: string;
   selectedConditions: Set<string>;
-  selectedControllerId?: string;
   currentGroupIndex: number;
   currentGroupSelections: Set<string>;
   pendingChildQuestions: ChildQuestionContext[];
@@ -45,7 +47,18 @@ interface ChildQuestionContext {
 export interface OnboardingServiceConfig {
   tracks?: TracksConfig;
   conditionGroups?: ConditionGroup[];
-  controllerAgents?: AgentDefinition[];
+  /**
+   * Controller from the workflow template (via controller() function).
+   * If provided, controller_conversation step will be added after conditions.
+   * @deprecated Use controller from template directly
+   */
+  controllerAgents?: { id: string; name?: unknown; description?: unknown; promptPath?: unknown }[];
+  /**
+   * Controller step from the workflow template.
+   * If provided, a conversation step will be shown after onboarding where
+   * users can interact with the controller before the workflow starts.
+   */
+  controller?: ModuleStep;
   initialProjectName?: string | null;
   /** Working directory for controller initialization */
   cwd?: string;
@@ -120,7 +133,7 @@ export class OnboardingService {
     const onboardConfig: OnboardConfig = {
       hasTracks: this.hasTracks(),
       hasConditions: this.hasConditionGroups(),
-      hasController: this.hasControllers(),
+      hasController: this.hasController(),
       initialProjectName: this.config.initialProjectName,
     };
 
@@ -229,77 +242,30 @@ export class OnboardingService {
   }
 
   /**
-   * Select controller agent and transition to launching step
+   * Start the controller conversation step.
+   * This transitions to launching -> controller_conversation.
+   * Called after onboarding when template has a controller.
    */
-  selectController(controllerId: string): void {
-    debug('[OnboardingService] controller selected: "%s"', controllerId);
-    this.state.selectedControllerId = controllerId;
-
-    // Transition to launching step to show initialization progress
-    this.setStep('launching', 'Initializing controller agent...');
+  async startControllerConversation(): Promise<void> {
+    // Controller conversation is now handled as the first step in the workflow runner
+    debug('[OnboardingService] skipping controller conversation (handled by runner)');
+    this.complete();
   }
 
   /**
-   * Launch the controller agent (called from UI when launching step is rendered)
+   * Complete the controller conversation and start the workflow.
+   * Called when user presses Ctrl+Enter during conversation.
    */
-  async launchController(): Promise<void> {
-    const controllerId = this.state.selectedControllerId;
-    if (!controllerId) {
-      debug('[OnboardingService] launchController called without selected controller');
-      return;
-    }
-
-    const agent = this.config.controllerAgents?.find(a => a.id === controllerId);
-    if (!agent) {
-      debug('[OnboardingService] controller agent not found: "%s"', controllerId);
-      this.emitter.launchingFailed(controllerId, `Controller agent not found: ${controllerId}`);
-      return;
-    }
-
-    const controllerName = agent.name as string;
-    debug('[OnboardingService] launching controller: "%s"', controllerName);
-
-    // Emit launching started
-    this.emitter.launchingStarted(controllerId, controllerName);
-    this.emitter.launchingLog(`Starting ${controllerName}...`);
-
-    try {
-      // Get paths from config or use defaults
-      const cwd = this.config.cwd || process.cwd();
-      const cmRoot = this.config.cmRoot || `${cwd}/.codemachine`;
-
-      // Get prompt path from agent config
-      const promptPath = (agent.promptPath as string | string[]) || `prompts/agents/${controllerId}/system.md`;
-
-      this.emitter.launchingLog('Loading controller prompt...');
-
-      // Initialize the controller agent with monitoring callback for log streaming
-      await initControllerAgent(controllerId, promptPath, cwd, cmRoot, {
-        onMonitoringId: (monitoringId) => {
-          debug('[OnboardingService] Received monitoring ID: %d', monitoringId);
-          this.emitter.launchingMonitor(monitoringId);
-        }
-      });
-
-      this.emitter.launchingLog('Controller initialized successfully');
-      this.emitter.launchingCompleted(controllerId);
-
-      // Now complete the onboarding
-      this.complete();
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      debug('[OnboardingService] controller launch failed: %s', errorMsg);
-      this.emitter.launchingFailed(controllerId, errorMsg);
-    }
+  completeControllerConversation(): void {
+    debug('[OnboardingService] controller conversation completed');
+    this.complete();
   }
 
   /**
-   * Get the selected controller agent definition
+   * Get the controller from the template config.
    */
-  getSelectedController(): AgentDefinition | undefined {
-    const controllerId = this.state.selectedControllerId;
-    if (!controllerId) return undefined;
-    return this.config.controllerAgents?.find(a => a.id === controllerId);
+  getController(): ModuleStep | undefined {
+    return this.config.controller;
   }
 
   /**
@@ -352,8 +318,8 @@ export class OnboardingService {
         return this.getCurrentGroup()?.question ?? '';
       case 'condition_child':
         return this.state.currentChildContext?.question ?? '';
-      case 'controller':
-        return 'Select a controller agent for autonomous mode:';
+      case 'controller_conversation':
+        return `Chat with ${this.config.controller?.agentName ?? 'controller'} to prepare for the workflow`;
       case 'launching':
         return 'Initializing controller agent...';
       default:
@@ -377,11 +343,9 @@ export class OnboardingService {
         const ctx = this.state.currentChildContext;
         return ctx ? Object.entries(ctx.conditions) : [];
       }
-      case 'controller':
-        return (this.config.controllerAgents ?? []).map((a) => [
-          a.id,
-          { label: a.name as string, description: a.description as string | undefined },
-        ]);
+      case 'controller_conversation':
+        // Controller conversation doesn't have selectable options
+        return [];
       default:
         return [];
     }
@@ -399,8 +363,8 @@ export class OnboardingService {
     return (this.getApplicableGroups().length > 0);
   }
 
-  private hasControllers(): boolean {
-    return !!this.config.controllerAgents && this.config.controllerAgents.length > 0;
+  private hasController(): boolean {
+    return !!this.config.controller;
   }
 
   private getApplicableGroups(): ConditionGroup[] {
@@ -444,22 +408,23 @@ export class OnboardingService {
         this.setStep('tracks', this.config.tracks!.question);
       } else if (this.hasConditionGroups()) {
         this.setStep('condition_group', this.getCurrentGroup()!.question);
-      } else if (this.hasControllers()) {
-        this.setStep('controller', 'Select a controller agent for autonomous mode:');
+      } else if (this.hasController()) {
+        // Controller is specified in template, go to conversation after launch
+        void this.startControllerConversation();
       } else {
         this.complete();
       }
     } else if (current === 'tracks') {
       if (this.hasConditionGroups()) {
         this.setStep('condition_group', this.getCurrentGroup()!.question);
-      } else if (this.hasControllers()) {
-        this.setStep('controller', 'Select a controller agent for autonomous mode:');
+      } else if (this.hasController()) {
+        void this.startControllerConversation();
       } else {
         this.complete();
       }
     } else if (current === 'condition_group' || current === 'condition_child') {
       this.advanceToNextGroupOrComplete();
-    } else if (current === 'controller') {
+    } else if (current === 'controller_conversation') {
       this.complete();
     }
   }
@@ -515,8 +480,8 @@ export class OnboardingService {
       this.state.currentGroupIndex = nextIdx;
       debug('[OnboardingService] advancing to group %d of %d', nextIdx + 1, groups.length);
       this.setStep('condition_group', groups[nextIdx].question);
-    } else if (this.hasControllers()) {
-      this.setStep('controller', 'Select a controller agent for autonomous mode:');
+    } else if (this.hasController()) {
+      void this.startControllerConversation();
     } else {
       this.complete();
     }
@@ -527,7 +492,7 @@ export class OnboardingService {
       projectName: this.state.projectName,
       trackId: this.state.selectedTrackId,
       conditions: Array.from(this.state.selectedConditions),
-      controllerAgentId: this.state.selectedControllerId,
+      controllerAgentId: this.config.controller?.agentId,
     };
 
     debug('[OnboardingService] completing with result=%o', result);

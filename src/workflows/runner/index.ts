@@ -8,7 +8,7 @@
  */
 
 import { debug } from '../../shared/logging/logger.js';
-import type { ModuleStep, WorkflowTemplate } from '../templates/types.js';
+import { isModuleStep, type ModuleStep, type WorkflowTemplate } from '../templates/types.js';
 import type { WorkflowEventEmitter } from '../events/index.js';
 import {
   createWorkflowMachine,
@@ -72,10 +72,8 @@ export class WorkflowRunner implements RunnerContext {
     this.indexManager = options.indexManager;
     this.status = options.status;
 
-    // Filter to only module steps
-    this.moduleSteps = options.template.steps.filter(
-      (s): s is ModuleStep => s.type === 'module'
-    );
+    // Filter to only module steps (and controller steps)
+    this.moduleSteps = options.template.steps.filter(isModuleStep);
 
     // Create input emitter
     this.inputEmitter = createInputEmitter(options.emitter);

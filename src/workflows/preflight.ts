@@ -60,7 +60,9 @@ export async function checkOnboardingRequired(options: { cwd?: string } = {}): P
   let controllerAgents: AgentDefinition[] = [];
   const existingControllerConfig = await loadControllerConfig(cmRoot);
   const hasExistingControllerSession = existingControllerConfig?.controllerConfig?.sessionId;
-  if (template.controller === true && !hasExistingControllerSession) {
+  // Note: With the new controller() function, the template.controller is a ModuleStep,
+  // so we check for its existence rather than === true
+  if (template.controller && !hasExistingControllerSession) {
     controllerAgents = await getControllerAgents(cwd);
   }
   const needsControllerSelection = controllerAgents.length > 0;

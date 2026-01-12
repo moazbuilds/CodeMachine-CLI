@@ -101,12 +101,21 @@ export function createNavigationActions(ctx: NavigationActionsContext) {
     ctx.notify()
   }
 
+  function setTimelineCollapsed(collapsed: boolean): void {
+    const state = ctx.getState()
+    if (state.timelineCollapsed !== collapsed) {
+      ctx.setState({ ...state, timelineCollapsed: collapsed })
+      ctx.notify()
+    }
+  }
+
   return {
     selectItem,
     navigateDown,
     navigateUp,
     toggleExpand,
     toggleTimeline,
+    setTimelineCollapsed,
     setVisibleItemCount,
     setScrollOffset,
   }

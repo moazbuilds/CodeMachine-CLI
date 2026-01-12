@@ -28,7 +28,7 @@ export interface ModuleMetadata {
 }
 
 export interface ModuleStep {
-  type: 'module';
+  type: 'module' | 'controller';  // 'controller' for pre-workflow conversation step
   agentId: string;
   agentName: string;
   promptPath: string | string[];
@@ -50,10 +50,17 @@ export interface Separator {
 export type WorkflowStep = ModuleStep | Separator;
 
 /**
- * Type guard to check if a step is a ModuleStep
+ * Type guard to check if a step is a ModuleStep (includes both 'module' and 'controller' types)
  */
 export function isModuleStep(step: WorkflowStep): step is ModuleStep {
-  return step.type === 'module';
+  return step.type === 'module' || step.type === 'controller';
+}
+
+/**
+ * Type guard to check if a ModuleStep is a controller step
+ */
+export function isControllerStep(step: ModuleStep): boolean {
+  return step.type === 'controller';
 }
 
 export interface TrackOption {
@@ -92,7 +99,7 @@ export interface WorkflowTemplate {
   subAgentIds?: string[];
   tracks?: TracksConfig; // Track selection with question and options
   conditionGroups?: ConditionGroup[]; // Grouped conditions with optional nested children
-  controller?: boolean; // Enables autonomous mode with controller agent selection
+  controller?: ModuleStep; // Controller agent for pre-workflow conversation (replaces boolean)
   specification?: boolean; // If true, requires specification file before workflow can start
 }
 
@@ -101,6 +108,7 @@ export type ModuleName = ModuleStep['agentId'];
 export interface RunWorkflowOptions {
   cwd?: string;
   templatePath?: string;
+  eventBus?: any; // WorkflowEventBus (any to avoid circular dependency)
 }
 
 export interface TaskManagerOptions {

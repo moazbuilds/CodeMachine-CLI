@@ -37,6 +37,8 @@ export async function getControllerAgents(projectRoot: string): Promise<AgentDef
 export interface InitControllerOptions {
   /** Callback when monitoring ID becomes available (for log streaming) */
   onMonitoringId?: (monitoringId: number) => void;
+  /** Whether to enable autonomous mode immediately (default: true) */
+  initialAutonomousMode?: boolean;
 }
 
 /**
@@ -114,9 +116,12 @@ export async function initControllerAgent(
   };
   debug('[Controller] Built config: %o', config);
 
+  // Determine autonomous mode
+  const autonomousMode = options?.initialAutonomousMode ?? true;
+
   // Save to template.json
-  debug('[Controller] Saving controller config to template.json...');
-  await saveControllerConfig(cmRoot, config);
+  debug('[Controller] Saving controller config to template.json (autonomousMode=%s)...', autonomousMode);
+  await saveControllerConfig(cmRoot, config, autonomousMode);
   debug('[Controller] Controller config saved successfully');
 
   return config;

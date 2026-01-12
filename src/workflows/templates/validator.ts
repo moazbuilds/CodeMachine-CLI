@@ -3,6 +3,8 @@ import type { WorkflowTemplate } from './types.js';
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
+  /** Deprecation warnings (non-blocking) */
+  warnings?: string[];
 }
 
 function isValidPromptPath(value: unknown): boolean {
@@ -19,11 +21,38 @@ function isValidPromptPath(value: unknown): boolean {
 
 export function validateWorkflowTemplate(value: unknown): ValidationResult {
   const errors: string[] = [];
+  const warnings: string[] = [];
+
   if (!value || typeof value !== 'object') {
     return { valid: false, errors: ['Template is not an object'] };
   }
 
-  const obj = value as { name?: unknown; steps?: unknown };
+  const obj = value as { name?: unknown; steps?: unknown; controller?: unknown };
+
+  // Check for deprecated controller: true
+  if (obj.controller === true) {
+    warnings.push(
+      'DEPRECATION WARNING: "controller: true" is deprecated. ' +
+      'Use controller("agent-id") instead (e.g., controller("bmad-po")). ' +
+      'See migration guide for details.'
+    );
+  } else if (obj.controller !== undefined && obj.controller !== null && typeof obj.controller === 'object') {
+    // Validate controller ModuleStep
+    const ctrl = obj.controller as { type?: unknown; agentId?: unknown; agentName?: unknown; promptPath?: unknown };
+    if (ctrl.type !== 'controller') {
+      errors.push('Template.controller.type must be "controller"');
+    }
+    if (typeof ctrl.agentId !== 'string' || ctrl.agentId.trim().length === 0) {
+      errors.push('Template.controller.agentId must be a non-empty string');
+    }
+    if (typeof ctrl.agentName !== 'string' || ctrl.agentName.trim().length === 0) {
+      errors.push('Template.controller.agentName must be a non-empty string');
+    }
+    if (!isValidPromptPath(ctrl.promptPath)) {
+      errors.push('Template.controller.promptPath must be a non-empty string or array of non-empty strings');
+    }
+  }
+
   if (typeof obj.name !== 'string' || obj.name.trim().length === 0) {
     errors.push('Template.name must be a non-empty string');
   }
@@ -256,7 +285,11 @@ export function validateWorkflowTemplate(value: unknown): ValidationResult {
     }
   }
 
-  return { valid: errors.length === 0, errors };
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings: warnings.length > 0 ? warnings : undefined,
+  };
 }
 
 export function isWorkflowTemplate(value: unknown): value is WorkflowTemplate {

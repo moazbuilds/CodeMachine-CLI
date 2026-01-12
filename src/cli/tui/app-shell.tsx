@@ -193,6 +193,8 @@ export function App(props: { initialToast?: InitialToast }) {
           tracks: hasTracks ? template.tracks : undefined,
           conditionGroups: hasConditionGroups ? template.conditionGroups : undefined,
           controllerAgents: onboardingNeeds.needsControllerSelection ? controllerAgents : undefined,
+          // Pass controller module if it's an object (new format), ignoring boolean true (deprecated)
+          controller: typeof template.controller === 'object' ? template.controller : undefined,
           initialProjectName: onboardingNeeds.needsProjectName ? undefined : undefined,
           cwd,
           cmRoot,
@@ -240,7 +242,7 @@ export function App(props: { initialToast?: InitialToast }) {
     pendingWorkflowStart = () => {
       appDebug('[AppShell] Importing and running workflow')
       import("../../workflows/run.js").then(({ runWorkflow }) => {
-        runWorkflow({ cwd }).catch((error) => {
+        runWorkflow({ cwd, eventBus }).catch((error) => {
           // Emit error event to show toast with actual error message
           const errorMsg = error instanceof Error ? error.message : String(error)
           appDebug('[AppShell] Workflow error: %s', errorMsg)
@@ -273,8 +275,8 @@ export function App(props: { initialToast?: InitialToast }) {
       await setSelectedConditions(cmRoot, result.conditions)
     }
 
-    // Note: Controller initialization is now handled by OnboardingService during the 'launching' step
-    // The onboard:completed event is only emitted after successful controller initialization
+    // Note: Controller initialization is now handled by WorkflowRunner (via run.ts injections)
+    // The workflow starts in MANUAL mode (autonomousMode=false) for the controller step.
 
     // Start workflow
     startWorkflowExecution()

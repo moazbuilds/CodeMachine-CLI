@@ -55,8 +55,13 @@ export interface ProgressState {
 
 /**
  * Onboarding step identifiers
+ * 
+ * Note: 'controller' selection step has been replaced with 'controller_conversation'.
+ * The controller is now specified directly in the workflow template via controller(),
+ * so no selection is needed. The conversation step is where users interact with
+ * the controller before the workflow starts.
  */
-export type OnboardStep = 'project_name' | 'tracks' | 'condition_group' | 'condition_child' | 'controller' | 'launching';
+export type OnboardStep = 'project_name' | 'tracks' | 'condition_group' | 'condition_child' | 'controller_conversation' | 'launching';
 
 /**
  * Onboarding configuration passed to service
@@ -106,7 +111,7 @@ export type WorkflowEvent =
 
   // Workflow state events
   | { type: 'workflow:status'; status: WorkflowStatus }
-  | { type: 'workflow:started'; workflowName: string; totalSteps: number }
+  | { type: 'workflow:started'; workflowName: string; totalSteps: number; controllerAgentId?: string }
   | { type: 'workflow:stopped'; reason?: string }
 
   // Loop events
@@ -150,7 +155,13 @@ export type WorkflowEvent =
   | { type: 'onboard:launching_log'; message: string }
   | { type: 'onboard:launching_monitor'; monitoringId: number }
   | { type: 'onboard:launching_completed'; controllerId: string }
-  | { type: 'onboard:launching_failed'; controllerId: string; error: string };
+  | { type: 'onboard:launching_failed'; controllerId: string; error: string }
+
+  // Controller conversation events (pre-workflow conversation)
+  | { type: 'controller:conversation_started'; controllerId: string; controllerName: string }
+  | { type: 'controller:conversation_message'; role: 'user' | 'assistant'; content: string }
+  | { type: 'controller:conversation_ready'; message?: string }
+  | { type: 'controller:conversation_completed'; autonomousMode: boolean };
 
 /**
  * Extract event type from WorkflowEvent union

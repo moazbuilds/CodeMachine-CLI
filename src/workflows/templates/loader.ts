@@ -50,6 +50,12 @@ export async function loadTemplate(cwd: string, templatePath: string): Promise<W
     const tpl = (await loadWorkflowModule(resolvedPath)) as unknown;
     const result = validateWorkflowTemplate(tpl);
     if (result.valid) {
+      // Log deprecation warnings if any
+      if (result.warnings?.length) {
+        for (const warning of result.warnings) {
+          console.warn(`[Template: ${(tpl as { name?: string }).name ?? 'unknown'}] ${warning}`);
+        }
+      }
       appDebug('[TemplateLoader] Template loaded successfully from: %s', resolvedPath);
       return tpl as WorkflowTemplate;
     }
@@ -80,6 +86,12 @@ export async function loadTemplateWithPath(cwd: string, templatePath: string): P
     const tpl = (await loadWorkflowModule(resolvedPath)) as unknown;
     const result = validateWorkflowTemplate(tpl);
     if (result.valid) {
+      // Log deprecation warnings if any
+      if (result.warnings?.length) {
+        for (const warning of result.warnings) {
+          console.warn(`[Template: ${(tpl as { name?: string }).name ?? 'unknown'}] ${warning}`);
+        }
+      }
       appDebug('[TemplateLoader] Template loaded successfully from: %s', resolvedPath);
       return { template: tpl as WorkflowTemplate, resolvedPath };
     }
