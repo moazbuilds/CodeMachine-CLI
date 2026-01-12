@@ -157,10 +157,18 @@ export function useWorkflowKeyboard(options: UseWorkflowKeyboardOptions) {
       }
     }
 
-    // Enter key has dual functionality
+    // Enter key has context-dependent functionality
     if (evt.name === "return") {
       evt.preventDefault()
       const s = options.getState()
+
+      // In onboarding phase, Enter continues to workflow execution
+      if (s.phase === 'onboarding') {
+        debug('Enter pressed in onboarding phase - emitting controller-continue')
+        ;(process as NodeJS.EventEmitter).emit('workflow:controller-continue')
+        return
+      }
+
       if (s.selectedItemType === "summary" && s.selectedAgentId) {
         options.actions.toggleExpand(s.selectedAgentId)
       } else {

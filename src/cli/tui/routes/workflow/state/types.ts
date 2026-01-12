@@ -127,13 +127,18 @@ export interface ControllerState {
   name: string
   engine: string
   model?: string
+  status?: AgentStatus      // Only set during onboarding phase
   telemetry: AgentTelemetry
+  monitoringId?: number     // Only set during onboarding phase (for log viewer)
 }
+
+export type WorkflowPhase = 'onboarding' | 'executing'
 
 export interface WorkflowState {
   workflowName: string
   version: string
   packageName: string
+  phase: WorkflowPhase       // 'onboarding' = controller chat, 'executing' = workflow running
   startTime: number
   endTime?: number
   agents: AgentState[]

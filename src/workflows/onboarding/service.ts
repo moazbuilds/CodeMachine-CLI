@@ -10,9 +10,7 @@ import { debug } from '../../shared/logging/logger.js';
 import type { WorkflowEventBus } from '../events/event-bus.js';
 import type { OnboardConfig, OnboardResult, OnboardStep } from '../events/types.js';
 import type { TracksConfig, ConditionGroup } from '../templates/types.js';
-import type { AgentDefinition } from '../../shared/agents/config/types.js';
 import { OnboardingEmitter } from './emitter.js';
-import { initControllerAgent } from '../../shared/workflows/controller.js';
 
 /**
  * Internal state for the onboarding service
@@ -22,7 +20,6 @@ interface OnboardingState {
   projectName: string;
   selectedTrackId?: string;
   selectedConditions: Set<string>;
-  selectedControllerId?: string;
   currentGroupIndex: number;
   currentGroupSelections: Set<string>;
   pendingChildQuestions: ChildQuestionContext[];
@@ -45,12 +42,7 @@ interface ChildQuestionContext {
 export interface OnboardingServiceConfig {
   tracks?: TracksConfig;
   conditionGroups?: ConditionGroup[];
-  controllerAgents?: AgentDefinition[];
   initialProjectName?: string | null;
-  /** Working directory for controller initialization */
-  cwd?: string;
-  /** .codemachine root directory */
-  cmRoot?: string;
 }
 
 /**
@@ -62,7 +54,6 @@ export interface OnboardingServiceConfig {
  * const service = new OnboardingService(bus, {
  *   tracks: { question: 'Select track:', options: { bmad: { label: 'BMAD' } } },
  *   conditionGroups: [...],
- *   controllerAgents: [...],
  * });
  *
  * // Subscribe to completion
@@ -89,7 +80,6 @@ export class OnboardingService {
       hasTracks: !!config.tracks,
       trackCount: config.tracks ? Object.keys(config.tracks.options).length : 0,
       conditionGroupCount: config.conditionGroups?.length ?? 0,
-      controllerAgentCount: config.controllerAgents?.length ?? 0,
       initialProjectName: config.initialProjectName ?? '(none)',
     });
 
@@ -120,7 +110,6 @@ export class OnboardingService {
     const onboardConfig: OnboardConfig = {
       hasTracks: this.hasTracks(),
       hasConditions: this.hasConditionGroups(),
-      hasController: this.hasControllers(),
       initialProjectName: this.config.initialProjectName,
     };
 
@@ -229,80 +218,6 @@ export class OnboardingService {
   }
 
   /**
-   * Select controller agent and transition to launching step
-   */
-  selectController(controllerId: string): void {
-    debug('[OnboardingService] controller selected: "%s"', controllerId);
-    this.state.selectedControllerId = controllerId;
-
-    // Transition to launching step to show initialization progress
-    this.setStep('launching', 'Initializing controller agent...');
-  }
-
-  /**
-   * Launch the controller agent (called from UI when launching step is rendered)
-   */
-  async launchController(): Promise<void> {
-    const controllerId = this.state.selectedControllerId;
-    if (!controllerId) {
-      debug('[OnboardingService] launchController called without selected controller');
-      return;
-    }
-
-    const agent = this.config.controllerAgents?.find(a => a.id === controllerId);
-    if (!agent) {
-      debug('[OnboardingService] controller agent not found: "%s"', controllerId);
-      this.emitter.launchingFailed(controllerId, `Controller agent not found: ${controllerId}`);
-      return;
-    }
-
-    const controllerName = agent.name as string;
-    debug('[OnboardingService] launching controller: "%s"', controllerName);
-
-    // Emit launching started
-    this.emitter.launchingStarted(controllerId, controllerName);
-    this.emitter.launchingLog(`Starting ${controllerName}...`);
-
-    try {
-      // Get paths from config or use defaults
-      const cwd = this.config.cwd || process.cwd();
-      const cmRoot = this.config.cmRoot || `${cwd}/.codemachine`;
-
-      // Get prompt path from agent config
-      const promptPath = (agent.promptPath as string | string[]) || `prompts/agents/${controllerId}/system.md`;
-
-      this.emitter.launchingLog('Loading controller prompt...');
-
-      // Initialize the controller agent with monitoring callback for log streaming
-      await initControllerAgent(controllerId, promptPath, cwd, cmRoot, {
-        onMonitoringId: (monitoringId) => {
-          debug('[OnboardingService] Received monitoring ID: %d', monitoringId);
-          this.emitter.launchingMonitor(monitoringId);
-        }
-      });
-
-      this.emitter.launchingLog('Controller initialized successfully');
-      this.emitter.launchingCompleted(controllerId);
-
-      // Now complete the onboarding
-      this.complete();
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      debug('[OnboardingService] controller launch failed: %s', errorMsg);
-      this.emitter.launchingFailed(controllerId, errorMsg);
-    }
-  }
-
-  /**
-   * Get the selected controller agent definition
-   */
-  getSelectedController(): AgentDefinition | undefined {
-    const controllerId = this.state.selectedControllerId;
-    if (!controllerId) return undefined;
-    return this.config.controllerAgents?.find(a => a.id === controllerId);
-  }
-
-  /**
    * Cancel onboarding
    */
   cancel(): void {
@@ -352,10 +267,6 @@ export class OnboardingService {
         return this.getCurrentGroup()?.question ?? '';
       case 'condition_child':
         return this.state.currentChildContext?.question ?? '';
-      case 'controller':
-        return 'Select a controller agent for autonomous mode:';
-      case 'launching':
-        return 'Initializing controller agent...';
       default:
         return '';
     }
@@ -377,11 +288,6 @@ export class OnboardingService {
         const ctx = this.state.currentChildContext;
         return ctx ? Object.entries(ctx.conditions) : [];
       }
-      case 'controller':
-        return (this.config.controllerAgents ?? []).map((a) => [
-          a.id,
-          { label: a.name as string, description: a.description as string | undefined },
-        ]);
       default:
         return [];
     }
@@ -397,10 +303,6 @@ export class OnboardingService {
 
   private hasConditionGroups(): boolean {
     return (this.getApplicableGroups().length > 0);
-  }
-
-  private hasControllers(): boolean {
-    return !!this.config.controllerAgents && this.config.controllerAgents.length > 0;
   }
 
   private getApplicableGroups(): ConditionGroup[] {
@@ -444,23 +346,17 @@ export class OnboardingService {
         this.setStep('tracks', this.config.tracks!.question);
       } else if (this.hasConditionGroups()) {
         this.setStep('condition_group', this.getCurrentGroup()!.question);
-      } else if (this.hasControllers()) {
-        this.setStep('controller', 'Select a controller agent for autonomous mode:');
       } else {
         this.complete();
       }
     } else if (current === 'tracks') {
       if (this.hasConditionGroups()) {
         this.setStep('condition_group', this.getCurrentGroup()!.question);
-      } else if (this.hasControllers()) {
-        this.setStep('controller', 'Select a controller agent for autonomous mode:');
       } else {
         this.complete();
       }
     } else if (current === 'condition_group' || current === 'condition_child') {
       this.advanceToNextGroupOrComplete();
-    } else if (current === 'controller') {
-      this.complete();
     }
   }
 
@@ -515,8 +411,6 @@ export class OnboardingService {
       this.state.currentGroupIndex = nextIdx;
       debug('[OnboardingService] advancing to group %d of %d', nextIdx + 1, groups.length);
       this.setStep('condition_group', groups[nextIdx].question);
-    } else if (this.hasControllers()) {
-      this.setStep('controller', 'Select a controller agent for autonomous mode:');
     } else {
       this.complete();
     }
@@ -527,7 +421,6 @@ export class OnboardingService {
       projectName: this.state.projectName,
       trackId: this.state.selectedTrackId,
       conditions: Array.from(this.state.selectedConditions),
-      controllerAgentId: this.state.selectedControllerId,
     };
 
     debug('[OnboardingService] completing with result=%o', result);

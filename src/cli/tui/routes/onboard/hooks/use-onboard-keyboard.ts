@@ -22,8 +22,6 @@ export interface OnboardKeyboardHandlers {
   onChildSelection?: (conditionId: string) => void
   /** Legacy handler for child condition confirm (multi-select) */
   onChildConfirm?: () => void
-  /** Legacy handler for controller selection */
-  onControllerSelect?: (controllerId: string) => void
   /** Legacy handler for cancel */
   onCancel?: () => void
 }
@@ -109,16 +107,12 @@ export function useOnboardKeyboard(options: UseOnboardKeyboardOptions): void {
       if (useService()) {
         if (step === 'tracks') {
           service!.selectTrack(id as string)
-        } else if (step === 'controller') {
-          service!.selectController(id as string)
         } else if (step === 'condition_group' || step === 'condition_child') {
           service!.selectCondition(id as string)
         }
       } else {
         if (step === 'tracks') {
           handlers?.onTrackSelect?.(id as string)
-        } else if (step === 'controller') {
-          handlers?.onControllerSelect?.(id as string)
         } else if (step === 'condition_group') {
           handlers?.onGroupSelection?.(id as string)
         } else if (step === 'condition_child') {
@@ -153,16 +147,12 @@ export function useOnboardKeyboard(options: UseOnboardKeyboardOptions): void {
         if (useService()) {
           if (step === 'tracks') {
             service!.selectTrack(id as string)
-          } else if (step === 'controller') {
-            service!.selectController(id as string)
           } else if (step === 'condition_group' || step === 'condition_child') {
             service!.selectCondition(id as string)
           }
         } else {
           if (step === 'tracks') {
             handlers?.onTrackSelect?.(id as string)
-          } else if (step === 'controller') {
-            handlers?.onControllerSelect?.(id as string)
           } else if (step === 'condition_group') {
             handlers?.onGroupSelection?.(id as string)
           } else if (step === 'condition_child') {

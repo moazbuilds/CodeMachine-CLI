@@ -27,7 +27,6 @@ import { resolvePackageJson } from "../../shared/runtime/root.js"
 import { setSelectedTrack, setSelectedConditions, setProjectName } from "../../shared/workflows/index.js"
 import { checkOnboardingRequired, needsOnboarding } from "../../workflows/preflight.js"
 import type { TracksConfig, ConditionGroup } from "../../workflows/templates/types"
-import type { AgentDefinition } from "../../shared/agents/config/types"
 import type { InitialToast } from "./app"
 
 // Module-level view state for post-processing effects
@@ -138,7 +137,6 @@ export function App(props: { initialToast?: InitialToast }) {
   const [templateTracks, setTemplateTracks] = createSignal<TracksConfig | null>(null)
   const [templateConditionGroups, setTemplateConditionGroups] = createSignal<ConditionGroup[] | null>(null)
   const [initialProjectName, setInitialProjectName] = createSignal<string | null>(null)
-  const [controllerAgents, setControllerAgents] = createSignal<AgentDefinition[] | null>(null)
   const [onboardingService, setOnboardingService] = createSignal<OnboardingService | null>(null)
   const [onboardingEventBus, setOnboardingEventBus] = createSignal<WorkflowEventBus | null>(null)
 
@@ -170,7 +168,7 @@ export function App(props: { initialToast?: InitialToast }) {
     // Run pre-flight checks
     try {
       const onboardingNeeds = await checkOnboardingRequired({ cwd })
-      const { template, controllerAgents } = onboardingNeeds
+      const { template } = onboardingNeeds
 
       // If any onboarding is needed, show onboard view
       if (needsOnboarding(onboardingNeeds)) {
@@ -182,7 +180,6 @@ export function App(props: { initialToast?: InitialToast }) {
         // Store config for Onboard component
         if (hasTracks) setTemplateTracks(template.tracks!)
         if (hasConditionGroups) setTemplateConditionGroups(template.conditionGroups!)
-        if (onboardingNeeds.needsControllerSelection) setControllerAgents(controllerAgents)
         setInitialProjectName(null)
 
         // Create event bus and service for onboarding
@@ -192,10 +189,7 @@ export function App(props: { initialToast?: InitialToast }) {
         const service = new OnboardingService(eventBus, {
           tracks: hasTracks ? template.tracks : undefined,
           conditionGroups: hasConditionGroups ? template.conditionGroups : undefined,
-          controllerAgents: onboardingNeeds.needsControllerSelection ? controllerAgents : undefined,
           initialProjectName: onboardingNeeds.needsProjectName ? undefined : undefined,
-          cwd,
-          cmRoot,
         })
         setOnboardingService(service)
 
@@ -254,7 +248,7 @@ export function App(props: { initialToast?: InitialToast }) {
     appDebug('[AppShell] View set to workflow')
   }
 
-  const handleOnboardComplete = async (result: { projectName?: string; trackId?: string; conditions?: string[]; controllerAgentId?: string }) => {
+  const handleOnboardComplete = async (result: { projectName?: string; trackId?: string; conditions?: string[] }) => {
     const cwd = process.env.CODEMACHINE_CWD || process.cwd()
     const cmRoot = path.join(cwd, '.codemachine')
 
@@ -272,9 +266,6 @@ export function App(props: { initialToast?: InitialToast }) {
     if (result.conditions !== undefined) {
       await setSelectedConditions(cmRoot, result.conditions)
     }
-
-    // Note: Controller initialization is now handled by OnboardingService during the 'launching' step
-    // The onboard:completed event is only emitted after successful controller initialization
 
     // Start workflow
     startWorkflowExecution()
@@ -377,7 +368,6 @@ export function App(props: { initialToast?: InitialToast }) {
             <Onboard
               tracks={templateTracks() ?? undefined}
               conditionGroups={templateConditionGroups() ?? undefined}
-              controllerAgents={controllerAgents() ?? undefined}
               initialProjectName={initialProjectName()}
               onComplete={handleOnboardComplete}
               onCancel={handleOnboardCancel}

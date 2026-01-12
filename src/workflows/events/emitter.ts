@@ -95,6 +95,17 @@ export class WorkflowEventEmitter {
     });
   }
 
+  /**
+   * Emit workflow phase change (onboarding vs executing)
+   */
+  setWorkflowPhase(phase: 'onboarding' | 'executing'): void {
+    debug('[Emitter] workflow:phase phase=%s', phase);
+    this.bus.emit({
+      type: 'workflow:phase',
+      phase,
+    });
+  }
+
   // ─────────────────────────────────────────────────────────────────
   // Main Agents
   // ─────────────────────────────────────────────────────────────────
@@ -243,6 +254,28 @@ export class WorkflowEventEmitter {
     this.bus.emit({
       type: 'controller:telemetry',
       telemetry,
+    });
+  }
+
+  /**
+   * Emit controller status change (only call during onboarding phase)
+   */
+  updateControllerStatus(status: AgentStatus): void {
+    debug('[Emitter] controller:status status=%s', status);
+    this.bus.emit({
+      type: 'controller:status',
+      status,
+    });
+  }
+
+  /**
+   * Emit controller monitoring ID registration (only call during onboarding phase)
+   */
+  registerControllerMonitoring(monitoringId: number): void {
+    debug('[Emitter] controller:monitoring monitoringId=%d', monitoringId);
+    this.bus.emit({
+      type: 'controller:monitoring',
+      monitoringId,
     });
   }
 

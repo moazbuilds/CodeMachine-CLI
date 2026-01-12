@@ -7,7 +7,7 @@
 
 import type { WorkflowEvent } from "../../../../../workflows/events/index.js"
 import { debug } from "../../../../../shared/logging/logger.js"
-import type { AgentStatus, SubAgentState, LoopState, ChainedState, InputState, TriggeredAgentState, ControllerState, WorkflowState } from "../state/types.js"
+import type { AgentStatus, SubAgentState, LoopState, ChainedState, InputState, TriggeredAgentState, ControllerState, WorkflowState, WorkflowPhase } from "../state/types.js"
 import { BaseUIAdapter } from "./base.js"
 import type { UIAdapterOptions } from "./types.js"
 import { timerService } from "@tui/shared/services"
@@ -63,6 +63,9 @@ export interface UIActions {
   getState(): WorkflowState
   setControllerState(controllerState: ControllerState | null): void
   updateControllerTelemetry(telemetry: { tokensIn?: number; tokensOut?: number; cached?: number; cost?: number }): void
+  updateControllerStatus(status: AgentStatus): void
+  updateControllerMonitoring(monitoringId: number): void
+  setWorkflowPhase(phase: WorkflowPhase): void
   /** Reset state for a new workflow */
   reset(workflowName: string): void
 }
@@ -130,6 +133,11 @@ export class OpenTUIAdapter extends BaseUIAdapter {
       case "workflow:stopped":
         timerService.stop()
         this.actions.setWorkflowStatus("stopped")
+        break
+
+      case "workflow:phase":
+        debug('[ADAPTER] workflow:phase → phase=%s', event.phase)
+        this.actions.setWorkflowPhase(event.phase)
         break
 
       // Agent events
@@ -240,6 +248,16 @@ export class OpenTUIAdapter extends BaseUIAdapter {
           cached: event.telemetry.cached,
           cost: event.telemetry.cost,
         })
+        break
+
+      case "controller:status":
+        debug('[ADAPTER] controller:status → status=%s', event.status)
+        this.actions.updateControllerStatus(event.status)
+        break
+
+      case "controller:monitoring":
+        debug('[ADAPTER] controller:monitoring → monitoringId=%d', event.monitoringId)
+        this.actions.updateControllerMonitoring(event.monitoringId)
         break
 
       // Sub-agent events

@@ -68,24 +68,34 @@ export function OutputWindow(props: OutputWindowProps) {
   const outputHeaderHeight = () => isWideLayout() ? OUTPUT_HEADER_HEIGHT_WIDE : OUTPUT_HEADER_HEIGHT_NARROW
   const scrollboxHeight = () => Math.max(3, effectiveMaxLines() - outputHeaderHeight() - PROMPT_LINE_HEIGHT)
 
+  // Check if we're in onboarding mode (no step agent, but controller has status)
+  const isOnboardingMode = () => !props.currentAgent && props.controllerState?.status != null
+
+  // Check if controller is active (delegated state or onboarding mode)
+  const isControllerActive = () =>
+    (props.currentAgent?.status === "delegated" && props.controllerState != null) || isOnboardingMode()
+
+  // Get the effective status (controller in onboarding, step agent otherwise)
+  const effectiveStatus = () => isOnboardingMode() ? props.controllerState?.status : props.currentAgent?.status
+
   // Check if agent is running
-  const isRunning = () => props.currentAgent?.status === "running"
+  const isRunning = () => effectiveStatus() === "running"
 
   // Get status color
   const statusColor = () => {
-    const status = props.currentAgent?.status
+    const status = effectiveStatus()
     if (status === "completed") return themeCtx.theme.success
     if (status === "failed") return themeCtx.theme.error
     return themeCtx.theme.warning
   }
 
-  // Check if controller is active (delegated state)
-  const isControllerActive = () => props.currentAgent?.status === "delegated" && props.controllerState != null
-
-  // Get display name/engine/model (controller when delegated, step agent otherwise)
+  // Get display name/engine/model (controller when delegated or onboarding, step agent otherwise)
   const displayName = () => isControllerActive() ? props.controllerState!.name : props.currentAgent?.name
   const displayEngine = () => isControllerActive() ? props.controllerState!.engine : props.currentAgent?.engine
   const displayModel = () => isControllerActive() ? props.controllerState!.model : props.currentAgent?.model
+
+  // Check if we have something to display (agent or controller in onboarding)
+  const hasDisplayContent = () => props.currentAgent != null || isOnboardingMode()
 
   // Get connecting message
   const connectingMessage = () => {
@@ -146,7 +156,7 @@ export function OutputWindow(props: OutputWindowProps) {
     <box flexDirection="column" flexGrow={1}>
       {/* Header */}
       <Show
-        when={props.currentAgent}
+        when={hasDisplayContent()}
         fallback={
           <box
             flexDirection="column"
@@ -177,7 +187,7 @@ export function OutputWindow(props: OutputWindowProps) {
                 <Show when={displayModel()}>
                   <text fg={themeCtx.theme.textMuted}>{displayModel()}</text>
                 </Show>
-                <text fg={statusColor()}>● {props.currentAgent!.status}</text>
+                <text fg={statusColor()}>● {effectiveStatus()}</text>
               </box>
             </box>
           </Show>
@@ -196,7 +206,7 @@ export function OutputWindow(props: OutputWindowProps) {
               <Show when={displayModel()}>
                 <text fg={themeCtx.theme.textMuted}> {displayModel()}</text>
               </Show>
-              <text fg={statusColor()}> ● {props.currentAgent!.status}</text>
+              <text fg={statusColor()}> ● {effectiveStatus()}</text>
             </box>
           </Show>
 

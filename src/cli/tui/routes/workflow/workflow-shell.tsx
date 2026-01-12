@@ -164,6 +164,13 @@ export function WorkflowShell(props: WorkflowShellProps) {
   // Current agent for output
   const currentAgent = createMemo(() => {
     const s = state()
+
+    // In onboarding phase, there are no step agents - return null
+    // The output window will use controllerState instead
+    if (s.phase === 'onboarding') {
+      return null
+    }
+
     if (s.selectedItemType === "sub" && s.selectedSubAgentId) {
       for (const subAgents of s.subAgents.values()) {
         const found = subAgents.find((sa) => sa.id === s.selectedSubAgentId)
@@ -179,7 +186,14 @@ export function WorkflowShell(props: WorkflowShellProps) {
     return s.agents[s.agents.length - 1] ?? null
   })
 
-  const logStream = useLogStream(() => currentAgent()?.monitoringId)
+  // In onboarding phase, use controller's monitoringId for log streaming
+  const logStream = useLogStream(() => {
+    const s = state()
+    if (s.phase === 'onboarding') {
+      return s.controllerState?.monitoringId
+    }
+    return currentAgent()?.monitoringId
+  })
 
   // Memoized total telemetry - only recalculates when agent/subagent/controller telemetry actually changes
   const totalTelemetry = createMemo((prev: { tokensIn: number; tokensOut: number; cached?: number } | undefined) => {
@@ -220,6 +234,9 @@ export function WorkflowShell(props: WorkflowShellProps) {
 
   const isCheckpointActive = () => state().checkpointState?.active ?? false
 
+  // Phase check - onboarding vs executing
+  const isOnboardingPhase = () => state().phase === 'onboarding'
+
   const handleCheckpointContinue = () => {
     ui.actions.setCheckpointState(null)
     ui.actions.setWorkflowStatus("running")
@@ -254,7 +271,9 @@ export function WorkflowShell(props: WorkflowShellProps) {
 
   // Auto-focus prompt box when input waiting becomes active
   createEffect(() => {
-    if (isWaitingForInput() && isShowingRunningAgent()) {
+    // In onboarding phase, focus prompt box when input is active (no step agents yet)
+    // In executing phase, only focus when showing the running agent
+    if (isWaitingForInput() && (isShowingRunningAgent() || isOnboardingPhase())) {
       setIsPromptBoxFocused(true)
     } else if (!isWaitingForInput()) {
       setIsPromptBoxFocused(false)
@@ -362,7 +381,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
       return status === "running" || status === "paused" || status === "stopping"
     },
     getCurrentAgentId: () => currentAgent()?.id ?? null,
-    canFocusPromptBox: () => isWaitingForInput() && isShowingRunningAgent() && !isPromptBoxFocused(),
+    canFocusPromptBox: () => isWaitingForInput() && (isShowingRunningAgent() || isOnboardingPhase()) && !isPromptBoxFocused(),
     focusPromptBox: () => setIsPromptBoxFocused(true),
     exitPromptBoxFocus: () => setIsPromptBoxFocused(false),
     isAutonomousMode: () => state().autonomousMode,
@@ -376,23 +395,25 @@ export function WorkflowShell(props: WorkflowShellProps) {
       </box>
 
       <box flexDirection="row" flexGrow={1} gap={1}>
-        <Show when={!isTimelineCollapsed()}>
+        {/* Hide timeline in onboarding phase - only show output window */}
+        <Show when={!isTimelineCollapsed() && !isOnboardingPhase()}>
           <box flexDirection="column" width={showOutputPanel() ? "35%" : "100%"}>
             <AgentTimeline state={state()} onToggleExpand={(id) => ui.actions.toggleExpand(id)} availableHeight={state().visibleItemCount} availableWidth={Math.floor((dimensions()?.width ?? 80) * (showOutputPanel() ? 0.35 : 1))} isPromptBoxFocused={isPromptBoxFocused()} />
           </box>
         </Show>
-        <Show when={showOutputPanel() || isTimelineCollapsed()}>
-          <box flexDirection="column" width={isTimelineCollapsed() ? "100%" : "65%"}>
+        <Show when={showOutputPanel() || isTimelineCollapsed() || isOnboardingPhase()}>
+          {/* In onboarding phase, output window takes full width */}
+          <box flexDirection="column" width={isTimelineCollapsed() || isOnboardingPhase() ? "100%" : "65%"}>
             <OutputWindow
               currentAgent={currentAgent()}
               controllerState={state().controllerState}
-              availableWidth={Math.floor((dimensions()?.width ?? 80) * (isTimelineCollapsed() ? 1 : 0.65))}
+              availableWidth={Math.floor((dimensions()?.width ?? 80) * (isTimelineCollapsed() || isOnboardingPhase() ? 1 : 0.65))}
               lines={logStream.lines}
               isLoading={logStream.isLoading}
               isConnecting={logStream.isConnecting}
               error={logStream.error}
               latestThinking={logStream.latestThinking}
-              inputState={isShowingRunningAgent() ? state().inputState : null}
+              inputState={isOnboardingPhase() ? state().inputState : (isShowingRunningAgent() ? state().inputState : null)}
               workflowStatus={state().workflowStatus}
               isPromptBoxFocused={isPromptBoxFocused()}
               onPromptSubmit={handlePromptSubmit}
