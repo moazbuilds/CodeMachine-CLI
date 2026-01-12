@@ -94,6 +94,7 @@ export interface WorkflowTemplate {
   conditionGroups?: ConditionGroup[]; // Grouped conditions with optional nested children
   controller?: boolean; // Enables autonomous mode with controller agent selection
   specification?: boolean; // If true, requires specification file before workflow can start
+  autonomousMode?: 'true' | 'false' | 'never' | 'always'; // Initial autonomous mode setting (default: 'true')
 }
 
 export type ModuleName = ModuleStep['agentId'];
