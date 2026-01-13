@@ -100,7 +100,7 @@ export class SignalManager implements SignalContext {
       process.removeListener('workflow:mode-change', modeHandler)
     );
 
-    // Return to controller signal ('C' key during executing phase)
+    // Return to controller signal ('C' key during executing view)
     const returnToControllerHandler = () => {
       handleReturnToControllerSignal(this).catch(err =>
         debug('[SignalManager] Return to controller handler error: %s', err.message)

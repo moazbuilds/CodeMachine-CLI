@@ -25,7 +25,7 @@ import { ensureWorkspaceStructure, mirrorSubAgents } from '../runtime/services/w
 import { WorkflowRunner } from './runner/index.js';
 import { getUniqueAgentId } from './context/index.js';
 import { setupWorkflowMCP, cleanupWorkflowMCP } from './mcp.js';
-import { runControllerPhase } from './controller.js';
+import { runControllerView } from './controller.js';
 
 // Re-export from preflight for backward compatibility
 export { ValidationError, checkWorkflowCanStart, checkSpecificationRequired, checkOnboardingRequired, needsOnboarding } from './preflight.js';
@@ -241,8 +241,8 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   // Initialize index manager with start index
   indexManager.setCurrentStepIndex(startIndex);
 
-  // Run controller phase if needed (blocks until controller done + user confirms)
-  const controllerResult = await runControllerPhase({
+  // Run controller view if needed (blocks until controller done + user confirms)
+  const controllerResult = await runControllerView({
     cwd,
     cmRoot,
     template,
@@ -257,7 +257,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     const firstStep = moduleSteps[0];
     // Only skip if the first step is the controller agent
     if (firstStep.agentId === controllerResult.agentId) {
-      debug('[Workflow] Controller phase ran, skipping step 0 (controller agent: %s)', controllerResult.agentId);
+      debug('[Workflow] Controller view ran, skipping step 0 (controller agent: %s)', controllerResult.agentId);
       actualStartIndex = 1;
       // Mark step 0 as completed in the index manager
       indexManager.setCurrentStepIndex(1);

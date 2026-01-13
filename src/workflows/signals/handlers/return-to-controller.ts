@@ -52,7 +52,7 @@ export async function handleReturnToControllerSignal(ctx: SignalContext): Promis
     }
 
     // CRITICAL: Emit mode-change event with boolean false to abort ControllerInputProvider
-    // This must be done BEFORE switching phases to ensure the controller's executeWithActions aborts
+    // This must be done BEFORE switching views to ensure the controller's executeWithActions aborts
     debug('[ReturnToControllerSignal] Emitting mode-change with autonomousMode=false to abort controller');
     (process as NodeJS.EventEmitter).emit('workflow:mode-change', { autonomousMode: false });
 

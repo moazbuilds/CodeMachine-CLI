@@ -2,7 +2,7 @@
 /**
  * Executing Shell Component
  *
- * Renders the executing phase layout - timeline + output window split view.
+ * Renders the executing view layout - timeline + output window split view.
  */
 
 import { Show } from "solid-js"

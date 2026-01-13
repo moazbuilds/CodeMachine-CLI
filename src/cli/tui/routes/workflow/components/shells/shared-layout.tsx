@@ -36,7 +36,7 @@ export function SharedLayout(props: SharedLayoutProps) {
         <BrandingHeader version={props.version} currentDir={props.currentDir} />
       </box>
 
-      {/* Main content area - injected by phase-specific shells */}
+      {/* Main content area - injected by view-specific shells */}
       <box flexDirection="row" flexGrow={1} gap={1}>
         {props.children}
       </box>

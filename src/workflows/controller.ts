@@ -1,9 +1,9 @@
 /**
- * Controller Phase
+ * Controller View
  *
  * Runs the controller agent before workflow steps begin.
- * Sets phase='controller' with autonomousMode='never' for pre-workflow conversation,
- * then transitions to phase='executing' with autonomousMode='true'.
+ * Sets view='controller' with autonomousMode='never' for pre-workflow conversation,
+ * then transitions to view='executing' with autonomousMode='true'.
  */
 
 import type { WorkflowTemplate } from './templates/types.js';
@@ -21,7 +21,7 @@ import { AgentLoggerService } from '../agents/monitoring/index.js';
 import { registry } from '../infra/engines/index.js';
 import { debug } from '../shared/logging/logger.js';
 
-export interface ControllerPhaseOptions {
+export interface ControllerViewOptions {
   cwd: string;
   cmRoot: string;
   template: WorkflowTemplate;
@@ -29,8 +29,8 @@ export interface ControllerPhaseOptions {
   eventBus: WorkflowEventBus;
 }
 
-export interface ControllerPhaseResult {
-  /** Whether controller phase ran (false if skipped) */
+export interface ControllerViewResult {
+  /** Whether controller view ran (false if skipped) */
   ran: boolean;
   /** Controller agent ID if ran */
   agentId?: string;
@@ -39,39 +39,39 @@ export interface ControllerPhaseResult {
 }
 
 /**
- * Run the controller phase if needed.
+ * Run the controller view if needed.
  *
  * This function:
  * 1. Checks if controller is defined via controller() function
  * 2. Checks if controller session already exists (skip if so)
- * 3. Sets autonomousMode='never' and phase='controller'
+ * 3. Sets autonomousMode='never' and view='controller'
  * 4. Initializes and runs the controller agent conversation
  * 5. Waits for user to press Enter to continue
- * 6. Sets autonomousMode='true' and phase='executing'
+ * 6. Sets autonomousMode='true' and view='executing'
  *
  * @returns Result indicating if controller ran
  */
-export async function runControllerPhase(
-  options: ControllerPhaseOptions
-): Promise<ControllerPhaseResult> {
+export async function runControllerView(
+  options: ControllerViewOptions
+): Promise<ControllerViewResult> {
   const { cwd, cmRoot, template, emitter, eventBus } = options;
 
-  debug('[ControllerPhase] Starting controller phase check');
+  debug('[ControllerView] Starting controller view check');
 
   // Check if template has controller definition
   if (!template.controller || !isControllerDefinition(template.controller)) {
-    debug('[ControllerPhase] Template does not have controller definition, skipping');
+    debug('[ControllerView] Template does not have controller definition, skipping');
     return { ran: false };
   }
 
   const definition = template.controller;
-  debug('[ControllerPhase] Controller definition found: %s', definition.agentId);
+  debug('[ControllerView] Controller definition found: %s', definition.agentId);
 
   // Check if controller session already exists
   const existingConfig = await loadControllerConfig(cmRoot);
   if (existingConfig?.controllerConfig?.sessionId) {
-    debug('[ControllerPhase] Controller session already exists, skipping init');
-    // Transition to executing phase with autonomous mode
+    debug('[ControllerView] Controller session already exists, skipping init');
+    // Transition to executing view with autonomous mode
     await setAutonomousMode(cmRoot, 'true');
     emitter.setWorkflowView('executing');
     return { ran: false };
@@ -81,11 +81,11 @@ export async function runControllerPhase(
   const allAgents = await collectAgentDefinitions(cwd);
   const controller = allAgents.find(a => a.id === definition.agentId);
   if (!controller) {
-    debug('[ControllerPhase] Controller agent not found: %s', definition.agentId);
+    debug('[ControllerView] Controller agent not found: %s', definition.agentId);
     throw new Error(`Controller agent not found: ${definition.agentId}`);
   }
 
-  debug('[ControllerPhase] Using controller agent: %s', controller.id);
+  debug('[ControllerView] Using controller agent: %s', controller.id);
 
   // Resolve engine and model (definition options override agent config)
   const defaultEngine = registry.getDefault();
@@ -93,12 +93,12 @@ export async function runControllerPhase(
   const engineModule = registry.get(engineType);
   const resolvedModel = definition.options?.model ?? controller.model ?? engineModule?.metadata.defaultModel;
 
-  // Set autonomous mode to 'never' for controller conversation phase
-  debug('[ControllerPhase] Setting autonomousMode to never for controller conversation');
+  // Set autonomous mode to 'never' for controller conversation view
+  debug('[ControllerView] Setting autonomousMode to never for controller conversation');
   await setAutonomousMode(cmRoot, 'never');
 
   // Set view to controller
-  debug('[ControllerPhase] Setting view to controller');
+  debug('[ControllerView] Setting view to controller');
   emitter.setWorkflowView('controller');
 
   // Emit controller info for UI
@@ -114,7 +114,7 @@ export async function runControllerPhase(
   // Get prompt path from controller definition
   const promptPath = controller.promptPath as string | string[] | undefined;
   if (!promptPath) {
-    debug('[ControllerPhase] Controller has no prompt path, skipping');
+    debug('[ControllerView] Controller has no prompt path, skipping');
     emitter.updateControllerStatus('failed');
     await setAutonomousMode(cmRoot, 'true');
     emitter.setWorkflowView('executing');
@@ -122,7 +122,7 @@ export async function runControllerPhase(
   }
 
   // Initialize controller agent
-  debug('[ControllerPhase] Initializing controller agent');
+  debug('[ControllerView] Initializing controller agent');
   let controllerMonitoringId: number | undefined;
 
   try {
@@ -133,14 +133,14 @@ export async function runControllerPhase(
       cmRoot,
       {
         onMonitoringId: (monitoringId) => {
-          debug('[ControllerPhase] Controller monitoring ID: %d', monitoringId);
+          debug('[ControllerView] Controller monitoring ID: %d', monitoringId);
           controllerMonitoringId = monitoringId;
           emitter.registerControllerMonitoring(monitoringId);
         },
       }
     );
 
-    debug('[ControllerPhase] Controller initialized: sessionId=%s, monitoringId=%d', config.sessionId, controllerMonitoringId);
+    debug('[ControllerView] Controller initialized: sessionId=%s, monitoringId=%d', config.sessionId, controllerMonitoringId);
 
     // Set up conversational loop
     // 1. Set input state active so UI shows input box
@@ -153,7 +153,7 @@ export async function runControllerPhase(
       monitoringId: controllerMonitoringId,
     });
 
-    debug('[ControllerPhase] Input state set, starting conversation loop');
+    debug('[ControllerView] Input state set, starting conversation loop');
 
     // Conversation loop - wait for input or continue signal
     await runControllerConversationLoop({
@@ -164,21 +164,21 @@ export async function runControllerPhase(
       emitter,
     });
 
-    debug('[ControllerPhase] Conversation loop ended, transitioning to executing phase');
+    debug('[ControllerView] Conversation loop ended, transitioning to executing view');
 
-    // Clear input state and switch to executing phase
+    // Clear input state and switch to executing view
     emitter.setInputState(null);
     emitter.updateControllerStatus('completed');
 
     // Transition to autonomous mode for workflow execution
-    debug('[ControllerPhase] Transitioning to autonomousMode=true for workflow execution');
+    debug('[ControllerView] Transitioning to autonomousMode=true for workflow execution');
     await setAutonomousMode(cmRoot, 'true');
 
     emitter.setWorkflowView('executing');
 
     return { ran: true, agentId: controller.id, monitoringId: controllerMonitoringId };
   } catch (error) {
-    debug('[ControllerPhase] Controller phase failed: %s', (error as Error).message);
+    debug('[ControllerView] Controller view failed: %s', (error as Error).message);
     emitter.setInputState(null);
     emitter.updateControllerStatus('failed');
     await setAutonomousMode(cmRoot, 'true');
@@ -205,12 +205,12 @@ async function runControllerConversationLoop(options: ConversationLoopOptions): 
   return new Promise((resolve, reject) => {
     // Handler for user input (workflow:input event from UI)
     const inputHandler = async (data: { prompt?: string; skip?: boolean }) => {
-      debug('[ControllerPhase] Received input event: prompt="%s" skip=%s',
+      debug('[ControllerView] Received input event: prompt="%s" skip=%s',
         data.prompt?.slice(0, 50) ?? '(empty)', data.skip ?? false);
 
-      // Skip signal means user wants to end controller phase
+      // Skip signal means user wants to end controller view
       if (data.skip) {
-        debug('[ControllerPhase] Skip signal - ending conversation');
+        debug('[ControllerView] Skip signal - ending conversation');
         cleanup();
         resolve();
         return;
@@ -218,7 +218,7 @@ async function runControllerConversationLoop(options: ConversationLoopOptions): 
 
       // Empty prompt means user is done (pressed Enter without typing)
       if (!data.prompt || data.prompt.trim() === '') {
-        debug('[ControllerPhase] Empty prompt - ending conversation');
+        debug('[ControllerView] Empty prompt - ending conversation');
         cleanup();
         resolve();
         return;
@@ -232,7 +232,7 @@ async function runControllerConversationLoop(options: ConversationLoopOptions): 
         const loggerService = AgentLoggerService.getInstance();
         loggerService.write(monitoringId, `\n\n━━━ USER ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${data.prompt}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`);
 
-        debug('[ControllerPhase] Resuming conversation with sessionId=%s', sessionId);
+        debug('[ControllerView] Resuming conversation with sessionId=%s', sessionId);
         await executeAgent(agentId, data.prompt, {
           workingDir: cwd,
           resumeSessionId: sessionId,
@@ -246,17 +246,17 @@ async function runControllerConversationLoop(options: ConversationLoopOptions): 
           active: true,
           monitoringId,
         });
-        debug('[ControllerPhase] Turn complete, waiting for next input');
+        debug('[ControllerView] Turn complete, waiting for next input');
       } catch (error) {
-        debug('[ControllerPhase] Error during conversation: %s', (error as Error).message);
+        debug('[ControllerView] Error during conversation: %s', (error as Error).message);
         cleanup();
         reject(error);
       }
     };
 
-    // Handler for continue signal (Enter key in onboarding phase)
+    // Handler for continue signal (Enter key in controller view)
     const continueHandler = () => {
-      debug('[ControllerPhase] Received controller-continue signal');
+      debug('[ControllerView] Received controller-continue signal');
       cleanup();
       resolve();
     };
