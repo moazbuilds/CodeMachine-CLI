@@ -262,9 +262,13 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       // Mark step 0 as completed in the index manager
       indexManager.setCurrentStepIndex(1);
       await indexManager.stepCompleted(0);
-      // Also update UI timeline to show step 0 as completed
+      // Also update UI timeline to show step 0 as completed and register monitoring ID for log viewing
       const uniqueAgentId = getUniqueAgentId(firstStep, 0);
       emitter.updateAgentStatus(uniqueAgentId, 'completed');
+      if (controllerResult.monitoringId !== undefined) {
+        emitter.registerMonitoringId(uniqueAgentId, controllerResult.monitoringId);
+        debug('[Workflow] Registered monitoringId=%d for step 0 (%s)', controllerResult.monitoringId, uniqueAgentId);
+      }
     }
   }
 

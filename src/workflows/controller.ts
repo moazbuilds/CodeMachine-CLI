@@ -34,6 +34,8 @@ export interface ControllerPhaseResult {
   ran: boolean;
   /** Controller agent ID if ran */
   agentId?: string;
+  /** Monitoring ID for log viewing */
+  monitoringId?: number;
 }
 
 /**
@@ -174,7 +176,7 @@ export async function runControllerPhase(
 
     emitter.setWorkflowPhase('executing');
 
-    return { ran: true, agentId: controller.id };
+    return { ran: true, agentId: controller.id, monitoringId: controllerMonitoringId };
   } catch (error) {
     debug('[ControllerPhase] Controller phase failed: %s', (error as Error).message);
     emitter.setInputState(null);
