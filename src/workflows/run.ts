@@ -187,12 +187,40 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   // Count module steps for total
   const moduleSteps = visibleSteps.filter(s => s.type === 'module');
 
-  // Emit workflow started
+  // Initialize index manager with start index
+  indexManager.setCurrentStepIndex(startIndex);
+
+  // Run controller view FIRST if needed (blocks until controller done + user confirms)
+  // Timeline population happens AFTER controller view since it's only visible in executing view
+  const controllerResult = await runControllerView({
+    cwd,
+    cmRoot,
+    template,
+    emitter,
+    eventBus,
+  });
+
+  // If controller ran, adjust start index to skip the controller agent step
+  let actualStartIndex = startIndex;
+  if (controllerResult.ran && startIndex === 0 && moduleSteps.length > 0) {
+    const firstStep = moduleSteps[0];
+    // Only skip if the first step is the controller agent
+    if (firstStep.agentId === controllerResult.agentId) {
+      debug('[Workflow] Controller view ran, skipping step 0 (controller agent: %s)', controllerResult.agentId);
+      actualStartIndex = 1;
+      // Mark step 0 as completed in the index manager
+      indexManager.setCurrentStepIndex(1);
+      await indexManager.stepCompleted(0);
+    }
+  }
+
+  // NOW emit workflow started and populate timeline (after controller view is done)
+  // This ensures timeline only appears when switching to executing view
   emitter.workflowStarted(template.name, moduleSteps.length);
 
   // Pre-populate timeline
   debug('[Workflow] ========== TIMELINE POPULATION ==========');
-  debug('[Workflow] startIndex=%d, total moduleSteps=%d', startIndex, moduleSteps.length);
+  debug('[Workflow] startIndex=%d, actualStartIndex=%d, total moduleSteps=%d', startIndex, actualStartIndex, moduleSteps.length);
   let moduleIndex = 0;
   for (let stepIndex = 0; stepIndex < visibleSteps.length; stepIndex++) {
     const step = visibleSteps[stepIndex];
@@ -200,14 +228,15 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       const defaultEngine = registry.getDefault();
       const engineType = step.engine ?? defaultEngine?.metadata.id ?? 'unknown';
       const uniqueAgentId = getUniqueAgentId(step, moduleIndex);
-      const isCompleted = moduleIndex < startIndex;
+      // Use actualStartIndex to account for controller agent being skipped
+      const isCompleted = moduleIndex < actualStartIndex;
 
       // Resolve model from step or engine default
       const engineModule = registry.get(engineType);
       const resolvedModel = step.model ?? engineModule?.metadata.defaultModel;
 
-      debug('[Workflow] Module %d (step %d): agentId=%s, isCompleted=%s (moduleIndex %d < startIndex %d = %s)',
-        moduleIndex, stepIndex, step.agentId, isCompleted, moduleIndex, startIndex, moduleIndex < startIndex);
+      debug('[Workflow] Module %d (step %d): agentId=%s, isCompleted=%s (moduleIndex %d < actualStartIndex %d = %s)',
+        moduleIndex, stepIndex, step.agentId, isCompleted, moduleIndex, actualStartIndex, moduleIndex < actualStartIndex);
 
       emitter.addMainAgent(
         uniqueAgentId,
@@ -222,10 +251,16 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
       // For completed agents, register their monitoringId from template.json
       if (isCompleted) {
-        const stepData = await indexManager.getStepData(moduleIndex);
-        debug('[Workflow] Module %d marked completed, stepData=%O', moduleIndex, stepData);
-        if (stepData?.monitoringId !== undefined) {
-          emitter.registerMonitoringId(uniqueAgentId, stepData.monitoringId);
+        // For controller agent (step 0), use the monitoringId from controller result
+        if (moduleIndex === 0 && controllerResult.ran && controllerResult.monitoringId !== undefined) {
+          emitter.registerMonitoringId(uniqueAgentId, controllerResult.monitoringId);
+          debug('[Workflow] Registered controller monitoringId=%d for step 0 (%s)', controllerResult.monitoringId, uniqueAgentId);
+        } else {
+          const stepData = await indexManager.getStepData(moduleIndex);
+          debug('[Workflow] Module %d marked completed, stepData=%O', moduleIndex, stepData);
+          if (stepData?.monitoringId !== undefined) {
+            emitter.registerMonitoringId(uniqueAgentId, stepData.monitoringId);
+          }
         }
       }
 
@@ -235,42 +270,8 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     }
   }
   debug('[Workflow] Timeline populated: %d completed, %d pending',
-    startIndex, moduleSteps.length - startIndex);
+    actualStartIndex, moduleSteps.length - actualStartIndex);
   debug('[Workflow] ========== END STEP DECISION ==========');
-
-  // Initialize index manager with start index
-  indexManager.setCurrentStepIndex(startIndex);
-
-  // Run controller view if needed (blocks until controller done + user confirms)
-  const controllerResult = await runControllerView({
-    cwd,
-    cmRoot,
-    template,
-    emitter,
-    eventBus,
-  });
-
-  // If controller ran, skip the first step (the controller agent itself)
-  // This prevents the controller from being re-run as a step
-  let actualStartIndex = startIndex;
-  if (controllerResult.ran && startIndex === 0 && moduleSteps.length > 0) {
-    const firstStep = moduleSteps[0];
-    // Only skip if the first step is the controller agent
-    if (firstStep.agentId === controllerResult.agentId) {
-      debug('[Workflow] Controller view ran, skipping step 0 (controller agent: %s)', controllerResult.agentId);
-      actualStartIndex = 1;
-      // Mark step 0 as completed in the index manager
-      indexManager.setCurrentStepIndex(1);
-      await indexManager.stepCompleted(0);
-      // Also update UI timeline to show step 0 as completed and register monitoring ID for log viewing
-      const uniqueAgentId = getUniqueAgentId(firstStep, 0);
-      emitter.updateAgentStatus(uniqueAgentId, 'completed');
-      if (controllerResult.monitoringId !== undefined) {
-        emitter.registerMonitoringId(uniqueAgentId, controllerResult.monitoringId);
-        debug('[Workflow] Registered monitoringId=%d for step 0 (%s)', controllerResult.monitoringId, uniqueAgentId);
-      }
-    }
-  }
 
   // Create and run workflow
   const runner = new WorkflowRunner({
