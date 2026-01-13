@@ -19,6 +19,8 @@ export interface AgentTelemetry {
   duration?: number
 }
 
+export type AutonomousMode = "true" | "false" | "never" | "always"
+
 export interface AgentState {
   id: string
   name: string
@@ -127,12 +129,18 @@ export interface ControllerState {
   name: string
   engine: string
   model?: string
+  status?: AgentStatus      // Only set during onboarding phase
+  telemetry: AgentTelemetry
+  monitoringId?: number     // Only set during onboarding phase (for log viewer)
 }
+
+export type WorkflowPhase = 'onboarding' | 'executing'
 
 export interface WorkflowState {
   workflowName: string
   version: string
   packageName: string
+  phase: WorkflowPhase       // 'onboarding' = controller chat, 'executing' = workflow running
   startTime: number
   endTime?: number
   agents: AgentState[]
@@ -157,7 +165,7 @@ export interface WorkflowState {
   workflowStatus: WorkflowStatus
   agentIdMapVersion: number
   agentLogs: Map<string, string[]>
-  autonomousMode: boolean
+  autonomousMode: AutonomousMode
   controllerState: ControllerState | null
 }
 

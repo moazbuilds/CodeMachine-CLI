@@ -48,7 +48,7 @@ interface TemplateTracking {
   selectedTrack?: string; // Selected workflow track (e.g., 'bmad', 'quick', 'enterprise')
   selectedConditions?: string[]; // Selected conditions (e.g., ['has_ui', 'has_api'])
   projectName?: string; // User-provided project name for placeholder replacement
-  autonomousMode?: boolean; // Whether autonomous mode is enabled
+  autonomousMode?: string; // 'true' | 'false' | 'never' | 'always'
   controllerConfig?: ControllerConfig; // Controller agent config for autonomous mode
 }
 
@@ -80,7 +80,7 @@ export async function getActiveTemplate(cmRoot: string): Promise<string | null> 
  * Sets the active template name in the tracking file.
  * Preserves existing step data if the template is the same.
  */
-export async function setActiveTemplate(cmRoot: string, templateName: string): Promise<void> {
+export async function setActiveTemplate(cmRoot: string, templateName: string, autonomousModeOverride?: string): Promise<void> {
   const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
 
   let data: TemplateTracking;
@@ -104,7 +104,7 @@ export async function setActiveTemplate(cmRoot: string, templateName: string): P
           completedSteps: {},
           notCompletedSteps: [],
           resumeFromLastStep: true,
-          autonomousMode: true, // Default to auto mode
+          autonomousMode: autonomousModeOverride ?? 'true', // Use template override or default to 'true'
           // Preserve user preferences
           selectedTrack: existing.selectedTrack,
           selectedConditions: existing.selectedConditions,
@@ -119,7 +119,7 @@ export async function setActiveTemplate(cmRoot: string, templateName: string): P
         completedSteps: {},
         notCompletedSteps: [],
         resumeFromLastStep: true,
-        autonomousMode: true, // Default to auto mode
+        autonomousMode: autonomousModeOverride ?? 'true',
       };
     }
   } else {
@@ -130,7 +130,7 @@ export async function setActiveTemplate(cmRoot: string, templateName: string): P
       completedSteps: {},
       notCompletedSteps: [],
       resumeFromLastStep: true,
-      autonomousMode: true, // Default to auto mode
+      autonomousMode: autonomousModeOverride ?? 'true',
     };
   }
 

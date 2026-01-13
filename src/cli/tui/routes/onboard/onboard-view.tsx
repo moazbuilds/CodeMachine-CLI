@@ -9,7 +9,6 @@ import { createSignal, createMemo, onMount, onCleanup, Show } from "solid-js"
 import { useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
 import type { TracksConfig, ConditionGroup, ConditionConfig } from "../../../../workflows/templates/types"
-import type { AgentDefinition } from "../../../../shared/agents/config/types"
 import type { WorkflowEventBus } from "../../../../workflows/events/event-bus"
 import type { OnboardingService } from "../../../../workflows/onboarding/service"
 import type { OnboardStep } from "../../../../workflows/events/types"
@@ -19,18 +18,15 @@ import { QuestionDisplay } from "./components/question-display"
 import { ProjectNameInput } from "./components/project-name-input"
 import { OptionList, type OptionItem } from "./components/option-list"
 import { FooterHints } from "./components/footer-hints"
-import { LaunchingView } from "./components/launching-view"
 
 export interface OnboardViewProps {
   tracks?: TracksConfig
   conditionGroups?: ConditionGroup[]
-  controllerAgents?: AgentDefinition[]
   initialProjectName?: string | null
   onComplete: (result: {
     projectName?: string
     trackId?: string
     conditions?: string[]
-    controllerAgentId?: string
   }) => void
   onCancel?: () => void
   eventBus?: WorkflowEventBus
@@ -64,7 +60,6 @@ export function OnboardView(props: OnboardViewProps) {
   // Helpers
   const useService = () => !!props.service
   const hasTracks = () => props.tracks && Object.keys(props.tracks.options).length > 0
-  const hasControllers = () => props.controllerAgents && props.controllerAgents.length > 0
 
   const applicableGroups = createMemo(() => {
     if (!props.conditionGroups) return []
@@ -100,10 +95,6 @@ export function OnboardView(props: OnboardViewProps) {
         return currentGroup()?.question ?? ""
       case 'condition_child':
         return currentChildContext()?.question ?? ""
-      case 'controller':
-        return "Select a controller agent for autonomous mode:"
-      case 'launching':
-        return "Initializing controller agent..."
       default:
         return ""
     }
@@ -133,8 +124,6 @@ export function OnboardView(props: OnboardViewProps) {
         const ctx = currentChildContext()
         return ctx ? Object.entries(ctx.conditions) : []
       }
-      case 'controller':
-        return props.controllerAgents?.map(a => [a.id, a] as const) ?? []
       default:
         return []
     }
@@ -198,8 +187,6 @@ export function OnboardView(props: OnboardViewProps) {
     if (nextIdx < groups.length) {
       setCurrentGroupIndex(nextIdx)
       setCurrentStep('condition_group')
-    } else if (hasControllers()) {
-      setCurrentStep('controller')
     } else {
       props.onComplete({
         projectName: projectName(),
@@ -258,8 +245,6 @@ export function OnboardView(props: OnboardViewProps) {
         setCurrentStep('tracks')
       } else if (hasConditionGroups()) {
         setCurrentStep('condition_group')
-      } else if (hasControllers()) {
-        setCurrentStep('controller')
       } else {
         props.onComplete({ projectName: props.initialProjectName })
       }
@@ -284,8 +269,6 @@ export function OnboardView(props: OnboardViewProps) {
           setCurrentStep('tracks')
         } else if (hasConditionGroups()) {
           setCurrentStep('condition_group')
-        } else if (hasControllers()) {
-          setCurrentStep('controller')
         } else {
           props.onComplete({ projectName: name })
         }
@@ -295,8 +278,6 @@ export function OnboardView(props: OnboardViewProps) {
         setCurrentGroupIndex(0)
         if (hasConditionGroups()) {
           setCurrentStep('condition_group')
-        } else if (hasControllers()) {
-          setCurrentStep('controller')
         } else {
           props.onComplete({ projectName: projectName(), trackId })
         }
@@ -353,14 +334,6 @@ export function OnboardView(props: OnboardViewProps) {
         setSelectedConditions(prev => new Set([...prev, ...selections]))
         processNextChildQuestion()
       },
-      onControllerSelect: (controllerId) => {
-        props.onComplete({
-          projectName: projectName(),
-          trackId: selectedTrackId(),
-          conditions: Array.from(selectedConditions()),
-          controllerAgentId: controllerId,
-        })
-      },
       onCancel: () => props.onCancel?.(),
     },
   })
@@ -390,37 +363,27 @@ export function OnboardView(props: OnboardViewProps) {
         paddingBottom={2}
         gap={1}
       >
-        <Show when={currentStep() === 'launching' && props.service && props.eventBus}>
-          <LaunchingView
-            controllerName={(props.service!.getSelectedController()?.name as string) ?? 'controller'}
-            eventBus={props.eventBus!}
-            service={props.service!}
-          />
-        </Show>
+        <QuestionDisplay question={currentQuestion} />
 
-        <Show when={currentStep() !== 'launching'}>
-          <QuestionDisplay question={currentQuestion} />
+        <box flexDirection="column" gap={1} marginTop={1}>
+          <Show when={currentStep() === 'project_name'}>
+            <ProjectNameInput value={projectName} />
+          </Show>
 
-          <box flexDirection="column" gap={1} marginTop={1}>
-            <Show when={currentStep() === 'project_name'}>
-              <ProjectNameInput value={projectName} />
-            </Show>
+          <Show when={currentStep() !== 'project_name'}>
+            <OptionList
+              options={options()}
+              selectedIndex={selectedIndex}
+              multiSelect={checkMultiSelect()}
+              isChecked={checkConditionSelected}
+            />
+          </Show>
+        </box>
 
-            <Show when={currentStep() !== 'project_name'}>
-              <OptionList
-                options={options()}
-                selectedIndex={selectedIndex}
-                multiSelect={checkMultiSelect()}
-                isChecked={checkConditionSelected}
-              />
-            </Show>
-          </box>
-
-          <FooterHints
-            currentStep={currentStep}
-            isMultiSelect={() => checkMultiSelect()}
-          />
-        </Show>
+        <FooterHints
+          currentStep={currentStep}
+          isMultiSelect={() => checkMultiSelect()}
+        />
       </box>
     </box>
   )

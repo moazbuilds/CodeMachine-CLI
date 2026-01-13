@@ -192,19 +192,23 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
       return;
     }
 
+    // Capture telemetry - returns true only when NEW telemetry was parsed
+    const prevCaptured = telemetryCapture.getCaptured();
     telemetryCapture.captureFromStreamJson(line);
+    const newCaptured = telemetryCapture.getCaptured();
 
-    if (onTelemetry) {
-      const captured = telemetryCapture.getCaptured();
-      if (captured?.tokens) {
-        onTelemetry({
-          tokensIn: captured.tokens.input ?? 0,
-          tokensOut: captured.tokens.output ?? 0,
-          cached: captured.tokens.cached,
-          cost: captured.cost,
-          duration: captured.duration,
-        });
-      }
+    // Only emit when NEW telemetry is captured (not on every line)
+    if (onTelemetry && newCaptured?.tokens && newCaptured !== prevCaptured) {
+      const telemetryPayload = {
+        tokensIn: newCaptured.tokens.input ?? 0,
+        tokensOut: newCaptured.tokens.output ?? 0,
+        cached: newCaptured.tokens.cached,
+        cost: newCaptured.cost,
+        duration: newCaptured.duration,
+      };
+      logger.debug('[TELEMETRY:2-RUNNER] Emitting onTelemetry → tokensIn=%d, tokensOut=%d, cached=%s',
+        telemetryPayload.tokensIn, telemetryPayload.tokensOut, telemetryPayload.cached ?? 'undefined');
+      onTelemetry(telemetryPayload);
     }
 
     // Type guard for parsed JSON

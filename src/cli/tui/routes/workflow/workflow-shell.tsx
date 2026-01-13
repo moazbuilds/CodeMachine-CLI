@@ -14,7 +14,7 @@ import { useUIState } from "./context/ui-state"
 import { AgentTimeline } from "./components/timeline"
 import { OutputWindow, TelemetryBar, StatusFooter } from "./components/output"
 import { useTimer } from "@tui/shared/services"
-import { CheckpointModal, LogViewer, HistoryView, StopModal, ErrorModal } from "./components/modals"
+import { CheckpointModal, LogViewer, HistoryView, StopModal, ErrorModal, ControllerContinueModal } from "./components/modals"
 import { OpenTUIAdapter } from "./adapters/opentui"
 import { useLogStream } from "./hooks/useLogStream"
 import { useSubAgentSync } from "./hooks/useSubAgentSync"
@@ -107,27 +107,34 @@ export function WorkflowShell(props: WorkflowShellProps) {
   }
 
   // Mode change listener - syncs UI state when autonomousMode changes
-  const handleModeChange = (data: { autonomousMode: boolean }) => {
+  const handleModeChange = (data: { autonomousMode: string }) => {
     debug('[MODE-CHANGE] Received event: autonomousMode=%s', data.autonomousMode)
-    ui.actions.setAutonomousMode(data.autonomousMode)
+    // Validate that the string is a valid AutonomousMode
+    if (['true', 'false', 'never', 'always'].includes(data.autonomousMode)) {
+      ui.actions.setAutonomousMode(data.autonomousMode as any)
+    }
   }
 
   onMount(async () => {
-    ;(process as NodeJS.EventEmitter).on('workflow:error', handleWorkflowError)
-    ;(process as NodeJS.EventEmitter).on('workflow:stopping', handleStopping)
-    ;(process as NodeJS.EventEmitter).on('workflow:user-stop', handleUserStop)
-    ;(process as NodeJS.EventEmitter).on('workflow:mode-change', handleModeChange)
+    ; (process as NodeJS.EventEmitter).on('workflow:error', handleWorkflowError)
+      ; (process as NodeJS.EventEmitter).on('workflow:stopping', handleStopping)
+      ; (process as NodeJS.EventEmitter).on('workflow:user-stop', handleUserStop)
+      ; (process as NodeJS.EventEmitter).on('workflow:mode-change', handleModeChange)
 
     // Load initial autonomous mode state
     const cmRoot = path.join(resolvePath(props.currentDir), '.codemachine')
     debug('onMount - loading controller config from: %s', cmRoot)
     const controllerState = await loadControllerConfig(cmRoot)
     debug('onMount - controllerState: %s', JSON.stringify(controllerState))
+
+    // Set autonomous mode from file if present, otherwise default is 'true'
     if (controllerState?.autonomousMode) {
-      debug('onMount - setting autonomousMode to true')
-      ui.actions.setAutonomousMode(true)
+      debug('onMount - setting autonomousMode to %s', controllerState.autonomousMode)
+      if (['true', 'false', 'never', 'always'].includes(controllerState.autonomousMode)) {
+        ui.actions.setAutonomousMode(controllerState.autonomousMode as any)
+      }
     } else {
-      debug('onMount - autonomousMode not enabled in config')
+      debug('onMount - autonomousMode not enabled in config, using default (true)')
     }
 
     if (props.eventBus) {
@@ -146,10 +153,10 @@ export function WorkflowShell(props: WorkflowShellProps) {
   })
 
   onCleanup(() => {
-    ;(process as NodeJS.EventEmitter).off('workflow:error', handleWorkflowError)
-    ;(process as NodeJS.EventEmitter).off('workflow:stopping', handleStopping)
-    ;(process as NodeJS.EventEmitter).off('workflow:user-stop', handleUserStop)
-    ;(process as NodeJS.EventEmitter).off('workflow:mode-change', handleModeChange)
+    ; (process as NodeJS.EventEmitter).off('workflow:error', handleWorkflowError)
+      ; (process as NodeJS.EventEmitter).off('workflow:stopping', handleStopping)
+      ; (process as NodeJS.EventEmitter).off('workflow:user-stop', handleUserStop)
+      ; (process as NodeJS.EventEmitter).off('workflow:mode-change', handleModeChange)
     if (adapter) {
       adapter.stop()
       adapter.disconnect()
@@ -164,6 +171,13 @@ export function WorkflowShell(props: WorkflowShellProps) {
   // Current agent for output
   const currentAgent = createMemo(() => {
     const s = state()
+
+    // In onboarding phase, there are no step agents - return null
+    // The output window will use controllerState instead
+    if (s.phase === 'onboarding') {
+      return null
+    }
+
     if (s.selectedItemType === "sub" && s.selectedSubAgentId) {
       for (const subAgents of s.subAgents.values()) {
         const found = subAgents.find((sa) => sa.id === s.selectedSubAgentId)
@@ -179,38 +193,67 @@ export function WorkflowShell(props: WorkflowShellProps) {
     return s.agents[s.agents.length - 1] ?? null
   })
 
-  const logStream = useLogStream(() => currentAgent()?.monitoringId)
-
-  const totalTelemetry = createMemo(() => {
+  // In onboarding phase, use controller's monitoringId for log streaming
+  const logStream = useLogStream(() => {
     const s = state()
+    if (s.phase === 'onboarding') {
+      return s.controllerState?.monitoringId
+    }
+    return currentAgent()?.monitoringId
+  })
+
+  // Memoized total telemetry - only recalculates when agent/subagent/controller telemetry actually changes
+  const totalTelemetry = createMemo((prev: { tokensIn: number; tokensOut: number; cached?: number } | undefined) => {
+    const agents = state().agents
+    const subAgents = state().subAgents
+    const controller = state().controllerState
     let tokensIn = 0, tokensOut = 0, cached = 0
-    for (const agent of s.agents) {
+
+    for (const agent of agents) {
       tokensIn += agent.telemetry.tokensIn
       tokensOut += agent.telemetry.tokensOut
       cached += agent.telemetry.cached ?? 0
     }
-    for (const subAgents of s.subAgents.values()) {
-      for (const sub of subAgents) {
+    for (const subs of subAgents.values()) {
+      for (const sub of subs) {
         tokensIn += sub.telemetry.tokensIn
         tokensOut += sub.telemetry.tokensOut
         cached += sub.telemetry.cached ?? 0
       }
     }
-    return { tokensIn, tokensOut, cached: cached > 0 ? cached : undefined }
+    // Include controller telemetry
+    if (controller?.telemetry) {
+      tokensIn += controller.telemetry.tokensIn
+      tokensOut += controller.telemetry.tokensOut
+      cached += controller.telemetry.cached ?? 0
+    }
+
+    const result = { tokensIn, tokensOut, cached: cached > 0 ? cached : undefined }
+
+    // Only log when values actually change
+    if (!prev || prev.tokensIn !== tokensIn || prev.tokensOut !== tokensOut || prev.cached !== result.cached) {
+      debug('[TELEMETRY:6-TOTAL] totalTokensIn=%d, totalTokensOut=%d, totalCached=%s',
+        tokensIn, tokensOut, result.cached)
+    }
+
+    return result
   })
 
   const isCheckpointActive = () => state().checkpointState?.active ?? false
 
+  // Phase check - onboarding vs executing
+  const isOnboardingPhase = () => state().phase === 'onboarding'
+
   const handleCheckpointContinue = () => {
     ui.actions.setCheckpointState(null)
     ui.actions.setWorkflowStatus("running")
-    ;(process as NodeJS.EventEmitter).emit("checkpoint:continue")
+      ; (process as NodeJS.EventEmitter).emit("checkpoint:continue")
   }
 
   const handleCheckpointQuit = () => {
     ui.actions.setCheckpointState(null)
     ui.actions.setWorkflowStatus("stopped")
-    ;(process as NodeJS.EventEmitter).emit("checkpoint:quit")
+      ; (process as NodeJS.EventEmitter).emit("checkpoint:quit")
   }
 
   // Check if we have queued prompts (chained mode)
@@ -235,7 +278,9 @@ export function WorkflowShell(props: WorkflowShellProps) {
 
   // Auto-focus prompt box when input waiting becomes active
   createEffect(() => {
-    if (isWaitingForInput() && isShowingRunningAgent()) {
+    // In onboarding phase, focus prompt box when input is active (no step agents yet)
+    // In executing phase, only focus when showing the running agent
+    if (isWaitingForInput() && (isShowingRunningAgent() || isOnboardingPhase())) {
       setIsPromptBoxFocused(true)
     } else if (!isWaitingForInput()) {
       setIsPromptBoxFocused(false)
@@ -247,19 +292,39 @@ export function WorkflowShell(props: WorkflowShellProps) {
 
   const handleStopConfirm = () => {
     setShowStopModal(false)
-    ;(process as NodeJS.EventEmitter).emit("workflow:user-stop")
-    ;(process as NodeJS.EventEmitter).emit("workflow:stop")
-    ;(process as NodeJS.EventEmitter).emit("workflow:return-home")
+      ; (process as NodeJS.EventEmitter).emit("workflow:user-stop")
+      ; (process as NodeJS.EventEmitter).emit("workflow:stop")
+      ; (process as NodeJS.EventEmitter).emit("workflow:return-home")
   }
 
   const handleStopCancel = () => {
     setShowStopModal(false)
   }
 
+  // Controller continue confirmation modal state
+  const [showControllerContinueModal, setShowControllerContinueModal] = createSignal(false)
+
+  const handleControllerContinueConfirm = () => {
+    setShowControllerContinueModal(false)
+      ; (process as NodeJS.EventEmitter).emit('workflow:controller-continue')
+  }
+
+  const handleControllerContinueCancel = () => {
+    setShowControllerContinueModal(false)
+    // Focus back to prompt box
+    setIsPromptBoxFocused(true)
+  }
+
   // Unified prompt submit handler - uses single workflow:input event
   const handlePromptSubmit = (prompt: string) => {
     if (isWaitingForInput()) {
-      ;(process as NodeJS.EventEmitter).emit("workflow:input", { prompt: prompt || undefined })
+      // In onboarding phase, empty prompt shows confirmation dialog instead of ending immediately
+      if (isOnboardingPhase() && (!prompt || prompt.trim() === '')) {
+        debug('Empty prompt in onboarding phase - showing confirmation dialog')
+        setShowControllerContinueModal(true)
+        return
+      }
+      ; (process as NodeJS.EventEmitter).emit("workflow:input", { prompt: prompt || undefined })
       setIsPromptBoxFocused(false)
     }
   }
@@ -267,14 +332,14 @@ export function WorkflowShell(props: WorkflowShellProps) {
   // Skip all remaining prompts
   const handleSkip = () => {
     if (isWaitingForInput()) {
-      ;(process as NodeJS.EventEmitter).emit("workflow:input", { skip: true })
+      ; (process as NodeJS.EventEmitter).emit("workflow:input", { skip: true })
       setIsPromptBoxFocused(false)
     }
   }
 
   // Pause the workflow (aborts current step)
   const pauseWorkflow = () => {
-    ;(process as NodeJS.EventEmitter).emit("workflow:pause")
+    ; (process as NodeJS.EventEmitter).emit("workflow:pause")
   }
 
   // Toggle autonomous mode on/off
@@ -284,14 +349,22 @@ export function WorkflowShell(props: WorkflowShellProps) {
     // Read current state from file (source of truth)
     const controllerState = await loadControllerConfig(cmRoot)
     debug('[TOGGLE] controllerState: %s', JSON.stringify(controllerState))
-    const currentMode = controllerState?.autonomousMode ?? false
-    const newMode = !currentMode
+
+    const currentMode = controllerState?.autonomousMode ?? 'true' // Default to true if not set
+
+    // Prevent toggle if locked
+    if (currentMode === 'never' || currentMode === 'always') {
+      toast.show({
+        variant: "warning",
+        message: "Autonomous mode is locked by workflow configuration",
+        duration: 3000
+      })
+      return
+    }
+
+    const newMode = currentMode === 'true' ? 'false' : 'true'
 
     debug('[TOGGLE] Current mode from file: %s, new mode: %s', currentMode, newMode)
-
-    // autoMode can work without controller:
-    // - Non-interactive steps (Scenarios 5-6) run autonomously without controller
-    // - Interactive steps without controller fall back to user input
 
     // Update UI state
     ui.actions.setAutonomousMode(newMode)
@@ -301,17 +374,30 @@ export function WorkflowShell(props: WorkflowShellProps) {
       await persistAutonomousMode(cmRoot, newMode)
       debug('[TOGGLE] Successfully persisted autonomousMode=%s', newMode)
       toast.show({
-        variant: newMode ? "success" : "warning",
-        message: newMode ? "Autonomous mode enabled" : "Autonomous mode disabled",
+        variant: newMode === 'true' ? "success" : "warning",
+        message: newMode === 'true' ? "Autonomous mode enabled" : "Autonomous mode disabled",
         duration: 3000
       })
     } catch (err) {
       debug('[TOGGLE] Failed to persist autonomousMode: %s', err)
       // Revert UI state on error
-      ui.actions.setAutonomousMode(currentMode)
+      ui.actions.setAutonomousMode(currentMode as any)
       toast.show({ variant: "error", message: "Failed to toggle autonomous mode", duration: 3000 })
     }
   }
+
+
+  // Single-agent auto-collapse logic (Strict)
+  createEffect(() => {
+    const s = state()
+    // Always check: if single agent, enforce collapse
+    if (s.agents.length === 1) {
+      if (!s.timelineCollapsed) {
+        debug('[SHELL] Single agent detected, strictly collapsing timeline')
+        ui.actions.toggleTimeline()
+      }
+    }
+  })
 
   const getMonitoringId = (uiAgentId: string): number | undefined => {
     const s = state()
@@ -327,9 +413,20 @@ export function WorkflowShell(props: WorkflowShellProps) {
   // Keyboard navigation
   useWorkflowKeyboard({
     getState: state,
-    actions: ui.actions,
+    actions: {
+      ...ui.actions,
+      toggleTimeline: () => {
+        const s = state()
+        // Prevent toggle if single agent (strict mode)
+        if (s.agents.length === 1) {
+          toast.show({ variant: "warning", message: "Timeline is locked for single-agent workflows", duration: 3000 })
+          return
+        }
+        ui.actions.toggleTimeline()
+      }
+    },
     calculateVisibleItems: getVisibleItems,
-    isModalBlocking: () => isCheckpointActive() || modals.isLogViewerActive() || modals.isHistoryActive() || modals.isHistoryLogViewerActive() || showStopModal() || isErrorModalActive(),
+    isModalBlocking: () => isCheckpointActive() || modals.isLogViewerActive() || modals.isHistoryActive() || modals.isHistoryLogViewerActive() || showStopModal() || isErrorModalActive() || showControllerContinueModal(),
     isPromptBoxFocused: () => isPromptBoxFocused(),
     isWaitingForInput,
     hasQueuedPrompts,
@@ -343,11 +440,17 @@ export function WorkflowShell(props: WorkflowShellProps) {
       return status === "running" || status === "paused" || status === "stopping"
     },
     getCurrentAgentId: () => currentAgent()?.id ?? null,
-    canFocusPromptBox: () => isWaitingForInput() && isShowingRunningAgent() && !isPromptBoxFocused(),
+    canFocusPromptBox: () => isWaitingForInput() && (isShowingRunningAgent() || isOnboardingPhase()) && !isPromptBoxFocused(),
     focusPromptBox: () => setIsPromptBoxFocused(true),
     exitPromptBoxFocus: () => setIsPromptBoxFocused(false),
-    isAutonomousMode: () => state().autonomousMode,
+    isAutonomousMode: () => state().autonomousMode === 'true' || state().autonomousMode === 'always',
     toggleAutonomousMode,
+    showControllerContinue: () => setShowControllerContinueModal(true),
+    hasController: () => !!state().controllerState,
+    returnToController: () => {
+      debug('Returning to controller - emitting workflow:return-to-controller')
+        ; (process as NodeJS.EventEmitter).emit('workflow:return-to-controller')
+    },
   })
 
   return (
@@ -357,23 +460,25 @@ export function WorkflowShell(props: WorkflowShellProps) {
       </box>
 
       <box flexDirection="row" flexGrow={1} gap={1}>
-        <Show when={!isTimelineCollapsed()}>
+        {/* Hide timeline in onboarding phase - only show output window */}
+        <Show when={!isTimelineCollapsed() && !isOnboardingPhase()}>
           <box flexDirection="column" width={showOutputPanel() ? "35%" : "100%"}>
             <AgentTimeline state={state()} onToggleExpand={(id) => ui.actions.toggleExpand(id)} availableHeight={state().visibleItemCount} availableWidth={Math.floor((dimensions()?.width ?? 80) * (showOutputPanel() ? 0.35 : 1))} isPromptBoxFocused={isPromptBoxFocused()} />
           </box>
         </Show>
-        <Show when={showOutputPanel() || isTimelineCollapsed()}>
-          <box flexDirection="column" width={isTimelineCollapsed() ? "100%" : "65%"}>
+        <Show when={showOutputPanel() || isTimelineCollapsed() || isOnboardingPhase()}>
+          {/* In onboarding phase, output window takes full width */}
+          <box flexDirection="column" width={isTimelineCollapsed() || isOnboardingPhase() ? "100%" : "65%"}>
             <OutputWindow
               currentAgent={currentAgent()}
               controllerState={state().controllerState}
-              availableWidth={Math.floor((dimensions()?.width ?? 80) * (isTimelineCollapsed() ? 1 : 0.65))}
+              availableWidth={Math.floor((dimensions()?.width ?? 80) * (isTimelineCollapsed() || isOnboardingPhase() ? 1 : 0.65))}
               lines={logStream.lines}
               isLoading={logStream.isLoading}
               isConnecting={logStream.isConnecting}
               error={logStream.error}
               latestThinking={logStream.latestThinking}
-              inputState={isShowingRunningAgent() ? state().inputState : null}
+              inputState={isOnboardingPhase() ? state().inputState : (isShowingRunningAgent() ? state().inputState : null)}
               workflowStatus={state().workflowStatus}
               isPromptBoxFocused={isPromptBoxFocused()}
               onPromptSubmit={handlePromptSubmit}
@@ -386,7 +491,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
 
       <box flexShrink={0} flexDirection="column">
         <TelemetryBar workflowName={state().workflowName} runtime={timer.workflowRuntime()} status={state().workflowStatus} total={totalTelemetry()} autonomousMode={state().autonomousMode} />
-        <StatusFooter autonomousMode={state().autonomousMode} />
+        <StatusFooter autonomousMode={state().autonomousMode} phase={state().phase} hasController={!!state().controllerState} />
       </box>
 
       <Show when={isCheckpointActive()}>
@@ -422,6 +527,12 @@ export function WorkflowShell(props: WorkflowShellProps) {
       <Show when={isErrorModalActive()}>
         <box position="absolute" left={0} top={0} width="100%" height="100%" zIndex={2000}>
           <ErrorModal message={errorMessage()!} onClose={handleErrorModalClose} />
+        </box>
+      </Show>
+
+      <Show when={showControllerContinueModal()}>
+        <box position="absolute" left={0} top={0} width="100%" height="100%" zIndex={2000}>
+          <ControllerContinueModal onConfirm={handleControllerContinueConfirm} onCancel={handleControllerContinueCancel} />
         </box>
       </Show>
     </box>

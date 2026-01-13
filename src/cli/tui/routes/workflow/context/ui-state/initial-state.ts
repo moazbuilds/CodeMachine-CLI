@@ -13,6 +13,7 @@ export function createInitialState(workflowName: string, totalSteps = 0): Workfl
     workflowName,
     version: packageJson.version,
     packageName: packageJson.name,
+    phase: 'executing',
     startTime: Date.now(),
     agents: [],
     subAgents: new Map(),
@@ -35,7 +36,7 @@ export function createInitialState(workflowName: string, totalSteps = 0): Workfl
     workflowStatus: "running",
     agentIdMapVersion: 0,
     agentLogs: new Map(),
-    autonomousMode: false,
+    autonomousMode: "true",
     controllerState: null,
   }
 }

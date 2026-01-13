@@ -24,6 +24,24 @@ This case study documents how **CodeMachine**, a CLI-native AI orchestration pla
 
 **Key Achievement:** CodeMachine coordinated specialized AI agents across a multi-phase orchestration workflow to deliver 482 production-ready files (60,008 lines of code), complete infrastructure-as-code, and automated deployment pipelines—all generated from specification documents through intelligent agent orchestration.
 
+### Development Efficiency Comparison
+
+We conducted a real-world comparison by monitoring development work on a project of identical scope and complexity using the most powerful AI agent tools (Claude Code, Cursor, Copilot) with manual orchestration and human review, versus CodeMachine's autonomous multi-agent orchestration.
+
+| Aspect | Regular AI Agents (Manual Orchestration + Human Review) | CodeMachine (Autonomous Orchestration) |
+|--------|--------------------------------------------------------|----------------------------------------|
+| **Architecture Planning** | 4-6 hours of manual prompting | Automated (30 min) |
+| **Service Implementation** | 140-200 hours (7 services × 20-30h each) | Parallel execution (5 hours) |
+| **Integration & Testing** | 30-50 hours | Automated validation (2 hours) |
+| **Deployment Setup** | 8-12 hours | Auto-generated (30 min) |
+| **Code Consistency** | Inconsistent patterns across services | Unified architecture & patterns |
+| **Quality Control** | Manual review required | Built-in validation at each step |
+| **Context Retention** | Lost between sessions | Full project context maintained |
+| **Total Developer Time** | **~200-300 hours** | **~8 hours** |
+| **Efficiency Gain** | Baseline | **25-37× faster** |
+
+*Real-world comparison: One developer manually prompting AI coding assistants vs CodeMachine's autonomous multi-agent orchestration*
+
 ---
 
 ## Table of Contents

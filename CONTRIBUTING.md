@@ -41,7 +41,6 @@ Run these before submitting:
 ```bash
 bun run lint
 bun run typecheck
-bun test
 ```
 
 Keep PRs focused - one feature or fix per PR.

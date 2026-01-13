@@ -5,16 +5,20 @@
 import type {
   WorkflowState,
   AgentStatus,
+  AgentTelemetry,
   LoopState,
   ChainedState,
   InputState,
   SubAgentState,
   TriggeredAgentState,
   WorkflowStatus,
+  WorkflowPhase,
   ControllerState,
 } from "../../state/types"
 
 export type Listener = () => void
+
+export type AutonomousMode = "true" | "false" | "never" | "always"
 
 export type UIActions = {
   getState(): WorkflowState
@@ -52,8 +56,14 @@ export type UIActions = {
   resetAgentForLoop(agentId: string, cycleNumber?: number): void
   addSeparator(separator: { id: string; text: string; stepIndex: number }): void
   logMessage(agentId: string, message: string): void
-  setAutonomousMode(enabled: boolean): void
+  setAutonomousMode(enabled: AutonomousMode): void
   setControllerState(controllerState: ControllerState | null): void
+  updateControllerTelemetry(telemetry: Partial<AgentTelemetry>): void
+  updateControllerStatus(status: AgentStatus): void
+  updateControllerMonitoring(monitoringId: number): void
+  setWorkflowPhase(phase: WorkflowPhase): void
+  /** Reset state for a new workflow */
+  reset(workflowName: string): void
 }
 
-export type { WorkflowState, AgentStatus, LoopState, ChainedState, InputState, SubAgentState, TriggeredAgentState, WorkflowStatus, ControllerState }
+export type { WorkflowState, AgentStatus, AgentTelemetry, LoopState, ChainedState, InputState, SubAgentState, TriggeredAgentState, WorkflowStatus, WorkflowPhase, ControllerState }

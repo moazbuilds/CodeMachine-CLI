@@ -25,6 +25,7 @@ import { ensureWorkspaceStructure, mirrorSubAgents } from '../runtime/services/w
 import { WorkflowRunner } from './runner/index.js';
 import { getUniqueAgentId } from './context/index.js';
 import { setupWorkflowMCP, cleanupWorkflowMCP } from './mcp.js';
+import { runControllerPhase } from './controller.js';
 
 // Re-export from preflight for backward compatibility
 export { ValidationError, checkWorkflowCanStart, checkSpecificationRequired, checkOnboardingRequired, needsOnboarding } from './preflight.js';
@@ -240,13 +241,44 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   // Initialize index manager with start index
   indexManager.setCurrentStepIndex(startIndex);
 
+  // Run controller phase if needed (blocks until controller done + user confirms)
+  const controllerResult = await runControllerPhase({
+    cwd,
+    cmRoot,
+    template,
+    emitter,
+    eventBus,
+  });
+
+  // If controller ran, skip the first step (the controller agent itself)
+  // This prevents the controller from being re-run as a step
+  let actualStartIndex = startIndex;
+  if (controllerResult.ran && startIndex === 0 && moduleSteps.length > 0) {
+    const firstStep = moduleSteps[0];
+    // Only skip if the first step is the controller agent
+    if (firstStep.agentId === controllerResult.agentId) {
+      debug('[Workflow] Controller phase ran, skipping step 0 (controller agent: %s)', controllerResult.agentId);
+      actualStartIndex = 1;
+      // Mark step 0 as completed in the index manager
+      indexManager.setCurrentStepIndex(1);
+      await indexManager.stepCompleted(0);
+      // Also update UI timeline to show step 0 as completed and register monitoring ID for log viewing
+      const uniqueAgentId = getUniqueAgentId(firstStep, 0);
+      emitter.updateAgentStatus(uniqueAgentId, 'completed');
+      if (controllerResult.monitoringId !== undefined) {
+        emitter.registerMonitoringId(uniqueAgentId, controllerResult.monitoringId);
+        debug('[Workflow] Registered monitoringId=%d for step 0 (%s)', controllerResult.monitoringId, uniqueAgentId);
+      }
+    }
+  }
+
   // Create and run workflow
   const runner = new WorkflowRunner({
     cwd,
     cmRoot,
     template: { ...template, steps: visibleSteps },
     emitter,
-    startIndex,
+    startIndex: actualStartIndex,
     indexManager,
     status,
   });
@@ -254,7 +286,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   // Cleanup function for MCP
   const doMCPCleanup = async () => {
     debug('[Workflow] Cleaning up MCP...');
-    await cleanupWorkflowMCP(template, cwd).catch(() => {});
+    await cleanupWorkflowMCP(template, cwd).catch(() => { });
   };
 
   // Handle SIGINT (Ctrl+C) for cleanup

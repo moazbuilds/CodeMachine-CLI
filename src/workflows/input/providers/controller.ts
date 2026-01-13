@@ -166,9 +166,9 @@ Review the output above and respond appropriately, or use ACTION: NEXT to procee
             loggerService.write(context.stepOutput.monitoringId, `[STDERR] ${chunk}`);
           }
         },
-        // Add telemetry support - attribute to current step's agent
-        telemetry: this.workflowEmitter && context.uniqueAgentId
-          ? { uniqueAgentId: context.uniqueAgentId, emitter: this.workflowEmitter }
+        // Add telemetry support - route to controller's own telemetry (not step agent's)
+        telemetry: this.workflowEmitter
+          ? { uniqueAgentId: '', emitter: this.workflowEmitter, isController: true }
           : undefined,
       });
 

@@ -95,6 +95,17 @@ export class WorkflowEventEmitter {
     });
   }
 
+  /**
+   * Emit workflow phase change (onboarding vs executing)
+   */
+  setWorkflowPhase(phase: 'onboarding' | 'executing'): void {
+    debug('[Emitter] workflow:phase phase=%s', phase);
+    this.bus.emit({
+      type: 'workflow:phase',
+      phase,
+    });
+  }
+
   // ─────────────────────────────────────────────────────────────────
   // Main Agents
   // ─────────────────────────────────────────────────────────────────
@@ -176,6 +187,8 @@ export class WorkflowEventEmitter {
    * Mirrors: ui.updateAgentTelemetry(agentId, telemetry)
    */
   updateAgentTelemetry(agentId: string, telemetry: Partial<AgentTelemetry>): void {
+    debug('[TELEMETRY:3-EMITTER] [STEP-AGENT] agent:telemetry event → agentId=%s, tokensIn=%s, tokensOut=%s, cached=%s',
+      agentId, telemetry.tokensIn, telemetry.tokensOut, telemetry.cached);
     this.bus.emit({
       type: 'agent:telemetry',
       agentId,
@@ -229,6 +242,40 @@ export class WorkflowEventEmitter {
     this.bus.emit({
       type: 'controller:model',
       model,
+    });
+  }
+
+  /**
+   * Emit controller telemetry update
+   */
+  updateControllerTelemetry(telemetry: Partial<AgentTelemetry>): void {
+    debug('[TELEMETRY:3-EMITTER] [CONTROLLER] controller:telemetry event → tokensIn=%s, tokensOut=%s, cached=%s',
+      telemetry.tokensIn, telemetry.tokensOut, telemetry.cached);
+    this.bus.emit({
+      type: 'controller:telemetry',
+      telemetry,
+    });
+  }
+
+  /**
+   * Emit controller status change (only call during onboarding phase)
+   */
+  updateControllerStatus(status: AgentStatus): void {
+    debug('[Emitter] controller:status status=%s', status);
+    this.bus.emit({
+      type: 'controller:status',
+      status,
+    });
+  }
+
+  /**
+   * Emit controller monitoring ID registration (only call during onboarding phase)
+   */
+  registerControllerMonitoring(monitoringId: number): void {
+    debug('[Emitter] controller:monitoring monitoringId=%d', monitoringId);
+    this.bus.emit({
+      type: 'controller:monitoring',
+      monitoringId,
     });
   }
 

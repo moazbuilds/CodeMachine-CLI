@@ -12,7 +12,7 @@ import { debug } from '../logging/logger.js';
 const TEMPLATE_TRACKING_FILE = 'template.json';
 
 interface TemplateTracking {
-  autonomousMode?: boolean;
+  autonomousMode?: string; // 'true' | 'false' | 'never' | 'always'
   controllerConfig?: ControllerConfig;
   resumeFromLastStep?: boolean;
   lastUpdated?: string;
@@ -126,7 +126,7 @@ export async function initControllerAgent(
  * Load controller configuration from template.json
  */
 export async function loadControllerConfig(cmRoot: string): Promise<{
-  autonomousMode: boolean;
+  autonomousMode: string;
   controllerConfig: ControllerConfig | null;
 } | null> {
   debug('[Controller] loadControllerConfig called with cmRoot=%s', cmRoot);
@@ -141,8 +141,16 @@ export async function loadControllerConfig(cmRoot: string): Promise<{
   try {
     const content = await readFile(trackingPath, 'utf8');
     const data = JSON.parse(content) as TemplateTracking;
+    // Handle backward compatibility for boolean values
+    let autoMode = 'false';
+    if (typeof data.autonomousMode === 'boolean') {
+      autoMode = data.autonomousMode ? 'true' : 'false';
+    } else if (data.autonomousMode) {
+      autoMode = data.autonomousMode;
+    }
+
     const result = {
-      autonomousMode: data.autonomousMode ?? false,
+      autonomousMode: autoMode,
       controllerConfig: data.controllerConfig ?? null,
     };
     debug('[Controller] Loaded config: autonomousMode=%s controllerConfig=%o', result.autonomousMode, result.controllerConfig);
@@ -159,7 +167,7 @@ export async function loadControllerConfig(cmRoot: string): Promise<{
 export async function saveControllerConfig(
   cmRoot: string,
   config: ControllerConfig,
-  autonomousMode = true
+  autonomousMode = 'true'
 ): Promise<void> {
   const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
 
@@ -189,7 +197,7 @@ export async function saveControllerConfig(
  * Set autonomous mode on/off
  * Emits workflow:mode-change event for real-time reactivity
  */
-export async function setAutonomousMode(cmRoot: string, enabled: boolean): Promise<void> {
+export async function setAutonomousMode(cmRoot: string, enabled: string): Promise<void> {
   const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
 
   let data: TemplateTracking = {};
@@ -233,7 +241,7 @@ export async function clearControllerConfig(cmRoot: string): Promise<void> {
     const content = await readFile(trackingPath, 'utf8');
     const data = JSON.parse(content) as TemplateTracking;
 
-    data.autonomousMode = false;
+    data.autonomousMode = 'false';
     delete data.controllerConfig;
     data.lastUpdated = new Date().toISOString();
 

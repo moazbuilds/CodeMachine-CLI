@@ -1,6 +1,6 @@
 export default {
   name: 'Test Workflow',
-  controller: true,
+  controller: controller('test-controller'),
   tracks: {
     question: 'What type of project workflow do you want?',
     options: {

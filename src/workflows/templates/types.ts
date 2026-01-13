@@ -1,5 +1,7 @@
 export type UnknownRecord = Record<string, unknown>;
 
+import type { ControllerDefinition } from '../../shared/workflows/controller-helper.js';
+
 export interface LoopModuleBehavior {
   type: 'loop';
   action: 'stepBack';
@@ -92,8 +94,9 @@ export interface WorkflowTemplate {
   subAgentIds?: string[];
   tracks?: TracksConfig; // Track selection with question and options
   conditionGroups?: ConditionGroup[]; // Grouped conditions with optional nested children
-  controller?: boolean; // Enables autonomous mode with controller agent selection
+  controller?: ControllerDefinition; // Controller agent for pre-workflow conversation
   specification?: boolean; // If true, requires specification file before workflow can start
+  autonomousMode?: 'true' | 'false' | 'never' | 'always'; // Initial autonomous mode setting (default: 'true')
 }
 
 export type ModuleName = ModuleStep['agentId'];

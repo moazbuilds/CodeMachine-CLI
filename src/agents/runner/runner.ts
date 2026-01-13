@@ -292,7 +292,10 @@ export async function executeAgent(
   let monitoringAgentId: number | undefined;
 
   if (monitor && loggerService) {
-    if (resumeMonitoringId !== undefined) {
+    // Check if resumeMonitoringId is valid (agent still exists in DB)
+    const resumeAgentExists = resumeMonitoringId !== undefined && monitor.getAgent(resumeMonitoringId) !== undefined;
+
+    if (resumeMonitoringId !== undefined && resumeAgentExists) {
       // RESUME: Use existing monitoring entry (skip registration, use existing log file)
       monitoringAgentId = resumeMonitoringId;
       debug(`[AgentRunner] RESUME: Using existing monitoringId=%d, skipping registration`, monitoringAgentId);
@@ -314,6 +317,9 @@ export async function executeAgent(
         ui.registerMonitoringId(uniqueAgentId, monitoringAgentId);
       }
     } else {
+      if (resumeMonitoringId !== undefined && !resumeAgentExists) {
+        debug(`[AgentRunner] RESUME: monitoringId=%d no longer exists in DB, will register new agent`, resumeMonitoringId);
+      }
       // NEW EXECUTION: Register new monitoring entry
       const promptForDisplay = displayPrompt || prompt;
       debug(`[AgentRunner] NEW: Registering new monitoring entry for agentId=%s`, agentId);

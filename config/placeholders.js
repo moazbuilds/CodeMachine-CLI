@@ -49,5 +49,8 @@ module.exports = {
 
     // BMAD PO controller workflow
     po_workflow: path.join('prompts', 'templates', 'bmad', 'controller', 'workflow.md'),
+
+    // Ali Workflow Builder shared files
+    ali_step_completion: path.join('prompts', 'templates', 'ali', 'shared', 'step-completion.md'),
   }
 };

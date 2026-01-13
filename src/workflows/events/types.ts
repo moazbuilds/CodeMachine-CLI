@@ -49,6 +49,11 @@ export interface ProgressState {
   stepName?: string;
 }
 
+/**
+ * Workflow phase - distinguishes onboarding (controller chat) from workflow execution
+ */
+export type WorkflowPhase = 'onboarding' | 'executing';
+
 // ─────────────────────────────────────────────────────────────────
 // Onboarding Types
 // ─────────────────────────────────────────────────────────────────
@@ -56,7 +61,7 @@ export interface ProgressState {
 /**
  * Onboarding step identifiers
  */
-export type OnboardStep = 'project_name' | 'tracks' | 'condition_group' | 'condition_child' | 'controller' | 'launching';
+export type OnboardStep = 'project_name' | 'tracks' | 'condition_group' | 'condition_child';
 
 /**
  * Onboarding configuration passed to service
@@ -64,7 +69,6 @@ export type OnboardStep = 'project_name' | 'tracks' | 'condition_group' | 'condi
 export interface OnboardConfig {
   hasTracks: boolean;
   hasConditions: boolean;
-  hasController: boolean;
   initialProjectName?: string | null;
 }
 
@@ -75,7 +79,6 @@ export interface OnboardResult {
   projectName?: string;
   trackId?: string;
   conditions?: string[];
-  controllerAgentId?: string;
 }
 
 /**
@@ -94,6 +97,9 @@ export type WorkflowEvent =
   | { type: 'controller:info'; id: string; name: string; engine: string; model?: string }
   | { type: 'controller:engine'; engine: string }
   | { type: 'controller:model'; model: string }
+  | { type: 'controller:telemetry'; telemetry: Partial<AgentTelemetry> }
+  | { type: 'controller:status'; status: AgentStatus }
+  | { type: 'controller:monitoring'; monitoringId: number }
 
   // Sub-agent events
   | { type: 'subagent:added'; parentId: string; subAgent: SubAgentState }
@@ -108,6 +114,7 @@ export type WorkflowEvent =
   | { type: 'workflow:status'; status: WorkflowStatus }
   | { type: 'workflow:started'; workflowName: string; totalSteps: number }
   | { type: 'workflow:stopped'; reason?: string }
+  | { type: 'workflow:phase'; phase: WorkflowPhase }
 
   // Loop events
   | { type: 'loop:state'; loopState: LoopState | null }
@@ -143,14 +150,7 @@ export type WorkflowEvent =
   | { type: 'onboard:condition'; conditionId: string; groupIndex: number; isChild: boolean }
   | { type: 'onboard:conditions_confirmed'; conditions: string[]; groupIndex: number }
   | { type: 'onboard:completed'; result: OnboardResult }
-  | { type: 'onboard:cancelled' }
-
-  // Controller launching events (during onboarding)
-  | { type: 'onboard:launching_started'; controllerId: string; controllerName: string }
-  | { type: 'onboard:launching_log'; message: string }
-  | { type: 'onboard:launching_monitor'; monitoringId: number }
-  | { type: 'onboard:launching_completed'; controllerId: string }
-  | { type: 'onboard:launching_failed'; controllerId: string; error: string };
+  | { type: 'onboard:cancelled' };
 
 /**
  * Extract event type from WorkflowEvent union

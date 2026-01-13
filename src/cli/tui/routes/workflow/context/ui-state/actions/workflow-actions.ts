@@ -4,7 +4,9 @@
  * Actions for managing workflow status and checkpoint state.
  */
 
-import type { WorkflowState, WorkflowStatus, LoopState, ChainedState, InputState, TriggeredAgentState, ControllerState } from "../types"
+import type { WorkflowState, WorkflowStatus, WorkflowPhase, LoopState, ChainedState, InputState, TriggeredAgentState, ControllerState,
+  AutonomousMode, AgentTelemetry, AgentStatus } from "../types"
+import { debug } from "../../../../../../../shared/logging/logger.js"
 
 export type WorkflowActionsContext = {
   getState(): WorkflowState
@@ -140,7 +142,7 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
     ctx.notify()
   }
 
-  function setAutonomousMode(enabled: boolean): void {
+  function setAutonomousMode(enabled: AutonomousMode): void {
     const state = ctx.getState()
     if (state.autonomousMode === enabled) return
     ctx.setState({ ...state, autonomousMode: enabled })
@@ -153,9 +155,80 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
     ctx.notify()
   }
 
+  function updateControllerTelemetry(telemetry: Partial<AgentTelemetry>): void {
+    const state = ctx.getState()
+    if (!state.controllerState) return
+
+    const current = state.controllerState.telemetry
+    // Context = input (uncached) + cached tokens
+    const currentContext = (telemetry.tokensIn ?? 0) + (telemetry.cached ?? 0)
+    // Replace telemetry values (like step agent) - shows current context, not accumulated
+    const newTokensIn = currentContext > 0 ? currentContext : current.tokensIn
+    const newTokensOut = telemetry.tokensOut ?? current.tokensOut
+    const newCached = telemetry.cached ?? current.cached
+    // Cost accumulates
+    const newCost = (current.cost ?? 0) + (telemetry.cost ?? 0) || undefined
+
+    debug('[TELEMETRY:5-ACTIONS] [CONTROLLER] updateControllerTelemetry')
+    debug('[TELEMETRY:5-ACTIONS] [CONTROLLER]   INPUT: uncached=%d + cached=%d = context=%d, output=%d',
+      telemetry.tokensIn ?? 0, telemetry.cached ?? 0, currentContext, telemetry.tokensOut ?? 0)
+    debug('[TELEMETRY:5-ACTIONS] [CONTROLLER]   RESULT: context=%d, output=%d (REPLACES previous)', newTokensIn, newTokensOut)
+
+    ctx.setState({
+      ...state,
+      controllerState: {
+        ...state.controllerState,
+        telemetry: {
+          tokensIn: newTokensIn,
+          tokensOut: newTokensOut,
+          cached: newCached,
+          cost: newCost,
+        },
+      },
+    })
+    ctx.notify()
+  }
+
+  function updateControllerStatus(status: AgentStatus): void {
+    const state = ctx.getState()
+    if (!state.controllerState) return
+    if (state.controllerState.status === status) return
+
+    ctx.setState({
+      ...state,
+      controllerState: {
+        ...state.controllerState,
+        status,
+      },
+    })
+    ctx.notify()
+  }
+
+  function updateControllerMonitoring(monitoringId: number): void {
+    const state = ctx.getState()
+    if (!state.controllerState) return
+
+    ctx.setState({
+      ...state,
+      controllerState: {
+        ...state.controllerState,
+        monitoringId,
+      },
+    })
+    ctx.notify()
+  }
+
+  function setWorkflowPhase(phase: WorkflowPhase): void {
+    const state = ctx.getState()
+    if (state.phase === phase) return
+    ctx.setState({ ...state, phase })
+    ctx.notify()
+  }
+
   return {
     setWorkflowName,
     setWorkflowStatus,
+    setWorkflowPhase,
     setCheckpointState,
     setInputState,
     setChainedState,
@@ -166,5 +239,8 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
     logMessage,
     setAutonomousMode,
     setControllerState,
+    updateControllerTelemetry,
+    updateControllerStatus,
+    updateControllerMonitoring,
   }
 }

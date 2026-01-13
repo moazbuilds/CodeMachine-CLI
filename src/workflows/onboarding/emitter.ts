@@ -17,7 +17,7 @@ import type { OnboardConfig, OnboardResult, OnboardStep } from '../events/types.
  * const bus = new WorkflowEventBus();
  * const emitter = new OnboardingEmitter(bus);
  *
- * emitter.started({ hasTracks: true, hasConditions: false, hasController: true });
+ * emitter.started({ hasTracks: true, hasConditions: false });
  * emitter.stepChanged('tracks', 'Select a track:');
  * emitter.trackSelected('bmad');
  * ```
@@ -38,10 +38,9 @@ export class OnboardingEmitter {
    */
   started(config: OnboardConfig): void {
     debug(
-      '[Onboarding] started hasTracks=%s hasConditions=%s hasController=%s initialProjectName=%s',
+      '[Onboarding] started hasTracks=%s hasConditions=%s initialProjectName=%s',
       config.hasTracks,
       config.hasConditions,
-      config.hasController,
       config.initialProjectName ?? '(none)'
     );
     this.bus.emit({
@@ -67,11 +66,10 @@ export class OnboardingEmitter {
    */
   completed(result: OnboardResult): void {
     debug(
-      '[Onboarding] completed projectName=%s trackId=%s conditions=%o controllerAgentId=%s',
+      '[Onboarding] completed projectName=%s trackId=%s conditions=%o',
       result.projectName ?? '(none)',
       result.trackId ?? '(none)',
-      result.conditions ?? [],
-      result.controllerAgentId ?? '(none)'
+      result.conditions ?? []
     );
     this.bus.emit({
       type: 'onboard:completed',
@@ -149,66 +147,6 @@ export class OnboardingEmitter {
     });
   }
 
-  // ─────────────────────────────────────────────────────────────────
-  // Controller Launching Events
-  // ─────────────────────────────────────────────────────────────────
-
-  /**
-   * Emit controller launching started event
-   */
-  launchingStarted(controllerId: string, controllerName: string): void {
-    debug('[Onboarding] launching started controllerId="%s" controllerName="%s"', controllerId, controllerName);
-    this.bus.emit({
-      type: 'onboard:launching_started',
-      controllerId,
-      controllerName,
-    });
-  }
-
-  /**
-   * Emit controller launching log message
-   */
-  launchingLog(message: string): void {
-    debug('[Onboarding] launching log message="%s"', message);
-    this.bus.emit({
-      type: 'onboard:launching_log',
-      message,
-    });
-  }
-
-  /**
-   * Emit controller launching monitoring ID (for log file streaming)
-   */
-  launchingMonitor(monitoringId: number): void {
-    debug('[Onboarding] launching monitor monitoringId=%d', monitoringId);
-    this.bus.emit({
-      type: 'onboard:launching_monitor',
-      monitoringId,
-    });
-  }
-
-  /**
-   * Emit controller launching completed event
-   */
-  launchingCompleted(controllerId: string): void {
-    debug('[Onboarding] launching completed controllerId="%s"', controllerId);
-    this.bus.emit({
-      type: 'onboard:launching_completed',
-      controllerId,
-    });
-  }
-
-  /**
-   * Emit controller launching failed event
-   */
-  launchingFailed(controllerId: string, error: string): void {
-    debug('[Onboarding] launching failed controllerId="%s" error="%s"', controllerId, error);
-    this.bus.emit({
-      type: 'onboard:launching_failed',
-      controllerId,
-      error,
-    });
-  }
 }
 
 /**
