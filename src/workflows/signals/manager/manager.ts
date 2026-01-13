@@ -23,6 +23,7 @@ import { handlePauseSignal } from '../handlers/pause.js';
 import { handleSkipSignal } from '../handlers/skip.js';
 import { handleStopSignal } from '../handlers/stop.js';
 import { handleModeChangeSignal } from '../handlers/mode.js';
+import { handleReturnToControllerSignal } from '../handlers/return-to-controller.js';
 
 /**
  * SignalManager - central coordinator for all workflow signals
@@ -97,6 +98,17 @@ export class SignalManager implements SignalContext {
     process.on('workflow:mode-change', modeHandler);
     this.cleanupFns.push(() =>
       process.removeListener('workflow:mode-change', modeHandler)
+    );
+
+    // Return to controller signal ('C' key during executing phase)
+    const returnToControllerHandler = () => {
+      handleReturnToControllerSignal(this).catch(err =>
+        debug('[SignalManager] Return to controller handler error: %s', err.message)
+      );
+    };
+    process.on('workflow:return-to-controller', returnToControllerHandler);
+    this.cleanupFns.push(() =>
+      process.removeListener('workflow:return-to-controller', returnToControllerHandler)
     );
 
     debug('[SignalManager] All listeners registered');

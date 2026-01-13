@@ -53,6 +53,12 @@ export interface UseWorkflowKeyboardOptions {
   isAutonomousMode?: () => boolean
   /** Toggle autonomous mode on/off */
   toggleAutonomousMode?: () => void
+  /** Show controller continue confirmation modal */
+  showControllerContinue?: () => void
+  /** Return to controller conversation (pause workflow and re-enter controller) */
+  returnToController?: () => void
+  /** Check if workflow has a controller */
+  hasController?: () => boolean
 }
 
 /**
@@ -88,7 +94,7 @@ export function useWorkflowKeyboard(options: UseWorkflowKeyboardOptions) {
       }
 
       // Normal case: skip current agent
-      ;(process as NodeJS.EventEmitter).emit("workflow:skip")
+      ; (process as NodeJS.EventEmitter).emit("workflow:skip")
       return
     }
 
@@ -134,6 +140,17 @@ export function useWorkflowKeyboard(options: UseWorkflowKeyboardOptions) {
       return
     }
 
+    // C key - return to controller conversation (only during executing phase)
+    if (evt.name === "c") {
+      const s = options.getState()
+      if (s.phase === 'executing' && options.hasController?.()) {
+        evt.preventDefault()
+        debug('C pressed - returning to controller')
+        options.returnToController?.()
+        return
+      }
+    }
+
     // Arrow up - navigate to previous item
     if (evt.name === "up") {
       evt.preventDefault()
@@ -162,10 +179,10 @@ export function useWorkflowKeyboard(options: UseWorkflowKeyboardOptions) {
       evt.preventDefault()
       const s = options.getState()
 
-      // In onboarding phase, Enter continues to workflow execution
+      // In onboarding phase, Enter shows confirmation modal before continuing to workflow
       if (s.phase === 'onboarding') {
-        debug('Enter pressed in onboarding phase - emitting controller-continue')
-        ;(process as NodeJS.EventEmitter).emit('workflow:controller-continue')
+        debug('Enter pressed in onboarding phase - showing controller continue modal')
+        options.showControllerContinue?.()
         return
       }
 

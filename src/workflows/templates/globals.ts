@@ -1,12 +1,14 @@
 import { resolveFolder, resolveModule, resolveStep, separator } from '../utils/index.js';
+import { controller } from '../../shared/workflows/controller-helper.js';
 
-type TemplateGlobalProvider = typeof resolveStep | typeof resolveFolder | typeof resolveModule | typeof separator;
+type TemplateGlobalProvider = typeof resolveStep | typeof resolveFolder | typeof resolveModule | typeof separator | typeof controller;
 
 const templateGlobals = {
   resolveStep,
   resolveFolder,
   resolveModule,
   separator,
+  controller,
 } satisfies Record<string, TemplateGlobalProvider>;
 
 export function ensureTemplateGlobals(): void {

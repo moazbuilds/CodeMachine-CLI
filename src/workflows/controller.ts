@@ -2,19 +2,22 @@
  * Controller Phase
  *
  * Runs the controller agent before workflow steps begin.
- * Sets phase='onboarding', runs controller in conversational loop,
- * waits for user to press Enter to continue, then switches to phase='executing'.
+ * Sets phase='onboarding' with autonomousMode='never' for pre-workflow conversation,
+ * then transitions to phase='executing' with autonomousMode='true'.
  */
 
 import type { WorkflowTemplate } from './templates/types.js';
 import type { WorkflowEventBus } from './events/event-bus.js';
 import type { WorkflowEventEmitter } from './events/emitter.js';
 import {
-  getControllerAgents,
   initControllerAgent,
   loadControllerConfig,
+  setAutonomousMode,
 } from '../shared/workflows/controller.js';
+import { isControllerDefinition } from '../shared/workflows/controller-helper.js';
+import { collectAgentDefinitions } from '../shared/agents/discovery/catalog.js';
 import { executeAgent } from '../agents/runner/runner.js';
+import { AgentLoggerService } from '../agents/monitoring/index.js';
 import { registry } from '../infra/engines/index.js';
 import { debug } from '../shared/logging/logger.js';
 
@@ -37,12 +40,12 @@ export interface ControllerPhaseResult {
  * Run the controller phase if needed.
  *
  * This function:
- * 1. Checks if controller is required (template.controller === true)
+ * 1. Checks if controller is defined via controller() function
  * 2. Checks if controller session already exists (skip if so)
- * 3. Sets phase to 'onboarding'
- * 4. Initializes and runs the controller agent
- * 5. Waits for user to press Enter (via workflow:controller-continue event)
- * 6. Sets phase to 'executing'
+ * 3. Sets autonomousMode='never' and phase='onboarding'
+ * 4. Initializes and runs the controller agent conversation
+ * 5. Waits for user to press Enter to continue
+ * 6. Sets autonomousMode='true' and phase='executing'
  *
  * @returns Result indicating if controller ran
  */
@@ -53,38 +56,44 @@ export async function runControllerPhase(
 
   debug('[ControllerPhase] Starting controller phase check');
 
-  // Check if template requires controller
-  if (template.controller !== true) {
-    debug('[ControllerPhase] Template does not require controller, skipping');
+  // Check if template has controller definition
+  if (!template.controller || !isControllerDefinition(template.controller)) {
+    debug('[ControllerPhase] Template does not have controller definition, skipping');
     return { ran: false };
   }
+
+  const definition = template.controller;
+  debug('[ControllerPhase] Controller definition found: %s', definition.agentId);
 
   // Check if controller session already exists
   const existingConfig = await loadControllerConfig(cmRoot);
   if (existingConfig?.controllerConfig?.sessionId) {
     debug('[ControllerPhase] Controller session already exists, skipping init');
-    // Still set autonomous mode if controller exists
+    // Transition to executing phase with autonomous mode
+    await setAutonomousMode(cmRoot, 'true');
     emitter.setWorkflowPhase('executing');
     return { ran: false };
   }
 
-  // Get available controller agents
-  const controllerAgents = await getControllerAgents(cwd);
-  if (controllerAgents.length === 0) {
-    debug('[ControllerPhase] No controller agents found, skipping');
-    emitter.setWorkflowPhase('executing');
-    return { ran: false };
+  // Find the controller agent from available agents
+  const allAgents = await collectAgentDefinitions(cwd);
+  const controller = allAgents.find(a => a.id === definition.agentId);
+  if (!controller) {
+    debug('[ControllerPhase] Controller agent not found: %s', definition.agentId);
+    throw new Error(`Controller agent not found: ${definition.agentId}`);
   }
 
-  // Use first controller agent (could add selection logic later)
-  const controller = controllerAgents[0];
   debug('[ControllerPhase] Using controller agent: %s', controller.id);
 
-  // Resolve engine and model
+  // Resolve engine and model (definition options override agent config)
   const defaultEngine = registry.getDefault();
-  const engineType = controller.engine ?? defaultEngine?.metadata.id ?? 'claude';
+  const engineType = definition.options?.engine ?? controller.engine ?? defaultEngine?.metadata.id ?? 'claude';
   const engineModule = registry.get(engineType);
-  const resolvedModel = controller.model ?? engineModule?.metadata.defaultModel;
+  const resolvedModel = definition.options?.model ?? controller.model ?? engineModule?.metadata.defaultModel;
+
+  // Set autonomous mode to 'never' for controller conversation phase
+  debug('[ControllerPhase] Setting autonomousMode to never for controller conversation');
+  await setAutonomousMode(cmRoot, 'never');
 
   // Set phase to onboarding
   debug('[ControllerPhase] Setting phase to onboarding');
@@ -105,6 +114,7 @@ export async function runControllerPhase(
   if (!promptPath) {
     debug('[ControllerPhase] Controller has no prompt path, skipping');
     emitter.updateControllerStatus('failed');
+    await setAutonomousMode(cmRoot, 'true');
     emitter.setWorkflowPhase('executing');
     return { ran: false };
   }
@@ -157,6 +167,11 @@ export async function runControllerPhase(
     // Clear input state and switch to executing phase
     emitter.setInputState(null);
     emitter.updateControllerStatus('completed');
+
+    // Transition to autonomous mode for workflow execution
+    debug('[ControllerPhase] Transitioning to autonomousMode=true for workflow execution');
+    await setAutonomousMode(cmRoot, 'true');
+
     emitter.setWorkflowPhase('executing');
 
     return { ran: true, agentId: controller.id };
@@ -164,6 +179,7 @@ export async function runControllerPhase(
     debug('[ControllerPhase] Controller phase failed: %s', (error as Error).message);
     emitter.setInputState(null);
     emitter.updateControllerStatus('failed');
+    await setAutonomousMode(cmRoot, 'true');
     emitter.setWorkflowPhase('executing');
     throw error;
   }
@@ -210,8 +226,12 @@ async function runControllerConversationLoop(options: ConversationLoopOptions): 
       try {
         emitter.updateControllerStatus('running');
 
+        // Echo user input to log file so it's visible in the UI
+        const loggerService = AgentLoggerService.getInstance();
+        loggerService.write(monitoringId, `\n\n━━━ USER ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${data.prompt}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`);
+
         debug('[ControllerPhase] Resuming conversation with sessionId=%s', sessionId);
-        await executeAgent(agentId, '', {
+        await executeAgent(agentId, data.prompt, {
           workingDir: cwd,
           resumeSessionId: sessionId,
           resumePrompt: data.prompt,

@@ -8,7 +8,7 @@
 import * as path from 'node:path';
 import type { WorkflowTemplate } from './templates/types.js';
 import { loadTemplateWithPath } from './templates/loader.js';
-import { getTemplatePathFromTracking, getSelectedTrack, hasSelectedConditions, getProjectName, loadControllerConfig, getControllerAgents } from '../shared/workflows/index.js';
+import { getTemplatePathFromTracking, getSelectedTrack, hasSelectedConditions, getProjectName } from '../shared/workflows/index.js';
 import { validateSpecification } from '../runtime/services/index.js';
 import { ensureWorkspaceStructure } from '../runtime/services/workspace/index.js';
 import type { AgentDefinition } from '../shared/agents/config/types.js';
@@ -23,7 +23,7 @@ export interface OnboardingNeeds {
   needsTrackSelection: boolean;
   needsConditionsSelection: boolean;
   needsControllerSelection: boolean;
-  /** Controller agents available for selection (only populated if needsControllerSelection is true) */
+  /** @deprecated Controller is now pre-specified via controller() function */
   controllerAgents: AgentDefinition[];
   /** The loaded template for reference */
   template: WorkflowTemplate;
@@ -56,14 +56,9 @@ export async function checkOnboardingRequired(options: { cwd?: string } = {}): P
   const needsConditionsSelection = hasConditionGroups && !conditionsSelected;
   const needsProjectName = !existingProjectName;
 
-  // Check controller requirement
-  let controllerAgents: AgentDefinition[] = [];
-  const existingControllerConfig = await loadControllerConfig(cmRoot);
-  const hasExistingControllerSession = existingControllerConfig?.controllerConfig?.sessionId;
-  if (template.controller === true && !hasExistingControllerSession) {
-    controllerAgents = await getControllerAgents(cwd);
-  }
-  const needsControllerSelection = controllerAgents.length > 0;
+  // Controller is now pre-specified via controller() function - no selection needed
+  const needsControllerSelection = false;
+  const controllerAgents: AgentDefinition[] = [];
 
   return {
     needsProjectName,

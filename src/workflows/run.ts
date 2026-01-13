@@ -242,7 +242,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   indexManager.setCurrentStepIndex(startIndex);
 
   // Run controller phase if needed (blocks until controller done + user confirms)
-  await runControllerPhase({
+  const controllerResult = await runControllerPhase({
     cwd,
     cmRoot,
     template,
@@ -250,13 +250,28 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     eventBus,
   });
 
+  // If controller ran, skip the first step (the controller agent itself)
+  // This prevents the controller from being re-run as a step
+  let actualStartIndex = startIndex;
+  if (controllerResult.ran && startIndex === 0 && moduleSteps.length > 0) {
+    const firstStep = moduleSteps[0];
+    // Only skip if the first step is the controller agent
+    if (firstStep.agentId === controllerResult.agentId) {
+      debug('[Workflow] Controller phase ran, skipping step 0 (controller agent: %s)', controllerResult.agentId);
+      actualStartIndex = 1;
+      // Mark step 0 as completed in the index manager
+      indexManager.setCurrentStepIndex(1);
+      await indexManager.stepCompleted(0);
+    }
+  }
+
   // Create and run workflow
   const runner = new WorkflowRunner({
     cwd,
     cmRoot,
     template: { ...template, steps: visibleSteps },
     emitter,
-    startIndex,
+    startIndex: actualStartIndex,
     indexManager,
     status,
   });
@@ -264,7 +279,7 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   // Cleanup function for MCP
   const doMCPCleanup = async () => {
     debug('[Workflow] Cleaning up MCP...');
-    await cleanupWorkflowMCP(template, cwd).catch(() => {});
+    await cleanupWorkflowMCP(template, cwd).catch(() => { });
   };
 
   // Handle SIGINT (Ctrl+C) for cleanup

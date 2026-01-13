@@ -14,7 +14,7 @@ import { useUIState } from "./context/ui-state"
 import { AgentTimeline } from "./components/timeline"
 import { OutputWindow, TelemetryBar, StatusFooter } from "./components/output"
 import { useTimer } from "@tui/shared/services"
-import { CheckpointModal, LogViewer, HistoryView, StopModal, ErrorModal } from "./components/modals"
+import { CheckpointModal, LogViewer, HistoryView, StopModal, ErrorModal, ControllerContinueModal } from "./components/modals"
 import { OpenTUIAdapter } from "./adapters/opentui"
 import { useLogStream } from "./hooks/useLogStream"
 import { useSubAgentSync } from "./hooks/useSubAgentSync"
@@ -301,9 +301,29 @@ export function WorkflowShell(props: WorkflowShellProps) {
     setShowStopModal(false)
   }
 
+  // Controller continue confirmation modal state
+  const [showControllerContinueModal, setShowControllerContinueModal] = createSignal(false)
+
+  const handleControllerContinueConfirm = () => {
+    setShowControllerContinueModal(false)
+      ; (process as NodeJS.EventEmitter).emit('workflow:controller-continue')
+  }
+
+  const handleControllerContinueCancel = () => {
+    setShowControllerContinueModal(false)
+    // Focus back to prompt box
+    setIsPromptBoxFocused(true)
+  }
+
   // Unified prompt submit handler - uses single workflow:input event
   const handlePromptSubmit = (prompt: string) => {
     if (isWaitingForInput()) {
+      // In onboarding phase, empty prompt shows confirmation dialog instead of ending immediately
+      if (isOnboardingPhase() && (!prompt || prompt.trim() === '')) {
+        debug('Empty prompt in onboarding phase - showing confirmation dialog')
+        setShowControllerContinueModal(true)
+        return
+      }
       ; (process as NodeJS.EventEmitter).emit("workflow:input", { prompt: prompt || undefined })
       setIsPromptBoxFocused(false)
     }
@@ -406,7 +426,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
       }
     },
     calculateVisibleItems: getVisibleItems,
-    isModalBlocking: () => isCheckpointActive() || modals.isLogViewerActive() || modals.isHistoryActive() || modals.isHistoryLogViewerActive() || showStopModal() || isErrorModalActive(),
+    isModalBlocking: () => isCheckpointActive() || modals.isLogViewerActive() || modals.isHistoryActive() || modals.isHistoryLogViewerActive() || showStopModal() || isErrorModalActive() || showControllerContinueModal(),
     isPromptBoxFocused: () => isPromptBoxFocused(),
     isWaitingForInput,
     hasQueuedPrompts,
@@ -425,6 +445,12 @@ export function WorkflowShell(props: WorkflowShellProps) {
     exitPromptBoxFocus: () => setIsPromptBoxFocused(false),
     isAutonomousMode: () => state().autonomousMode === 'true' || state().autonomousMode === 'always',
     toggleAutonomousMode,
+    showControllerContinue: () => setShowControllerContinueModal(true),
+    hasController: () => !!state().controllerState,
+    returnToController: () => {
+      debug('Returning to controller - emitting workflow:return-to-controller')
+        ; (process as NodeJS.EventEmitter).emit('workflow:return-to-controller')
+    },
   })
 
   return (
@@ -465,7 +491,7 @@ export function WorkflowShell(props: WorkflowShellProps) {
 
       <box flexShrink={0} flexDirection="column">
         <TelemetryBar workflowName={state().workflowName} runtime={timer.workflowRuntime()} status={state().workflowStatus} total={totalTelemetry()} autonomousMode={state().autonomousMode} />
-        <StatusFooter autonomousMode={state().autonomousMode} />
+        <StatusFooter autonomousMode={state().autonomousMode} phase={state().phase} hasController={!!state().controllerState} />
       </box>
 
       <Show when={isCheckpointActive()}>
@@ -501,6 +527,12 @@ export function WorkflowShell(props: WorkflowShellProps) {
       <Show when={isErrorModalActive()}>
         <box position="absolute" left={0} top={0} width="100%" height="100%" zIndex={2000}>
           <ErrorModal message={errorMessage()!} onClose={handleErrorModalClose} />
+        </box>
+      </Show>
+
+      <Show when={showControllerContinueModal()}>
+        <box position="absolute" left={0} top={0} width="100%" height="100%" zIndex={2000}>
+          <ControllerContinueModal onConfirm={handleControllerContinueConfirm} onCancel={handleControllerContinueCancel} />
         </box>
       </Show>
     </box>
