@@ -143,7 +143,9 @@ export function useWorkflowKeyboard(options: UseWorkflowKeyboardOptions) {
     // C key - return to controller conversation (only during executing phase)
     if (evt.name === "c") {
       const s = options.getState()
-      if (s.phase === 'executing' && options.hasController?.()) {
+      const hasController = options.hasController?.()
+      debug('C key pressed - phase=%s, hasController=%s', s.phase, hasController)
+      if (s.phase === 'executing' && hasController) {
         evt.preventDefault()
         debug('C pressed - returning to controller')
         options.returnToController?.()

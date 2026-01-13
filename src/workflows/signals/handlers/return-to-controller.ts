@@ -51,11 +51,16 @@ export async function handleReturnToControllerSignal(ctx: SignalContext): Promis
         abortController.abort();
     }
 
+    // CRITICAL: Emit mode-change event with boolean false to abort ControllerInputProvider
+    // This must be done BEFORE switching phases to ensure the controller's executeWithActions aborts
+    debug('[ReturnToControllerSignal] Emitting mode-change with autonomousMode=false to abort controller');
+    (process as NodeJS.EventEmitter).emit('workflow:mode-change', { autonomousMode: false });
+
     // Switch to onboarding phase
     ctx.emitter.setWorkflowPhase('onboarding');
     ctx.emitter.updateControllerStatus('awaiting');
 
-    // Set autonomous mode to never for conversation
+    // Set autonomous mode to never for conversation (file persistence)
     await setAutonomousMode(ctx.cmRoot, 'never');
 
     // Set input state active for controller conversation
