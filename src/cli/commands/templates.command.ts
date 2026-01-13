@@ -44,8 +44,8 @@ async function handleTemplateSelectionSuccess(template: WorkflowTemplate, templa
   // Check if template changed and regenerate agents folder
   const changed = await hasTemplateChanged(cmRoot, templateFileName);
 
-  // Update active template tracking
-  await setActiveTemplate(cmRoot, templateFileName);
+  // Update active template tracking (pass autonomousMode from template if defined)
+  await setActiveTemplate(cmRoot, templateFileName, template.autonomousMode);
 
   if (changed) {
     console.log('\n🔄 Template changed, regenerating agents...');

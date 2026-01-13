@@ -4,7 +4,8 @@
  * Actions for managing workflow status and checkpoint state.
  */
 
-import type { WorkflowState, WorkflowStatus, WorkflowPhase, LoopState, ChainedState, InputState, TriggeredAgentState, ControllerState, AgentTelemetry, AgentStatus } from "../types"
+import type { WorkflowState, WorkflowStatus, WorkflowPhase, LoopState, ChainedState, InputState, TriggeredAgentState, ControllerState,
+  AutonomousMode, AgentTelemetry, AgentStatus } from "../types"
 import { debug } from "../../../../../../../shared/logging/logger.js"
 
 export type WorkflowActionsContext = {
@@ -141,7 +142,7 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
     ctx.notify()
   }
 
-  function setAutonomousMode(enabled: boolean): void {
+  function setAutonomousMode(enabled: AutonomousMode): void {
     const state = ctx.getState()
     if (state.autonomousMode === enabled) return
     ctx.setState({ ...state, autonomousMode: enabled })

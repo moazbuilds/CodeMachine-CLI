@@ -9,8 +9,8 @@
 import { Show } from "solid-js"
 import { useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
-import { formatTokens } from "../../state/formatters"
-import type { WorkflowStatus } from "../../state/types"
+import { formatTokens, formatNumber } from "../../state/formatters"
+import type { WorkflowStatus, AutonomousMode } from "../../state/types"
 
 export interface TelemetryBarProps {
   workflowName: string
@@ -19,8 +19,9 @@ export interface TelemetryBarProps {
   total: {
     tokensIn: number
     tokensOut: number
+    cached?: number
   }
-  autonomousMode?: boolean
+  autonomousMode?: AutonomousMode
 }
 
 /**
@@ -36,7 +37,9 @@ export function TelemetryBar(props: TelemetryBarProps) {
   const isCompact = () => (dimensions()?.width ?? 80) < COMPACT_WIDTH
 
   const totalText = () => {
-    return formatTokens(props.total.tokensIn, props.total.tokensOut)
+    const cached = props.total.cached ?? 0
+    const base = formatTokens(props.total.tokensIn, props.total.tokensOut)
+    return cached > 0 ? `${base} (${formatNumber(cached)} cached)` : base
   }
 
   // Compact token display - no "cached" info
@@ -82,9 +85,9 @@ export function TelemetryBar(props: TelemetryBarProps) {
           <text fg={themeCtx.theme.text}> • </text>
           <text fg={statusColor()}>{statusText()}</text>
         </Show>
-        <Show when={props.autonomousMode}>
+        <Show when={props.autonomousMode === 'true' || props.autonomousMode === 'always'}>
           <text fg={themeCtx.theme.text}> • </text>
-          <text fg={themeCtx.theme.primary}>AUTO</text>
+          <text fg={themeCtx.theme.primary}>{props.autonomousMode === 'always' ? 'AUTO (LOCKED)' : 'AUTO'}</text>
         </Show>
       </box>
 
