@@ -56,8 +56,8 @@ export async function handleReturnToControllerSignal(ctx: SignalContext): Promis
     debug('[ReturnToControllerSignal] Emitting mode-change with autonomousMode=false to abort controller');
     (process as NodeJS.EventEmitter).emit('workflow:mode-change', { autonomousMode: false });
 
-    // Switch to onboarding phase
-    ctx.emitter.setWorkflowPhase('onboarding');
+    // Switch to controller view
+    ctx.emitter.setWorkflowView('controller');
     ctx.emitter.updateControllerStatus('awaiting');
 
     // Set autonomous mode to never for conversation (file persistence)
@@ -89,7 +89,7 @@ export async function handleReturnToControllerSignal(ctx: SignalContext): Promis
     // Clear input state and switch back to executing
     ctx.emitter.setInputState(null);
     ctx.emitter.updateControllerStatus('completed');
-    ctx.emitter.setWorkflowPhase('executing');
+    ctx.emitter.setWorkflowView('executing');
 
     // Restore autonomous mode
     await setAutonomousMode(ctx.cmRoot, 'true');

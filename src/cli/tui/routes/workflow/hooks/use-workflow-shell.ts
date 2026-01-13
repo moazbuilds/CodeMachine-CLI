@@ -60,7 +60,7 @@ export function useWorkflowShell(options: UseWorkflowShellOptions) {
     actions: ui.actions,
     showToast,
     isWaitingForInput: computed.isWaitingForInput,
-    isOnboardingPhase: computed.isOnboardingPhase
+    isControllerView: computed.isControllerView
   })
 
   // Events (adapter, process events)
@@ -75,10 +75,10 @@ export function useWorkflowShell(options: UseWorkflowShellOptions) {
   // Sync sub-agents
   useSubAgentSync(() => state(), ui.actions)
 
-  // Log stream - phase-aware
+  // Log stream - view-aware
   const logStream = useLogStream(() => {
     const s = state()
-    if (s.phase === 'onboarding') {
+    if (s.view === 'controller') {
       return s.controllerState?.monitoringId
     }
     return computed.currentAgent()?.monitoringId
@@ -113,7 +113,7 @@ export function useWorkflowShell(options: UseWorkflowShellOptions) {
 
   // Auto-focus prompt box when input waiting becomes active
   createEffect(() => {
-    if (computed.isWaitingForInput() && (computed.isShowingRunningAgent() || computed.isOnboardingPhase())) {
+    if (computed.isWaitingForInput() && (computed.isShowingRunningAgent() || computed.isControllerView())) {
       handlers.setIsPromptBoxFocused(true)
     } else if (!computed.isWaitingForInput()) {
       handlers.setIsPromptBoxFocused(false)
@@ -185,7 +185,7 @@ export function useWorkflowShell(options: UseWorkflowShellOptions) {
     getCurrentAgentId: () => computed.currentAgent()?.id ?? null,
     canFocusPromptBox: () =>
       computed.isWaitingForInput() &&
-      (computed.isShowingRunningAgent() || computed.isOnboardingPhase()) &&
+      (computed.isShowingRunningAgent() || computed.isControllerView()) &&
       !handlers.isPromptBoxFocused(),
     focusPromptBox: () => handlers.setIsPromptBoxFocused(true),
     exitPromptBoxFocus: () => handlers.setIsPromptBoxFocused(false),

@@ -50,9 +50,9 @@ export interface ProgressState {
 }
 
 /**
- * Workflow phase - distinguishes onboarding (controller chat) from workflow execution
+ * Workflow view - distinguishes controller (controller chat) from workflow execution
  */
-export type WorkflowPhase = 'onboarding' | 'executing';
+export type WorkflowView = 'controller' | 'executing';
 
 // ─────────────────────────────────────────────────────────────────
 // Onboarding Types
@@ -114,7 +114,7 @@ export type WorkflowEvent =
   | { type: 'workflow:status'; status: WorkflowStatus }
   | { type: 'workflow:started'; workflowName: string; totalSteps: number }
   | { type: 'workflow:stopped'; reason?: string }
-  | { type: 'workflow:phase'; phase: WorkflowPhase }
+  | { type: 'workflow:view'; view: WorkflowView }
 
   // Loop events
   | { type: 'loop:state'; loopState: LoopState | null }

@@ -4,7 +4,7 @@
  * Actions for managing workflow status and checkpoint state.
  */
 
-import type { WorkflowState, WorkflowStatus, WorkflowPhase, LoopState, ChainedState, InputState, TriggeredAgentState, ControllerState,
+import type { WorkflowState, WorkflowStatus, WorkflowView, LoopState, ChainedState, InputState, TriggeredAgentState, ControllerState,
   AutonomousMode, AgentTelemetry, AgentStatus } from "../types"
 import { debug } from "../../../../../../../shared/logging/logger.js"
 
@@ -218,17 +218,17 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
     ctx.notify()
   }
 
-  function setWorkflowPhase(phase: WorkflowPhase): void {
+  function setWorkflowView(view: WorkflowView): void {
     const state = ctx.getState()
-    if (state.phase === phase) return
-    ctx.setState({ ...state, phase })
+    if (state.view === view) return
+    ctx.setState({ ...state, view })
     ctx.notify()
   }
 
   return {
     setWorkflowName,
     setWorkflowStatus,
-    setWorkflowPhase,
+    setWorkflowView,
     setCheckpointState,
     setInputState,
     setChainedState,

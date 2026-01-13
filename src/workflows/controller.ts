@@ -2,7 +2,7 @@
  * Controller Phase
  *
  * Runs the controller agent before workflow steps begin.
- * Sets phase='onboarding' with autonomousMode='never' for pre-workflow conversation,
+ * Sets phase='controller' with autonomousMode='never' for pre-workflow conversation,
  * then transitions to phase='executing' with autonomousMode='true'.
  */
 
@@ -44,7 +44,7 @@ export interface ControllerPhaseResult {
  * This function:
  * 1. Checks if controller is defined via controller() function
  * 2. Checks if controller session already exists (skip if so)
- * 3. Sets autonomousMode='never' and phase='onboarding'
+ * 3. Sets autonomousMode='never' and phase='controller'
  * 4. Initializes and runs the controller agent conversation
  * 5. Waits for user to press Enter to continue
  * 6. Sets autonomousMode='true' and phase='executing'
@@ -73,7 +73,7 @@ export async function runControllerPhase(
     debug('[ControllerPhase] Controller session already exists, skipping init');
     // Transition to executing phase with autonomous mode
     await setAutonomousMode(cmRoot, 'true');
-    emitter.setWorkflowPhase('executing');
+    emitter.setWorkflowView('executing');
     return { ran: false };
   }
 
@@ -97,9 +97,9 @@ export async function runControllerPhase(
   debug('[ControllerPhase] Setting autonomousMode to never for controller conversation');
   await setAutonomousMode(cmRoot, 'never');
 
-  // Set phase to onboarding
-  debug('[ControllerPhase] Setting phase to onboarding');
-  emitter.setWorkflowPhase('onboarding');
+  // Set view to controller
+  debug('[ControllerPhase] Setting view to controller');
+  emitter.setWorkflowView('controller');
 
   // Emit controller info for UI
   const controllerName = (controller.name as string | undefined) ?? controller.id;
@@ -117,7 +117,7 @@ export async function runControllerPhase(
     debug('[ControllerPhase] Controller has no prompt path, skipping');
     emitter.updateControllerStatus('failed');
     await setAutonomousMode(cmRoot, 'true');
-    emitter.setWorkflowPhase('executing');
+    emitter.setWorkflowView('executing');
     return { ran: false };
   }
 
@@ -174,7 +174,7 @@ export async function runControllerPhase(
     debug('[ControllerPhase] Transitioning to autonomousMode=true for workflow execution');
     await setAutonomousMode(cmRoot, 'true');
 
-    emitter.setWorkflowPhase('executing');
+    emitter.setWorkflowView('executing');
 
     return { ran: true, agentId: controller.id, monitoringId: controllerMonitoringId };
   } catch (error) {
@@ -182,7 +182,7 @@ export async function runControllerPhase(
     emitter.setInputState(null);
     emitter.updateControllerStatus('failed');
     await setAutonomousMode(cmRoot, 'true');
-    emitter.setWorkflowPhase('executing');
+    emitter.setWorkflowView('executing');
     throw error;
   }
 }

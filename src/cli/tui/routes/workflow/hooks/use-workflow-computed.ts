@@ -19,9 +19,9 @@ export interface TotalTelemetry {
 }
 
 export interface UseWorkflowComputedResult {
-  // Phase checks
-  isOnboardingPhase: Accessor<boolean>
-  isExecutingPhase: Accessor<boolean>
+  // View checks
+  isControllerView: Accessor<boolean>
+  isExecutingView: Accessor<boolean>
 
   // Input state
   isWaitingForInput: Accessor<boolean>
@@ -44,9 +44,9 @@ export interface UseWorkflowComputedResult {
 export function useWorkflowComputed(options: UseWorkflowComputedOptions): UseWorkflowComputedResult {
   const { getState } = options
 
-  // Phase checks
-  const isOnboardingPhase = () => getState().phase === 'onboarding'
-  const isExecutingPhase = () => getState().phase === 'executing'
+  // View checks
+  const isControllerView = () => getState().view === 'controller'
+  const isExecutingView = () => getState().view === 'executing'
 
   // Input state
   const isWaitingForInput = () => getState().inputState?.active ?? false
@@ -60,8 +60,8 @@ export function useWorkflowComputed(options: UseWorkflowComputedOptions): UseWor
   const currentAgent = createMemo((): AgentState | SubAgentState | null => {
     const s = getState()
 
-    // In onboarding phase, there are no step agents
-    if (s.phase === 'onboarding') {
+    // In controller view, there are no step agents
+    if (s.view === 'controller') {
       return null
     }
 
@@ -146,8 +146,8 @@ export function useWorkflowComputed(options: UseWorkflowComputedOptions): UseWor
   const isTimelineCollapsed = () => getState().timelineCollapsed
 
   return {
-    isOnboardingPhase,
-    isExecutingPhase,
+    isControllerView,
+    isExecutingView,
     isWaitingForInput,
     hasQueuedPrompts,
     currentAgent,

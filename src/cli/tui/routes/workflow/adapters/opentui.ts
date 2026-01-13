@@ -7,7 +7,7 @@
 
 import type { WorkflowEvent } from "../../../../../workflows/events/index.js"
 import { debug } from "../../../../../shared/logging/logger.js"
-import type { AgentStatus, SubAgentState, LoopState, ChainedState, InputState, TriggeredAgentState, ControllerState, WorkflowState, WorkflowPhase } from "../state/types.js"
+import type { AgentStatus, SubAgentState, LoopState, ChainedState, InputState, TriggeredAgentState, ControllerState, WorkflowState, WorkflowView } from "../state/types.js"
 import { BaseUIAdapter } from "./base.js"
 import type { UIAdapterOptions } from "./types.js"
 import { timerService } from "@tui/shared/services"
@@ -65,7 +65,7 @@ export interface UIActions {
   updateControllerTelemetry(telemetry: { tokensIn?: number; tokensOut?: number; cached?: number; cost?: number }): void
   updateControllerStatus(status: AgentStatus): void
   updateControllerMonitoring(monitoringId: number): void
-  setWorkflowPhase(phase: WorkflowPhase): void
+  setWorkflowView(view: WorkflowView): void
   /** Reset state for a new workflow */
   reset(workflowName: string): void
 }
@@ -135,9 +135,9 @@ export class OpenTUIAdapter extends BaseUIAdapter {
         this.actions.setWorkflowStatus("stopped")
         break
 
-      case "workflow:phase":
-        debug('[ADAPTER] workflow:phase → phase=%s', event.phase)
-        this.actions.setWorkflowPhase(event.phase)
+      case "workflow:view":
+        debug('[ADAPTER] workflow:view → view=%s', event.view)
+        this.actions.setWorkflowView(event.view)
         break
 
       // Agent events

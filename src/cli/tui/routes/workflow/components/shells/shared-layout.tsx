@@ -3,7 +3,7 @@
  * Shared Layout Component
  *
  * Provides the common layout structure (header, footer, modals) for both
- * onboarding and executing phases.
+ * controller and executing views.
  */
 
 import { Show, type JSX } from "solid-js"
@@ -52,7 +52,7 @@ export function SharedLayout(props: SharedLayoutProps) {
         />
         <StatusFooter
           autonomousMode={shell.state().autonomousMode}
-          phase={shell.state().phase}
+          view={shell.state().view}
           hasController={!!shell.state().controllerState}
         />
       </box>

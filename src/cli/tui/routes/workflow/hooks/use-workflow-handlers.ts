@@ -19,7 +19,7 @@ export interface UseWorkflowHandlersOptions {
   actions: UIActions
   showToast: (variant: "success" | "error" | "info" | "warning", message: string, duration?: number) => void
   isWaitingForInput: Accessor<boolean>
-  isOnboardingPhase: Accessor<boolean>
+  isControllerView: Accessor<boolean>
 }
 
 export interface UseWorkflowHandlersResult {
@@ -56,7 +56,7 @@ export interface UseWorkflowHandlersResult {
 }
 
 export function useWorkflowHandlers(options: UseWorkflowHandlersOptions): UseWorkflowHandlersResult {
-  const { currentDir, actions, showToast, isWaitingForInput, isOnboardingPhase } = options
+  const { currentDir, actions, showToast, isWaitingForInput, isControllerView } = options
 
   // Stop confirmation modal state
   const [showStopModal, setShowStopModal] = createSignal(false)
@@ -93,9 +93,9 @@ export function useWorkflowHandlers(options: UseWorkflowHandlersOptions): UseWor
   // Prompt submit handler
   const handlePromptSubmit = (prompt: string) => {
     if (isWaitingForInput()) {
-      // In onboarding phase, empty prompt shows confirmation dialog
-      if (isOnboardingPhase() && (!prompt || prompt.trim() === '')) {
-        debug('Empty prompt in onboarding phase - showing confirmation dialog')
+      // In controller view, empty prompt shows confirmation dialog
+      if (isControllerView() && (!prompt || prompt.trim() === '')) {
+        debug('Empty prompt in controller view - showing confirmation dialog')
         setShowControllerContinueModal(true)
         return
       }

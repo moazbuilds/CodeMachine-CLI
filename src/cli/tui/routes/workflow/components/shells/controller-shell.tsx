@@ -1,19 +1,19 @@
 /** @jsxImportSource @opentui/solid */
 /**
- * Onboarding Shell Component
+ * Controller Shell Component
  *
- * Renders the onboarding phase layout - full-width output window
+ * Renders the controller view layout - full-width output window
  * for controller conversation (no timeline).
  */
 
 import { OutputWindow } from "../output"
 import type { useWorkflowShell } from "../../hooks/use-workflow-shell"
 
-export interface OnboardingShellProps {
+export interface ControllerShellProps {
   shell: ReturnType<typeof useWorkflowShell>
 }
 
-export function OnboardingShell(props: OnboardingShellProps) {
+export function ControllerShell(props: ControllerShellProps) {
   const { shell } = props
   const availableWidth = () => Math.floor((shell.dimensions()?.width ?? 80) * 1)
 

@@ -96,13 +96,13 @@ export class WorkflowEventEmitter {
   }
 
   /**
-   * Emit workflow phase change (onboarding vs executing)
+   * Emit workflow view change (controller vs executing)
    */
-  setWorkflowPhase(phase: 'onboarding' | 'executing'): void {
-    debug('[Emitter] workflow:phase phase=%s', phase);
+  setWorkflowView(view: 'controller' | 'executing'): void {
+    debug('[Emitter] workflow:view view=%s', view);
     this.bus.emit({
-      type: 'workflow:phase',
-      phase,
+      type: 'workflow:view',
+      view,
     });
   }
 
@@ -258,7 +258,7 @@ export class WorkflowEventEmitter {
   }
 
   /**
-   * Emit controller status change (only call during onboarding phase)
+   * Emit controller status change (only call during controller view)
    */
   updateControllerStatus(status: AgentStatus): void {
     debug('[Emitter] controller:status status=%s', status);
@@ -269,7 +269,7 @@ export class WorkflowEventEmitter {
   }
 
   /**
-   * Emit controller monitoring ID registration (only call during onboarding phase)
+   * Emit controller monitoring ID registration (only call during controller view)
    */
   registerControllerMonitoring(monitoringId: number): void {
     debug('[Emitter] controller:monitoring monitoringId=%d', monitoringId);

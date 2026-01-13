@@ -8,11 +8,11 @@
 
 import { useTheme } from "@tui/shared/context/theme"
 
-import type { AutonomousMode, WorkflowPhase } from "../../state/types"
+import type { AutonomousMode, WorkflowView } from "../../state/types"
 
 export interface StatusFooterProps {
   autonomousMode?: AutonomousMode
-  phase?: WorkflowPhase
+  view?: WorkflowView
   hasController?: boolean
 }
 
@@ -32,9 +32,9 @@ export function StatusFooter(props: StatusFooterProps) {
     }
   }
 
-  // Show controller shortcut only during executing phase if workflow has a controller
+  // Show controller shortcut only during executing view if workflow has a controller
   const controllerText = () =>
-    (props.phase === 'executing' && props.hasController) ? '[C] Controller  ' : ''
+    (props.view === 'executing' && props.hasController) ? '[C] Controller  ' : ''
 
   return (
     <box paddingLeft={1} paddingRight={1}>

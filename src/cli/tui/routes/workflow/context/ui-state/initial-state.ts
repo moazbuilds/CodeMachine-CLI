@@ -13,7 +13,7 @@ export function createInitialState(workflowName: string, totalSteps = 0): Workfl
     workflowName,
     version: packageJson.version,
     packageName: packageJson.name,
-    phase: 'executing',
+    view: 'executing',
     startTime: Date.now(),
     agents: [],
     subAgents: new Map(),

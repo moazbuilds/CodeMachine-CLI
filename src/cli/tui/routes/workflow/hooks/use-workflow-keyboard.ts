@@ -140,12 +140,12 @@ export function useWorkflowKeyboard(options: UseWorkflowKeyboardOptions) {
       return
     }
 
-    // C key - return to controller conversation (only during executing phase)
+    // C key - return to controller conversation (only during executing view)
     if (evt.name === "c") {
       const s = options.getState()
       const hasController = options.hasController?.()
-      debug('C key pressed - phase=%s, hasController=%s', s.phase, hasController)
-      if (s.phase === 'executing' && hasController) {
+      debug('C key pressed - view=%s, hasController=%s', s.view, hasController)
+      if (s.view === 'executing' && hasController) {
         evt.preventDefault()
         debug('C pressed - returning to controller')
         options.returnToController?.()
@@ -181,9 +181,9 @@ export function useWorkflowKeyboard(options: UseWorkflowKeyboardOptions) {
       evt.preventDefault()
       const s = options.getState()
 
-      // In onboarding phase, Enter shows confirmation modal before continuing to workflow
-      if (s.phase === 'onboarding') {
-        debug('Enter pressed in onboarding phase - showing controller continue modal')
+      // In controller view, Enter shows confirmation modal before continuing to workflow
+      if (s.view === 'controller') {
+        debug('Enter pressed in controller view - showing controller continue modal')
         options.showControllerContinue?.()
         return
       }

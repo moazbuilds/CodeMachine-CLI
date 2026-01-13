@@ -2,13 +2,13 @@
 /**
  * Workflow Shell Component
  *
- * Thin router that delegates to phase-specific shell components.
- * Handles the transition between onboarding and executing phases.
+ * Thin router that delegates to view-specific shell components.
+ * Handles the transition between controller and executing views.
  */
 
 import { Switch, Match } from "solid-js"
 import { useWorkflowShell } from "./hooks/use-workflow-shell"
-import { SharedLayout, OnboardingShell, ExecutingShell } from "./components/shells"
+import { SharedLayout, ControllerShell, ExecutingShell } from "./components/shells"
 import type { WorkflowEventBus } from "../../../../workflows/events/index.js"
 
 export interface WorkflowShellProps {
@@ -29,10 +29,10 @@ export function WorkflowShell(props: WorkflowShellProps) {
   return (
     <SharedLayout version={props.version} currentDir={props.currentDir} shell={shell}>
       <Switch>
-        <Match when={shell.isOnboardingPhase()}>
-          <OnboardingShell shell={shell} />
+        <Match when={shell.isControllerView()}>
+          <ControllerShell shell={shell} />
         </Match>
-        <Match when={shell.isExecutingPhase()}>
+        <Match when={shell.isExecutingView()}>
           <ExecutingShell shell={shell} />
         </Match>
       </Switch>

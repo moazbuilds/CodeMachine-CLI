@@ -68,15 +68,15 @@ export function OutputWindow(props: OutputWindowProps) {
   const outputHeaderHeight = () => isWideLayout() ? OUTPUT_HEADER_HEIGHT_WIDE : OUTPUT_HEADER_HEIGHT_NARROW
   const scrollboxHeight = () => Math.max(3, effectiveMaxLines() - outputHeaderHeight() - PROMPT_LINE_HEIGHT)
 
-  // Check if we're in onboarding mode (no step agent, but controller has status)
-  const isOnboardingMode = () => !props.currentAgent && props.controllerState?.status != null
+  // Check if we're in controller view mode (no step agent, but controller has status)
+  const isControllerViewMode = () => !props.currentAgent && props.controllerState?.status != null
 
-  // Check if controller is active (delegated state or onboarding mode)
+  // Check if controller is active (delegated state or controller view mode)
   const isControllerActive = () =>
-    (props.currentAgent?.status === "delegated" && props.controllerState != null) || isOnboardingMode()
+    (props.currentAgent?.status === "delegated" && props.controllerState != null) || isControllerViewMode()
 
-  // Get the effective status (controller in onboarding, step agent otherwise)
-  const effectiveStatus = () => isOnboardingMode() ? props.controllerState?.status : props.currentAgent?.status
+  // Get the effective status (controller in controller view, step agent otherwise)
+  const effectiveStatus = () => isControllerViewMode() ? props.controllerState?.status : props.currentAgent?.status
 
   // Check if agent is running
   const isRunning = () => effectiveStatus() === "running"
@@ -89,13 +89,13 @@ export function OutputWindow(props: OutputWindowProps) {
     return themeCtx.theme.warning
   }
 
-  // Get display name/engine/model (controller when delegated or onboarding, step agent otherwise)
+  // Get display name/engine/model (controller when delegated or controller view, step agent otherwise)
   const displayName = () => isControllerActive() ? props.controllerState!.name : props.currentAgent?.name
   const displayEngine = () => isControllerActive() ? props.controllerState!.engine : props.currentAgent?.engine
   const displayModel = () => isControllerActive() ? props.controllerState!.model : props.currentAgent?.model
 
-  // Check if we have something to display (agent or controller in onboarding)
-  const hasDisplayContent = () => props.currentAgent != null || isOnboardingMode()
+  // Check if we have something to display (agent or controller in controller view)
+  const hasDisplayContent = () => props.currentAgent != null || isControllerViewMode()
 
   // Get connecting message
   const connectingMessage = () => {
