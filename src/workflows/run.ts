@@ -262,6 +262,9 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
       // Mark step 0 as completed in the index manager
       indexManager.setCurrentStepIndex(1);
       await indexManager.stepCompleted(0);
+      // Also update UI timeline to show step 0 as completed
+      const uniqueAgentId = getUniqueAgentId(firstStep, 0);
+      emitter.updateAgentStatus(uniqueAgentId, 'completed');
     }
   }
 
