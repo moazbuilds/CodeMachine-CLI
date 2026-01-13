@@ -1,6 +1,6 @@
 export default {
   name: 'BMAD Method',
-  controller: controller('bmad-controller'),
+  controller: controller('bmad-po'),
   specification: true,
 
   tracks: {
