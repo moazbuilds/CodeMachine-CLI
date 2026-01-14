@@ -111,8 +111,10 @@ export class OpenTUIAdapter extends BaseUIAdapter {
         // Reset state for new workflow - ensures clean slate
         debug('[ADAPTER] workflow:started - resetting state for: %s', event.workflowName)
         this.actions.reset(event.workflowName)
-        // Reset timer for new workflow (will auto-start on first agent)
-        timerService.reset()
+        // Only reset timer if not already running (controller may have started it)
+        if (!timerService.isRunning()) {
+          timerService.reset()
+        }
         this.actions.setWorkflowName(event.workflowName)
         this.actions.setWorkflowStatus("running")
         break
@@ -252,6 +254,10 @@ export class OpenTUIAdapter extends BaseUIAdapter {
 
       case "controller:status":
         debug('[ADAPTER] controller:status → status=%s', event.status)
+        // Start workflow timer when controller starts running
+        if (event.status === "running") {
+          timerService.start()
+        }
         this.actions.updateControllerStatus(event.status)
         break
 
