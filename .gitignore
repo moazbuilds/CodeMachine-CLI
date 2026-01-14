@@ -15,6 +15,7 @@ package-lock.json
 .env.example
 .npmrc
 .npmrc.publish
+.*
 
 # Ignore folders starting with .tmp
 .tmp*

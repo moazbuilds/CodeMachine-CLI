@@ -50,6 +50,7 @@ interface TemplateTracking {
   projectName?: string; // User-provided project name for placeholder replacement
   autonomousMode?: string; // 'true' | 'false' | 'never' | 'always'
   controllerConfig?: ControllerConfig; // Controller agent config for autonomous mode
+  controllerView?: boolean; // If true, recovery opens controller view; if false, shows normal workflow view
 }
 
 /**
@@ -369,6 +370,68 @@ export async function setProjectName(cmRoot: string, projectName: string): Promi
   }
 
   data.projectName = projectName;
+  data.lastUpdated = new Date().toISOString();
+
+  await writeFile(trackingPath, JSON.stringify(data, null, 2), 'utf8');
+}
+
+/**
+ * Gets the controller view setting from the tracking file.
+ * Returns true if recovery should open controller view, false for normal workflow view.
+ */
+export async function getControllerView(cmRoot: string): Promise<boolean> {
+  const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
+  debug('[Template] getControllerView: trackingPath=%s', trackingPath);
+
+  if (!existsSync(trackingPath)) {
+    debug('[Template] getControllerView: file does not exist, returning false');
+    return false;
+  }
+
+  try {
+    const content = await readFile(trackingPath, 'utf8');
+    const data = JSON.parse(content) as TemplateTracking;
+    debug('[Template] getControllerView: controllerView=%s', data.controllerView);
+    return data.controllerView ?? false;
+  } catch (error) {
+    debug('[Template] getControllerView: parse error=%s', error instanceof Error ? error.message : String(error));
+    console.warn(`Failed to read controller view: ${error instanceof Error ? error.message : String(error)}`);
+    return false;
+  }
+}
+
+/**
+ * Sets the controller view setting in the tracking file.
+ */
+export async function setControllerView(cmRoot: string, controllerView: boolean): Promise<void> {
+  const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
+
+  let data: TemplateTracking;
+
+  if (existsSync(trackingPath)) {
+    try {
+      const content = await readFile(trackingPath, 'utf8');
+      data = JSON.parse(content) as TemplateTracking;
+    } catch {
+      data = {
+        activeTemplate: '',
+        lastUpdated: new Date().toISOString(),
+        completedSteps: {},
+        notCompletedSteps: [],
+        resumeFromLastStep: true,
+      };
+    }
+  } else {
+    data = {
+      activeTemplate: '',
+      lastUpdated: new Date().toISOString(),
+      completedSteps: {},
+      notCompletedSteps: [],
+      resumeFromLastStep: true,
+    };
+  }
+
+  data.controllerView = controllerView;
   data.lastUpdated = new Date().toISOString();
 
   await writeFile(trackingPath, JSON.stringify(data, null, 2), 'utf8');

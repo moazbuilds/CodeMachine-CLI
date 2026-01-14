@@ -66,11 +66,25 @@ export function useWorkflowEvents(options: UseWorkflowEventsOptions): UseWorkflo
     ;(process as NodeJS.EventEmitter).on('workflow:user-stop', handleUserStop)
     ;(process as NodeJS.EventEmitter).on('workflow:mode-change', handleModeChange)
 
-    // Load initial autonomous mode state
+    // Load initial controller state from persisted config
+    // This ensures controllerState is available on restart/resume (when controller:info event won't be re-emitted)
     const cmRoot = path.join(resolvePath(currentDir), '.codemachine')
     debug('onMount - loading controller config from: %s', cmRoot)
     const controllerState = await loadControllerConfig(cmRoot)
     debug('onMount - controllerState: %s', JSON.stringify(controllerState))
+
+    // Set controller state in UI if we have a valid controller config
+    // This enables 'C' key to return to controller even after restart/resume
+    if (controllerState?.controllerConfig?.agentId) {
+      debug('onMount - setting controllerState in UI from persisted config')
+      actions.setControllerState({
+        id: controllerState.controllerConfig.agentId,
+        name: controllerState.controllerConfig.agentId, // Name may not be persisted, use agentId as fallback
+        engine: 'unknown', // Engine info not persisted in controller config
+        telemetry: { tokensIn: 0, tokensOut: 0 }, // Default telemetry, will be updated if controller runs
+        monitoringId: Number(controllerState.controllerConfig.monitoringId) || undefined,
+      })
+    }
 
     // Set autonomous mode from file if present, otherwise default is 'true'
     if (controllerState?.autonomousMode) {

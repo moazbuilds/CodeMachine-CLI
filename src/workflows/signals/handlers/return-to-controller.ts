@@ -7,6 +7,7 @@
 
 import { debug } from '../../../shared/logging/logger.js';
 import { setAutonomousMode, loadControllerConfig } from '../../../shared/workflows/controller.js';
+import { setControllerView } from '../../../shared/workflows/template.js';
 import { AgentLoggerService } from '../../../agents/monitoring/index.js';
 import { executeAgent } from '../../../agents/runner/runner.js';
 import type { SignalContext } from '../manager/types.js';
@@ -57,6 +58,7 @@ export async function handleReturnToControllerSignal(ctx: SignalContext): Promis
     (process as NodeJS.EventEmitter).emit('workflow:mode-change', { autonomousMode: false });
 
     // Switch to controller view
+    await setControllerView(ctx.cmRoot, true);
     ctx.emitter.setWorkflowView('controller');
     ctx.emitter.updateControllerStatus('awaiting');
 
@@ -89,6 +91,7 @@ export async function handleReturnToControllerSignal(ctx: SignalContext): Promis
     // Clear input state and switch back to executing
     ctx.emitter.setInputState(null);
     ctx.emitter.updateControllerStatus('completed');
+    await setControllerView(ctx.cmRoot, false);
     ctx.emitter.setWorkflowView('executing');
 
     // Restore autonomous mode

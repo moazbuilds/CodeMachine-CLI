@@ -11,6 +11,8 @@ export {
   setSelectedConditions,
   getProjectName,
   setProjectName,
+  getControllerView,
+  setControllerView,
 } from './template.js';
 
 // Types

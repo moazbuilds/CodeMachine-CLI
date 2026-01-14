@@ -14,6 +14,7 @@ import {
   loadControllerConfig,
   setAutonomousMode,
 } from '../shared/workflows/controller.js';
+import { setControllerView } from '../shared/workflows/template.js';
 import { isControllerDefinition } from '../shared/workflows/controller-helper.js';
 import { collectAgentDefinitions } from '../shared/agents/discovery/catalog.js';
 import { executeAgent } from '../agents/runner/runner.js';
@@ -73,6 +74,7 @@ export async function runControllerView(
     debug('[ControllerView] Controller session already exists, skipping init');
     // Transition to executing view with autonomous mode
     await setAutonomousMode(cmRoot, 'true');
+    await setControllerView(cmRoot, false);
     emitter.setWorkflowView('executing');
     return { ran: false };
   }
@@ -99,6 +101,7 @@ export async function runControllerView(
 
   // Set view to controller
   debug('[ControllerView] Setting view to controller');
+  await setControllerView(cmRoot, true);
   emitter.setWorkflowView('controller');
 
   // Emit controller info for UI
@@ -117,6 +120,7 @@ export async function runControllerView(
     debug('[ControllerView] Controller has no prompt path, skipping');
     emitter.updateControllerStatus('failed');
     await setAutonomousMode(cmRoot, 'true');
+    await setControllerView(cmRoot, false);
     emitter.setWorkflowView('executing');
     return { ran: false };
   }
@@ -173,6 +177,7 @@ export async function runControllerView(
     // Transition to autonomous mode for workflow execution
     debug('[ControllerView] Transitioning to autonomousMode=true for workflow execution');
     await setAutonomousMode(cmRoot, 'true');
+    await setControllerView(cmRoot, false);
 
     emitter.setWorkflowView('executing');
 
@@ -182,6 +187,7 @@ export async function runControllerView(
     emitter.setInputState(null);
     emitter.updateControllerStatus('failed');
     await setAutonomousMode(cmRoot, 'true');
+    await setControllerView(cmRoot, false);
     emitter.setWorkflowView('executing');
     throw error;
   }
@@ -227,6 +233,7 @@ async function runControllerConversationLoop(options: ConversationLoopOptions): 
       // Resume conversation with user input
       try {
         emitter.updateControllerStatus('running');
+        emitter.setInputState(null); // Hide input box while controller is processing
 
         // Echo user input to log file so it's visible in the UI
         const loggerService = AgentLoggerService.getInstance();

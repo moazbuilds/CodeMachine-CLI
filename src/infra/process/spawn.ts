@@ -131,6 +131,8 @@ export function spawnProcess(options: SpawnOptions): Promise<SpawnResult> {
     // Spawn the process using Bun.spawn()
     // Bun automatically handles .cmd files on Windows (like cross-spawn)
     const executable = resolveCommandExecutable(command);
+    const spawnStartTime = Date.now();
+    logger.debug(`[SPAWN-TIMING] About to spawn: ${command} ${args.join(' ')} (stdinSize=${stdinEncoded?.length ?? 0})`);
     const child = Bun.spawn([executable, ...args], {
       cwd,
       env: env ? { ...process.env, ...env } : process.env,
@@ -140,6 +142,7 @@ export function spawnProcess(options: SpawnOptions): Promise<SpawnResult> {
       stderr: stdioMode === 'inherit' ? 'inherit' : 'pipe',
       // Note: Bun doesn't have detached option, but we can still kill process groups manually
     });
+    logger.debug(`[SPAWN-TIMING] Process spawned in ${Date.now() - spawnStartTime}ms, PID=${child.pid}`);
 
     // Track this child process for cleanup
     activeProcesses.add(child);
@@ -215,6 +218,7 @@ export function spawnProcess(options: SpawnOptions): Promise<SpawnResult> {
     // Handle stdout/stderr streaming for pipe mode
     const stdoutChunks: string[] = [];
     const stderrChunks: string[] = [];
+    let firstStdoutReceived = false;
 
     (async () => {
       try {
@@ -232,6 +236,10 @@ export function spawnProcess(options: SpawnOptions): Promise<SpawnResult> {
                 if (done) break;
 
                 const text = decoder.decode(value, { stream: true });
+                if (!firstStdoutReceived) {
+                  firstStdoutReceived = true;
+                  logger.debug(`[SPAWN-TIMING] First stdout received ${Date.now() - spawnStartTime}ms after spawn, bytes=${value.length}`);
+                }
                 stdoutChunks.push(text);
                 onStdout?.(text);
               }

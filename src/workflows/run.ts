@@ -16,6 +16,9 @@ import {
   getTemplatePathFromTracking,
   getSelectedTrack,
   getSelectedConditions,
+  getControllerView,
+  loadControllerConfig,
+  saveControllerConfig,
 } from '../shared/workflows/index.js';
 import { StepIndexManager } from './indexing/index.js';
 import { registry } from '../infra/engines/index.js';
@@ -68,19 +71,37 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   // This ensures session/monitoring IDs are persisted even if the first turn hasn't completed
   MonitoringCleanup.registerWorkflowHandlers({
     onBeforeCleanup: async () => {
+      // Check if we're in controller view - controller session goes to controllerConfig, not completedSteps
+      const isInControllerView = await getControllerView(cmRoot);
+
       const monitor = AgentMonitorService.getInstance();
       const activeAgents = monitor.getActiveAgents();
 
-      // Find root agents (no parentId) - these are the main step agents
+      // Find root agents (no parentId) - these are the main step/controller agents
       const rootAgents = activeAgents.filter((agent) => !agent.parentId);
 
       for (const agent of rootAgents) {
         // Only save if agent has a sessionId (needed for resume)
         if (agent.sessionId) {
-          const stepIndex = indexManager.currentStepIndex;
-          debug('[Workflow] Saving session state on Ctrl+C: step=%d, sessionId=%s, monitoringId=%d',
-            stepIndex, agent.sessionId, agent.id);
-          await indexManager.stepSessionInitialized(stepIndex, agent.sessionId, agent.id);
+          if (isInControllerView) {
+            // Save to controllerConfig (controller's own section)
+            const existingConfig = await loadControllerConfig(cmRoot);
+            if (existingConfig?.controllerConfig?.agentId) {
+              debug('[Workflow] Saving controller session on Ctrl+C: agentId=%s, sessionId=%s, monitoringId=%d',
+                existingConfig.controllerConfig.agentId, agent.sessionId, agent.id);
+              await saveControllerConfig(cmRoot, {
+                agentId: existingConfig.controllerConfig.agentId,
+                sessionId: agent.sessionId,
+                monitoringId: agent.id,
+              }, existingConfig.autonomousMode);
+            }
+          } else {
+            // Save to completedSteps (normal step agent)
+            const stepIndex = indexManager.currentStepIndex;
+            debug('[Workflow] Saving session state on Ctrl+C: step=%d, sessionId=%s, monitoringId=%d',
+              stepIndex, agent.sessionId, agent.id);
+            await indexManager.stepSessionInitialized(stepIndex, agent.sessionId, agent.id);
+          }
         }
       }
     },

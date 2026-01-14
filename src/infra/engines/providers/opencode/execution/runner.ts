@@ -167,6 +167,7 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
   const runnerEnv = resolveRunnerEnv(env);
   const { command, args } = buildOpenCodeRunCommand({ model, agent, resumeSessionId });
 
+  const runnerStartTime = Date.now();
   logger.debug(
     `OpenCode runner - prompt length: ${prompt.length}, lines: ${prompt.split('\n').length}, agent: ${
       agent ?? 'build'
@@ -179,6 +180,7 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
   let capturedError: string | null = null;
   let isFirstStep = true;
   let sessionIdCaptured = false;
+  let firstJsonLineReceived = false;
 
   const processLine = (line: string): void => {
     if (!line.trim()) {
@@ -190,6 +192,12 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
       parsed = JSON.parse(line);
     } catch {
       return;
+    }
+
+    // Log timing for first valid JSON line
+    if (!firstJsonLineReceived) {
+      firstJsonLineReceived = true;
+      logger.debug(`[RUNNER-TIMING] First JSON line received ${Date.now() - runnerStartTime}ms after runner start`);
     }
 
     // Capture telemetry - returns true only when NEW telemetry was parsed
@@ -221,7 +229,7 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
     // Capture session ID from first event that contains it
     if (!sessionIdCaptured && parsedObj.sessionID && onSessionId) {
       sessionIdCaptured = true;
-      logger.debug(`[SESSION_ID CAPTURED] ${parsedObj.sessionID}`);
+      logger.debug(`[SESSION_ID CAPTURED] ${parsedObj.sessionID} (${Date.now() - runnerStartTime}ms after runner start)`);
       onSessionId(parsedObj.sessionID);
     }
 
@@ -288,6 +296,7 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
 
   let result;
   try {
+    logger.debug(`[RUNNER-TIMING] Calling spawnProcess at ${Date.now() - runnerStartTime}ms`);
     result = await spawnProcess({
       command,
       args,
@@ -314,6 +323,7 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
       signal: abortSignal,
       timeout,
     });
+    logger.debug(`[RUNNER-TIMING] spawnProcess completed at ${Date.now() - runnerStartTime}ms`);
   } catch (error) {
     const err = error as { code?: string; message?: string };
     const message = err?.message ?? '';
