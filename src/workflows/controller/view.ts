@@ -128,9 +128,38 @@ export async function runControllerView(
     return { ran: false };
   }
 
-  // Initialize controller agent
-  // Engine/model resolution happens inside executeAgent (single source of truth)
-  // Only pass overrides from workflow definition.options
+  // Resolve engine and model upfront (before execution) like step agents do
+  // This ensures UI shows engine/model immediately, not after first turn
+  debug('[ControllerView] Resolving engine and model upfront');
+  const { selectEngine } = await import('../step/engine.js');
+  const { registry } = await import('../../infra/engines/index.js');
+
+  // Create a step-like object for selectEngine
+  const stepLike = {
+    engine: definition.options?.engine,
+    agentId: controller.id,
+    agentName: (controller.name as string | undefined) ?? controller.id,
+  };
+
+  const resolvedEngine = await selectEngine(stepLike, emitter, controller.id);
+  debug('[ControllerView] Resolved engine: %s', resolvedEngine);
+
+  // Resolve model from definition override or engine default
+  const engineModule = registry.get(resolvedEngine);
+  const resolvedModel = definition.options?.model ?? engineModule?.metadata.defaultModel;
+  debug('[ControllerView] Resolved model: %s', resolvedModel);
+
+  // Emit controller info BEFORE execution so UI shows it immediately
+  const controllerName = (controller.name as string | undefined) ?? controller.id;
+  emitter.setControllerInfo(
+    controller.id,
+    controllerName,
+    resolvedEngine,
+    resolvedModel
+  );
+  debug('[ControllerView] Emitted controller info upfront: engine=%s, model=%s', resolvedEngine, resolvedModel);
+
+  // Initialize controller agent with resolved engine/model
   debug('[ControllerView] Initializing controller agent');
   let controllerMonitoringId: number | undefined;
 
@@ -146,22 +175,13 @@ export async function runControllerView(
           controllerMonitoringId = monitoringId;
           emitter.registerControllerMonitoring(monitoringId);
         },
-        engineOverride: definition.options?.engine,
-        modelOverride: definition.options?.model,
+        engineOverride: resolvedEngine,
+        modelOverride: resolvedModel,
       }
     );
 
     debug('[ControllerView] Controller initialized: sessionId=%s, monitoringId=%d, engine=%s, model=%s',
       config.sessionId, controllerMonitoringId, config.engine, config.model);
-
-    // Emit controller info for UI (use resolved values from initControllerAgent)
-    const controllerName = (controller.name as string | undefined) ?? controller.id;
-    emitter.setControllerInfo(
-      controller.id,
-      controllerName,
-      config.engine,
-      config.model
-    );
 
     // Set up conversational loop
     // 1. Set input state active so UI shows input box
