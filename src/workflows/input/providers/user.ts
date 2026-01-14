@@ -60,7 +60,9 @@ export class UserInputProvider implements InputProvider {
 
     // Set up listener for mode change (switch to autonomous)
     this.modeChangeListener = (data) => {
-      if (data.autonomousMode && this.resolver) {
+      // Check for string 'true' or 'always' (autonomous mode)
+      const isAutoMode = data.autonomousMode === 'true' || data.autonomousMode === 'always';
+      if (isAutoMode && this.resolver) {
         debug('[UserInput] Mode change to autonomous, signaling switch');
         this.emitter.emitCanceled();
         this.resolver({ type: 'input', value: '__SWITCH_TO_AUTO__' });

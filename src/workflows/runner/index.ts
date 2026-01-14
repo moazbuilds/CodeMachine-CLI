@@ -219,7 +219,9 @@ export class WorkflowRunner implements RunnerContext {
     // autoMode can work without controller for non-interactive steps (Scenarios 5-6)
     // For interactive steps without controller, controller provider delegates to user input
     const controllerState = await loadControllerConfig(this.cmRoot);
-    if (controllerState?.autonomousMode) {
+    // Check for string 'true' or 'always' (autonomous mode)
+    const isAutoMode = controllerState?.autonomousMode === 'true' || controllerState?.autonomousMode === 'always';
+    if (isAutoMode) {
       this.mode.enableAutoMode();
       // Sync machine context with mode state
       this.machine.context.autoMode = true;

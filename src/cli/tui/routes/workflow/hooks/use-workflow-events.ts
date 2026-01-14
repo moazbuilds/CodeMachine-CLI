@@ -86,14 +86,13 @@ export function useWorkflowEvents(options: UseWorkflowEventsOptions): UseWorkflo
       })
     }
 
-    // Set autonomous mode from file if present, otherwise default is 'true'
-    if (controllerState?.autonomousMode) {
+    // Set autonomous mode from file if present
+    // Note: autonomousMode is a string, so we check the value is valid, not truthy
+    if (controllerState?.autonomousMode && ['true', 'false', 'never', 'always'].includes(controllerState.autonomousMode)) {
       debug('onMount - setting autonomousMode to %s', controllerState.autonomousMode)
-      if (['true', 'false', 'never', 'always'].includes(controllerState.autonomousMode)) {
-        actions.setAutonomousMode(controllerState.autonomousMode as AutonomousMode)
-      }
+      actions.setAutonomousMode(controllerState.autonomousMode as AutonomousMode)
     } else {
-      debug('onMount - autonomousMode not enabled in config, using default (true)')
+      debug('onMount - autonomousMode not set in config or invalid value')
     }
 
     if (eventBus) {
