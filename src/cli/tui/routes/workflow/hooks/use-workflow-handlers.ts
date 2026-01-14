@@ -5,7 +5,7 @@
  */
 
 import { createSignal, type Accessor } from "solid-js"
-import { setAutonomousMode as persistAutonomousMode, loadControllerConfig } from "../../../../../shared/workflows/index.js"
+import { setAutonomousMode as persistAutonomousMode, loadControllerConfig } from "../../../../../workflows/controller/config.js"
 import { debug } from "../../../../../shared/logging/logger.js"
 import path from "path"
 import type { UIActions, AutonomousMode } from "../context/ui-state/types"

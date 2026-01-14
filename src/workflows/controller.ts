@@ -9,18 +9,15 @@
 import type { WorkflowTemplate } from './templates/types.js';
 import type { WorkflowEventBus } from './events/event-bus.js';
 import type { WorkflowEventEmitter } from './events/emitter.js';
-import {
-  initControllerAgent,
-  loadControllerConfig,
-  setAutonomousMode,
-} from '../shared/workflows/controller.js';
+import { initControllerAgent } from '../shared/workflows/controller.js';
+import { loadControllerConfig, setAutonomousMode } from './controller/config.js';
 import { setControllerView } from '../shared/workflows/template.js';
 import { isControllerDefinition } from '../shared/workflows/controller-helper.js';
 import { collectAgentDefinitions } from '../shared/agents/discovery/catalog.js';
-import { executeAgent } from '../agents/runner/runner.js';
-import { AgentLoggerService } from '../agents/monitoring/index.js';
-import { registry } from '../infra/engines/index.js';
 import { debug } from '../shared/logging/logger.js';
+import { formatUserInput } from '../shared/formatters/outputMarkers.js';
+import { AgentLoggerService } from '../agents/monitoring/index.js';
+import { executeAgent } from '../agents/runner/runner.js';
 
 export interface ControllerViewOptions {
   cwd: string;
@@ -89,12 +86,6 @@ export async function runControllerView(
 
   debug('[ControllerView] Using controller agent: %s', controller.id);
 
-  // Resolve engine and model (definition options override agent config)
-  const defaultEngine = registry.getDefault();
-  const engineType = definition.options?.engine ?? controller.engine ?? defaultEngine?.metadata.id ?? 'claude';
-  const engineModule = registry.get(engineType);
-  const resolvedModel = definition.options?.model ?? controller.model ?? engineModule?.metadata.defaultModel;
-
   // Set autonomous mode to 'never' for controller conversation view
   debug('[ControllerView] Setting autonomousMode to never for controller conversation');
   await setAutonomousMode(cmRoot, 'never');
@@ -103,15 +94,6 @@ export async function runControllerView(
   debug('[ControllerView] Setting view to controller');
   await setControllerView(cmRoot, true);
   emitter.setWorkflowView('controller');
-
-  // Emit controller info for UI
-  const controllerName = (controller.name as string | undefined) ?? controller.id;
-  emitter.setControllerInfo(
-    controller.id,
-    controllerName,
-    engineType,
-    resolvedModel as string | undefined
-  );
   emitter.updateControllerStatus('running');
 
   // Get prompt path from controller definition
@@ -126,6 +108,8 @@ export async function runControllerView(
   }
 
   // Initialize controller agent
+  // Engine/model resolution happens inside executeAgent (single source of truth)
+  // Only pass overrides from workflow definition.options
   debug('[ControllerView] Initializing controller agent');
   let controllerMonitoringId: number | undefined;
 
@@ -141,12 +125,22 @@ export async function runControllerView(
           controllerMonitoringId = monitoringId;
           emitter.registerControllerMonitoring(monitoringId);
         },
-        engine: engineType,
-        model: resolvedModel as string | undefined,
+        engineOverride: definition.options?.engine,
+        modelOverride: definition.options?.model,
       }
     );
 
-    debug('[ControllerView] Controller initialized: sessionId=%s, monitoringId=%d', config.sessionId, controllerMonitoringId);
+    debug('[ControllerView] Controller initialized: sessionId=%s, monitoringId=%d, engine=%s, model=%s',
+      config.sessionId, controllerMonitoringId, config.engine, config.model);
+
+    // Emit controller info for UI (use resolved values from initControllerAgent)
+    const controllerName = (controller.name as string | undefined) ?? controller.id;
+    emitter.setControllerInfo(
+      controller.id,
+      controllerName,
+      config.engine,
+      config.model
+    );
 
     // Set up conversational loop
     // 1. Set input state active so UI shows input box
@@ -161,15 +155,78 @@ export async function runControllerView(
 
     debug('[ControllerView] Input state set, starting conversation loop');
 
-    // Conversation loop - wait for input or continue signal
-    await runControllerConversationLoop({
-      sessionId: config.sessionId,
-      agentId: controller.id,
-      monitoringId: controllerMonitoringId!,
-      cwd,
-      emitter,
-      engine: engineType,
-      model: resolvedModel as string | undefined,
+    // Inlined conversation loop (replaces runControllerConversation)
+    await new Promise<void>((resolve, reject) => {
+      const controllerConfig = {
+        agentId: controller.id,
+        sessionId: config.sessionId,
+        monitoringId: controllerMonitoringId!,
+      };
+
+      const cleanup = () => {
+        ;(process as NodeJS.EventEmitter).off('workflow:input', onInput)
+        ;(process as NodeJS.EventEmitter).off('workflow:controller-continue', onContinue)
+      };
+
+      const onInput = async (data: { prompt?: string; skip?: boolean }) => {
+        debug('[ControllerView] Received input: prompt="%s" skip=%s',
+          data.prompt?.slice(0, 50) ?? '(empty)', data.skip ?? false);
+
+        // Skip signal means user wants to end controller view
+        if (data.skip) {
+          debug('[ControllerView] Skip signal - ending conversation');
+          cleanup();
+          resolve();
+          return;
+        }
+
+        // Empty prompt means user is done
+        if (!data.prompt || data.prompt.trim() === '') {
+          debug('[ControllerView] Empty prompt - ending conversation');
+          cleanup();
+          resolve();
+          return;
+        }
+
+        // Run conversation turn
+        emitter.updateControllerStatus('running');
+        emitter.setInputState(null);
+
+        try {
+          // Log input and execute agent (inlined from runTurn)
+          // Engine/model resolved internally by executeAgent from agentConfig
+          const formatted = formatUserInput(data.prompt);
+          AgentLoggerService.getInstance().write(controllerConfig.monitoringId, `\n${formatted}\n`);
+
+          await executeAgent(controllerConfig.agentId, data.prompt, {
+            workingDir: cwd,
+            resumeSessionId: controllerConfig.sessionId,
+            resumePrompt: data.prompt,
+            resumeMonitoringId: controllerConfig.monitoringId,
+          });
+
+          // After response, go back to awaiting input
+          emitter.updateControllerStatus('awaiting');
+          emitter.setInputState({
+            active: true,
+            monitoringId: controllerConfig.monitoringId,
+          });
+          debug('[ControllerView] Turn complete, waiting for next input');
+        } catch (error) {
+          debug('[ControllerView] Error during conversation: %s', (error as Error).message);
+          cleanup();
+          reject(error);
+        }
+      };
+
+      const onContinue = () => {
+        debug('[ControllerView] Received controller-continue signal');
+        cleanup();
+        resolve();
+      };
+
+      ;(process as NodeJS.EventEmitter).on('workflow:input', onInput);
+      ;(process as NodeJS.EventEmitter).on('workflow:controller-continue', onContinue);
     });
 
     debug('[ControllerView] Conversation loop ended, transitioning to executing view');
@@ -197,93 +254,3 @@ export async function runControllerView(
   }
 }
 
-interface ConversationLoopOptions {
-  sessionId: string;
-  agentId: string;
-  monitoringId: number;
-  cwd: string;
-  emitter: WorkflowEventEmitter;
-  engine?: string;
-  model?: string;
-}
-
-/**
- * Run the controller conversation loop.
- * Waits for user input and resumes conversation until user presses Enter (continue signal).
- */
-async function runControllerConversationLoop(options: ConversationLoopOptions): Promise<void> {
-  const { sessionId, agentId, monitoringId, cwd, emitter, engine, model } = options;
-
-  return new Promise((resolve, reject) => {
-    // Handler for user input (workflow:input event from UI)
-    const inputHandler = async (data: { prompt?: string; skip?: boolean }) => {
-      debug('[ControllerView] Received input event: prompt="%s" skip=%s',
-        data.prompt?.slice(0, 50) ?? '(empty)', data.skip ?? false);
-
-      // Skip signal means user wants to end controller view
-      if (data.skip) {
-        debug('[ControllerView] Skip signal - ending conversation');
-        cleanup();
-        resolve();
-        return;
-      }
-
-      // Empty prompt means user is done (pressed Enter without typing)
-      if (!data.prompt || data.prompt.trim() === '') {
-        debug('[ControllerView] Empty prompt - ending conversation');
-        cleanup();
-        resolve();
-        return;
-      }
-
-      // Resume conversation with user input
-      try {
-        emitter.updateControllerStatus('running');
-        emitter.setInputState(null); // Hide input box while controller is processing
-
-        // Echo user input to log file so it's visible in the UI
-        const loggerService = AgentLoggerService.getInstance();
-        loggerService.write(monitoringId, `\n\n━━━ USER ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${data.prompt}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`);
-
-        debug('[ControllerView] Resuming conversation with sessionId=%s', sessionId);
-        await executeAgent(agentId, data.prompt, {
-          workingDir: cwd,
-          resumeSessionId: sessionId,
-          resumePrompt: data.prompt,
-          resumeMonitoringId: monitoringId,
-          engine,
-          model,
-        });
-
-        // After response, go back to awaiting input
-        emitter.updateControllerStatus('awaiting');
-        emitter.setInputState({
-          active: true,
-          monitoringId,
-        });
-        debug('[ControllerView] Turn complete, waiting for next input');
-      } catch (error) {
-        debug('[ControllerView] Error during conversation: %s', (error as Error).message);
-        cleanup();
-        reject(error);
-      }
-    };
-
-    // Handler for continue signal (Enter key in controller view)
-    const continueHandler = () => {
-      debug('[ControllerView] Received controller-continue signal');
-      cleanup();
-      resolve();
-    };
-
-    // Cleanup function to remove listeners
-    const cleanup = () => {
-      (process as NodeJS.EventEmitter).off('workflow:input', inputHandler);
-      (process as NodeJS.EventEmitter).off('workflow:controller-continue', continueHandler);
-    };
-
-    // Register listeners
-    (process as NodeJS.EventEmitter).on('workflow:input', inputHandler);
-    (process as NodeJS.EventEmitter).on('workflow:controller-continue', continueHandler);
-  });
-}

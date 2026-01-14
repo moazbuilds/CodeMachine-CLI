@@ -22,7 +22,7 @@ import {
   type InputEventEmitter,
 } from '../input/index.js';
 import { SignalManager } from '../signals/index.js';
-import { loadControllerConfig } from '../../shared/workflows/controller.js';
+import { loadControllerConfig } from '../controller/config.js';
 import type { ActiveLoop } from '../directives/loop/index.js';
 import { WorkflowMode } from '../mode/index.js';
 import { StepSession } from '../session/index.js';

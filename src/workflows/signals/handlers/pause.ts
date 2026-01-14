@@ -8,8 +8,9 @@
  */
 
 import { debug } from '../../../shared/logging/logger.js';
-import { AgentMonitorService, StatusService } from '../../../agents/monitoring/index.js';
-import { setAutonomousMode } from '../../../shared/workflows/controller.js';
+import { StatusService } from '../../../agents/monitoring/index.js';
+import { setAutonomousMode } from '../../controller/config.js';
+import { captureSession } from '../../../agents/session/index.js';
 import type { SignalContext } from '../manager/types.js';
 
 /**
@@ -73,23 +74,17 @@ export async function handlePauseSignal(ctx: SignalContext): Promise<void> {
     machineCtx.autoMode = false;
 
     // Capture session from monitor before aborting so resume can find it
-    // Agent is registered with base ID (e.g., "bmad-architect" not "bmad-architect-step-2")
-    const baseAgentId = stepContext.agentId.replace(/-step-\d+$/, '');
-    const monitor = AgentMonitorService.getInstance();
-    const agents = monitor.queryAgents({ name: baseAgentId });
-
-    if (agents.length > 0) {
-      const agent = agents.reduce((a, b) => (a.id > b.id ? a : b));
-      debug('[PauseSignal] Captured agent: id=%d sessionId=%s', agent.id, agent.sessionId);
+    const session = captureSession(stepContext.agentId);
+    if (session) {
+      debug('[PauseSignal] Captured session: monitoringId=%d sessionId=%s', session.monitoringId, session.sessionId);
 
       // Set in machine context so handleWaiting can pass to resume
-      machineCtx.currentMonitoringId = agent.id;
-      machineCtx.currentOutput = { output: '', monitoringId: agent.id };
+      machineCtx.currentMonitoringId = session.monitoringId;
+      machineCtx.currentOutput = { output: '', monitoringId: session.monitoringId };
 
       // Persist session to step data for resume lookup
-      // Uses indexManager for centralized lifecycle tracking
-      if (agent.sessionId) {
-        ctx.indexManager.stepSessionInitialized(stepContext.stepIndex, agent.sessionId, agent.id)
+      if (session.sessionId) {
+        ctx.indexManager.stepSessionInitialized(stepContext.stepIndex, session.sessionId, session.monitoringId)
           .catch(err => debug('[PauseSignal] Failed to save session: %s', err.message));
       }
     }

@@ -8,3 +8,4 @@ export * from './pause.js';
 export * from './skip.js';
 export * from './stop.js';
 export * from './mode.js';
+export * from './return.js';

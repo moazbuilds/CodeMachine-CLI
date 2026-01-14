@@ -9,7 +9,7 @@ import { debug } from '../../../shared/logging/logger.js';
 import { executeWithActions } from '../../../agents/execution/index.js';
 import { AgentLoggerService, AgentMonitorService } from '../../../agents/monitoring/index.js';
 import { loadAgentConfig } from '../../../agents/runner/config.js';
-import { saveControllerConfig } from '../../../shared/workflows/controller.js';
+import { saveControllerConfig } from '../../controller/config.js';
 import { stripColorMarkers } from '../../../shared/formatters/logFileFormatter.js';
 import {
   formatControllerHeader,

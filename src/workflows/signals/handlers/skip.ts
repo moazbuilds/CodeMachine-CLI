@@ -8,7 +8,8 @@
 
 import { debug } from '../../../shared/logging/logger.js';
 import type { SignalContext } from '../manager/types.js';
-import { AgentMonitorService, StatusService } from '../../../agents/monitoring/index.js';
+import { StatusService } from '../../../agents/monitoring/index.js';
+import { captureSession } from '../../../agents/session/index.js';
 
 /**
  * Handle skip signal
@@ -40,20 +41,11 @@ export async function handleSkipSignal(ctx: SignalContext): Promise<void> {
     }
 
     // Capture session info before aborting and persist to template.json
-    // Agent is registered with base ID (e.g., "bmad-architect" not "bmad-architect-step-2")
-    const baseAgentId = stepContext.agentId.replace(/-step-\d+$/, '');
-    const monitor = AgentMonitorService.getInstance();
-    const agents = monitor.queryAgents({ name: baseAgentId });
-
-    if (agents.length > 0) {
-      const agent = agents.reduce((a, b) => (a.id > b.id ? a : b));
-      debug('[SkipSignal] Captured agent: id=%d sessionId=%s', agent.id, agent.sessionId);
-
-      // Persist session to step data if available
-      if (agent.sessionId) {
-        await ctx.indexManager.stepSessionInitialized(stepContext.stepIndex, agent.sessionId, agent.id);
-        debug('[SkipSignal] Saved sessionId=%s to step %d', agent.sessionId, stepContext.stepIndex);
-      }
+    const session = captureSession(stepContext.agentId);
+    if (session?.sessionId) {
+      debug('[SkipSignal] Captured session: monitoringId=%d sessionId=%s', session.monitoringId, session.sessionId);
+      await ctx.indexManager.stepSessionInitialized(stepContext.stepIndex, session.sessionId, session.monitoringId);
+      debug('[SkipSignal] Saved sessionId=%s to step %d', session.sessionId, stepContext.stepIndex);
     }
 
     // Mark step as completed in template.json

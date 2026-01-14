@@ -23,7 +23,7 @@ import { handlePauseSignal } from '../handlers/pause.js';
 import { handleSkipSignal } from '../handlers/skip.js';
 import { handleStopSignal } from '../handlers/stop.js';
 import { handleModeChangeSignal } from '../handlers/mode.js';
-import { handleReturnToControllerSignal } from '../handlers/return-to-controller.js';
+import { handleReturnToControllerSignal } from '../handlers/return.js';
 
 /**
  * SignalManager - central coordinator for all workflow signals

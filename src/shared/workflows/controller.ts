@@ -1,35 +1,19 @@
-import { readFile, writeFile } from 'node:fs/promises';
+/**
+ * Controller Agent Initialization
+ *
+ * Initializes a controller agent session for workflow orchestration.
+ * Configuration management functions have been moved to src/workflows/controller/config.ts
+ */
+
+import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import * as path from 'node:path';
-import type { AgentDefinition } from '../agents/config/types.js';
-import { collectAgentDefinitions } from '../agents/discovery/catalog.js';
 import type { ControllerConfig } from './template.js';
 import { executeAgent } from '../../agents/runner/runner.js';
 import { AgentMonitorService } from '../../agents/monitoring/index.js';
 import { processPromptString } from '../prompts/index.js';
 import { debug } from '../logging/logger.js';
-
-const TEMPLATE_TRACKING_FILE = 'template.json';
-
-interface TemplateTracking {
-  autonomousMode?: string; // 'true' | 'false' | 'never' | 'always'
-  controllerConfig?: ControllerConfig;
-  resumeFromLastStep?: boolean;
-  lastUpdated?: string;
-  [key: string]: unknown;
-}
-
-/**
- * Get all agents with role: 'controller'
- */
-export async function getControllerAgents(projectRoot: string): Promise<AgentDefinition[]> {
-  debug('[Controller] getControllerAgents called with projectRoot=%s', projectRoot);
-  const agents = await collectAgentDefinitions(projectRoot);
-  debug('[Controller] collectAgentDefinitions returned %d agents', agents.length);
-  const controllerAgents = agents.filter(agent => agent.role === 'controller');
-  debug('[Controller] Found %d controller agents: %o', controllerAgents.length, controllerAgents.map(a => ({ id: a.id, role: a.role })));
-  return controllerAgents;
-}
+import { saveControllerConfig } from '../../workflows/controller/config.js';
 
 /**
  * Options for controller agent initialization
@@ -37,15 +21,29 @@ export async function getControllerAgents(projectRoot: string): Promise<AgentDef
 export interface InitControllerOptions {
   /** Callback when monitoring ID becomes available (for log streaming) */
   onMonitoringId?: (monitoringId: number) => void;
-  /** Engine to use (overrides agent config) */
-  engine?: string;
-  /** Model to use (overrides agent config) */
+  /** Engine override (from workflow definition.options) - passed to executeAgent */
+  engineOverride?: string;
+  /** Model override (from workflow definition.options) - passed to executeAgent */
+  modelOverride?: string;
+}
+
+/**
+ * Result of controller agent initialization
+ * Includes resolved engine/model from executeAgent (via MonitorService)
+ */
+export interface InitControllerResult extends ControllerConfig {
+  /** Resolved engine used by agent */
+  engine: string;
+  /** Resolved model used by agent */
   model?: string;
 }
 
 /**
  * Initialize controller agent session
  * Called at onboard time to create persistent session for the workflow
+ *
+ * Engine/model resolution happens inside executeAgent (single source of truth).
+ * Returns resolved values from MonitorService for TUI display.
  */
 export async function initControllerAgent(
   agentId: string,
@@ -53,7 +51,7 @@ export async function initControllerAgent(
   cwd: string,
   cmRoot: string,
   options?: InitControllerOptions
-): Promise<ControllerConfig> {
+): Promise<InitControllerResult> {
   debug('[Controller] initControllerAgent called: agentId=%s promptPath=%o cwd=%s cmRoot=%s', agentId, promptPath, cwd, cmRoot);
 
   // Handle both single path and array of paths
@@ -97,8 +95,8 @@ export async function initControllerAgent(
     workingDir: cwd,
     ui,
     uniqueAgentId: agentId, // Required for ui callback to work
-    engine: options?.engine,
-    model: options?.model,
+    engine: options?.engineOverride,
+    model: options?.modelOverride,
   });
   debug('[Controller] executeAgent returned: agentId=%s', result.agentId);
 
@@ -111,6 +109,11 @@ export async function initControllerAgent(
     debug('[Controller] ERROR: No session ID for controller agent');
     throw new Error(`Failed to get session ID for controller agent: ${agentId}`);
   }
+
+  // Get resolved engine/model from monitoring service (single source of truth)
+  const resolvedEngine = agent.engine ?? 'claude';
+  const resolvedModel = agent.modelName;
+  debug('[Controller] Resolved engine=%s model=%s from MonitorService', resolvedEngine, resolvedModel);
 
   // Build config
   const config: ControllerConfig = {
@@ -125,129 +128,11 @@ export async function initControllerAgent(
   await saveControllerConfig(cmRoot, config);
   debug('[Controller] Controller config saved successfully');
 
-  return config;
-}
-
-/**
- * Load controller configuration from template.json
- */
-export async function loadControllerConfig(cmRoot: string): Promise<{
-  autonomousMode: string;
-  controllerConfig: ControllerConfig | null;
-} | null> {
-  debug('[Controller] loadControllerConfig called with cmRoot=%s', cmRoot);
-  const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
-  debug('[Controller] trackingPath=%s', trackingPath);
-
-  if (!existsSync(trackingPath)) {
-    debug('[Controller] template.json does not exist, returning null');
-    return null;
-  }
-
-  try {
-    const content = await readFile(trackingPath, 'utf8');
-    const data = JSON.parse(content) as TemplateTracking;
-
-    const result = {
-      autonomousMode: data.autonomousMode ?? 'false',
-      controllerConfig: data.controllerConfig ?? null,
-    };
-    debug('[Controller] Loaded config: autonomousMode=%s controllerConfig=%o', result.autonomousMode, result.controllerConfig);
-    return result;
-  } catch (error) {
-    debug('[Controller] Failed to load/parse template.json: %s', error instanceof Error ? error.message : String(error));
-    return null;
-  }
-}
-
-/**
- * Save controller configuration to template.json
- */
-export async function saveControllerConfig(
-  cmRoot: string,
-  config: ControllerConfig,
-  autonomousMode = 'true'
-): Promise<void> {
-  const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
-
-  let data: TemplateTracking = {};
-
-  if (existsSync(trackingPath)) {
-    try {
-      const content = await readFile(trackingPath, 'utf8');
-      data = JSON.parse(content) as TemplateTracking;
-    } catch {
-      // Start fresh if parse fails
-    }
-  }
-
-  data.autonomousMode = autonomousMode;
-  data.controllerConfig = config;
-  data.lastUpdated = new Date().toISOString();
-  // Ensure resumeFromLastStep is set for crash recovery
-  if (data.resumeFromLastStep === undefined) {
-    data.resumeFromLastStep = true;
-  }
-
-  await writeFile(trackingPath, JSON.stringify(data, null, 2), 'utf8');
-}
-
-/**
- * Set autonomous mode on/off
- * Emits workflow:mode-change event for real-time reactivity
- */
-export async function setAutonomousMode(cmRoot: string, enabled: string): Promise<void> {
-  const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
-
-  let data: TemplateTracking = {};
-
-  if (existsSync(trackingPath)) {
-    try {
-      const content = await readFile(trackingPath, 'utf8');
-      data = JSON.parse(content) as TemplateTracking;
-    } catch {
-      // Start fresh if parse fails
-    }
-  }
-
-  data.autonomousMode = enabled;
-  data.lastUpdated = new Date().toISOString();
-  // Ensure resumeFromLastStep is set for crash recovery
-  if (data.resumeFromLastStep === undefined) {
-    data.resumeFromLastStep = true;
-  }
-
-  await writeFile(trackingPath, JSON.stringify(data, null, 2), 'utf8');
-
-  // Emit mode change event for real-time reactivity
-  const { debug } = await import('../logging/logger.js');
-  debug('[MODE-CHANGE] Emitting workflow:mode-change event with autonomousMode=%s', enabled);
-  (process as NodeJS.EventEmitter).emit('workflow:mode-change', { autonomousMode: enabled });
-  debug('[MODE-CHANGE] Event emitted');
-}
-
-/**
- * Clear controller configuration (disable autonomous mode)
- */
-export async function clearControllerConfig(cmRoot: string): Promise<void> {
-  const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE);
-
-  if (!existsSync(trackingPath)) {
-    return;
-  }
-
-  try {
-    const content = await readFile(trackingPath, 'utf8');
-    const data = JSON.parse(content) as TemplateTracking;
-
-    data.autonomousMode = 'false';
-    delete data.controllerConfig;
-    data.lastUpdated = new Date().toISOString();
-
-    await writeFile(trackingPath, JSON.stringify(data, null, 2), 'utf8');
-  } catch {
-    // Ignore errors
-  }
+  return {
+    ...config,
+    engine: resolvedEngine,
+    model: resolvedModel,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────

@@ -6,7 +6,7 @@
 
 import { onMount, onCleanup, createSignal, type Accessor } from "solid-js"
 import { OpenTUIAdapter } from "../adapters/opentui"
-import { loadControllerConfig } from "../../../../../shared/workflows/index.js"
+import { loadControllerConfig } from "../../../../../workflows/controller/config.js"
 import { debug } from "../../../../../shared/logging/logger.js"
 import path from "path"
 import type { WorkflowEventBus } from "../../../../../workflows/events/index.js"
