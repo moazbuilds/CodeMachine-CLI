@@ -24,7 +24,8 @@ export async function handlePauseSignal(ctx: SignalContext): Promise<void> {
     debug('[PauseSignal] Pausing delegated state');
 
     // Persist mode change and emit event (controller will abort itself)
-    await setAutonomousMode(ctx.cmRoot, false);
+    // Use string 'false' not boolean - UI handler expects string values
+    await setAutonomousMode(ctx.cmRoot, 'false');
 
     // Transition FSM: delegated -> awaiting (sets autoMode=false, paused=true)
     ctx.machine.send({ type: 'PAUSE' });
@@ -49,7 +50,8 @@ export async function handlePauseSignal(ctx: SignalContext): Promise<void> {
     debug('[PauseSignal] Switching from auto to manual mode and pausing');
     // Persist to file first - this emits workflow:mode-change event
     // Controller listens for this and aborts itself with switchToManual=true
-    await setAutonomousMode(ctx.cmRoot, false);
+    // Use string 'false' not boolean - UI handler expects string values
+    await setAutonomousMode(ctx.cmRoot, 'false');
     ctx.mode.disableAutoMode();
     // Continue to pause logic below (don't return early)
   }

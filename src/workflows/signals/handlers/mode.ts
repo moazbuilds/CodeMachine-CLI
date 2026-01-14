@@ -16,7 +16,7 @@ import type { SignalContext } from '../manager/types.js';
  */
 export async function handleModeChangeSignal(
   ctx: SignalContext,
-  data: { autonomousMode: boolean }
+  data: { autonomousMode: string }
 ): Promise<void> {
   debug(
     '[ModeSignal] workflow:mode-change received, autoMode=%s',
@@ -33,7 +33,9 @@ export async function handleModeChangeSignal(
   }
 
   // In other states (running, idle), set auto mode via WorkflowMode
-  setAutoMode(ctx, data.autonomousMode);
+  // Convert string to boolean: 'true' or 'always' = enabled
+  const enabled = data.autonomousMode === 'true' || data.autonomousMode === 'always';
+  setAutoMode(ctx, enabled);
 }
 
 /**

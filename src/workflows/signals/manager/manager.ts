@@ -93,7 +93,7 @@ export class SignalManager implements SignalContext {
     );
 
     // Mode change signal
-    const modeHandler = (data: { autonomousMode: boolean }) =>
+    const modeHandler = (data: { autonomousMode: string }) =>
       handleModeChangeSignal(this, data);
     process.on('workflow:mode-change', modeHandler);
     this.cleanupFns.push(() =>

@@ -329,7 +329,8 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     });
     throw error;
   } finally {
-    // Always cleanup MCP when workflow ends (success, error, or stop)
+    // Always cleanup when workflow ends (success, error, or stop)
+    runner.signalManager.cleanup();
     process.off('SIGINT', sigintHandler);
     process.off('SIGTERM', sigintHandler);
     await doMCPCleanup();

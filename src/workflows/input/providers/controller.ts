@@ -60,7 +60,7 @@ export class ControllerInputProvider implements InputProvider {
   private workflowEmitter?: WorkflowEventEmitter;
   private aborted = false;
   private abortController: AbortController | null = null;
-  private modeChangeListener: ((data: { autonomousMode: boolean }) => void) | null = null;
+  private modeChangeListener: ((data: { autonomousMode: string }) => void) | null = null;
 
   constructor(options: ControllerInputProviderOptions) {
     this.emitter = options.emitter;
@@ -101,7 +101,8 @@ export class ControllerInputProvider implements InputProvider {
     // Listen for mode change (user switches to manual)
     let switchToManual = false;
     this.modeChangeListener = (data) => {
-      if (!data.autonomousMode) {
+      // Check for string 'false' or 'never' (manual mode)
+      if (data.autonomousMode === 'false' || data.autonomousMode === 'never') {
         debug('[Controller] Mode change to manual requested, aborting execution');
         switchToManual = true;
         // Abort the current execution immediately

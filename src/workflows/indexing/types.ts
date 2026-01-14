@@ -82,7 +82,7 @@ export interface TemplateTracking {
   selectedTrack?: string;
   selectedConditions?: string[];
   projectName?: string;
-  autonomousMode?: boolean;
+  autonomousMode?: string;
   controllerConfig?: ControllerConfig;
 }
 

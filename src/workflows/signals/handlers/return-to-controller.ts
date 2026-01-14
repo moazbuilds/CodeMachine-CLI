@@ -52,10 +52,11 @@ export async function handleReturnToControllerSignal(ctx: SignalContext): Promis
         abortController.abort();
     }
 
-    // CRITICAL: Emit mode-change event with boolean false to abort ControllerInputProvider
+    // CRITICAL: Emit mode-change event to abort ControllerInputProvider
     // This must be done BEFORE switching views to ensure the controller's executeWithActions aborts
+    // Use string 'false' for UI handler compatibility
     debug('[ReturnToControllerSignal] Emitting mode-change with autonomousMode=false to abort controller');
-    (process as NodeJS.EventEmitter).emit('workflow:mode-change', { autonomousMode: false });
+    (process as NodeJS.EventEmitter).emit('workflow:mode-change', { autonomousMode: 'false' });
 
     // Switch to controller view
     await setControllerView(ctx.cmRoot, true);

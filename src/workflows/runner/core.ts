@@ -106,8 +106,9 @@ async function handleContinuationPrompt(
 
   // Track mode switch during execution
   let modeSwitchRequested = false;
-  const modeChangeHandler = (data: { autonomousMode: boolean }) => {
-    if (!data.autonomousMode) {
+  const modeChangeHandler = (data: { autonomousMode: string }) => {
+    // Check for string 'false' or 'never' (manual mode)
+    if (data.autonomousMode === 'false' || data.autonomousMode === 'never') {
       debug('[Runner:core] Mode change to manual during continuation prompt');
       modeSwitchRequested = true;
       ctx.getAbortController()?.abort();

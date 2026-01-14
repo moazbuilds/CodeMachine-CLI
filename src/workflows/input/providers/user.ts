@@ -33,7 +33,7 @@ export class UserInputProvider implements InputProvider {
   private resolver: ((result: InputResult) => void) | null = null;
   private currentContext: InputContext | null = null;
   private inputListener: ((data?: { prompt?: string; skip?: boolean }) => void) | null = null;
-  private modeChangeListener: ((data: { autonomousMode: boolean }) => void) | null = null;
+  private modeChangeListener: ((data: { autonomousMode: string }) => void) | null = null;
 
   constructor(options: UserInputProviderOptions) {
     this.emitter = options.emitter;

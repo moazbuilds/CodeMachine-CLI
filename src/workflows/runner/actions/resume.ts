@@ -31,10 +31,12 @@ export interface ResumeOptions {
 function setupModeChangeHandler(
   ctx: RunnerContext,
   onModeChange: (mode: 'manual' | 'auto') => void
-): (data: { autonomousMode: boolean }) => void {
-  const handler = (data: { autonomousMode: boolean }) => {
+): (data: { autonomousMode: string }) => void {
+  const handler = (data: { autonomousMode: string }) => {
     debug('[actions/resume] Mode change during resume: autoMode=%s', data.autonomousMode);
-    onModeChange(data.autonomousMode ? 'auto' : 'manual');
+    // Check for string 'true' or 'always' (auto mode)
+    const isAutoMode = data.autonomousMode === 'true' || data.autonomousMode === 'always';
+    onModeChange(isAutoMode ? 'auto' : 'manual');
     ctx.getAbortController()?.abort();
   };
   process.on('workflow:mode-change', handler);
@@ -45,7 +47,7 @@ function setupModeChangeHandler(
  * Cleanup mode change handler
  */
 function cleanupModeChangeHandler(
-  handler: (data: { autonomousMode: boolean }) => void
+  handler: (data: { autonomousMode: string }) => void
 ): void {
   process.removeListener('workflow:mode-change', handler);
 }

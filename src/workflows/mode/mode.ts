@@ -101,8 +101,8 @@ export class WorkflowMode {
 
     this.emit({ type: 'mode-changed', autoMode: true });
 
-    // Emit process event so UI updates
-    (process as NodeJS.EventEmitter).emit('workflow:mode-change', { autonomousMode: true });
+    // Emit process event so UI updates (use string 'true' for UI handler)
+    (process as NodeJS.EventEmitter).emit('workflow:mode-change', { autonomousMode: 'true' });
   }
 
   /**
@@ -127,8 +127,8 @@ export class WorkflowMode {
 
     this.emit({ type: 'mode-changed', autoMode: false });
 
-    // Emit process event so UI updates
-    (process as NodeJS.EventEmitter).emit('workflow:mode-change', { autonomousMode: false });
+    // Emit process event so UI updates (use string 'false' for UI handler)
+    (process as NodeJS.EventEmitter).emit('workflow:mode-change', { autonomousMode: 'false' });
   }
 
   /**
