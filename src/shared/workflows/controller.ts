@@ -141,16 +141,9 @@ export async function loadControllerConfig(cmRoot: string): Promise<{
   try {
     const content = await readFile(trackingPath, 'utf8');
     const data = JSON.parse(content) as TemplateTracking;
-    // Handle backward compatibility for boolean values
-    let autoMode = 'false';
-    if (typeof data.autonomousMode === 'boolean') {
-      autoMode = data.autonomousMode ? 'true' : 'false';
-    } else if (data.autonomousMode) {
-      autoMode = data.autonomousMode;
-    }
 
     const result = {
-      autonomousMode: autoMode,
+      autonomousMode: data.autonomousMode ?? 'false',
       controllerConfig: data.controllerConfig ?? null,
     };
     debug('[Controller] Loaded config: autonomousMode=%s controllerConfig=%o', result.autonomousMode, result.controllerConfig);
