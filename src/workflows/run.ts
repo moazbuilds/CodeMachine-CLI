@@ -245,6 +245,13 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   // This ensures timeline only appears when switching to executing view
   emitter.workflowStarted(template.name, moduleSteps.length);
 
+  // Emit controller info AFTER workflow:started to prevent reset() from clearing it
+  // This enables the 'c' key to return to controller even while step agent executes
+  if (controllerResult.controllerInfo) {
+    const info = controllerResult.controllerInfo;
+    emitter.setControllerInfo(info.id, info.name, info.engine, info.model);
+  }
+
   // Pre-populate timeline
   debug('[Workflow] ========== TIMELINE POPULATION ==========');
   debug('[Workflow] startIndex=%d, actualStartIndex=%d, total moduleSteps=%d', startIndex, actualStartIndex, moduleSteps.length);

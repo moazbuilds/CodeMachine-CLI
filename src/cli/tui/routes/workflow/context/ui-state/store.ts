@@ -51,7 +51,13 @@ function createStoreInternal(workflowName: string): UIActions & { reset: (workfl
   // Reset function to reinitialize state for a new workflow
   const reset = (newWorkflowName: string) => {
     debug('[UI-STORE] Resetting store for new workflow: %s', newWorkflowName)
+    // Preserve controller state across workflow reset
+    const preservedControllerState = state.controllerState
     state = createInitialState(newWorkflowName)
+    if (preservedControllerState) {
+      debug('[UI-STORE] Preserving controller state: %s', preservedControllerState.id)
+      state.controllerState = preservedControllerState
+    }
     notifyImmediate()
   }
 

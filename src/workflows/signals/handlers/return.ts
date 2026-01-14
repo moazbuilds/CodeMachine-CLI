@@ -46,22 +46,30 @@ export async function handleReturnToControllerSignal(ctx: SignalContext): Promis
   ctx.machine.send({ type: 'PAUSE' })
   ctx.mode.pause()
 
+  debug('[ReturnToControllerSignal] After pause, machine state=%s', ctx.machine.state)
+
   // Abort current step if running
   const abortController = ctx.getAbortController()
   if (abortController && !abortController.signal.aborted) {
     debug('[ReturnToControllerSignal] Aborting current step')
     abortController.abort()
   }
+  debug('[ReturnToControllerSignal] After abort check')
 
   // CRITICAL: Emit mode-change event to abort ControllerInputProvider
   // This must be done BEFORE switching views to ensure the controller's executeWithActions aborts
   debug('[ReturnToControllerSignal] Emitting mode-change with autonomousMode=false to abort controller')
   ;(process as NodeJS.EventEmitter).emit('workflow:mode-change', { autonomousMode: 'false' })
+  debug('[ReturnToControllerSignal] After mode-change emit')
 
   // Switch to controller view
+  debug('[ReturnToControllerSignal] About to call setControllerView')
   await setControllerView(ctx.cmRoot, true)
+  debug('[ReturnToControllerSignal] After setControllerView, about to emit workflow:view')
   ctx.emitter.setWorkflowView('controller')
+  debug('[ReturnToControllerSignal] After setWorkflowView')
   ctx.emitter.updateControllerStatus('awaiting')
+  debug('[ReturnToControllerSignal] After updateControllerStatus')
 
   // Set autonomous mode to never for conversation (file persistence)
   await setAutonomousMode(ctx.cmRoot, 'never')
