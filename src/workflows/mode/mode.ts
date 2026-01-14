@@ -13,6 +13,7 @@ import type { ModeProviders, ModeEvent, ModeEventListener } from './types.js';
 export class WorkflowMode {
   private _autoMode: boolean = false;
   private _paused: boolean = false;
+  private _controllerConversationActive: boolean = false;
   private readonly providers: ModeProviders;
   private readonly listeners: Set<ModeEventListener> = new Set();
 
@@ -32,6 +33,22 @@ export class WorkflowMode {
    */
   get paused(): boolean {
     return this._paused;
+  }
+
+  /**
+   * Whether controller conversation is active (return-to-controller)
+   * When true, runner should skip processing to avoid overwriting controller input state
+   */
+  get controllerConversationActive(): boolean {
+    return this._controllerConversationActive;
+  }
+
+  /**
+   * Set controller conversation active state
+   */
+  setControllerConversationActive(active: boolean): void {
+    debug('[WorkflowMode] Controller conversation active: %s', active);
+    this._controllerConversationActive = active;
   }
 
   /**

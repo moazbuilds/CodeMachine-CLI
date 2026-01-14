@@ -27,6 +27,13 @@ export interface ControllerViewOptions {
   eventBus: WorkflowEventBus;
 }
 
+export interface ControllerInfo {
+  id: string;
+  name: string;
+  engine: string;
+  model?: string;
+}
+
 export interface ControllerViewResult {
   /** Whether controller view ran (false if skipped) */
   ran: boolean;
@@ -34,6 +41,8 @@ export interface ControllerViewResult {
   agentId?: string;
   /** Monitoring ID for log viewing */
   monitoringId?: number;
+  /** Controller info for deferred emission (after workflow:started) */
+  controllerInfo?: ControllerInfo;
 }
 
 /**
@@ -65,20 +74,32 @@ export async function runControllerView(
   const definition = template.controller;
   debug('[ControllerView] Controller definition found: %s', definition.agentId);
 
+  // Find the controller agent from available agents (needed for both paths)
+  const allAgents = await collectAgentDefinitions(cwd);
+  const controller = allAgents.find(a => a.id === definition.agentId);
+
   // Check if controller session already exists
   const existingConfig = await loadControllerConfig(cmRoot);
   if (existingConfig?.controllerConfig?.sessionId) {
     debug('[ControllerView] Controller session already exists, skipping init');
+
+    // Return controller info for deferred emission (after workflow:started)
+    // This enables the 'c' key to return to controller even while step agent executes
+    const controllerInfo = controller ? {
+      id: definition.agentId,
+      name: (controller.name as string | undefined) ?? controller.id,
+      engine: existingConfig.controllerConfig.engine || 'unknown',
+      model: existingConfig.controllerConfig.model,
+    } : undefined;
+
     // Transition to executing view with autonomous mode
     await setAutonomousMode(cmRoot, 'true');
     await setControllerView(cmRoot, false);
     emitter.setWorkflowView('executing');
-    return { ran: false };
+    return { ran: false, controllerInfo };
   }
 
-  // Find the controller agent from available agents
-  const allAgents = await collectAgentDefinitions(cwd);
-  const controller = allAgents.find(a => a.id === definition.agentId);
+  // Validate controller agent exists (for init path)
   if (!controller) {
     debug('[ControllerView] Controller agent not found: %s', definition.agentId);
     throw new Error(`Controller agent not found: ${definition.agentId}`);

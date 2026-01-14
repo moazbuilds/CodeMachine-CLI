@@ -155,6 +155,13 @@ export async function handleState(
   callbacks: ModeHandlerCallbacks,
   fsmState: 'awaiting' | 'delegated'
 ): Promise<void> {
+  // Skip processing if controller conversation is active (return-to-controller)
+  // This prevents overwriting controller's input state with step agent's state
+  if (ctx.mode.controllerConversationActive) {
+    debug('[Runner:core] Skipping handleState - controller conversation active');
+    return;
+  }
+
   const machineCtx = ctx.machine.context;
   const stepIndex = machineCtx.currentStepIndex;
   const step = ctx.moduleSteps[stepIndex];

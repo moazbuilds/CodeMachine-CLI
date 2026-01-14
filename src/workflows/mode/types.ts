@@ -16,6 +16,9 @@ export interface WorkflowModeState {
 
   /** Whether workflow is paused */
   paused: boolean;
+
+  /** Whether controller conversation is active (return-to-controller) */
+  controllerConversationActive: boolean;
 }
 
 /**

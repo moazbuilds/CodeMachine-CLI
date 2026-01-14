@@ -76,10 +76,14 @@ export async function handleReturnToControllerSignal(ctx: SignalContext): Promis
   const divider = formatUserInput('━━━ RETURNING TO CONTROLLER ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   AgentLoggerService.getInstance().write(config.monitoringId, `\n${divider}\n`)
 
+  // Mark controller conversation as active to prevent runner from overwriting input state
+  ctx.mode.setControllerConversationActive(true)
+
   debug('[ReturnToControllerSignal] Entering conversation loop')
 
-  // Inlined conversation loop (replaces runControllerConversation)
-  await new Promise<void>((resolve, reject) => {
+  try {
+    // Inlined conversation loop (replaces runControllerConversation)
+    await new Promise<void>((resolve, reject) => {
     const cleanup = () => {
       ;(process as NodeJS.EventEmitter).off('workflow:input', onInput)
       ;(process as NodeJS.EventEmitter).off('workflow:controller-continue', onContinue)
@@ -147,6 +151,10 @@ export async function handleReturnToControllerSignal(ctx: SignalContext): Promis
     ;(process as NodeJS.EventEmitter).on('workflow:input', onInput)
     ;(process as NodeJS.EventEmitter).on('workflow:controller-continue', onContinue)
   })
+  } finally {
+    // Clear controller conversation flag to allow runner to process again
+    ctx.mode.setControllerConversationActive(false)
+  }
 
   debug('[ReturnToControllerSignal] Conversation ended, resuming workflow')
 
