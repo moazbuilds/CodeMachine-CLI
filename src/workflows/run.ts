@@ -19,6 +19,7 @@ import {
   getControllerView,
   loadControllerConfig,
   saveControllerConfig,
+  setActiveTemplate,
 } from '../shared/workflows/index.js';
 import { StepIndexManager } from './indexing/index.js';
 import { registry } from '../infra/engines/index.js';
@@ -48,6 +49,11 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   const cmRoot = path.join(cwd, '.codemachine');
   const templatePath = options.templatePath || (await getTemplatePathFromTracking(cmRoot));
   const { template } = await loadTemplateWithPath(cwd, templatePath);
+
+  // Ensure template.json exists with correct activeTemplate before any setter functions are called
+  // This prevents setControllerView/setSelectedTrack/etc from creating file with empty activeTemplate
+  const templateFileName = path.basename(templatePath);
+  await setActiveTemplate(cmRoot, templateFileName, template.autonomousMode);
 
   // Clear screen for TUI
   if (process.stdout.isTTY) {
