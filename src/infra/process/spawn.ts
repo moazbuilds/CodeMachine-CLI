@@ -220,6 +220,35 @@ export function spawnProcess(options: SpawnOptions): Promise<SpawnResult> {
     const stderrChunks: string[] = [];
     let firstStdoutReceived = false;
 
+    // Track stream readers for cleanup on abort
+    let stdoutReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+    let stderrReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+
+    // Function to cancel readers (called on abort to unblock stream promises)
+    const cancelReaders = () => {
+      if (stdoutReader) {
+        try {
+          stdoutReader.cancel().catch(() => {});
+        } catch {
+          // Ignore - reader may already be released
+        }
+        stdoutReader = null;
+      }
+      if (stderrReader) {
+        try {
+          stderrReader.cancel().catch(() => {});
+        } catch {
+          // Ignore - reader may already be released
+        }
+        stderrReader = null;
+      }
+    };
+
+    // Enhanced abort handler that also cancels readers
+    if (effectiveSignal && !effectiveSignal.aborted) {
+      effectiveSignal.addEventListener('abort', cancelReaders, { once: true });
+    }
+
     (async () => {
       try {
         // Stream stdout and stderr in parallel
@@ -228,20 +257,24 @@ export function spawnProcess(options: SpawnOptions): Promise<SpawnResult> {
         if (stdioMode === 'pipe' && child.stdout) {
           streamPromises.push(
             (async () => {
-              const reader = child.stdout!.getReader();
+              stdoutReader = child.stdout!.getReader();
               const decoder = new TextDecoder();
 
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
+              try {
+                while (true) {
+                  const { done, value } = await stdoutReader.read();
+                  if (done) break;
 
-                const text = decoder.decode(value, { stream: true });
-                if (!firstStdoutReceived) {
-                  firstStdoutReceived = true;
-                  logger.debug(`[SPAWN-TIMING] First stdout received ${Date.now() - spawnStartTime}ms after spawn, bytes=${value.length}`);
+                  const text = decoder.decode(value, { stream: true });
+                  if (!firstStdoutReceived) {
+                    firstStdoutReceived = true;
+                    logger.debug(`[SPAWN-TIMING] First stdout received ${Date.now() - spawnStartTime}ms after spawn, bytes=${value.length}`);
+                  }
+                  stdoutChunks.push(text);
+                  onStdout?.(text);
                 }
-                stdoutChunks.push(text);
-                onStdout?.(text);
+              } catch {
+                // Reader was cancelled (abort) - exit gracefully
               }
             })()
           );
@@ -250,16 +283,20 @@ export function spawnProcess(options: SpawnOptions): Promise<SpawnResult> {
         if (stdioMode === 'pipe' && child.stderr) {
           streamPromises.push(
             (async () => {
-              const reader = child.stderr!.getReader();
+              stderrReader = child.stderr!.getReader();
               const decoder = new TextDecoder();
 
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
+              try {
+                while (true) {
+                  const { done, value } = await stderrReader.read();
+                  if (done) break;
 
-                const text = decoder.decode(value, { stream: true });
-                stderrChunks.push(text);
-                onStderr?.(text);
+                  const text = decoder.decode(value, { stream: true });
+                  stderrChunks.push(text);
+                  onStderr?.(text);
+                }
+              } catch {
+                // Reader was cancelled (abort) - exit gracefully
               }
             })()
           );
