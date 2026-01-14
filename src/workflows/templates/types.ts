@@ -1,6 +1,6 @@
 export type UnknownRecord = Record<string, unknown>;
 
-import type { ControllerDefinition } from '../../shared/workflows/controller-helper.js';
+import type { ControllerDefinition } from '../controller/helper.js';
 
 export interface LoopModuleBehavior {
   type: 'loop';

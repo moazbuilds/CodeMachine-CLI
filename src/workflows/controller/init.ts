@@ -2,41 +2,18 @@
  * Controller Agent Initialization
  *
  * Initializes a controller agent session for workflow orchestration.
- * Configuration management functions have been moved to src/workflows/controller/config.ts
  */
 
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import * as path from 'node:path';
-import type { ControllerConfig } from './template.js';
+import type { ControllerConfig } from './types.js';
+import type { InitControllerOptions, InitControllerResult } from './types.js';
 import { executeAgent } from '../../agents/runner/runner.js';
 import { AgentMonitorService } from '../../agents/monitoring/index.js';
-import { processPromptString } from '../prompts/index.js';
-import { debug } from '../logging/logger.js';
-import { saveControllerConfig } from '../../workflows/controller/config.js';
-
-/**
- * Options for controller agent initialization
- */
-export interface InitControllerOptions {
-  /** Callback when monitoring ID becomes available (for log streaming) */
-  onMonitoringId?: (monitoringId: number) => void;
-  /** Engine override (from workflow definition.options) - passed to executeAgent */
-  engineOverride?: string;
-  /** Model override (from workflow definition.options) - passed to executeAgent */
-  modelOverride?: string;
-}
-
-/**
- * Result of controller agent initialization
- * Includes resolved engine/model from executeAgent (via MonitorService)
- */
-export interface InitControllerResult extends ControllerConfig {
-  /** Resolved engine used by agent */
-  engine: string;
-  /** Resolved model used by agent */
-  model?: string;
-}
+import { processPromptString } from '../../shared/prompts/index.js';
+import { debug } from '../../shared/logging/logger.js';
+import { saveControllerConfig } from './config.js';
 
 /**
  * Initialize controller agent session
@@ -115,11 +92,13 @@ export async function initControllerAgent(
   const resolvedModel = agent.modelName;
   debug('[Controller] Resolved engine=%s model=%s from MonitorService', resolvedEngine, resolvedModel);
 
-  // Build config
+  // Build config (include engine/model for resume)
   const config: ControllerConfig = {
     agentId,
     sessionId: agent.sessionId,
     monitoringId: result.agentId!,
+    engine: resolvedEngine,
+    model: resolvedModel,
   };
   debug('[Controller] Built config: %o', config);
 
@@ -134,20 +113,3 @@ export async function initControllerAgent(
     model: resolvedModel,
   };
 }
-
-// ─────────────────────────────────────────────────────────────────
-// Action Parsing (re-exported from agents/execution for backward compatibility)
-// ─────────────────────────────────────────────────────────────────
-
-/**
- * @deprecated Use parseAction from '../../agents/execution/index.js' instead
- */
-export { parseAction as parseControllerAction } from '../../agents/execution/actions.js';
-
-/**
- * @deprecated Use extractCleanText from '../../agents/execution/index.js' instead
- */
-export { extractCleanText as extractInputText } from '../../agents/execution/actions.js';
-
-// Export the new generic type for forward compatibility
-export type { AgentAction } from '../../agents/execution/types.js';

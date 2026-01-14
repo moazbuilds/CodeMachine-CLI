@@ -120,6 +120,8 @@ export async function handleReturnToControllerSignal(ctx: SignalContext): Promis
           resumeSessionId: config.sessionId,
           resumePrompt: data.prompt,
           resumeMonitoringId: config.monitoringId,
+          engine: config.engine,
+          model: config.model,
         })
 
         // After response, go back to awaiting input

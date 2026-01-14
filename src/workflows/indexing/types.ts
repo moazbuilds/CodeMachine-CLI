@@ -93,4 +93,8 @@ export interface ControllerConfig {
   agentId: string;
   sessionId: string;
   monitoringId: number;
+  /** Engine used for this controller session (for resume) */
+  engine?: string;
+  /** Model used for this controller session (for resume) */
+  model?: string;
 }

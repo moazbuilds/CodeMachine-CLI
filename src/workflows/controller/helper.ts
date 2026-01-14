@@ -9,10 +9,10 @@
  * Options for controller configuration
  */
 export interface ControllerOptions {
-    /** Engine to use (e.g., 'codex', 'claude', 'gemini') */
-    engine?: string;
-    /** Model override */
-    model?: string;
+  /** Engine to use (e.g., 'codex', 'claude', 'gemini') */
+  engine?: string;
+  /** Model override */
+  model?: string;
 }
 
 /**
@@ -20,12 +20,12 @@ export interface ControllerOptions {
  * Used in workflow templates to specify the controller agent
  */
 export interface ControllerDefinition {
-    /** Type discriminator for type guards */
-    readonly type: 'controller';
-    /** Agent ID to use as controller */
-    readonly agentId: string;
-    /** Optional configuration overrides */
-    readonly options?: ControllerOptions;
+  /** Type discriminator for type guards */
+  readonly type: 'controller';
+  /** Agent ID to use as controller */
+  readonly agentId: string;
+  /** Optional configuration overrides */
+  readonly options?: ControllerOptions;
 }
 
 /**
@@ -45,21 +45,21 @@ export interface ControllerDefinition {
  * ```
  */
 export function controller(agentId: string, options?: ControllerOptions): ControllerDefinition {
-    return {
-        type: 'controller',
-        agentId,
-        options,
-    };
+  return {
+    type: 'controller',
+    agentId,
+    options,
+  };
 }
 
 /**
  * Type guard to check if a value is a ControllerDefinition
  */
 export function isControllerDefinition(value: unknown): value is ControllerDefinition {
-    return (
-        typeof value === 'object' &&
-        value !== null &&
-        (value as ControllerDefinition).type === 'controller' &&
-        typeof (value as ControllerDefinition).agentId === 'string'
-    );
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as ControllerDefinition).type === 'controller' &&
+    typeof (value as ControllerDefinition).agentId === 'string'
+  );
 }

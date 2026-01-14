@@ -29,7 +29,7 @@ import { ensureWorkspaceStructure, mirrorSubAgents } from '../runtime/services/w
 import { WorkflowRunner } from './runner/index.js';
 import { getUniqueAgentId } from './context/index.js';
 import { setupWorkflowMCP, cleanupWorkflowMCP } from './mcp.js';
-import { runControllerView } from './controller.js';
+import { runControllerView } from './controller/view.js';
 
 // Re-export from preflight for backward compatibility
 export { ValidationError, checkWorkflowCanStart, checkSpecificationRequired, checkOnboardingRequired, needsOnboarding } from './preflight.js';

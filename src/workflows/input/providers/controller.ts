@@ -152,6 +152,8 @@ Review the output above and respond appropriately, or use ACTION: NEXT to procee
       // Resume controller session - reuse existing monitoring entry to avoid duplicate agent/log registration
       const result = await executeWithActions(config.agentId, prompt, {
         workingDir: this.cwd,
+        engine: config.engine,
+        model: config.model,
         resumeSessionId: config.sessionId,
         resumeMonitoringId: config.monitoringId,
         resumePrompt: prompt,

@@ -1,5 +1,5 @@
 import { resolveFolder, resolveModule, resolveStep, separator } from '../utils/index.js';
-import { controller } from '../../shared/workflows/controller-helper.js';
+import { controller } from '../controller/helper.js';
 
 type TemplateGlobalProvider = typeof resolveStep | typeof resolveFolder | typeof resolveModule | typeof separator | typeof controller;
 

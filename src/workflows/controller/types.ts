@@ -26,3 +26,29 @@ export interface ViewControllerConfig {
  * - 'always': Always auto (no user input allowed)
  */
 export type AutonomousMode = 'true' | 'false' | 'never' | 'always'
+
+/**
+ * Options for controller agent initialization
+ */
+export interface InitControllerOptions {
+  /** Callback when monitoring ID becomes available (for log streaming) */
+  onMonitoringId?: (monitoringId: number) => void
+  /** Engine override (from workflow definition.options) - passed to executeAgent */
+  engineOverride?: string
+  /** Model override (from workflow definition.options) - passed to executeAgent */
+  modelOverride?: string
+}
+
+/**
+ * Result of controller agent initialization
+ * Includes resolved engine/model from executeAgent (via MonitorService)
+ */
+export interface InitControllerResult {
+  agentId: string
+  sessionId: string
+  monitoringId: number
+  /** Resolved engine used by agent */
+  engine: string
+  /** Resolved model used by agent */
+  model?: string
+}

@@ -211,13 +211,16 @@ export class OpenTUIAdapter extends BaseUIAdapter {
 
       // Controller agent events
       case "controller:info": {
-        // Preserve existing telemetry when controller info is updated (controller runs multiple times)
+        // Preserve existing state when controller info is updated
+        // (status/monitoring events can arrive before controller:info)
         const existingController = this.actions.getState().controllerState
         this.actions.setControllerState({
           id: event.id,
           name: event.name,
           engine: event.engine,
           model: event.model,
+          status: existingController?.status,
+          monitoringId: existingController?.monitoringId,
           telemetry: existingController?.telemetry ?? { tokensIn: 0, tokensOut: 0 },
         })
         break

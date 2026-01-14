@@ -6,18 +6,18 @@
  * then transitions to view='executing' with autonomousMode='true'.
  */
 
-import type { WorkflowTemplate } from './templates/types.js';
-import type { WorkflowEventBus } from './events/event-bus.js';
-import type { WorkflowEventEmitter } from './events/emitter.js';
-import { initControllerAgent } from '../shared/workflows/controller.js';
-import { loadControllerConfig, setAutonomousMode } from './controller/config.js';
-import { setControllerView } from '../shared/workflows/template.js';
-import { isControllerDefinition } from '../shared/workflows/controller-helper.js';
-import { collectAgentDefinitions } from '../shared/agents/discovery/catalog.js';
-import { debug } from '../shared/logging/logger.js';
-import { formatUserInput } from '../shared/formatters/outputMarkers.js';
-import { AgentLoggerService } from '../agents/monitoring/index.js';
-import { executeAgent } from '../agents/runner/runner.js';
+import type { WorkflowTemplate } from '../templates/types.js';
+import type { WorkflowEventBus } from '../events/event-bus.js';
+import type { WorkflowEventEmitter } from '../events/emitter.js';
+import { initControllerAgent } from './init.js';
+import { loadControllerConfig, setAutonomousMode } from './config.js';
+import { setControllerView } from '../../shared/workflows/template.js';
+import { isControllerDefinition } from './helper.js';
+import { collectAgentDefinitions } from '../../shared/agents/discovery/catalog.js';
+import { debug } from '../../shared/logging/logger.js';
+import { formatUserInput } from '../../shared/formatters/outputMarkers.js';
+import { AgentLoggerService } from '../../agents/monitoring/index.js';
+import { executeAgent } from '../../agents/runner/runner.js';
 
 export interface ControllerViewOptions {
   cwd: string;
@@ -161,6 +161,8 @@ export async function runControllerView(
         agentId: controller.id,
         sessionId: config.sessionId,
         monitoringId: controllerMonitoringId!,
+        engine: config.engine,
+        model: config.model,
       };
 
       const cleanup = () => {
@@ -203,6 +205,8 @@ export async function runControllerView(
             resumeSessionId: controllerConfig.sessionId,
             resumePrompt: data.prompt,
             resumeMonitoringId: controllerConfig.monitoringId,
+            engine: controllerConfig.engine,
+            model: controllerConfig.model,
           });
 
           // After response, go back to awaiting input
@@ -253,4 +257,3 @@ export async function runControllerView(
     throw error;
   }
 }
-

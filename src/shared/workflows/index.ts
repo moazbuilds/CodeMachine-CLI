@@ -18,24 +18,15 @@ export {
 // Types
 export type { StepData, ControllerConfig } from './template.js';
 
-// Controller initialization (config functions moved to src/workflows/controller/config.ts)
+// Controller functions (consolidated in src/workflows/controller/)
 export {
   initControllerAgent,
-  parseControllerAction,
-  extractInputText,
-} from './controller.js';
-
-// Re-export config functions from new location for backward compatibility
-export {
   getControllerAgents,
   loadControllerConfig,
   saveControllerConfig,
   setAutonomousMode,
   clearControllerConfig,
-} from '../../workflows/controller/config.js';
-
-// Note: Step tracking functions have been moved to src/workflows/indexing/
-// Import from 'src/workflows/indexing/index.js' for StepIndexManager
+} from '../../workflows/controller/index.js';
 
 // Controller helper for workflow templates
 export {
@@ -43,4 +34,4 @@ export {
   isControllerDefinition,
   type ControllerDefinition,
   type ControllerOptions,
-} from './controller-helper.js';
+} from '../../workflows/controller/helper.js';

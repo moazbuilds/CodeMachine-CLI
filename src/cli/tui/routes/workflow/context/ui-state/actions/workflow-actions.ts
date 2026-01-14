@@ -191,30 +191,58 @@ export function createWorkflowActions(ctx: WorkflowActionsContext) {
 
   function updateControllerStatus(status: AgentStatus): void {
     const state = ctx.getState()
-    if (!state.controllerState) return
-    if (state.controllerState.status === status) return
 
-    ctx.setState({
-      ...state,
-      controllerState: {
-        ...state.controllerState,
-        status,
-      },
-    })
+    // Create partial controllerState if it doesn't exist yet
+    // (status event can arrive before controller:info)
+    if (!state.controllerState) {
+      ctx.setState({
+        ...state,
+        controllerState: {
+          id: '',
+          name: '',
+          engine: '',
+          status,
+          telemetry: { tokensIn: 0, tokensOut: 0 },
+        },
+      })
+    } else {
+      if (state.controllerState.status === status) return
+      ctx.setState({
+        ...state,
+        controllerState: {
+          ...state.controllerState,
+          status,
+        },
+      })
+    }
     ctx.notify()
   }
 
   function updateControllerMonitoring(monitoringId: number): void {
     const state = ctx.getState()
-    if (!state.controllerState) return
 
-    ctx.setState({
-      ...state,
-      controllerState: {
-        ...state.controllerState,
-        monitoringId,
-      },
-    })
+    // Create partial controllerState if it doesn't exist yet
+    // (monitoring event can arrive before controller:info)
+    if (!state.controllerState) {
+      ctx.setState({
+        ...state,
+        controllerState: {
+          id: '',
+          name: '',
+          engine: '',
+          monitoringId,
+          telemetry: { tokensIn: 0, tokensOut: 0 },
+        },
+      })
+    } else {
+      ctx.setState({
+        ...state,
+        controllerState: {
+          ...state.controllerState,
+          monitoringId,
+        },
+      })
+    }
     ctx.notify()
   }
 
