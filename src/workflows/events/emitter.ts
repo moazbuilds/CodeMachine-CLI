@@ -106,6 +106,17 @@ export class WorkflowEventEmitter {
     });
   }
 
+  /**
+   * Emit workflow name (for early display before workflow:started)
+   */
+  setWorkflowName(workflowName: string): void {
+    debug('[Emitter] workflow:name name=%s', workflowName);
+    this.bus.emit({
+      type: 'workflow:name',
+      workflowName,
+    });
+  }
+
   // ─────────────────────────────────────────────────────────────────
   // Main Agents
   // ─────────────────────────────────────────────────────────────────

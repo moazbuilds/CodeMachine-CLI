@@ -142,6 +142,11 @@ export class OpenTUIAdapter extends BaseUIAdapter {
         this.actions.setWorkflowView(event.view)
         break
 
+      case "workflow:name":
+        debug('[ADAPTER] workflow:name → name=%s', event.workflowName)
+        this.actions.setWorkflowName(event.workflowName)
+        break
+
       // Agent events
       case "agent:added": {
         // Register with timer if starting as running or delegated

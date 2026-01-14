@@ -111,6 +111,7 @@ export type WorkflowEvent =
   | { type: 'triggered:added'; sourceAgentId: string; triggeredAgent: TriggeredAgentState }
 
   // Workflow state events
+  | { type: 'workflow:name'; workflowName: string }
   | { type: 'workflow:status'; status: WorkflowStatus }
   | { type: 'workflow:started'; workflowName: string; totalSteps: number }
   | { type: 'workflow:stopped'; reason?: string }

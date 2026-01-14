@@ -65,6 +65,9 @@ export async function runControllerView(
 
   debug('[ControllerView] Starting controller view check');
 
+  // Set workflow name early so TelemetryBar shows it during controller view
+  emitter.setWorkflowName(template.name);
+
   // Check if template has controller definition
   if (!template.controller || !isControllerDefinition(template.controller)) {
     debug('[ControllerView] Template does not have controller definition, skipping');
