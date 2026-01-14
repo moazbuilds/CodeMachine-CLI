@@ -141,6 +141,8 @@ export async function runControllerView(
           controllerMonitoringId = monitoringId;
           emitter.registerControllerMonitoring(monitoringId);
         },
+        engine: engineType,
+        model: resolvedModel as string | undefined,
       }
     );
 
@@ -166,6 +168,8 @@ export async function runControllerView(
       monitoringId: controllerMonitoringId!,
       cwd,
       emitter,
+      engine: engineType,
+      model: resolvedModel as string | undefined,
     });
 
     debug('[ControllerView] Conversation loop ended, transitioning to executing view');
@@ -199,6 +203,8 @@ interface ConversationLoopOptions {
   monitoringId: number;
   cwd: string;
   emitter: WorkflowEventEmitter;
+  engine?: string;
+  model?: string;
 }
 
 /**
@@ -206,7 +212,7 @@ interface ConversationLoopOptions {
  * Waits for user input and resumes conversation until user presses Enter (continue signal).
  */
 async function runControllerConversationLoop(options: ConversationLoopOptions): Promise<void> {
-  const { sessionId, agentId, monitoringId, cwd, emitter } = options;
+  const { sessionId, agentId, monitoringId, cwd, emitter, engine, model } = options;
 
   return new Promise((resolve, reject) => {
     // Handler for user input (workflow:input event from UI)
@@ -245,6 +251,8 @@ async function runControllerConversationLoop(options: ConversationLoopOptions): 
           resumeSessionId: sessionId,
           resumePrompt: data.prompt,
           resumeMonitoringId: monitoringId,
+          engine,
+          model,
         });
 
         // After response, go back to awaiting input

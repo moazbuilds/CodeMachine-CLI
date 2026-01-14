@@ -37,6 +37,10 @@ export async function getControllerAgents(projectRoot: string): Promise<AgentDef
 export interface InitControllerOptions {
   /** Callback when monitoring ID becomes available (for log streaming) */
   onMonitoringId?: (monitoringId: number) => void;
+  /** Engine to use (overrides agent config) */
+  engine?: string;
+  /** Model to use (overrides agent config) */
+  model?: string;
 }
 
 /**
@@ -93,6 +97,8 @@ export async function initControllerAgent(
     workingDir: cwd,
     ui,
     uniqueAgentId: agentId, // Required for ui callback to work
+    engine: options?.engine,
+    model: options?.model,
   });
   debug('[Controller] executeAgent returned: agentId=%s', result.agentId);
 
