@@ -14,6 +14,7 @@ export class WorkflowMode {
   private _autoMode: boolean = false;
   private _paused: boolean = false;
   private _controllerConversationActive: boolean = false;
+  private controllerConversationWaiters: Set<() => void> = new Set();
   private readonly providers: ModeProviders;
   private readonly listeners: Set<ModeEventListener> = new Set();
 
@@ -49,6 +50,24 @@ export class WorkflowMode {
   setControllerConversationActive(active: boolean): void {
     debug('[WorkflowMode] Controller conversation active: %s', active);
     this._controllerConversationActive = active;
+    if (!active && this.controllerConversationWaiters.size > 0) {
+      for (const resolve of this.controllerConversationWaiters) {
+        resolve();
+      }
+      this.controllerConversationWaiters.clear();
+    }
+  }
+
+  /**
+   * Wait until controller conversation is inactive.
+   */
+  waitForControllerConversationInactive(): Promise<void> {
+    if (!this._controllerConversationActive) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+      this.controllerConversationWaiters.add(resolve);
+    });
   }
 
   /**

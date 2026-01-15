@@ -159,6 +159,7 @@ export async function handleState(
   // This prevents overwriting controller's input state with step agent's state
   if (ctx.mode.controllerConversationActive) {
     debug('[Runner:core] Skipping handleState - controller conversation active');
+    await ctx.mode.waitForControllerConversationInactive();
     return;
   }
 
