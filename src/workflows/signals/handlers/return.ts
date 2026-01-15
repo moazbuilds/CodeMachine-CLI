@@ -56,6 +56,13 @@ export async function handleReturnToControllerSignal(ctx: SignalContext): Promis
   }
   debug('[ReturnToControllerSignal] After abort check')
 
+  // Clean up workflow state before switching to controller view
+  ctx.indexManager.resetQueue()
+  ctx.emitter.setInputState(null)
+
+  // Emit pause event so TUI opens input for pause state
+  ;(process as NodeJS.EventEmitter).emit('workflow:pause')
+
   // CRITICAL: Emit mode-change event to abort ControllerInputProvider
   // This must be done BEFORE switching views to ensure the controller's executeWithActions aborts
   debug('[ReturnToControllerSignal] Emitting mode-change with autonomousMode=false to abort controller')

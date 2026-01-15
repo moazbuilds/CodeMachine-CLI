@@ -47,7 +47,9 @@ export function useWorkflowEvents(options: UseWorkflowEventsOptions): UseWorkflo
   }
 
   const handleWorkflowError = (data: { reason: string }) => {
+    debug('[WORKFLOW-ERROR] Received workflow:error event, reason=%s', data.reason?.slice(0, 100) ?? '(no reason)')
     setErrorMessage(data.reason)
+    debug('[WORKFLOW-ERROR] errorMessage set, isErrorModalActive=%s', errorMessage() !== null)
   }
 
   const handleModeChange = (data: { autonomousMode: string }) => {

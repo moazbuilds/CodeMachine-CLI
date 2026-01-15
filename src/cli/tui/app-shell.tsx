@@ -235,10 +235,10 @@ export function App(props: { initialToast?: InitialToast }) {
       appDebug('[AppShell] Importing and running workflow')
       import("../../workflows/run.js").then(({ runWorkflow }) => {
         runWorkflow({ cwd }).catch((error) => {
-          // Emit error event to show toast with actual error message
+          // Error is already handled by workflow:error event (shows ErrorModal)
+          // Just log it here for debugging - no need to show toast
           const errorMsg = error instanceof Error ? error.message : String(error)
-          appDebug('[AppShell] Workflow error: %s', errorMsg)
-          ;(process as NodeJS.EventEmitter).emit('app:error', { message: errorMsg })
+          appDebug('[AppShell] Workflow error (handled by ErrorModal): %s', errorMsg.slice(0, 200))
         })
       })
     }
