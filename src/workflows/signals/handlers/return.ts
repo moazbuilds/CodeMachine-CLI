@@ -56,8 +56,6 @@ export async function handleReturnToControllerSignal(ctx: SignalContext): Promis
   }
   debug('[ReturnToControllerSignal] After abort check')
 
-  // Clean up workflow state before switching to controller view
-  ctx.indexManager.resetQueue()
   ctx.emitter.setInputState(null)
 
   // Emit pause event so TUI opens input for pause state

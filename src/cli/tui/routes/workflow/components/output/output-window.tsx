@@ -113,6 +113,14 @@ export function OutputWindow(props: OutputWindowProps) {
       return { mode: "disabled" }
     }
 
+    // Controller view mode: ignore queue, show simple active/passive state
+    if (isControllerViewMode()) {
+      if (inputState?.active) {
+        return { mode: "active", reason: "paused" }
+      }
+      return { mode: "passive" }
+    }
+
     // Input state active (unified pause/chained)
     if (inputState?.active) {
       // Has queued prompts = show chained UI
