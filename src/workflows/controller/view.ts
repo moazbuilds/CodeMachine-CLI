@@ -12,7 +12,7 @@ import type { WorkflowEventBus } from '../events/event-bus.js';
 import type { WorkflowEventEmitter } from '../events/emitter.js';
 import { initControllerAgent } from './init.js';
 import { loadControllerConfig, setAutonomousMode } from './config.js';
-import { setControllerView } from '../../shared/workflows/template.js';
+import { getControllerView, setControllerView } from '../../shared/workflows/template.js';
 import { isControllerDefinition } from './helper.js';
 import { collectAgentDefinitions } from '../../shared/agents/discovery/catalog.js';
 import { debug } from '../../shared/logging/logger.js';
@@ -100,9 +100,40 @@ export async function runControllerView(
       model: controllerAgent?.modelName,
     } : undefined;
 
-    // Transition to executing view with autonomous mode
+    // Check if we should resume to controller view
+    const originalControllerView = await getControllerView(cmRoot);
+    debug('[ControllerView] Recovery: originalControllerView=%s', originalControllerView);
+
+    if (originalControllerView) {
+      // Resume to controller view - wait for user to trigger workflow:controller-continue
+      await setAutonomousMode(cmRoot, 'never');
+      emitter.setWorkflowView('controller');
+      emitter.updateControllerStatus('awaiting');
+      emitter.setInputState({
+        active: true,
+        monitoringId: existingConfig.controllerConfig.monitoringId,
+      });
+
+      debug('[ControllerView] Recovery: waiting for workflow:controller-continue');
+      await new Promise<void>((resolve) => {
+        const onContinue = () => {
+          ;(process as NodeJS.EventEmitter).off('workflow:controller-continue', onContinue);
+          resolve();
+        };
+        ;(process as NodeJS.EventEmitter).on('workflow:controller-continue', onContinue);
+      });
+
+      // User triggered continue - transition to executing
+      emitter.setInputState(null);
+      emitter.updateControllerStatus('completed');
+      await setAutonomousMode(cmRoot, 'true');
+      await setControllerView(cmRoot, false);
+      emitter.setWorkflowView('executing');
+      return { ran: false, controllerInfo };
+    }
+
+    // Not in controller view - go directly to executing
     await setAutonomousMode(cmRoot, 'true');
-    await setControllerView(cmRoot, false);
     emitter.setWorkflowView('executing');
     return { ran: false, controllerInfo };
   }
