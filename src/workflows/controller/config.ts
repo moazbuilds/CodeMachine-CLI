@@ -73,7 +73,7 @@ export async function loadControllerConfig(cmRoot: string): Promise<{
 export async function saveControllerConfig(
   cmRoot: string,
   config: ControllerConfig,
-  autonomousMode = 'true'
+  autonomousMode?: string
 ): Promise<void> {
   const trackingPath = path.join(cmRoot, TEMPLATE_TRACKING_FILE)
 
@@ -88,7 +88,10 @@ export async function saveControllerConfig(
     }
   }
 
-  data.autonomousMode = autonomousMode
+  // Only update autonomousMode if explicitly provided, otherwise preserve existing
+  if (autonomousMode !== undefined) {
+    data.autonomousMode = autonomousMode
+  }
   data.controllerConfig = config
   data.lastUpdated = new Date().toISOString()
   // Ensure resumeFromLastStep is set for crash recovery
