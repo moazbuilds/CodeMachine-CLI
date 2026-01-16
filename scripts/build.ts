@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import '../src/shared/runtime/suppress-baseline-warning.js';
 import { mkdirSync, rmSync, cpSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { join, dirname, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';

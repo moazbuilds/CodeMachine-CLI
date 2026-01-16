@@ -1,3 +1,5 @@
+import '../shared/runtime/suppress-baseline-warning.js';
+
 // EARLY LOGGING SETUP - Initialize before anything else
 import * as path from 'node:path';
 import { setAppLogFile, appDebug } from '../shared/logging/logger.js';
