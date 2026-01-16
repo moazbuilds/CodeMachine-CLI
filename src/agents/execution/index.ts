@@ -34,15 +34,12 @@ export {
 // Action parsing
 export {
   parseAction,
-  extractCleanText,
-  parseOutput,
   hasAction,
 } from './actions.js';
 
 // Types
 export type {
   AgentAction,
-  ActionParseResult,
   TelemetryTarget,
   TelemetryCallback,
   ActionOptions,

@@ -17,6 +17,7 @@ import { isControllerDefinition } from './helper.js';
 import { collectAgentDefinitions } from '../../shared/agents/discovery/catalog.js';
 import { debug } from '../../shared/logging/logger.js';
 import { formatUserInput } from '../../shared/formatters/outputMarkers.js';
+import { controllerPrefixUser } from '../../shared/prompts/index.js';
 import { AgentLoggerService } from '../../agents/monitoring/index.js';
 import { executeAgent } from '../../agents/runner/runner.js';
 
@@ -246,8 +247,7 @@ export async function runControllerView(
           AgentLoggerService.getInstance().write(controllerConfig.monitoringId, `\n${formatted}\n`);
 
           // Add USER prefix with system username so controller knows input source
-          const username = os.userInfo().username;
-          const prefixedPrompt = `USER (${username}): ${data.prompt}`;
+          const prefixedPrompt = controllerPrefixUser(os.userInfo().username, data.prompt);
 
           await executeAgent(controllerConfig.agentId, prefixedPrompt, {
             workingDir: cwd,

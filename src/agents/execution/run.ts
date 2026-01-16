@@ -9,7 +9,7 @@
 
 import { executeAgent } from '../runner/runner.js';
 import { maybeCreateTelemetryCallback } from './telemetry.js';
-import { parseOutput } from './actions.js';
+import { parseAction } from './actions.js';
 import type { UnifiedExecuteOptions, UnifiedExecuteOutput } from './types.js';
 
 /**
@@ -61,11 +61,9 @@ export async function execute(
     ...result,
   };
 
-  // Parse actions if enabled
+  // Parse actions if enabled (action parsing only, no output cleaning)
   if (actions?.enabled) {
-    const parsed = parseOutput(result.output);
-    output.action = parsed.action;
-    output.cleanedOutput = parsed.cleanedOutput;
+    output.action = parseAction(result.output);
   }
 
   return output;

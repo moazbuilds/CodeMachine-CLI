@@ -6,7 +6,7 @@
  * Supports both text-based signals (ACTION: NEXT) and MCP tool calls (approve_step_transition).
  */
 
-import type { AgentAction, ActionParseResult } from './types.js';
+import type { AgentAction } from './types.js';
 import { detectMCPSignal, isApprovalSignal } from '../../workflows/signals/mcp/index.js';
 import { debug } from '../../shared/logging/logger.js';
 
@@ -148,48 +148,6 @@ export function parseAction(output: string): AgentAction | null {
 
   debug('[ActionParser] No action found');
   return null;
-}
-
-/**
- * Extract clean text from agent output, removing:
- * - ACTION: commands
- * - Color markers like [CYAN], [GREEN:BOLD], [GRAY], etc.
- * - Thinking prefixes (* )
- * - Status lines
- *
- * @param output - Raw agent output
- * @returns Cleaned text suitable for use as input
- */
-export function extractCleanText(output: string): string {
-  return output
-    // Remove ACTION commands
-    .replace(/ACTION:\s*(NEXT|SKIP|STOP)/g, '')
-    // Remove MCP signal markers: << SIGNAL >> workflow-signals:tool_name
-    .replace(/<<\s*SIGNAL\s*>>\s*workflow-signals:[^\n]*/gi, '')
-    // Remove color markers like [CYAN], [GREEN:BOLD], [GRAY], [RUNNING], etc.
-    .replace(/\[(CYAN|GREEN|GRAY|RED|YELLOW|MAGENTA|BLUE|WHITE|BLACK|RUNNING|DIM|BOLD|RESET)(:[A-Z]+)?\]/gi, '')
-    // Remove "* " thinking prefix from streaming
-    .replace(/^\s*\*\s*/gm, '')
-    // Remove status lines
-    .replace(/>\s*OpenCode is analyzing[^\n]*/gi, '')
-    // Clean up multiple newlines
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
-/**
- * Parse agent output for both action and clean text
- *
- * Combines parseAction and extractCleanText into a single call.
- *
- * @param output - Agent output to parse
- * @returns Action (if any) and cleaned output text
- */
-export function parseOutput(output: string): ActionParseResult {
-  return {
-    action: parseAction(output),
-    cleanedOutput: extractCleanText(output),
-  };
 }
 
 /**

@@ -28,16 +28,6 @@ export type { ParsedTelemetry, ChainedPrompt, AgentExecutionUI };
 export type AgentAction = 'NEXT' | 'SKIP' | 'STOP';
 
 /**
- * Result of parsing agent output for actions
- */
-export interface ActionParseResult {
-  /** Detected action, if any */
-  action: AgentAction | null;
-  /** Cleaned output text with action markers removed */
-  cleanedOutput: string;
-}
-
-/**
  * Target for telemetry forwarding
  */
 export interface TelemetryTarget {
@@ -89,6 +79,4 @@ export interface UnifiedExecuteOptions extends Omit<ExecuteAgentOptions, 'onTele
 export interface UnifiedExecuteOutput extends AgentExecutionOutput {
   /** Parsed action from output (if actions.enabled) */
   action?: AgentAction | null;
-  /** Cleaned output text (action markers removed if actions.enabled) */
-  cleanedOutput?: string;
 }

@@ -208,6 +208,10 @@ export function stripMarker(text: string): string {
   return result
 }
 
+// ============================================================================
+// Global Marker/Artifact Stripping (for LLM context)
+// ============================================================================
+
 /**
  * Global regex for stripping markers anywhere in text (not just start)
  */
@@ -225,16 +229,48 @@ const TELEMETRY_LINE_REGEX = /^⏱️\s+Tokens:\s*\d+in\/\d+out(?:\s*\(\d+\s*cac
 const ENGINE_STATUS_LINE_REGEX = /^\s*>\s*\w+\s+is analyzing your request\.\.\.$/gm
 
 /**
- * Strip all markers from text anywhere (for sending to LLMs as plain text)
- * Unlike stripMarker(), this removes markers from ANY position in the text.
- * Also removes telemetry lines and engine status messages that are not useful for LLM context.
+ * Regex for ACTION commands: ACTION: NEXT, ACTION: SKIP, ACTION: STOP
+ */
+const ACTION_COMMAND_REGEX = /ACTION:\s*(NEXT|SKIP|STOP)/g
+
+/**
+ * Regex for MCP signal markers: << SIGNAL >> workflow-signals:tool_name
+ */
+const MCP_SIGNAL_REGEX = /<<\s*SIGNAL\s*>>\s*workflow-signals:[^\n]*/gi
+
+/**
+ * Regex for thinking prefix from streaming: "* " at start of lines
+ */
+const THINKING_PREFIX_REGEX = /^\s*\*\s*/gm
+
+/**
+ * Strip all markers and artifacts from text (for sending to LLMs as plain text)
+ *
+ * This is the unified cleaning function for preparing agent output to be used
+ * as input/context for other agents. Removes:
+ * - Color markers like [CYAN], [GREEN:BOLD], [GRAY], etc.
+ * - Telemetry lines (token counts)
+ * - Engine status lines ("X is analyzing your request...")
+ * - ACTION commands (NEXT, SKIP, STOP)
+ * - MCP signal markers
+ * - Thinking prefixes (* )
+ * - Legacy === bold markers
+ * - Excessive newlines
+ *
+ * @param text - Raw agent output
+ * @returns Cleaned text suitable for LLM context
  */
 export function stripAllMarkers(text: string): string {
   return text
     .replace(MARKER_REGEX_GLOBAL, '')      // Remove all [COLOR:ATTR] markers
     .replace(TELEMETRY_LINE_REGEX, '')     // Remove telemetry lines
     .replace(ENGINE_STATUS_LINE_REGEX, '') // Remove "X is analyzing your request..." lines
+    .replace(ACTION_COMMAND_REGEX, '')     // Remove ACTION: NEXT/SKIP/STOP
+    .replace(MCP_SIGNAL_REGEX, '')         // Remove MCP signal markers
+    .replace(THINKING_PREFIX_REGEX, '')    // Remove "* " thinking prefix
     .replace(/^===/gm, '')                 // Legacy bold markers
+    .replace(/\n{3,}/g, '\n\n')            // Clean up multiple newlines
+    .trim()
 }
 
 // ============================================================================

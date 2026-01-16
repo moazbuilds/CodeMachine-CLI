@@ -15,6 +15,10 @@ import {
   formatControllerFooter,
   stripAllMarkers,
 } from '../../../shared/formatters/outputMarkers.js';
+import {
+  CONTROLLER_REMINDER_STANDALONE,
+  controllerTemplateReview,
+} from '../../../shared/prompts/index.js';
 import type { ControllerConfig } from '../../../shared/workflows/template.js';
 import type { WorkflowEventEmitter } from '../../events/index.js';
 import { registry } from '../../../infra/engines/index.js';
@@ -117,15 +121,8 @@ export class ControllerInputProvider implements InputProvider {
       const stepAgentName = context.step.agentName || context.step.agentId;
       const cleanOutput = stripAllMarkers(context.stepOutput.output || '').trim();
       const prompt = cleanOutput
-        ? `REMINDER: Always follow your system prompt instructions.
-
-AGENT (${stepAgentName}):
----
-${cleanOutput}
----
-
-Review the output above and respond appropriately, or use ACTION: NEXT to proceed.`
-        : 'REMINDER: Always follow the rules and instructions given in your first message - that is your system prompt. Now continue.';
+        ? controllerTemplateReview(stepAgentName, cleanOutput)
+        : CONTROLLER_REMINDER_STANDALONE;
 
       // Write controller header with dynamic agent name
       const agentConfig = await loadAgentConfig(config.agentId, this.cmRoot);
@@ -261,8 +258,8 @@ Review the output above and respond appropriately, or use ACTION: NEXT to procee
         }
       }
 
-      // No action - use cleaned response as input
-      const cleanedResponse = result.cleanedOutput!;
+      // No action - clean controller output and use as input to step
+      const cleanedResponse = stripAllMarkers(result.output);
       debug('[Controller] Sending as input: %s...', cleanedResponse.slice(0, 50));
 
       this.emitter.emitReceived({
