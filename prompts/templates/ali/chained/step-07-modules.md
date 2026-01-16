@@ -44,7 +44,7 @@ Wait for response.
 
 ### 3. Explain Module Architecture
 
-**In Deep mode, explain:**
+**In Expert mode, explain:**
 "**How Modules Work:**
 
 Modules are defined in `config/modules.js`:
@@ -355,5 +355,5 @@ Module prompt files are ready. Config will be updated in step 8."
 - No validation focus defined
 - loopMaxIterations not set (could cause infinite loops)
 - Directive output pattern not included
-- Not explaining module behavior in Deep mode
+- Not explaining module behavior in Expert mode
 - Proceeding without user confirmation

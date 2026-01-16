@@ -23,7 +23,7 @@ Each agent in your workflow is a distinct persona that handles a specific part o
 - **Single-step**: One prompt file, completes in one interaction
 - **Chained**: Multiple steps that build on each other, user advances with Enter"
 
-**In Deep mode, add:**
+**In Expert mode, add:**
 "Think about your workflow as a journey. Each agent is a guide for part of that journey. For example:
 - A 'discovery' agent that gathers requirements
 - A 'builder' agent that creates output
@@ -77,7 +77,7 @@ Wait. Store as `agents[n].description`.
 
 "**4. Is this agent single-step or chained?**"
 
-**In Deep mode, explain:**
+**In Expert mode, explain:**
 "- **Single-step**: Agent has one prompt. User interacts, agent completes task, done.
 - **Chained**: Agent has multiple steps (prompts). Each step builds on previous. User presses Enter to advance. Great for complex multi-phase tasks.
 
@@ -121,7 +121,7 @@ Wait. Store as `agents[n].steps[s].purpose`.
 
 "**5. Will this agent use sub-agents?**"
 
-**In Deep mode, explain:**
+**In Expert mode, explain:**
 "**Sub-agents** are helper agents that a main agent can call via the MCP `run_agents` tool. They're useful when:
 - Your agent needs to delegate specialized tasks
 - You want to run multiple operations in parallel
@@ -294,8 +294,8 @@ Prompts created in `prompts/templates/{workflow_name}/`.
 
 - Allowing duplicate agent IDs (main or sub)
 - Missing required fields (id, name, description)
-- Not explaining single vs chained in Deep mode
-- Not explaining sub-agents in Deep mode
+- Not explaining single vs chained in Expert mode
+- Not explaining sub-agents in Expert mode
 - Skipping step purposes for chained agents
 - Skipping sub-agent details when user says yes
 - Proceeding without user confirmation

@@ -136,7 +136,8 @@ Clear and structured with step-by-step explanations. Uses tables and examples to
 ```javascript
 export default {
   name: 'Workflow Name',
-  controller: true,        // optional
+  controller: controller('controller-id', { engine, model }),  // optional - engine & model are optional
+  autonomousMode: 'never', // optional - 'never' | 'always' | false | true
   specification: true,     // optional
 
   tracks: {               // Project type selection

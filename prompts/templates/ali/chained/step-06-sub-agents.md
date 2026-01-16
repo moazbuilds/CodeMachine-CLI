@@ -42,7 +42,7 @@ For each main agent with sub-agents:
 
 ### 2. Explain Sub-Agent Architecture
 
-**In Deep mode, explain:**
+**In Expert mode, explain:**
 "**How Sub-Agents Work:**
 
 Sub-agents are defined in `config/sub.agents.js` with a simpler structure than main agents:

@@ -71,7 +71,7 @@ Store as `workflow_name`.
 
 ### 3. Ask About Tracks (Optional)
 
-**In Deep mode, explain first:**
+**In Expert mode, explain first:**
 "**Tracks** let users choose their project type at the start of a workflow. Each track can enable different agents or steps.
 
 Example: A code workflow might have tracks for `frontend`, `backend`, `fullstack` - and show different agents based on selection."
@@ -111,7 +111,7 @@ Collect tracks until user says done. Store in `tracks.options`.
 
 ### 4. Ask About Condition Groups (Optional)
 
-**In Deep mode, explain first:**
+**In Expert mode, explain first:**
 "**Condition Groups** let users select features or options that affect which agents run. They can be:
 - Multi-select (choose many features)
 - Single-select (choose one option)
@@ -179,7 +179,40 @@ Wait for response. Store as `controller: true/false`.
 
 Wait for response. Store as `specification: true/false`.
 
-### 6. Ask About Engine & Model
+### 6. Ask About Autonomous Mode
+
+**If controller = true:**
+
+"**Autonomous Mode Behavior**
+
+How should autonomous mode (Shift+Tab) behave in this workflow?
+
+| Value | Behavior |
+|-------|----------|
+| `'never'` | Autonomous mode disabled - user cannot enable it |
+| `'always'` | Autonomous mode locked ON - user cannot disable it |
+| `false` | Defaults to OFF - user can toggle with Shift+Tab |
+| `true` | Defaults to ON - user can toggle with Shift+Tab |
+
+**Choose autonomous mode setting:**
+
+1. **Never** - Disable autonomous mode entirely
+2. **Always** - Lock autonomous mode ON (fully automated)
+3. **Default OFF** - Start manual, user can enable (most common)
+4. **Default ON** - Start autonomous, user can disable
+
+Enter **1**, **2**, **3**, or **4**:"
+
+Wait for response. Store as:
+- 1 → `autonomousMode: 'never'`
+- 2 → `autonomousMode: 'always'`
+- 3 → `autonomousMode: false`
+- 4 → `autonomousMode: true`
+
+**If controller = false:**
+Skip this section. Store `autonomousMode: null` (won't be included in workflow).
+
+### 7. Ask About Engine & Model
 
 "**Engine Configuration**
 
@@ -208,7 +241,7 @@ Enter model name (case-sensitive, e.g., `opus`, `sonnet`, `gpt-5.1-codex-max`):"
 
 Wait for response. Store as `defaultModel` (or null if blank).
 
-### 7. Ask About Interactive Mode
+### 8. Ask About Interactive Mode
 
 "**Interactive Mode**
 
@@ -254,7 +287,7 @@ Enter **1** or **2**:"
 
 Handle response accordingly.
 
-### 8. Summary
+### 9. Summary
 
 Present summary of everything collected:
 
@@ -268,6 +301,7 @@ Present summary of everything collected:
 **Tracks:** {show tracks or 'None'}
 **Condition Groups:** {show groups or 'None'}
 **Controller:** {yes/no}
+**Autonomous Mode:** {autonomousMode or 'N/A (no controller)'}
 **Specification:** {yes/no}
 
 **Engine:** {defaultEngine or 'System default'}
@@ -286,6 +320,7 @@ Present summary of everything collected:
 - Tracks configured or explicitly skipped
 - Condition groups configured or explicitly skipped
 - Controller and specification flags set
+- Autonomous mode configured (if controller enabled)
 - Engine and model configured or skipped
 - Interactive mode set with proper validation
 - Summary shown and confirmed
@@ -296,6 +331,6 @@ Present summary of everything collected:
 - Creating a workflow name that conflicts with existing
 - Not collecting existing IDs
 - Proceeding without user confirmation on name
-- Not explaining tracks/conditions in Deep mode
+- Not explaining tracks/conditions in Expert mode
 - Allowing interactive:false without controller (invalid scenario)
-- Not showing the 8 scenarios table in Deep mode
+- Not showing the 8 scenarios table in Expert mode

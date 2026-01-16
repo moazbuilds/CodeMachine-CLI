@@ -85,7 +85,8 @@ Generate and write `templates/workflows/{workflow_name}.workflow.js`:
 ```javascript
 export default {
   name: '{workflow_name}',
-  {if controller}controller: true,{end if}
+  {if controller}controller: controller('{controller.id}'{if controller.engine || controller.model}, { {if controller.engine}engine: '{controller.engine}'{end if}{if controller.engine && controller.model}, {end if}{if controller.model}model: '{controller.model}'{end if} }{end if}),{end if}
+  {if autonomousMode !== null}autonomousMode: {autonomousMode},  // 'never' | 'always' | false | true{end if}
   {if specification}specification: true,{end if}
 
   {if tracks}
@@ -320,6 +321,7 @@ Your workflow has a controller agent ({controller.name}). Press **Shift+Tab** to
 
 **Configuration:**
 - Controller: {yes/no}
+- Autonomous Mode: {autonomousMode or 'N/A'}
 - Engine: {defaultEngine or 'System default'}
 - Model: {defaultModel or 'Engine default'}
 - Interactive: {yes/no}
