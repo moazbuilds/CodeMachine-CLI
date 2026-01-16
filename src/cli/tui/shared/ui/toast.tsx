@@ -7,7 +7,7 @@ const VARIANT_ICONS = {
   success: "✓",
   error: "✗",
   info: "ℹ",
-  warning: "⚠",
+  warning: "▲",
 } as const
 
 export function Toast() {
