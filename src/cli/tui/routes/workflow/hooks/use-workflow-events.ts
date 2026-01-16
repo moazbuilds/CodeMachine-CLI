@@ -100,7 +100,9 @@ export function useWorkflowEvents(options: UseWorkflowEventsOptions): UseWorkflo
       debug('onMount - setting autonomousMode to %s', controllerState.autonomousMode)
       actions.setAutonomousMode(controllerState.autonomousMode as AutonomousMode)
     } else {
-      debug('onMount - autonomousMode not set in config or invalid value')
+      // No config or invalid value - default to 'false' (no AUTO display)
+      debug('onMount - autonomousMode not set in config or invalid value, defaulting to false')
+      actions.setAutonomousMode('false')
     }
 
     if (eventBus) {

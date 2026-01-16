@@ -19,7 +19,7 @@ export interface AgentTelemetry {
   duration?: number
 }
 
-export type AutonomousMode = "true" | "false" | "never" | "always"
+export type AutonomousMode = "true" | "false" | "never" | "always" | "pending"
 
 export interface AgentState {
   id: string
