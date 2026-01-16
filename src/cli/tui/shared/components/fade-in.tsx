@@ -1,5 +1,6 @@
 /** @jsxImportSource @opentui/solid */
-import { createSignal, onMount, onCleanup, JSX, children as resolveChildren } from "solid-js"
+import { createSignal, onMount, JSX } from "solid-js"
+import { useTimeline } from "@opentui/solid"
 
 interface FadeInProps {
   children: JSX.Element
@@ -11,36 +12,22 @@ export function FadeIn(props: FadeInProps) {
   const [opacity, setOpacity] = createSignal(0)
   const delay = props.delay ?? 0
   const duration = props.duration ?? 800
-  const resolved = resolveChildren(() => props.children)
+
+  const timeline = useTimeline({ autoplay: true })
+  const target = { opacity: 0 }
 
   onMount(() => {
-    const startTime = Date.now() + delay
-
-    const animate = () => {
-      const now = Date.now()
-      if (now < startTime) {
-        requestAnimationFrame(animate)
-        return
-      }
-
-      const progress = Math.min(1, (now - startTime) / duration)
-      setOpacity(progress)
-
-      if (progress < 1) {
-        requestAnimationFrame(animate)
-      }
-    }
-
-    const animationFrame = requestAnimationFrame(animate)
-    onCleanup(() => cancelAnimationFrame(animationFrame))
+    timeline.add(
+      target,
+      {
+        duration,
+        opacity: 1,
+        ease: "outQuad",
+        onUpdate: () => setOpacity(target.opacity),
+      },
+      delay
+    )
   })
-
-  // Apply opacity directly to child element instead of wrapping
-  const child = resolved()
-  if (child && typeof child === 'object' && 'type' in child) {
-    // @ts-expect-error - opacity is a valid box property in OpenTUI
-    return <box opacity={opacity()} flexGrow={1}>{child}</box>
-  }
 
   // @ts-expect-error - opacity is a valid box property in OpenTUI
   return <box opacity={opacity()} flexGrow={1}>{props.children}</box>
