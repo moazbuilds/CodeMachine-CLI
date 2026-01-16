@@ -18,7 +18,7 @@ import { collectAgentDefinitions } from '../../shared/agents/discovery/catalog.j
 import { debug } from '../../shared/logging/logger.js';
 import { formatUserInput } from '../../shared/formatters/outputMarkers.js';
 import { controllerPrefixUser } from '../../shared/prompts/index.js';
-import { AgentLoggerService } from '../../agents/monitoring/index.js';
+import { AgentLoggerService, AgentMonitorService } from '../../agents/monitoring/index.js';
 import { executeAgent } from '../../agents/runner/runner.js';
 
 export interface ControllerViewOptions {
@@ -287,6 +287,13 @@ export async function runControllerView(
     // Clear input state and switch to executing view
     emitter.setInputState(null);
     emitter.updateControllerStatus('completed');
+
+    // Mark controller agent as paused so it's not treated as an active step agent during cleanup
+    // This prevents the controller's sessionId from being saved to completedSteps on Ctrl+C
+    if (controllerMonitoringId !== undefined) {
+      debug('[ControllerView] Marking controller agent %d as paused', controllerMonitoringId);
+      await AgentMonitorService.getInstance().markPaused(controllerMonitoringId);
+    }
 
     // Transition to autonomous mode for workflow execution
     debug('[ControllerView] Transitioning to autonomousMode=true for workflow execution');
