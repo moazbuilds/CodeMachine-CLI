@@ -126,7 +126,7 @@ export class OpenTUIAdapter extends BaseUIAdapter {
           timerService.stop()
         } else if (event.status === "paused") {
           timerService.pause("user")
-        } else if (event.status === "running" && timerService.isPaused()) {
+        } else if ((event.status === "running" || event.status === "delegated") && timerService.isPaused()) {
           timerService.resume()
         }
         this.actions.setWorkflowStatus(event.status)
