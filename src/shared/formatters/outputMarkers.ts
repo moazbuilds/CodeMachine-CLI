@@ -189,6 +189,7 @@ export function parseMarker(text: string): ParsedMarker {
 
 /**
  * Strip all markers from text (for plain text output)
+ * Note: Only strips markers at the START of text
  */
 export function stripMarker(text: string): string {
   let result = text
@@ -205,6 +206,35 @@ export function stripMarker(text: string): string {
   }
 
   return result
+}
+
+/**
+ * Global regex for stripping markers anywhere in text (not just start)
+ */
+const MARKER_REGEX_GLOBAL = /\[([A-Z]+(?::[A-Z,]+)?|[A-Z,]+)\]/g
+
+/**
+ * Regex for telemetry lines like: ⏱️  Tokens: 19317in/219out (9216 cached)
+ */
+const TELEMETRY_LINE_REGEX = /^⏱️\s+Tokens:\s*\d+in\/\d+out(?:\s*\(\d+\s*cached\))?$/gm
+
+/**
+ * Regex for engine status lines like: "   > Claude is analyzing your request..."
+ * Matches all engines: Claude, OpenCode, Codex, Cursor, Mistral, etc.
+ */
+const ENGINE_STATUS_LINE_REGEX = /^\s*>\s*\w+\s+is analyzing your request\.\.\.$/gm
+
+/**
+ * Strip all markers from text anywhere (for sending to LLMs as plain text)
+ * Unlike stripMarker(), this removes markers from ANY position in the text.
+ * Also removes telemetry lines and engine status messages that are not useful for LLM context.
+ */
+export function stripAllMarkers(text: string): string {
+  return text
+    .replace(MARKER_REGEX_GLOBAL, '')      // Remove all [COLOR:ATTR] markers
+    .replace(TELEMETRY_LINE_REGEX, '')     // Remove telemetry lines
+    .replace(ENGINE_STATUS_LINE_REGEX, '') // Remove "X is analyzing your request..." lines
+    .replace(/^===/gm, '')                 // Legacy bold markers
 }
 
 // ============================================================================

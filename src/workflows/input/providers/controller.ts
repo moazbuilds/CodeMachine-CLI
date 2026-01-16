@@ -10,10 +10,10 @@ import { executeWithActions } from '../../../agents/execution/index.js';
 import { AgentLoggerService, AgentMonitorService } from '../../../agents/monitoring/index.js';
 import { loadAgentConfig } from '../../../agents/runner/config.js';
 import { saveControllerConfig } from '../../controller/config.js';
-import { stripColorMarkers } from '../../../shared/formatters/logFileFormatter.js';
 import {
   formatControllerHeader,
   formatControllerFooter,
+  stripAllMarkers,
 } from '../../../shared/formatters/outputMarkers.js';
 import type { ControllerConfig } from '../../../shared/workflows/template.js';
 import type { WorkflowEventEmitter } from '../../events/index.js';
@@ -113,11 +113,13 @@ export class ControllerInputProvider implements InputProvider {
 
     try {
       // Build prompt for controller with cleaned step output
-      const cleanOutput = stripColorMarkers(context.stepOutput.output || '').trim();
+      // Add AGENT prefix with step agent name so controller knows the source
+      const stepAgentName = context.step.agentName || context.step.agentId;
+      const cleanOutput = stripAllMarkers(context.stepOutput.output || '').trim();
       const prompt = cleanOutput
         ? `REMINDER: Always follow your system prompt instructions.
 
-CURRENT STEP OUTPUT:
+AGENT (${stepAgentName}):
 ---
 ${cleanOutput}
 ---

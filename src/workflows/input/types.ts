@@ -6,11 +6,15 @@
  */
 
 import type { StepOutput, QueuedPrompt } from '../state/types.js';
+import type { ModuleStep } from '../templates/types.js';
 
 /**
  * Context passed to input providers
  */
 export interface InputContext {
+  /** The step definition */
+  step: ModuleStep;
+
   /** Output from the completed step */
   stepOutput: StepOutput;
 

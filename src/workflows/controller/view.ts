@@ -6,6 +6,7 @@
  * then transitions to view='executing' with autonomousMode='true'.
  */
 
+import * as os from 'node:os';
 import type { WorkflowTemplate } from '../templates/types.js';
 import type { WorkflowEventBus } from '../events/event-bus.js';
 import type { WorkflowEventEmitter } from '../events/emitter.js';
@@ -244,10 +245,14 @@ export async function runControllerView(
           const formatted = formatUserInput(data.prompt);
           AgentLoggerService.getInstance().write(controllerConfig.monitoringId, `\n${formatted}\n`);
 
-          await executeAgent(controllerConfig.agentId, data.prompt, {
+          // Add USER prefix with system username so controller knows input source
+          const username = os.userInfo().username;
+          const prefixedPrompt = `USER (${username}): ${data.prompt}`;
+
+          await executeAgent(controllerConfig.agentId, prefixedPrompt, {
             workingDir: cwd,
             resumeSessionId: controllerConfig.sessionId,
-            resumePrompt: data.prompt,
+            resumePrompt: prefixedPrompt,
             resumeMonitoringId: controllerConfig.monitoringId,
             engine: controllerConfig.engine,
             model: controllerConfig.model,

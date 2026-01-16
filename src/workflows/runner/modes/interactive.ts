@@ -42,6 +42,7 @@ function buildInputContext(ctx: ModeHandlerContext['ctx']): InputContext {
   const queueState = getQueueState(ctx);
 
   return {
+    step,
     stepOutput: machineCtx.currentOutput ?? { output: '' },
     stepIndex,
     totalSteps: machineCtx.totalSteps,
