@@ -60,7 +60,7 @@ export function ControllerContinueModal(props: ControllerContinueModalProps) {
         <ModalBase width={modalWidth()}>
             <ModalHeader title="Start Workflow" icon="→" iconColor={themeCtx.theme.success} />
             <box paddingLeft={2} paddingRight={2} paddingTop={1} paddingBottom={1}>
-                <text fg={themeCtx.theme.text}>Ready to start the workflow? The controller conversation will be saved and the workflow steps will begin.</text>
+                <text fg={themeCtx.theme.text}>Start workflow? Your controller conversation will be saved. Press R anytime to return to it.</text>
             </box>
             <box flexDirection="row" justifyContent="center" gap={2} paddingBottom={1}>
                 <box
