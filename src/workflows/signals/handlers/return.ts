@@ -9,8 +9,9 @@ import { debug } from '../../../shared/logging/logger.js'
 import { loadControllerConfig, setAutonomousMode } from '../../controller/config.js'
 import { setControllerView } from '../../../shared/workflows/template.js'
 import { formatUserInput } from '../../../shared/formatters/outputMarkers.js'
-import { AgentLoggerService } from '../../../agents/monitoring/index.js'
+import { AgentLoggerService, AgentMonitorService } from '../../../agents/monitoring/index.js'
 import { executeAgent } from '../../../agents/runner/runner.js'
+import { loadAgentConfig } from '../../../agents/runner/config.js'
 import type { SignalContext } from '../manager/types.js'
 
 /**
@@ -76,6 +77,18 @@ export async function handleReturnToControllerSignal(ctx: SignalContext): Promis
   ctx.emitter.updateControllerStatus('awaiting')
   debug('[ReturnToControllerSignal] After updateControllerStatus')
 
+  // Emit controller info with engine from MonitorService (single source of truth)
+  const monitor = AgentMonitorService.getInstance()
+  const controllerAgent = monitor.getAgent(config.monitoringId)
+  const agentConfig = await loadAgentConfig(config.agentId, ctx.cmRoot)
+  const controllerName = agentConfig.name || config.agentId
+  ctx.emitter.setControllerInfo(
+    config.agentId,
+    controllerName,
+    controllerAgent?.engine ?? 'unknown',
+    controllerAgent?.modelName ?? 'unknown'
+  )
+
   // Set autonomous mode to never for conversation (file persistence)
   await setAutonomousMode(ctx.cmRoot, 'never')
 
@@ -132,13 +145,15 @@ export async function handleReturnToControllerSignal(ctx: SignalContext): Promis
         const formatted = formatUserInput(data.prompt)
         AgentLoggerService.getInstance().write(config.monitoringId, `\n${formatted}\n`)
 
+        // Get engine/model from MonitorService for resume
+        const agentInfo = monitor.getAgent(config.monitoringId)
         await executeAgent(config.agentId, data.prompt, {
           workingDir: ctx.cwd,
           resumeSessionId: config.sessionId,
           resumePrompt: data.prompt,
           resumeMonitoringId: config.monitoringId,
-          engine: config.engine,
-          model: config.model,
+          engine: agentInfo?.engine,
+          model: agentInfo?.modelName,
         })
 
         // After response, go back to awaiting input

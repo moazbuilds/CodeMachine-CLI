@@ -88,13 +88,10 @@ export interface TemplateTracking {
 
 /**
  * Controller configuration for autonomous mode
+ * Note: engine/model are NOT persisted here - read from MonitorService instead
  */
 export interface ControllerConfig {
   agentId: string;
   sessionId: string;
   monitoringId: number;
-  /** Engine used for this controller session (for resume) */
-  engine?: string;
-  /** Model used for this controller session (for resume) */
-  model?: string;
 }

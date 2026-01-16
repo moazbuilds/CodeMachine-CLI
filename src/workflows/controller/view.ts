@@ -90,11 +90,14 @@ export async function runControllerView(
 
     // Return controller info for deferred emission (after workflow:started)
     // This enables the 'c' key to return to controller even while step agent executes
+    // Get engine/model from MonitorService (single source of truth)
+    const monitor = AgentMonitorService.getInstance();
+    const controllerAgent = monitor.getAgent(existingConfig.controllerConfig.monitoringId);
     const controllerInfo = controller ? {
       id: definition.agentId,
       name: (controller.name as string | undefined) ?? controller.id,
-      engine: existingConfig.controllerConfig.engine || 'unknown',
-      model: existingConfig.controllerConfig.model,
+      engine: controllerAgent?.engine ?? 'unknown',
+      model: controllerAgent?.modelName,
     } : undefined;
 
     // Transition to executing view with autonomous mode

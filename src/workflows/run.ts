@@ -219,13 +219,23 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
   // Run controller view FIRST if needed (blocks until controller done + user confirms)
   // Timeline population happens AFTER controller view since it's only visible in executing view
-  const controllerResult = await runControllerView({
-    cwd,
-    cmRoot,
-    template,
-    emitter,
-    eventBus,
-  });
+  let controllerResult;
+  try {
+    controllerResult = await runControllerView({
+      cwd,
+      cmRoot,
+      template,
+      emitter,
+      eventBus,
+    });
+  } catch (error) {
+    debug('[Workflow] Controller view error: %s', (error as Error).message);
+    emitter.setWorkflowStatus('error');
+    (process as NodeJS.EventEmitter).emit('workflow:error', {
+      reason: (error as Error).message,
+    });
+    throw error;
+  }
 
   // If controller ran, adjust start index to skip the controller agent step
   let actualStartIndex = startIndex;

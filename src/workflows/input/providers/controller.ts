@@ -18,7 +18,6 @@ import {
 import { controllerTemplateReview } from '../../../shared/prompts/index.js';
 import type { ControllerConfig } from '../../../shared/workflows/template.js';
 import type { WorkflowEventEmitter } from '../../events/index.js';
-import { registry } from '../../../infra/engines/index.js';
 import type {
   InputProvider,
   InputContext,
@@ -123,11 +122,11 @@ export class ControllerInputProvider implements InputProvider {
       const agentConfig = await loadAgentConfig(config.agentId, this.cmRoot);
       const controllerName = agentConfig.name || config.agentId;
 
-      // Resolve engine and model from config or defaults
-      const defaultEngine = registry.getDefault();
-      const resolvedEngine = (agentConfig.engine as string) ?? defaultEngine?.metadata.id ?? 'unknown';
-      const engineModule = registry.get(resolvedEngine);
-      const resolvedModel = (agentConfig.model as string | undefined) ?? engineModule?.metadata.defaultModel;
+      // Get engine/model from MonitorService (single source of truth)
+      const monitor = AgentMonitorService.getInstance();
+      const controllerAgent = monitor.getAgent(config.monitoringId);
+      const resolvedEngine = controllerAgent?.engine ?? 'unknown';
+      const resolvedModel = controllerAgent?.modelName ?? 'unknown';
 
       // Emit controller info to UI
       if (this.workflowEmitter) {
@@ -146,8 +145,8 @@ export class ControllerInputProvider implements InputProvider {
       // Resume controller session - reuse existing monitoring entry to avoid duplicate agent/log registration
       const result = await executeWithActions(config.agentId, prompt, {
         workingDir: this.cwd,
-        engine: config.engine,
-        model: config.model,
+        engine: resolvedEngine !== 'unknown' ? resolvedEngine : undefined,
+        model: resolvedModel !== 'unknown' ? resolvedModel : undefined,
         resumeSessionId: config.sessionId,
         resumeMonitoringId: config.monitoringId,
         resumePrompt: prompt,

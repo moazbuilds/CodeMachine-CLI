@@ -92,13 +92,11 @@ export async function initControllerAgent(
   const resolvedModel = agent.modelName;
   debug('[Controller] Resolved engine=%s model=%s from MonitorService', resolvedEngine, resolvedModel);
 
-  // Build config (include engine/model for resume)
+  // Build config for persistence (engine/model NOT saved - read from MonitorService)
   const config: ControllerConfig = {
     agentId,
     sessionId: agent.sessionId,
     monitoringId: result.agentId!,
-    engine: resolvedEngine,
-    model: resolvedModel,
   };
   debug('[Controller] Built config: %o', config);
 
@@ -107,6 +105,7 @@ export async function initControllerAgent(
   await saveControllerConfig(cmRoot, config);
   debug('[Controller] Controller config saved successfully');
 
+  // Return includes engine/model from MonitorService for UI display
   return {
     ...config,
     engine: resolvedEngine,

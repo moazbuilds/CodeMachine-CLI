@@ -7,6 +7,7 @@
 import { onMount, onCleanup, createSignal, type Accessor } from "solid-js"
 import { OpenTUIAdapter } from "../adapters/opentui"
 import { loadControllerConfig } from "../../../../../workflows/controller/config.js"
+import { AgentMonitorService } from "../../../../../agents/monitoring/index.js"
 import { debug } from "../../../../../shared/logging/logger.js"
 import path from "path"
 import type { WorkflowEventBus } from "../../../../../workflows/events/index.js"
@@ -79,12 +80,17 @@ export function useWorkflowEvents(options: UseWorkflowEventsOptions): UseWorkflo
     // This enables 'C' key to return to controller even after restart/resume
     if (controllerState?.controllerConfig?.agentId) {
       debug('onMount - setting controllerState in UI from persisted config')
+      // Get engine/model from MonitorService (single source of truth)
+      const monitor = AgentMonitorService.getInstance()
+      const monitoringId = Number(controllerState.controllerConfig.monitoringId) || undefined
+      const controllerAgent = monitoringId ? monitor.getAgent(monitoringId) : undefined
       actions.setControllerState({
         id: controllerState.controllerConfig.agentId,
         name: controllerState.controllerConfig.agentId, // Name may not be persisted, use agentId as fallback
-        engine: 'unknown', // Engine info not persisted in controller config
+        engine: controllerAgent?.engine ?? 'unknown',
+        model: controllerAgent?.modelName,
         telemetry: { tokensIn: 0, tokensOut: 0 }, // Default telemetry, will be updated if controller runs
-        monitoringId: Number(controllerState.controllerConfig.monitoringId) || undefined,
+        monitoringId,
       })
     }
 
