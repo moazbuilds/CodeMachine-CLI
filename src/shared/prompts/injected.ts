@@ -23,6 +23,15 @@
  */
 export const STEP_CONTINUE = 'continue';
 
+/**
+ * Default resume prompt - sent when resuming without specific user input.
+ *
+ * Used when:
+ * - Crash recovery (session exists but no user direction)
+ * - Automatic session resume
+ */
+export const STEP_RESUME_DEFAULT = 'Continue from where you left off.';
+
 // ============================================================================
 // CONTROLLER AGENT
 // Prompts sent to controller agent for orchestration
@@ -93,3 +102,20 @@ ${output}
 ---
 
 Review the output above and respond appropriately, or use ACTION: NEXT to proceed.`;
+
+// ============================================================================
+// STEP AGENT - USER STEERING
+// Prompts for when user interrupts/pauses to give new direction
+// ============================================================================
+
+/**
+ * User steering prompt - sent when user pauses to redirect the agent.
+ *
+ * Used when:
+ * - User pauses execution to provide new instructions
+ * - Agent should continue but prioritize the new user request
+ *
+ * @param userPrompt - The new direction from the user
+ */
+export const stepUserSteering = (userPrompt: string): string =>
+  `[USER STEERING] The user paused this session to give you new direction. Continue from where you left off, but prioritize the user's request: "${userPrompt}"`;

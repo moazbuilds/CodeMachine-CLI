@@ -29,20 +29,6 @@ export interface RunCcrResult {
   stderr: string;
 }
 
-/**
- * Build the final resume prompt combining steering instruction with user message
- */
-function buildResumePrompt(userPrompt?: string): string {
-  const defaultPrompt = 'Continue from where you left off.';
-
-  if (!userPrompt) {
-    return defaultPrompt;
-  }
-
-  // Combine steering instruction with user's message
-  return `[USER STEERING] The user paused this session to give you new direction. Continue from where you left off, but prioritize the user's request: "${userPrompt}"`;
-}
-
 // Track tool names for associating with results
 const toolNameMap = new Map<string, string>();
 
@@ -182,7 +168,7 @@ export async function runCcr(options: RunCcrOptions): Promise<RunCcrResult> {
       args,
       cwd: workingDir,
       env: mergedEnv,
-      stdinInput: resumeSessionId ? buildResumePrompt(resumePrompt) : prompt,
+      stdinInput: resumeSessionId ? resumePrompt : prompt,
       onStdout: inheritTTY
         ? undefined
         : (chunk) => {

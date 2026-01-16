@@ -31,14 +31,6 @@ export interface RunOpenCodeResult {
   stderr: string;
 }
 
-/**
- * Build the final resume prompt - just pass through the prompt as-is
- * The caller (controller.ts) is responsible for building the proper message
- */
-function buildResumePrompt(userPrompt?: string): string {
-  return userPrompt || 'Continue.';
-}
-
 function shouldApplyDefault(key: string, overrides?: NodeJS.ProcessEnv): boolean {
   return overrides?.[key] === undefined && process.env[key] === undefined;
 }
@@ -302,7 +294,7 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
       args,
       cwd: workingDir,
       env: runnerEnv,
-      stdinInput: resumeSessionId ? buildResumePrompt(resumePrompt) : prompt,
+      stdinInput: resumeSessionId ? resumePrompt : prompt,
       stdioMode: 'pipe',
       onStdout: (chunk) => {
         const normalized = normalizeChunk(chunk);

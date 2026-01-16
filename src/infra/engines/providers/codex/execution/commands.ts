@@ -11,20 +11,6 @@ export interface CodexCommand {
   args: string[];
 }
 
-/**
- * Build the final resume prompt combining steering instruction with user message
- */
-function buildResumePrompt(userPrompt?: string): string {
-  const defaultPrompt = 'Continue from where you left off.';
-
-  if (!userPrompt) {
-    return defaultPrompt;
-  }
-
-  // Combine steering instruction with user's message
-  return `[USER STEERING] The user paused this session to give you new direction. Continue from where you left off, but prioritize the user's request: "${userPrompt}"`;
-}
-
 export function buildCodexCommand(options: CodexCommandOptions): CodexCommand {
   const { workingDir, resumeSessionId, resumePrompt, model, modelReasoningEffort } = options;
 
@@ -52,8 +38,7 @@ export function buildCodexCommand(options: CodexCommandOptions): CodexCommand {
 
   if (resumeSessionId) {
     // Resume: add resume subcommand with session ID and combined prompt
-    const finalPrompt = buildResumePrompt(resumePrompt);
-    args.push('resume', resumeSessionId, finalPrompt);
+    args.push('resume', resumeSessionId, resumePrompt!);
   } else {
     // Normal exec: read prompt from stdin
     args.push('-');

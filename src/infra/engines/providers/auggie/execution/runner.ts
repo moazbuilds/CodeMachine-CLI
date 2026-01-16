@@ -45,20 +45,6 @@ function resolveRunnerEnv(env?: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return runnerEnv;
 }
 
-/**
- * Build the final resume prompt combining steering instruction with user message
- */
-function buildResumePrompt(userPrompt?: string): string {
-  const defaultPrompt = 'Continue from where you left off.';
-
-  if (!userPrompt) {
-    return defaultPrompt;
-  }
-
-  // Combine steering instruction with user's message
-  return `[USER STEERING] The user paused this session to give you new direction. Continue from where you left off, but prioritize the user's request: "${userPrompt}"`;
-}
-
 // Note: Auggie returns a single result object, not streaming events like OpenCode
 // Therefore, we don't need complex formatting helpers like formatToolUse or formatStepEvent
 
@@ -108,7 +94,7 @@ export async function runAuggie(options: RunAuggieOptions): Promise<RunAuggieRes
   args.push('--workspace-root', workingDir);
 
   // When resuming, use the resume prompt instead of the original prompt
-  const effectivePrompt = resumeSessionId ? buildResumePrompt(resumePrompt) : prompt;
+  const effectivePrompt = resumeSessionId ? resumePrompt! : prompt;
 
   // Add prompt as positional argument (Auggie accepts it as the last argument)
   args.push(effectivePrompt);

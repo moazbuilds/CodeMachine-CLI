@@ -12,6 +12,7 @@ import { runStepResume } from '../../step/run.js';
 import { formatUserInput } from '../../../shared/formatters/outputMarkers.js';
 import { AgentLoggerService, StatusService } from '../../../agents/monitoring/index.js';
 import { getUniqueAgentId } from '../../context/index.js';
+import { stepUserSteering } from '../../../shared/prompts/injected.js';
 
 /**
  * Options for resuming a step
@@ -137,7 +138,7 @@ export async function resumeWithInput(
 
   try {
     await runStepResume(ctx, {
-      resumePrompt: input,
+      resumePrompt: source === 'user' ? stepUserSteering(input) : input,
       resumeMonitoringId: monitoringId,
       source,
     });

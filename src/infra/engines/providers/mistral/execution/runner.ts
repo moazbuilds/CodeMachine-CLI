@@ -78,20 +78,6 @@ function findLatestSessionId(vibeHome: string, startTime: number): string | null
   }
 }
 
-/**
- * Build the final resume prompt combining steering instruction with user message
- */
-function buildResumePrompt(userPrompt?: string): string {
-  const defaultPrompt = 'Continue from where you left off.';
-
-  if (!userPrompt) {
-    return defaultPrompt;
-  }
-
-  // Combine steering instruction with user's message
-  return `[USER STEERING] The user paused this session to give you new direction. Continue from where you left off, but prioritize the user's request: "${userPrompt}"`;
-}
-
 // Track tool names for associating with results
 const toolNameMap = new Map<string, string>();
 
@@ -255,7 +241,7 @@ export async function runMistral(options: RunMistralOptions): Promise<RunMistral
   };
 
   // When resuming, use the resume prompt instead of the original prompt
-  const effectivePrompt = resumeSessionId ? buildResumePrompt(resumePrompt) : prompt;
+  const effectivePrompt = resumeSessionId ? resumePrompt! : prompt;
   const { command, args } = buildMistralExecCommand({ workingDir, prompt: effectivePrompt, resumeSessionId, model });
 
   // Create telemetry capture instance

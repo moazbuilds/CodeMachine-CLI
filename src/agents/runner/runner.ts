@@ -9,6 +9,7 @@ import type { ParsedTelemetry } from '../../infra/engines/core/types.js';
 import { formatForLogFile } from '../../shared/formatters/logFileFormatter.js';
 import { renderToChalk } from '../../shared/formatters/outputMarkers.js';
 import { info, error, debug } from '../../shared/logging/logger.js';
+import { STEP_RESUME_DEFAULT } from '../../shared/prompts/injected.js';
 
 /**
  * Cache for engine authentication status with TTL (shared across all subagents)
@@ -363,7 +364,7 @@ export async function executeAgent(
       prompt, // Already complete and ready to use
       workingDir,
       resumeSessionId,
-      resumePrompt,
+      resumePrompt: resumeSessionId ? (resumePrompt || STEP_RESUME_DEFAULT) : undefined,
       model,
       modelReasoningEffort,
       env: {
