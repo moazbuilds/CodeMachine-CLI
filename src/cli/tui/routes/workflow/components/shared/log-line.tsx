@@ -153,8 +153,8 @@ export function LogLine(props: LogLineProps) {
   const maxWidth = createMemo(() => {
     if (props.maxWidth) return props.maxWidth
     const termWidth = dimensions()?.width ?? 120
-    const isFullWidth = ui.state().timelineCollapsed
-    // Full width when timeline collapsed, otherwise 65% for split view
+    const isFullWidth = ui.state().timelineCollapsed || ui.state().view === 'controller'
+    // Full width when timeline collapsed or in controller view, otherwise 65% for split view
     const widthRatio = isFullWidth ? 1 : 0.65
     return Math.floor(termWidth * widthRatio) - 6
   })

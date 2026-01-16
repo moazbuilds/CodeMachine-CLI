@@ -154,8 +154,12 @@ export function useWorkflowShell(options: UseWorkflowShellOptions) {
       ...ui.actions,
       toggleTimeline: () => {
         const s = state()
-        if (s.agents.length === 1) {
-          showToast("warning", "Timeline is locked for single-agent workflows", 3000)
+        if (s.view === 'controller') {
+          showToast("warning", "Timeline is not available in controller view", 3000)
+          return
+        }
+        if (s.agents.length <= 1) {
+          showToast("warning", "Timeline is not available in single agent workflows", 3000)
           return
         }
         ui.actions.toggleTimeline()
