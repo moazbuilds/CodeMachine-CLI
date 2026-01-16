@@ -15,10 +15,7 @@ import {
   formatControllerFooter,
   stripAllMarkers,
 } from '../../../shared/formatters/outputMarkers.js';
-import {
-  CONTROLLER_REMINDER_STANDALONE,
-  controllerTemplateReview,
-} from '../../../shared/prompts/index.js';
+import { controllerTemplateReview } from '../../../shared/prompts/index.js';
 import type { ControllerConfig } from '../../../shared/workflows/template.js';
 import type { WorkflowEventEmitter } from '../../events/index.js';
 import { registry } from '../../../infra/engines/index.js';
@@ -120,9 +117,7 @@ export class ControllerInputProvider implements InputProvider {
       // Add AGENT prefix with step agent name so controller knows the source
       const stepAgentName = context.step.agentName || context.step.agentId;
       const cleanOutput = stripAllMarkers(context.stepOutput.output || '').trim();
-      const prompt = cleanOutput
-        ? controllerTemplateReview(stepAgentName, cleanOutput)
-        : CONTROLLER_REMINDER_STANDALONE;
+      const prompt = controllerTemplateReview(stepAgentName, cleanOutput);
 
       // Write controller header with dynamic agent name
       const agentConfig = await loadAgentConfig(config.agentId, this.cmRoot);

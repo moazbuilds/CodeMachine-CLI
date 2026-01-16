@@ -5,6 +5,7 @@
  * Handles resuming a step with user or controller input.
  */
 
+import os from 'node:os';
 import { debug } from '../../../shared/logging/logger.js';
 import type { RunnerContext } from '../types.js';
 import type { ModeHandlerResult, ModeHandlerCallbacks } from '../modes/types.js';
@@ -12,7 +13,7 @@ import { runStepResume } from '../../step/run.js';
 import { formatUserInput } from '../../../shared/formatters/outputMarkers.js';
 import { AgentLoggerService, StatusService } from '../../../agents/monitoring/index.js';
 import { getUniqueAgentId } from '../../context/index.js';
-import { stepUserSteering } from '../../../shared/prompts/injected.js';
+import { stepPrefixUser, stepPrefixController } from '../../../shared/prompts/injected.js';
 
 /**
  * Options for resuming a step
@@ -138,7 +139,9 @@ export async function resumeWithInput(
 
   try {
     await runStepResume(ctx, {
-      resumePrompt: source === 'user' ? stepUserSteering(input) : input,
+      resumePrompt: source === 'user'
+        ? stepPrefixUser(os.userInfo().username, input)
+        : stepPrefixController(input),
       resumeMonitoringId: monitoringId,
       source,
     });
