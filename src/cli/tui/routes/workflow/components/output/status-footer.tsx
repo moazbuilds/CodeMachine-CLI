@@ -34,7 +34,7 @@ export function StatusFooter(props: StatusFooterProps) {
 
   // Show controller shortcut only during executing view if workflow has a controller
   const controllerText = () =>
-    (props.view === 'executing' && props.hasController) ? '[C] Controller  ' : ''
+    (props.view === 'executing' && props.hasController) ? '[R] Controller  ' : ''
 
   return (
     <box paddingLeft={1} paddingRight={1}>

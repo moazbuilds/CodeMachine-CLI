@@ -140,14 +140,14 @@ export function useWorkflowKeyboard(options: UseWorkflowKeyboardOptions) {
       return
     }
 
-    // C key - return to controller conversation (only during executing view)
-    if (evt.name === "c") {
+    // R key - return to controller conversation (only during executing view)
+    if (evt.name === "r") {
       const s = options.getState()
       const hasController = options.hasController?.()
-      debug('C key pressed - view=%s, hasController=%s', s.view, hasController)
+      debug('R key pressed - view=%s, hasController=%s', s.view, hasController)
       if (s.view === 'executing' && hasController) {
         evt.preventDefault()
-        debug('C pressed - returning to controller')
+        debug('R pressed - returning to controller')
         options.returnToController?.()
         return
       }
