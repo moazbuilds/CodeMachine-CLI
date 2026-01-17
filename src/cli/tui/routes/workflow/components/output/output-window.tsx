@@ -322,10 +322,6 @@ export function OutputWindow(props: OutputWindowProps) {
             <Show when={props.loadEarlierError}>
               <text fg={themeCtx.theme.error}>↑ Error: {props.loadEarlierError}</text>
             </Show>
-            {/* More above indicator (when not loading) */}
-            <Show when={props.hasMoreAbove && !props.isLoadingEarlier && !props.loadEarlierError}>
-              <text fg={themeCtx.theme.textMuted}>↑ Scroll up for earlier logs</text>
-            </Show>
             <scrollbox
               ref={(r: ScrollBoxRenderable) => setScrollRef(r)}
               flexGrow={1}
