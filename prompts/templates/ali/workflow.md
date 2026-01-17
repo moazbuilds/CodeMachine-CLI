@@ -130,3 +130,161 @@ Placeholders are a DRY (Don't Repeat Yourself) pattern:
 4. **Unique IDs only** - Check against existing_ids from sanity check
 5. **One placeholder use per file** - Placeholders expand to full content, not symbols
 6. **One step at a time** - Focus only on current step, next prompt comes automatically
+7. **Append to plan file immediately** - When user confirms, append data to plan file right away
+8. **Use TodoWrite** - Track progress through steps with the todo list
+
+## Workflow Plan File
+
+**CRITICAL: Persistent State via Plan File**
+
+Ali maintains a workflow plan file that gets updated immediately when users confirm each step. This ensures no data is lost and progress is tracked persistently.
+
+**Location:** `.codemachine/workflow-plans/{workflow_name}-plan.md`
+
+**Format:** Markdown with XML data blocks
+
+**Behavior:**
+1. **Step 2** creates the plan file with initial structure after workflow name is confirmed
+2. **Each step** appends its confirmed data to the plan file immediately
+3. **Step 8** reads the plan file to generate final configs
+
+**Plan File Structure:**
+
+```markdown
+# Workflow Plan: {workflow_name}
+
+Created: {timestamp}
+Last Updated: {timestamp}
+
+<workflow-plan>
+  <step-01 completed="true">
+    <mode>expert|quick</mode>
+    <brainstorming enabled="true|false">
+      <problem>...</problem>
+      <agent-ideas>...</agent-ideas>
+      <flow-concept>...</flow-concept>
+    </brainstorming>
+  </step-01>
+
+  <step-02 completed="true">
+    <workflow-name>...</workflow-name>
+    <existing-ids count="...">id1, id2, ...</existing-ids>
+    <workflow-mode>
+      <type>continuous|manual|autonomous</type>
+      <interactive>true|false</interactive>
+      <controller enabled="true|false" beta="true">only if autonomous</controller>
+      <!-- autonomous-mode ONLY included if controller enabled -->
+      <autonomous-mode>never|always|true|false</autonomous-mode>
+    </workflow-mode>
+    <tracks enabled="true|false">
+      <question>...</question>
+      <options>
+        <track id="..." label="..." description="..." />
+      </options>
+    </tracks>
+    <condition-groups>
+      <group id="..." question="..." multi-select="true|false">
+        <condition id="..." label="..." description="..." />
+      </group>
+    </condition-groups>
+    <specification>true|false</specification>
+    <engine>...</engine>
+    <model>...</model>
+  </step-02>
+
+  <step-03 completed="true">
+    <agents>
+      <agent id="..." name="..." description="..." type="single|chained" step-count="...">
+        <steps>
+          <step n="1" purpose="..." />
+        </steps>
+        <sub-agents>
+          <sub-agent id="..." name="..." description="..." trigger="..." execution-mode="..." />
+        </sub-agents>
+        <filtering tracks="..." conditions="..." />
+      </agent>
+    </agents>
+  </step-03>
+
+  <step-04 completed="true">
+    <prompts>
+      <prompt agent-id="..." path="..." created="true" />
+      <chained-prompt agent-id="..." step="1" path="..." created="true" />
+    </prompts>
+    <shared-files>
+      <shared name="..." placeholder="..." path="..." created="true" />
+    </shared-files>
+  </step-04>
+
+  <step-05 completed="true|skipped">
+    <controller id="..." name="..." description="...">
+      <engine>...</engine>
+      <model>...</model>
+      <communication tone="..." language="..." reply-length="..." />
+      <behavior pacing="..." loop-depth="..." />
+      <agent-interactions>
+        <interaction agent-id="..." expected-output="..." guidance="..." approval-criteria="..." />
+      </agent-interactions>
+      <calibration ask-project-type="true|false" default-type="..." />
+    </controller>
+  </step-05>
+
+  <step-06 completed="true|skipped">
+    <sub-agents>
+      <sub-agent id="..." name="..." main-agent="...">
+        <persona>...</persona>
+        <instructions>...</instructions>
+        <expected-input>...</expected-input>
+        <expected-output>...</expected-output>
+        <completion-criteria>...</completion-criteria>
+        <file-path>...</file-path>
+      </sub-agent>
+    </sub-agents>
+  </step-06>
+
+  <step-07 completed="true|skipped">
+    <modules>
+      <module id="..." name="..." description="..." type="single|chained">
+        <validation-focus>...</validation-focus>
+        <loop-trigger>...</loop-trigger>
+        <loop-steps>...</loop-steps>
+        <loop-max-iterations>...</loop-max-iterations>
+        <loop-skip>...</loop-skip>
+        <file-path>...</file-path>
+      </module>
+    </modules>
+  </step-07>
+
+  <step-08 completed="true">
+    <validation>
+      <ids-unique>true|false</ids-unique>
+      <files-exist>true|false</files-exist>
+      <workflow-integrity>true|false</workflow-integrity>
+      <placeholders-registered>true|false</placeholders-registered>
+    </validation>
+    <files-created>
+      <file type="workflow" path="..." />
+      <file type="config" path="..." />
+    </files-created>
+  </step-08>
+</workflow-plan>
+```
+
+**TodoWrite Integration:**
+
+At each step, Ali must use TodoWrite to track:
+- Current step in progress
+- Completed steps
+- Remaining steps
+
+Example todo list during step 3:
+```
+✓ Step 01: Mode Selection - completed
+✓ Step 02: Workflow Definition - completed
+→ Step 03: Main Agents - in_progress
+○ Step 04: Prompts & Placeholders - pending
+○ Step 05: Controller Agent - pending
+○ Step 06: Sub-Agents - pending
+○ Step 07: Modules - pending
+○ Step 08: Assembly & Validation - pending
+```

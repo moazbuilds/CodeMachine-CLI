@@ -336,6 +336,61 @@ Does this controller configuration look correct? **[y/n]**"
 
 Controller prompt file is ready. Config will be updated in step 8."
 
+## Step 5: APPEND to Plan File
+
+**On User Confirmation:**
+
+1. **Read** the plan file at `.codemachine/workflow-plans/{workflow_name}-plan.md`
+
+2. **Append step-05 XML** before the closing `</workflow-plan>` tag:
+
+**If controller was created:**
+```xml
+<step-05 completed="true" timestamp="{ISO timestamp}">
+  <controller id="{controller.id}" name="{controller.name}" description="{controller.description}">
+    <engine>{engine or null}</engine>
+    <model>{model or null}</model>
+    <communication tone="{casual|professional|formal}" language="{language}" reply-length="{short|medium|long}" />
+    <behavior pacing="{quick|balanced|thorough}" loop-depth="{minimal|standard|deep}" />
+    <agent-interactions>
+      <!-- For each main agent -->
+      <interaction agent-id="{agent.id}" expected-output="{expected}" guidance="{guidance}" approval-criteria="{criteria}" />
+    </agent-interactions>
+    <calibration ask-project-type="{true|false}" default-type="{landing-page|mvp|feature|full-product|enterprise}" />
+    <file-path>prompts/templates/{workflow_name}/controller/{controller.id}.md</file-path>
+  </controller>
+</step-05>
+```
+
+**If controller was skipped:**
+```xml
+<step-05 completed="skipped" timestamp="{ISO timestamp}">
+  <reason>Controller not needed - autonomous mode disabled</reason>
+</step-05>
+```
+
+3. **Update the Last Updated timestamp** in the file header
+
+4. **Update TodoWrite:**
+
+```javascript
+TodoWrite([
+  { content: "Step 01: Mode Selection", status: "completed", activeForm: "Mode selection completed" },
+  { content: "Step 02: Workflow Definition", status: "completed", activeForm: "Workflow definition completed" },
+  { content: "Step 03: Main Agents", status: "completed", activeForm: "Main agents completed" },
+  { content: "Step 04: Prompts & Placeholders", status: "completed", activeForm: "Prompts created" },
+  { content: "Step 05: Controller Agent", status: "completed", activeForm: "Controller completed" },
+  { content: "Step 06: Sub-Agents", status: "in_progress", activeForm: "Configuring sub-agents" },
+  { content: "Step 07: Modules", status: "pending", activeForm: "Configuring modules" },
+  { content: "Step 08: Assembly & Validation", status: "pending", activeForm: "Assembling workflow" }
+])
+```
+
+5. **Confirm to user:**
+"✓ Controller configuration saved to workflow plan.
+
+Press **Enter** to proceed to the next step."
+
 {ali_step_completion}
 
 ## SUCCESS METRICS
@@ -349,6 +404,8 @@ Controller prompt file is ready. Config will be updated in step 8."
 - Calibration schema configured
 - Controller prompt file WRITTEN to disk
 - User confirmed configuration before file creation
+- **Step-05 XML appended to plan file**
+- **TodoWrite updated**
 
 ## FAILURE METRICS
 
@@ -359,3 +416,5 @@ Controller prompt file is ready. Config will be updated in step 8."
 - Skipping calibration schema
 - Not explaining autonomous mode in Expert mode
 - Proceeding without user confirmation
+- **Not appending to plan file**
+- **Not updating TodoWrite**

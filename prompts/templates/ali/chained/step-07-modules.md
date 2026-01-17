@@ -337,6 +337,64 @@ For each:
 
 Module prompt files are ready. Config will be updated in step 8."
 
+## Step 7: APPEND to Plan File
+
+**On User Confirmation:**
+
+1. **Read** the plan file at `.codemachine/workflow-plans/{workflow_name}-plan.md`
+
+2. **Append step-07 XML** before the closing `</workflow-plan>` tag:
+
+**If modules were created:**
+```xml
+<step-07 completed="true" timestamp="{ISO timestamp}">
+  <modules count="{count}">
+    <!-- For each module -->
+    <module id="{id}" name="{name}" description="{description}" type="{single|chained}">
+      <validation-focus>{what this module validates}</validation-focus>
+      <loop-trigger>{when to trigger a loop}</loop-trigger>
+      <loop-steps>{number}</loop-steps>
+      <loop-max-iterations>{number}</loop-max-iterations>
+      <loop-skip>{comma-separated agent IDs or empty}</loop-skip>
+      <file-path>prompts/templates/{workflow_name}/modules/{id}.md</file-path>
+      <chained-steps>
+        <!-- If chained -->
+        <step n="{n}" purpose="{purpose}" path="prompts/templates/{workflow_name}/modules/{id}/step-{n}-{purpose}.md" />
+      </chained-steps>
+    </module>
+  </modules>
+</step-07>
+```
+
+**If modules were skipped:**
+```xml
+<step-07 completed="skipped" timestamp="{ISO timestamp}">
+  <reason>No modules needed for this workflow</reason>
+</step-07>
+```
+
+3. **Update the Last Updated timestamp** in the file header
+
+4. **Update TodoWrite:**
+
+```javascript
+TodoWrite([
+  { content: "Step 01: Mode Selection", status: "completed", activeForm: "Mode selection completed" },
+  { content: "Step 02: Workflow Definition", status: "completed", activeForm: "Workflow definition completed" },
+  { content: "Step 03: Main Agents", status: "completed", activeForm: "Main agents completed" },
+  { content: "Step 04: Prompts & Placeholders", status: "completed", activeForm: "Prompts created" },
+  { content: "Step 05: Controller Agent", status: "completed", activeForm: "Controller completed" },
+  { content: "Step 06: Sub-Agents", status: "completed", activeForm: "Sub-agents completed" },
+  { content: "Step 07: Modules", status: "completed", activeForm: "Modules completed" },
+  { content: "Step 08: Assembly & Validation", status: "in_progress", activeForm: "Assembling workflow" }
+])
+```
+
+5. **Confirm to user:**
+"✓ Module configuration saved to workflow plan.
+
+Press **Enter** to proceed to the final step."
+
 {ali_step_completion}
 
 ## SUCCESS METRICS
@@ -347,6 +405,8 @@ Module prompt files are ready. Config will be updated in step 8."
 - Directive output pattern included in prompts
 - User confirmed each file before creation
 - Config entries stored for step 8
+- **Step-07 XML appended to plan file**
+- **TodoWrite updated**
 
 ## FAILURE METRICS
 
@@ -357,3 +417,5 @@ Module prompt files are ready. Config will be updated in step 8."
 - Directive output pattern not included
 - Not explaining module behavior in Expert mode
 - Proceeding without user confirmation
+- **Not appending to plan file**
+- **Not updating TodoWrite**

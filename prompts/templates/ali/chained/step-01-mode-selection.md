@@ -130,6 +130,43 @@ Briefly outline what's coming:
 
 Ready to start building!"
 
+## Step 1 Data to Store
+
+**Note:** Cannot write to plan file yet (no workflow_name). Store this XML in memory for Step 2 to write.
+
+**XML Template for Step 1:**
+
+```xml
+<step-01 completed="true" timestamp="{ISO timestamp}">
+  <mode>{quick|expert}</mode>
+  <brainstorming enabled="{true|false}">
+    <problem>{user's problem description or empty}</problem>
+    <agent-ideas>{brainstorming insights or empty}</agent-ideas>
+    <flow-concept>{flow concept or empty}</flow-concept>
+  </brainstorming>
+</step-01>
+```
+
+**On User Confirmation:**
+
+1. Store the XML data in memory (will be written in Step 2)
+2. Use TodoWrite to mark Step 01 completed and Step 02 in_progress:
+
+```javascript
+TodoWrite([
+  { content: "Step 01: Mode Selection", status: "completed", activeForm: "Mode selection completed" },
+  { content: "Step 02: Workflow Definition", status: "in_progress", activeForm: "Defining workflow" },
+  { content: "Step 03: Main Agents", status: "pending", activeForm: "Defining main agents" },
+  { content: "Step 04: Prompts & Placeholders", status: "pending", activeForm: "Creating prompts" },
+  { content: "Step 05: Controller Agent", status: "pending", activeForm: "Creating controller" },
+  { content: "Step 06: Sub-Agents", status: "pending", activeForm: "Configuring sub-agents" },
+  { content: "Step 07: Modules", status: "pending", activeForm: "Configuring modules" },
+  { content: "Step 08: Assembly & Validation", status: "pending", activeForm: "Assembling workflow" }
+])
+```
+
+3. Tell user: "✓ Mode and brainstorming choices recorded. Press **Enter** to proceed."
+
 {ali_step_completion}
 
 ## SUCCESS METRICS
@@ -138,6 +175,7 @@ Ready to start building!"
 - User has decided on brainstorming (yes/no)
 - If brainstorming: insights captured for use in subsequent steps
 - Mode and brainstorming choice stored
+- TodoWrite updated with step progress
 - User understands the 8-step journey ahead
 
 ## FAILURE METRICS
@@ -147,3 +185,4 @@ Ready to start building!"
 - Not capturing brainstorming insights when generated
 - Pressuring user into brainstorming
 - Using file read/search tools (forbidden in step 1)
+- Not updating TodoWrite on completion

@@ -331,6 +331,71 @@ For each shared:
 
 Main agent prompts are ready. Next steps will create controller, sub-agents, and modules if needed."
 
+## Step 4: APPEND to Plan File
+
+**On User Confirmation:**
+
+1. **Read** the plan file at `.codemachine/workflow-plans/{workflow_name}-plan.md`
+
+2. **Append step-04 XML** before the closing `</workflow-plan>` tag:
+
+```xml
+<step-04 completed="true" timestamp="{ISO timestamp}">
+  <folders-created>
+    <folder path="prompts/templates/{workflow_name}/" />
+    <!-- For each agent folder -->
+    <folder path="prompts/templates/{workflow_name}/{agent-id}/" />
+    <folder path="prompts/templates/{workflow_name}/{agent-id}/chained/" />
+    <folder path="prompts/templates/{workflow_name}/shared/" />
+  </folders-created>
+  <prompts>
+    <!-- For each main agent prompt -->
+    <prompt agent-id="{agent-id}" path="prompts/templates/{workflow_name}/{agent-id}/{agent-id}.md" created="true">
+      <goal>{agent goal}</goal>
+      <persona>{agent persona}</persona>
+      <output>{expected output}</output>
+    </prompt>
+    <!-- For each chained step -->
+    <chained-prompt agent-id="{agent-id}" step="{n}" path="prompts/templates/{workflow_name}/{agent-id}/chained/step-{n}-{purpose}.md" created="true">
+      <purpose>{step purpose}</purpose>
+      <goal>{step goal}</goal>
+    </chained-prompt>
+  </prompts>
+  <shared-files>
+    <!-- For each shared file -->
+    <shared name="{name}" placeholder="{placeholder_name}" path="prompts/templates/{workflow_name}/shared/{name}.md" created="true">
+      <content-summary>{brief summary of content}</content-summary>
+    </shared>
+  </shared-files>
+  <placeholders-to-register>
+    <!-- For each placeholder -->
+    <placeholder name="{placeholder_name}" path="prompts/templates/{workflow_name}/shared/{name}.md" />
+  </placeholders-to-register>
+</step-04>
+```
+
+3. **Update the Last Updated timestamp** in the file header
+
+4. **Update TodoWrite:**
+
+```javascript
+TodoWrite([
+  { content: "Step 01: Mode Selection", status: "completed", activeForm: "Mode selection completed" },
+  { content: "Step 02: Workflow Definition", status: "completed", activeForm: "Workflow definition completed" },
+  { content: "Step 03: Main Agents", status: "completed", activeForm: "Main agents completed" },
+  { content: "Step 04: Prompts & Placeholders", status: "completed", activeForm: "Prompts created" },
+  { content: "Step 05: Controller Agent", status: "in_progress", activeForm: "Creating controller" },
+  { content: "Step 06: Sub-Agents", status: "pending", activeForm: "Configuring sub-agents" },
+  { content: "Step 07: Modules", status: "pending", activeForm: "Configuring modules" },
+  { content: "Step 08: Assembly & Validation", status: "pending", activeForm: "Assembling workflow" }
+])
+```
+
+5. **Confirm to user:**
+"✓ Prompt files created and saved to workflow plan.
+
+Press **Enter** to proceed to the next step."
+
 {ali_step_completion}
 
 ## SUCCESS METRICS
@@ -342,6 +407,8 @@ Main agent prompts are ready. Next steps will create controller, sub-agents, and
 - Sub-agent instructions included where needed
 - Placeholders stored for config update in step 8
 - User confirmed each file before creation
+- **Step-04 XML appended to plan file**
+- **TodoWrite updated**
 
 ## FAILURE METRICS
 
@@ -352,3 +419,5 @@ Main agent prompts are ready. Next steps will create controller, sub-agents, and
 - Duplicate placeholder names
 - Using existing placeholder names (must create NEW)
 - Proceeding without confirmation
+- **Not appending to plan file**
+- **Not updating TodoWrite**

@@ -161,45 +161,155 @@ Store all in `conditionGroups` array.
 
 **If NO:** Store `conditionGroups: []`.
 
-### 5. Ask About Workflow Flags
+### 5. Ask About Workflow Mode
 
-"**Two more quick options:**
+"**Workflow Execution Mode**
 
-1. **Controller flag** - Will this workflow support autonomous mode with a controller agent?
-   (If yes, we'll create a controller agent in step 5)
+How should your workflow run? This is an important choice that affects how agents interact with users.
 
-2. **Specification flag** - Does this workflow use a specification file as input?
-   (Common for workflows that read from a requirements doc)
+---
 
-Set controller flag? **[y/n]**"
+**Option 1: Continuous Mode (Recommended - Default)**
 
-Wait for response. Store as `controller: true/false`.
+The workflow runs automatically from start to finish. Each agent completes its task and the system advances to the next agent **without waiting for user input**.
 
-"Set specification flag? **[y/n]**"
+```
+Agent 1 (Planner) → completes → auto-advance →
+Agent 2 (Builder) → completes → auto-advance →
+Agent 3 (Reviewer) → completes → done!
+```
 
-Wait for response. Store as `specification: true/false`.
+✅ **Best for:**
+- Simple, straightforward workflows
+- When agents have all the information they need
+- Predictable tasks with clear outputs
+- Batch processing or automated pipelines
 
-### 6. Ask About Autonomous Mode
+✅ **Benefits:**
+- Fastest execution - no waiting
+- Easy to build and maintain
+- Lower token consumption
 
-**If controller = true:**
+---
 
-"**Autonomous Mode Behavior**
+**Option 2: Manual Mode (Interactive)**
 
-How should autonomous mode (Shift+Tab) behave in this workflow?
+The workflow **stops after each agent** and waits for your input. You can review the agent's output, provide feedback, answer questions, or guide the next step.
+
+```
+Agent 1 (Planner) → completes → ⏸️ WAITING FOR YOU →
+  You: "Looks good, continue"
+Agent 2 (Builder) → completes → ⏸️ WAITING FOR YOU →
+  You: "Add error handling to the login function"
+Agent 3 (Reviewer) → completes → done!
+```
+
+If an agent has **chained prompts** (multiple steps), it will also wait after each step:
+
+```
+Agent 1 - Step 1 → ⏸️ WAITING → You respond →
+Agent 1 - Step 2 → ⏸️ WAITING → You respond →
+Agent 1 - Step 3 → completes → next agent...
+```
+
+💡 **Real Example - This workflow (Ali) is Manual Mode!**
+
+I'm Ali, and I'm running in manual mode right now:
+- No controller - I talk directly to YOU
+- No autonomous mode - you can't press Shift+Tab to auto-pilot
+- After each step, I wait for you to respond and press Enter
+
+That's why you've been talking to me step by step. If this was Continuous mode, all 8 steps would run automatically without waiting for your input!
+
+✅ **Best for:**
+- Workflows where you want to guide each step
+- When agents ask questions that need YOUR answers
+- Learning/exploring - see what each agent does
+- Quality control - review before proceeding
+
+✅ **Benefits:**
+- Full control over the workflow
+- Can correct course at any point
+- See intermediate outputs
+
+---
+
+**Option 3: Autonomous Mode with Controller (Beta)**
+
+A special **Controller Agent** responds on your behalf when agents ask questions. You brief the controller before the workflow starts, and it handles all agent interactions automatically.
+
+```
+Agent (John - PM): What is our project type?
+Controller: Our project is a React dashboard for analytics...
+
+Agent (Sarah - Architect): Should we use REST or GraphQL?
+Controller: Use GraphQL for the flexible queries we need...
+```
+
+**How it works:**
+1. Before workflow starts, you brief the controller about the project
+2. Controller knows each agent by name and their expected output
+3. When an agent asks a question, controller responds instead of you
+4. You can toggle autonomous mode ON/OFF with **Shift+Tab** during execution
+
+⚠️ **Trade-offs:**
+- **Higher token consumption** - Controller receives and responds to every agent
+- **Harder to engineer** - You must define controller persona, calibration, and agent interactions
+- **Beta feature** - Still being refined
+
+✅ **Best for:**
+- Complex workflows with many agent interactions
+- When you want a PO/PM-like agent making decisions
+- Hands-off execution with smart responses
+
+---
+
+**Which mode do you want?**
+
+1. **Continuous Mode** (Recommended) - Auto-advances, no waiting
+2. **Manual Mode** - Stops after each agent/step, waits for your input
+3. **Autonomous Mode with Controller** (Beta) - Controller responds to agents
+
+Enter **1**, **2**, or **3**:"
+
+Wait for response.
+
+**If user chose 1 (Continuous Mode):**
+Store `controller: false`, `interactive: false`. Do NOT include `autonomousMode` in workflow file.
+
+"Great choice! Continuous mode is the simplest and works well for most workflows."
+
+**If user chose 2 (Manual Mode):**
+Store `controller: false`, `interactive: true`. Do NOT include `autonomousMode` in workflow file.
+
+"Got it! Manual mode gives you full control. The workflow will wait for your input after each agent completes (and after each chained step if applicable)."
+
+**If user chose 3 (Autonomous Mode with Controller):**
+Store `controller: true`, `interactive: true`.
+
+"Got it! We'll create a Controller Agent in step 5. Now let's configure autonomous mode behavior."
+
+"**Autonomous Mode Toggle (Shift+Tab)**
+
+When running the workflow, you can press **Shift+Tab** to toggle between:
+- **Manual** - You respond to agents
+- **Autonomous** - Controller responds to agents
+
+How should the workflow START by default?
 
 | Value | Behavior |
 |-------|----------|
-| `'never'` | Autonomous mode disabled - user cannot enable it |
-| `'always'` | Autonomous mode locked ON - user cannot disable it |
-| `false` | Defaults to OFF - user can toggle with Shift+Tab |
-| `true` | Defaults to ON - user can toggle with Shift+Tab |
+| `'never'` | Always manual - autonomous mode disabled entirely |
+| `'always'` | Always autonomous - cannot switch to manual |
+| `false` | Starts in manual mode - you can enable autonomous with Shift+Tab |
+| `true` | Starts in autonomous mode - you can switch to manual with Shift+Tab |
 
-**Choose autonomous mode setting:**
+**Choose:**
 
-1. **Never** - Disable autonomous mode entirely
-2. **Always** - Lock autonomous mode ON (fully automated)
-3. **Default OFF** - Start manual, user can enable (most common)
-4. **Default ON** - Start autonomous, user can disable
+1. **Never** - Always manual, autonomous mode disabled
+2. **Always** - Always autonomous, cannot switch to manual
+3. **Start Manual** - Begin with you responding, can switch to controller
+4. **Start Autonomous** - Begin with controller responding, can switch to manual
 
 Enter **1**, **2**, **3**, or **4**:"
 
@@ -209,8 +319,16 @@ Wait for response. Store as:
 - 3 → `autonomousMode: false`
 - 4 → `autonomousMode: true`
 
-**If controller = false:**
-Skip this section. Store `autonomousMode: null` (won't be included in workflow).
+### 6. Ask About Specification Flag
+
+"**Specification File**
+
+Does this workflow use a specification file as input?
+(Common for workflows that read from a requirements doc, PRD, or brief)
+
+Use specification file? **[y/n]**"
+
+Wait for response. Store as `specification: true/false`.
 
 ### 7. Ask About Engine & Model
 
@@ -241,52 +359,6 @@ Enter model name (case-sensitive, e.g., `opus`, `sonnet`, `gpt-5.1-codex-max`):"
 
 Wait for response. Store as `defaultModel` (or null if blank).
 
-### 8. Ask About Interactive Mode
-
-"**Interactive Mode**
-
-The `interactive` flag controls how agents behave during workflow execution.
-
-**The 8 Scenarios:**
-
-| # | interactive | autoMode | chainedPrompts | Behavior |
-|---|-------------|----------|----------------|----------|
-| 1 | true | true | yes | Controller drives with prompts |
-| 2 | true | true | no | Controller drives single step |
-| 3 | true | false | yes | User drives with prompts |
-| 4 | true | false | no | User drives each step |
-| 5 | false | true | yes | **FULLY AUTONOMOUS** - auto-send ALL prompts |
-| 6 | false | true | no | Auto-advance to next step |
-| 7 | false | false | yes | ⚠️ INVALID - forces interactive:true |
-| 8 | false | false | no | ⚠️ INVALID - forces interactive:true |
-
-**Key Points:**
-- `interactive: true` (default) = User or controller provides input
-- `interactive: false` = System auto-advances (REQUIRES autoMode/controller to work)
-- `autoMode` = Controller takes over when user presses **Shift+Tab**
-
-**IMPORTANT:** `interactive: false` without a controller is INVALID (scenarios 7-8). The system will force `interactive: true` and show a warning.
-
-**Recommended combinations:**
-- `interactive: true` + controller = User can toggle autonomous mode (Shift+Tab)
-- `interactive: false` + controller = Always autonomous (controller responds)
-- `interactive: true` + no controller = Manual mode (user responds)
-
-Should agents be interactive by default? **[y/n]** (default: yes)"
-
-Wait for response. Store as `interactive: true/false` (default true).
-
-**If user chose `interactive: false` AND `controller: false`:**
-"⚠️ **Warning:** Setting `interactive: false` without a controller will force interactive mode anyway (scenarios 7-8 are invalid).
-
-Would you like to:
-1. Add a controller (recommended for autonomous workflows)
-2. Keep interactive: true instead
-
-Enter **1** or **2**:"
-
-Handle response accordingly.
-
 ### 9. Summary
 
 Present summary of everything collected:
@@ -298,17 +370,99 @@ Present summary of everything collected:
 - `templates/workflows/{workflow_name}.workflow.js`
 - `prompts/templates/{workflow_name}/`
 
+**Workflow Mode:** {Continuous | Manual | Autonomous with Controller (Beta)}
+**Interactive:** {true/false}
+**Controller:** {yes/no - if yes, will be created in step 5}
+**Autonomous Mode:** {only shown if controller enabled: never|always|true|false}
+
 **Tracks:** {show tracks or 'None'}
 **Condition Groups:** {show groups or 'None'}
-**Controller:** {yes/no}
-**Autonomous Mode:** {autonomousMode or 'N/A (no controller)'}
 **Specification:** {yes/no}
 
 **Engine:** {defaultEngine or 'System default'}
 **Model:** {defaultModel or 'Engine default'}
-**Interactive:** {yes/no}
 
 **Existing IDs collected:** {count} (will prevent duplicates)"
+
+## Step 2: CREATE Plan File
+
+**CRITICAL: This step CREATES the workflow plan file!**
+
+**On User Confirmation:**
+
+1. **Create directory** (if needed): `.codemachine/workflow-plans/`
+
+2. **Create the plan file** at `.codemachine/workflow-plans/{workflow_name}-plan.md`:
+
+```markdown
+# Workflow Plan: {workflow_name}
+
+Created: {ISO timestamp}
+Last Updated: {ISO timestamp}
+
+<workflow-plan>
+  <!-- Step 1 data from memory -->
+  <step-01 completed="true" timestamp="{timestamp}">
+    <mode>{mode}</mode>
+    <brainstorming enabled="{true|false}">
+      <problem>{problem}</problem>
+      <agent-ideas>{agent_ideas}</agent-ideas>
+      <flow-concept>{flow_concept}</flow-concept>
+    </brainstorming>
+  </step-01>
+
+  <!-- Step 2 data -->
+  <step-02 completed="true" timestamp="{ISO timestamp}">
+    <workflow-name>{workflow_name}</workflow-name>
+    <existing-ids count="{count}">{comma-separated list}</existing-ids>
+    <workflow-mode>
+      <type>{continuous|manual|autonomous}</type>
+      <interactive>{true|false}</interactive>
+      <controller enabled="{true|false}" beta="true">{only if autonomous}</controller>
+      <!-- autonomous-mode ONLY included if controller enabled -->
+      <autonomous-mode>{never|always|true|false}</autonomous-mode>
+    </workflow-mode>
+    <tracks enabled="{true|false}">
+      <question>{tracks.question or empty}</question>
+      <options>
+        <!-- For each track -->
+        <track id="{id}" label="{label}" description="{description}" />
+      </options>
+    </tracks>
+    <condition-groups>
+      <!-- For each group -->
+      <group id="{id}" question="{question}" multi-select="{true|false}" tracks="{track-ids or empty}">
+        <condition id="{id}" label="{label}" description="{description}" />
+        <!-- children if any -->
+      </group>
+    </condition-groups>
+    <specification>{true|false}</specification>
+    <engine>{engine or null}</engine>
+    <model>{model or null}</model>
+  </step-02>
+
+</workflow-plan>
+```
+
+3. **Update TodoWrite:**
+
+```javascript
+TodoWrite([
+  { content: "Step 01: Mode Selection", status: "completed", activeForm: "Mode selection completed" },
+  { content: "Step 02: Workflow Definition", status: "completed", activeForm: "Workflow definition completed" },
+  { content: "Step 03: Main Agents", status: "in_progress", activeForm: "Defining main agents" },
+  { content: "Step 04: Prompts & Placeholders", status: "pending", activeForm: "Creating prompts" },
+  { content: "Step 05: Controller Agent", status: "pending", activeForm: "Creating controller" },
+  { content: "Step 06: Sub-Agents", status: "pending", activeForm: "Configuring sub-agents" },
+  { content: "Step 07: Modules", status: "pending", activeForm: "Configuring modules" },
+  { content: "Step 08: Assembly & Validation", status: "pending", activeForm: "Assembling workflow" }
+])
+```
+
+4. **Confirm to user:**
+"✓ Workflow plan created at `.codemachine/workflow-plans/{workflow_name}-plan.md`
+
+Press **Enter** to proceed to the next step."
 
 {ali_step_completion}
 
@@ -319,11 +473,15 @@ Present summary of everything collected:
 - Valid workflow name chosen
 - Tracks configured or explicitly skipped
 - Condition groups configured or explicitly skipped
-- Controller and specification flags set
-- Autonomous mode configured (if controller enabled)
+- **All 3 workflow modes explained clearly with examples**
+- **Continuous mode: controller=false, interactive=false, NO autonomousMode**
+- **OR Manual mode: controller=false, interactive=true, NO autonomousMode**
+- **OR Autonomous mode: controller=true, interactive=true, autonomousMode=true|false|'never'|'always'**
+- Specification flag set
 - Engine and model configured or skipped
-- Interactive mode set with proper validation
 - Summary shown and confirmed
+- **Plan file CREATED with step-01 and step-02 data**
+- **TodoWrite updated**
 
 ## FAILURE METRICS
 
@@ -332,5 +490,8 @@ Present summary of everything collected:
 - Not collecting existing IDs
 - Proceeding without user confirmation on name
 - Not explaining tracks/conditions in Expert mode
-- Allowing interactive:false without controller (invalid scenario)
-- Not showing the 8 scenarios table in Expert mode
+- **Not explaining the difference between Continuous and Autonomous modes**
+- **Not marking Controller as Beta**
+- **Not explaining trade-offs (token consumption, engineering complexity)**
+- **Not creating the plan file**
+- **Not updating TodoWrite**

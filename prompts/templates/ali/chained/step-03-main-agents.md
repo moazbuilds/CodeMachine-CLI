@@ -277,6 +277,55 @@ Prompts created in `prompts/templates/{workflow_name}/`.
 
 **Note:** Sub-agents defined here will be fully configured in Step 6. The main agent prompts will include MCP `run_agents` instructions for calling them."
 
+## Step 3: APPEND to Plan File
+
+**On User Confirmation:**
+
+1. **Read** the plan file at `.codemachine/workflow-plans/{workflow_name}-plan.md`
+
+2. **Append step-03 XML** before the closing `</workflow-plan>` tag:
+
+```xml
+<step-03 completed="true" timestamp="{ISO timestamp}">
+  <agents count="{agent_count}">
+    <!-- For each agent -->
+    <agent id="{id}" name="{name}" description="{description}" type="{single|chained}" step-count="{count or 1}">
+      <steps>
+        <!-- For chained agents -->
+        <step n="{n}" purpose="{purpose}" />
+      </steps>
+      <sub-agents count="{count or 0}">
+        <!-- For each sub-agent -->
+        <sub-agent id="{id}" name="{name}" description="{description}" trigger="{trigger}" execution-mode="{sequential|parallel|conditional}" />
+      </sub-agents>
+      <filtering tracks="{track-ids or empty}" conditions="{condition-ids or empty}" />
+    </agent>
+  </agents>
+</step-03>
+```
+
+3. **Update the Last Updated timestamp** in the file header
+
+4. **Update TodoWrite:**
+
+```javascript
+TodoWrite([
+  { content: "Step 01: Mode Selection", status: "completed", activeForm: "Mode selection completed" },
+  { content: "Step 02: Workflow Definition", status: "completed", activeForm: "Workflow definition completed" },
+  { content: "Step 03: Main Agents", status: "completed", activeForm: "Main agents completed" },
+  { content: "Step 04: Prompts & Placeholders", status: "in_progress", activeForm: "Creating prompts" },
+  { content: "Step 05: Controller Agent", status: "pending", activeForm: "Creating controller" },
+  { content: "Step 06: Sub-Agents", status: "pending", activeForm: "Configuring sub-agents" },
+  { content: "Step 07: Modules", status: "pending", activeForm: "Configuring modules" },
+  { content: "Step 08: Assembly & Validation", status: "pending", activeForm: "Assembling workflow" }
+])
+```
+
+5. **Confirm to user:**
+"✓ Agent definitions saved to workflow plan.
+
+Press **Enter** to proceed to the next step."
+
 {ali_step_completion}
 
 ## SUCCESS METRICS
@@ -289,6 +338,8 @@ Prompts created in `prompts/templates/{workflow_name}/`.
 - Sub-agent triggers and execution modes defined
 - Track/condition filtering configured if applicable
 - Summary reviewed and confirmed
+- **Step-03 XML appended to plan file**
+- **TodoWrite updated**
 
 ## FAILURE METRICS
 
@@ -299,3 +350,5 @@ Prompts created in `prompts/templates/{workflow_name}/`.
 - Skipping step purposes for chained agents
 - Skipping sub-agent details when user says yes
 - Proceeding without user confirmation
+- **Not appending to plan file**
+- **Not updating TodoWrite**

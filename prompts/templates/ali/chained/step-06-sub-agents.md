@@ -253,6 +253,66 @@ subAgentIds: [{subAgent IDs comma-separated}],
 
 Sub-agent prompt files are ready. Config will be updated in step 8."
 
+## Step 6: APPEND to Plan File
+
+**On User Confirmation:**
+
+1. **Read** the plan file at `.codemachine/workflow-plans/{workflow_name}-plan.md`
+
+2. **Append step-06 XML** before the closing `</workflow-plan>` tag:
+
+**If sub-agents were created:**
+```xml
+<step-06 completed="true" timestamp="{ISO timestamp}">
+  <sub-agents count="{count}">
+    <!-- For each sub-agent -->
+    <sub-agent id="{id}" name="{name}" main-agent="{main-agent-id}">
+      <persona>{persona description}</persona>
+      <instructions>
+        <instruction>{instruction 1}</instruction>
+        <instruction>{instruction 2}</instruction>
+      </instructions>
+      <expected-input>{expected input}</expected-input>
+      <expected-output>{expected output}</expected-output>
+      <completion-criteria>{completion criteria}</completion-criteria>
+      <file-path>prompts/templates/{workflow_name}/sub-agents/{id}.md</file-path>
+    </sub-agent>
+  </sub-agents>
+  <workflow-registration>
+    <sub-agent-ids>{comma-separated list of IDs}</sub-agent-ids>
+  </workflow-registration>
+</step-06>
+```
+
+**If sub-agents were skipped:**
+```xml
+<step-06 completed="skipped" timestamp="{ISO timestamp}">
+  <reason>No sub-agents defined for this workflow</reason>
+</step-06>
+```
+
+3. **Update the Last Updated timestamp** in the file header
+
+4. **Update TodoWrite:**
+
+```javascript
+TodoWrite([
+  { content: "Step 01: Mode Selection", status: "completed", activeForm: "Mode selection completed" },
+  { content: "Step 02: Workflow Definition", status: "completed", activeForm: "Workflow definition completed" },
+  { content: "Step 03: Main Agents", status: "completed", activeForm: "Main agents completed" },
+  { content: "Step 04: Prompts & Placeholders", status: "completed", activeForm: "Prompts created" },
+  { content: "Step 05: Controller Agent", status: "completed", activeForm: "Controller completed" },
+  { content: "Step 06: Sub-Agents", status: "completed", activeForm: "Sub-agents completed" },
+  { content: "Step 07: Modules", status: "in_progress", activeForm: "Configuring modules" },
+  { content: "Step 08: Assembly & Validation", status: "pending", activeForm: "Assembling workflow" }
+])
+```
+
+5. **Confirm to user:**
+"✓ Sub-agent configuration saved to workflow plan.
+
+Press **Enter** to proceed to the next step."
+
 {ali_step_completion}
 
 ## SUCCESS METRICS
@@ -263,6 +323,8 @@ Sub-agent prompt files are ready. Config will be updated in step 8."
 - User confirmed each file before creation
 - Config entries stored for step 8
 - subAgentIds list prepared for workflow file
+- **Step-06 XML appended to plan file**
+- **TodoWrite updated**
 
 ## FAILURE METRICS
 
@@ -271,3 +333,5 @@ Sub-agent prompt files are ready. Config will be updated in step 8."
 - No persona or instructions defined
 - Input/output expectations unclear
 - Proceeding without user confirmation
+- **Not appending to plan file**
+- **Not updating TodoWrite**

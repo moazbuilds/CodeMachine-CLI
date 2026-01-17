@@ -343,6 +343,67 @@ codemachine workflow {workflow_name}
 
 **Congratulations! Your '{workflow_name}' workflow is ready to use.**"
 
+## Step 8: FINAL APPEND to Plan File
+
+**On Completion:**
+
+1. **Read** the plan file at `.codemachine/workflow-plans/{workflow_name}-plan.md`
+
+2. **Append step-08 XML** before the closing `</workflow-plan>` tag:
+
+```xml
+<step-08 completed="true" timestamp="{ISO timestamp}">
+  <validation>
+    <ids-unique>{true|false}</ids-unique>
+    <files-exist>{true|false}</files-exist>
+    <workflow-integrity>{true|false}</workflow-integrity>
+    <placeholders-registered>{true|false}</placeholders-registered>
+    <issues-fixed count="{count}">
+      <!-- If any issues were fixed -->
+      <issue type="{type}" path="{path}" action="{action taken}" />
+    </issues-fixed>
+  </validation>
+  <files-created>
+    <file type="workflow" path="templates/workflows/{workflow_name}.workflow.js" />
+    <file type="main-agents-config" path="config/main.agents.js" entries-added="{count}" />
+    <file type="sub-agents-config" path="config/sub.agents.js" entries-added="{count or 0}" />
+    <file type="modules-config" path="config/modules.js" entries-added="{count or 0}" />
+    <file type="placeholders-config" path="config/placeholders.js" entries-added="{count or 0}" />
+  </files-created>
+  <summary>
+    <total-prompt-files>{count}</total-prompt-files>
+    <total-agents>{count}</total-agents>
+    <total-sub-agents>{count}</total-sub-agents>
+    <total-modules>{count}</total-modules>
+    <has-controller>{true|false}</has-controller>
+  </summary>
+</step-08>
+```
+
+3. **Update the Last Updated timestamp** in the file header
+
+4. **Update TodoWrite - ALL COMPLETED:**
+
+```javascript
+TodoWrite([
+  { content: "Step 01: Mode Selection", status: "completed", activeForm: "Mode selection completed" },
+  { content: "Step 02: Workflow Definition", status: "completed", activeForm: "Workflow definition completed" },
+  { content: "Step 03: Main Agents", status: "completed", activeForm: "Main agents completed" },
+  { content: "Step 04: Prompts & Placeholders", status: "completed", activeForm: "Prompts created" },
+  { content: "Step 05: Controller Agent", status: "completed", activeForm: "Controller completed" },
+  { content: "Step 06: Sub-Agents", status: "completed", activeForm: "Sub-agents completed" },
+  { content: "Step 07: Modules", status: "completed", activeForm: "Modules completed" },
+  { content: "Step 08: Assembly & Validation", status: "completed", activeForm: "Workflow complete!" }
+])
+```
+
+5. **Confirm to user:**
+"✓ Workflow plan finalized at `.codemachine/workflow-plans/{workflow_name}-plan.md`
+
+**Your workflow is ready!**
+
+Run: `codemachine workflow {workflow_name}`"
+
 {ali_step_completion}
 
 ## SUCCESS METRICS
@@ -354,6 +415,8 @@ codemachine workflow {workflow_name}
 - Final validation passed (IDs, files, integrity, placeholders)
 - User educated about keyboard shortcuts
 - Run command provided
+- **Step-08 XML appended to plan file**
+- **All TodoWrite items marked completed**
 
 ## FAILURE METRICS
 
@@ -363,3 +426,5 @@ codemachine workflow {workflow_name}
 - Validation failures not addressed
 - Not showing how to run the workflow
 - Skipping keyboard shortcuts education
+- **Not appending to plan file**
+- **Not updating TodoWrite**
