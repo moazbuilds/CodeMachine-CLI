@@ -218,6 +218,17 @@ function meetsConditions(entry: ChainedPathEntry, selectedConditions: string[]):
 }
 
 /**
+ * Check if track requirement is met
+ * If entry has tracks specified, selectedTrack must be one of them
+ */
+function meetsTracks(entry: ChainedPathEntry, selectedTrack: string | null): boolean {
+  if (typeof entry === 'string') return true;
+  if (!entry.tracks?.length) return true;
+  if (!selectedTrack) return false; // Has track requirement but no track selected
+  return entry.tracks.includes(selectedTrack);
+}
+
+/**
  * Extract path string from entry
  */
 function getPath(entry: ChainedPathEntry): string {
@@ -232,21 +243,31 @@ function getPath(entry: ChainedPathEntry): string {
  * @param chainedPromptsPath - Path or array of paths to file(s) or folder(s) containing .md files
  * @param projectRoot - Project root for resolving relative paths
  * @param selectedConditions - User-selected conditions for filtering conditional paths
+ * @param selectedTrack - User-selected track for filtering track-specific paths
  * @returns Array of ChainedPrompt objects sorted by filename within each folder
  */
 export async function loadChainedPrompts(
   chainedPromptsPath: ChainedPathEntry | ChainedPathEntry[],
   projectRoot: string,
-  selectedConditions: string[] = []
+  selectedConditions: string[] = [],
+  selectedTrack: string | null = null
 ): Promise<ChainedPrompt[]> {
   const entries = Array.isArray(chainedPromptsPath) ? chainedPromptsPath : [chainedPromptsPath];
   const allPrompts: ChainedPrompt[] = [];
 
   for (const entry of entries) {
+    // Check both conditions AND tracks (both must pass)
     if (!meetsConditions(entry, selectedConditions)) {
       const pathStr = getPath(entry);
       const conditions = isConditionalPath(entry) ? entry.conditions : [];
       debug(`Skipped chained path: ${pathStr} (unmet conditions: ${conditions?.join(', ')})`);
+      continue;
+    }
+
+    if (!meetsTracks(entry, selectedTrack)) {
+      const pathStr = getPath(entry);
+      const tracks = isConditionalPath(entry) ? entry.tracks : [];
+      debug(`Skipped chained path: ${pathStr} (unmet tracks: ${tracks?.join(', ')}, selected: ${selectedTrack})`);
       continue;
     }
 

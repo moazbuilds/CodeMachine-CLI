@@ -12,7 +12,7 @@ import { debug } from '../../shared/logging/logger.js';
 import { getNextChainIndex } from '../indexing/lifecycle.js';
 import { loadAgentConfig } from '../../agents/runner/index.js';
 import { loadChainedPrompts } from '../../agents/runner/chained.js';
-import { getSelectedConditions } from '../../shared/workflows/template.js';
+import { getSelectedConditions, getSelectedTrack } from '../../shared/workflows/template.js';
 import { StatusService } from '../../agents/monitoring/index.js';
 import type { CrashRestoreContext, CrashRestoreResult } from './types.js';
 
@@ -70,10 +70,12 @@ export async function restoreFromCrash(ctx: CrashRestoreContext): Promise<CrashR
 
   if (agentConfig?.chainedPromptsPath) {
     const selectedConditions = await getSelectedConditions(cmRoot);
+    const selectedTrack = await getSelectedTrack(cmRoot);
     const chainedPrompts = await loadChainedPrompts(
       agentConfig.chainedPromptsPath,
       cwd,
-      selectedConditions
+      selectedConditions,
+      selectedTrack
     );
 
     if (chainedPrompts.length > 0) {

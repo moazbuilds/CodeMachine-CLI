@@ -4,6 +4,7 @@
 export type ConditionalChainedPath = {
   path: string;
   conditions?: string[];
+  tracks?: string[];
 };
 
 /**

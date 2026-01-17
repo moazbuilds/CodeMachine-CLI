@@ -145,6 +145,11 @@ export interface ExecuteAgentOptions {
   selectedConditions?: string[];
 
   /**
+   * Selected track for filtering track-specific chained prompt paths
+   */
+  selectedTrack?: string;
+
+  /**
    * Skip writing to agent's log file (caller handles logging externally)
    */
   skipLogFile?: boolean;
@@ -208,7 +213,7 @@ export async function executeAgent(
   prompt: string,
   options: ExecuteAgentOptions,
 ): Promise<AgentExecutionOutput> {
-  const { workingDir, projectRoot, engine: engineOverride, model: modelOverride, logger, stderrLogger, onTelemetry, abortSignal, timeout, parentId, disableMonitoring, ui, uniqueAgentId, displayPrompt, resumeMonitoringId, resumePrompt, resumeSessionId: resumeSessionIdOption, selectedConditions } = options;
+  const { workingDir, projectRoot, engine: engineOverride, model: modelOverride, logger, stderrLogger, onTelemetry, abortSignal, timeout, parentId, disableMonitoring, ui, uniqueAgentId, displayPrompt, resumeMonitoringId, resumePrompt, resumeSessionId: resumeSessionIdOption, selectedConditions, selectedTrack } = options;
 
   debug(`[AgentRunner] executeAgent called: agentId=%s promptLength=%d`, agentId, prompt.length);
   debug(`[AgentRunner] Options: workingDir=%s engineOverride=%s modelOverride=%s parentId=%s`,
@@ -469,7 +474,8 @@ export async function executeAgent(
       chainedPrompts = await loadChainedPrompts(
         agentConfig.chainedPromptsPath,
         projectRoot ?? workingDir,
-        selectedConditions ?? []
+        selectedConditions ?? [],
+        selectedTrack ?? null
       );
       debug(`[ChainedPrompts] Loaded ${chainedPrompts.length} chained prompts for agent '${agentId}'`);
     } else {
