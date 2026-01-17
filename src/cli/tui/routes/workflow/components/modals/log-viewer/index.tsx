@@ -22,17 +22,27 @@ export interface LogViewerProps {
 export function LogViewer(props: LogViewerProps) {
   const dimensions = useTerminalDimensions()
 
-  const monitoringId = () => props.getMonitoringId(props.agentId)
-  const logStream = useLogStream(monitoringId)
-
   const visibleLines = createMemo(() => {
     const height = dimensions()?.height ?? 40
     return Math.max(5, height - 9)
   })
 
-  // Close on Escape
+  const logStream = useLogStream({
+    monitoringAgentId: () => props.getMonitoringId(props.agentId),
+    visibleLineCount: visibleLines
+  })
+
+  // Handle keyboard navigation
+  const handleLoadEarlier = () => {
+    if (logStream.hasMoreAbove) {
+      logStream.loadEarlierLines()
+    }
+  }
+
   useModalKeyboard({
     onClose: props.onClose,
+    onGoTop: handleLoadEarlier,  // g key loads earlier lines
+    onPageUp: handleLoadEarlier, // PageUp also loads earlier lines
   })
 
   return (
@@ -50,9 +60,16 @@ export function LogViewer(props: LogViewerProps) {
         error={logStream.error}
         visibleHeight={visibleLines()}
         isRunning={logStream.isRunning}
+        totalLineCount={logStream.totalLineCount}
+        hasMoreAbove={logStream.hasMoreAbove}
+        isLoadingEarlier={logStream.isLoadingEarlier}
+        loadEarlierError={logStream.loadEarlierError}
+        onLoadMore={() => logStream.loadEarlierLines()}
+        onPauseTrimmingChange={(paused) => logStream.setPauseTrimming(paused)}
       />
       <LogFooter
-        total={logStream.lines.length}
+        total={logStream.totalLineCount}
+        hasMoreAbove={logStream.hasMoreAbove}
         isRunning={logStream.isRunning}
       />
     </box>

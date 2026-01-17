@@ -1,4 +1,5 @@
 import { AgentMonitorService } from './monitor.js';
+import { AgentLoggerService } from './logger.js';
 import type { AgentStatus } from './types.js';
 import type { WorkflowEventEmitter } from '../../workflows/events/emitter.js';
 import type { ParsedTelemetry } from '../../shared/telemetry/index.js';
@@ -62,22 +63,27 @@ export class StatusService {
   // Mark skipped by monitoring ID (for cleanup coordination)
   async markSkipped(monitoringId: number): Promise<void> {
     this.skippedIds.add(monitoringId);
+    await AgentLoggerService.getInstance().flush(monitoringId);
     await this.monitor.markSkipped(monitoringId);
     this.emitStatus(monitoringId, 'skipped');
   }
 
   // Status updates (DB + UI)
+  // All status changes flush the log first to ensure data is readable
   async complete(id: number, telemetry?: ParsedTelemetry): Promise<void> {
+    await AgentLoggerService.getInstance().flush(id);
     await this.monitor.complete(id, telemetry);
     this.emitStatus(id, 'completed');
   }
 
   async fail(id: number, error: Error | string): Promise<void> {
+    await AgentLoggerService.getInstance().flush(id);
     await this.monitor.fail(id, error);
     this.emitStatus(id, 'failed');
   }
 
   async pause(id: number): Promise<void> {
+    await AgentLoggerService.getInstance().flush(id);
     await this.monitor.markPaused(id);
     this.emitStatus(id, 'paused');
   }

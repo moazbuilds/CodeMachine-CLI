@@ -106,6 +106,24 @@ export class AgentLoggerService {
   }
 
   /**
+   * Flush buffered data to disk for an agent's log
+   * Call this before status changes to ensure data is readable by the UI
+   */
+  async flush(agentId: number): Promise<void> {
+    const stream = this.activeStreams.get(agentId);
+    if (!stream || !stream.writable) {
+      return;
+    }
+
+    return new Promise<void>((resolve) => {
+      // Write empty string with callback - ensures buffer is flushed to OS
+      stream.write('', 'utf-8', () => {
+        resolve();
+      });
+    });
+  }
+
+  /**
    * Close an agent's log stream and release file lock
    */
   async closeStream(agentId: number): Promise<void> {
@@ -114,15 +132,19 @@ export class AgentLoggerService {
       const monitor = AgentMonitorService.getInstance();
       const agent = monitor.getAgent(agentId);
 
-      // Release lock FIRST
+      // First, close stream and wait for it to finish flushing
+      await new Promise<void>((resolve) => {
+        stream.on('finish', resolve);
+        stream.end();
+      });
+
+      this.activeStreams.delete(agentId);
+      logger.debug(`Closed log stream for agent ${agentId}`);
+
+      // Release lock AFTER stream is fully closed
       if (agent) {
         await this.lockService.releaseLock(agent.logPath);
       }
-
-      // Then close stream
-      stream.end();
-      this.activeStreams.delete(agentId);
-      logger.debug(`Closed log stream for agent ${agentId}`);
     }
   }
 
