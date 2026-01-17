@@ -55,6 +55,7 @@ export interface LogStreamResult {
   isLoadingEarlier: boolean
   loadEarlierError: string | null
   loadEarlierLines: () => number
+  setPauseTrimming: (pause: boolean) => void
 }
 
 /**
@@ -222,15 +223,17 @@ interface WindowedLinesState {
 
 /**
  * Update windowed lines with new data, trimming from front if needed
+ * @param skipTrim - If true, don't trim lines (used when user has scrolled away)
  */
 function updateWindowedLines(
   current: WindowedLinesState,
   newLines: string[],
   totalLines: number,
   maxWindow: number,
-  wasReset: boolean
+  wasReset: boolean,
+  skipTrim = false
 ): WindowedLinesState {
-  // If file was reset, start fresh
+  // If file was reset, start fresh (always trim on reset)
   if (wasReset) {
     const trimCount = Math.max(0, newLines.length - maxWindow)
     return {
@@ -243,8 +246,8 @@ function updateWindowedLines(
   // Append new lines
   const allLines = [...current.lines, ...newLines]
 
-  // Trim from the front if exceeding window
-  if (allLines.length > maxWindow) {
+  // Trim from the front if exceeding window (unless skipTrim is true)
+  if (!skipTrim && allLines.length > maxWindow) {
     const trimCount = allLines.length - maxWindow
     return {
       lines: allLines.slice(trimCount),
@@ -327,6 +330,7 @@ export function useLogStream(
   const [currentLogPath, setCurrentLogPath] = createSignal<string>("")
   const [isLoadingEarlier, setIsLoadingEarlier] = createSignal(false)
   const [loadEarlierError, setLoadEarlierError] = createSignal<string | null>(null)
+  const [pauseTrimming, setPauseTrimming] = createSignal(false)
 
   /**
    * Load earlier lines when user scrolls to top of windowed view
@@ -522,7 +526,8 @@ export function useLogStream(
               filteredNewLines,
               current.totalLineCount + filteredNewLines.length,
               maxWindow,
-              false
+              false,
+              pauseTrimming() // Skip trimming when user has scrolled away
             )
             setWindowedState(updated)
 
@@ -762,5 +767,6 @@ export function useLogStream(
       return loadEarlierError()
     },
     loadEarlierLines,
+    setPauseTrimming,
   }
 }

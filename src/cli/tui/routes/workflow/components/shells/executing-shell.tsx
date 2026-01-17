@@ -65,6 +65,7 @@ export function ExecutingShell(props: ExecutingShellProps) {
             isLoadingEarlier={shell.logStream.isLoadingEarlier}
             loadEarlierError={shell.logStream.loadEarlierError}
             onLoadMore={() => shell.logStream.loadEarlierLines()}
+            onPauseTrimmingChange={(paused) => shell.logStream.setPauseTrimming(paused)}
             inputState={inputStateForOutput()}
             workflowStatus={shell.state().workflowStatus}
             isPromptBoxFocused={shell.isPromptBoxFocused()}

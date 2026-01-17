@@ -52,6 +52,7 @@ export interface OutputWindowProps {
   isLoadingEarlier?: boolean
   loadEarlierError?: string | null
   onLoadMore?: () => number
+  onPauseTrimmingChange?: (paused: boolean) => void
 }
 
 /**
@@ -123,6 +124,13 @@ export function OutputWindow(props: OutputWindowProps) {
 
   // Compute whether stickyScroll should be active
   const shouldStickyScroll = () => !userScrolledAway()
+
+  // Notify parent when user scrolls away (to pause trimming in log stream)
+  createEffect(
+    on(userScrolledAway, (scrolledAway) => {
+      props.onPauseTrimmingChange?.(scrolledAway)
+    })
+  )
 
   // Check if we have enough width to show status inline (based on output section width)
   const isWideLayout = createMemo(() => (props.availableWidth ?? 80) >= MIN_WIDTH_FOR_INLINE_STATUS)

@@ -65,6 +65,7 @@ export function LogViewer(props: LogViewerProps) {
         isLoadingEarlier={logStream.isLoadingEarlier}
         loadEarlierError={logStream.loadEarlierError}
         onLoadMore={() => logStream.loadEarlierLines()}
+        onPauseTrimmingChange={(paused) => logStream.setPauseTrimming(paused)}
       />
       <LogFooter
         total={logStream.totalLineCount}

@@ -32,6 +32,7 @@ export function ControllerShell(props: ControllerShellProps) {
         isLoadingEarlier={shell.logStream.isLoadingEarlier}
         loadEarlierError={shell.logStream.loadEarlierError}
         onLoadMore={() => shell.logStream.loadEarlierLines()}
+        onPauseTrimmingChange={(paused) => shell.logStream.setPauseTrimming(paused)}
         inputState={shell.state().inputState}
         workflowStatus={shell.state().workflowStatus}
         isPromptBoxFocused={shell.isPromptBoxFocused()}
