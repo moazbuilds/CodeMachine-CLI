@@ -61,6 +61,7 @@ export function ExecutingShell(props: ExecutingShellProps) {
             isConnecting={shell.logStream.isConnecting}
             error={shell.logStream.error}
             latestThinking={shell.logStream.latestThinking}
+            currentActivity={shell.logStream.currentActivity}
             hasMoreAbove={shell.logStream.hasMoreAbove}
             isLoadingEarlier={shell.logStream.isLoadingEarlier}
             loadEarlierError={shell.logStream.loadEarlierError}

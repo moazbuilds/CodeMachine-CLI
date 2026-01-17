@@ -18,6 +18,8 @@ import { LogTable } from "../shared/log-table"
 import { groupLinesWithTables } from "../shared/markdown-table"
 import { PromptLine, type PromptLineState } from "./prompt-line"
 import type { AgentState, SubAgentState, InputState, ControllerState } from "../../state/types"
+import { getFace, getPhrase } from "../../../../shared/config/agent-characters.js"
+import type { ActivityType } from "../../../../shared/config/agent-characters.types.js"
 
 // Rotating messages shown while connecting to agent
 const CONNECTING_MESSAGES = [
@@ -38,6 +40,7 @@ export interface OutputWindowProps {
   maxLines?: number
   connectingMessageIndex?: number
   latestThinking?: string | null
+  currentActivity?: ActivityType | null
   // Prompt line props
   inputState?: InputState | null
   workflowStatus?: string
@@ -168,6 +171,10 @@ export function OutputWindow(props: OutputWindowProps) {
   const displayEngine = () => isControllerActive() ? props.controllerState!.engine : props.currentAgent?.engine
   const displayModel = () => isControllerActive() ? props.controllerState!.model : props.currentAgent?.model
 
+  // Get character face and phrase based on engine and current activity
+  const currentFace = () => getFace(displayEngine() ?? "default", props.currentActivity ?? "idle")
+  const currentPhrase = () => getPhrase(displayEngine() ?? "default", props.currentActivity ?? "idle")
+
   // Check if we have something to display (agent or controller in controller view)
   const hasDisplayContent = () => props.currentAgent != null || isControllerViewMode()
 
@@ -260,7 +267,7 @@ export function OutputWindow(props: OutputWindowProps) {
             <box flexDirection="row" justifyContent="space-between" paddingRight={2}>
               <box flexDirection="row">
                 <text fg={themeCtx.theme.border}>│  </text>
-                <text fg={themeCtx.theme.text}>{isRunning() && props.latestThinking ? "(╭ರ_•́)" : "(˶ᵔ ᵕ ᵔ˶)"}</text>
+                <text fg={themeCtx.theme.text}>{currentFace()}</text>
                 <text>  </text>
                 <text fg={themeCtx.theme.text} attributes={1}>{displayName()}</text>
               </box>
@@ -278,7 +285,7 @@ export function OutputWindow(props: OutputWindowProps) {
           <Show when={!isWideLayout()}>
             <box flexDirection="row">
               <text fg={themeCtx.theme.border}>│  </text>
-              <text fg={themeCtx.theme.text}>{isRunning() && props.latestThinking ? "(╭ರ_•́)" : "(˶ᵔ ᵕ ᵔ˶)"}</text>
+              <text fg={themeCtx.theme.text}>{currentFace()}</text>
               <text>  </text>
               <text fg={themeCtx.theme.text} attributes={1}>{displayName()}</text>
             </box>
@@ -294,7 +301,7 @@ export function OutputWindow(props: OutputWindowProps) {
 
           <box flexDirection="row">
             <text fg={themeCtx.theme.border}>│  </text>
-            <Show when={isRunning() && props.latestThinking} fallback={<text fg={themeCtx.theme.textMuted}>↳ Waiting...</text>}>
+            <Show when={isRunning() && props.latestThinking} fallback={<text fg={themeCtx.theme.textMuted}>↳ {currentPhrase()}</text>}>
               <TypingText text={`↳ ${props.latestThinking}`} speed={30} />
             </Show>
           </box>

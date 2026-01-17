@@ -1,0 +1,132 @@
+{
+  "engines": {
+    "claude": {
+      "name": "Claude",
+      "baseFace": "(˶ᵔ ᵕ ᵔ˶)",
+      "expressions": {
+        "thinking": "(╭ರ_•́)",
+        "tool": "(•̀ᴗ•́)و",
+        "error": "(╥﹏╥)",
+        "idle": "(˶ᵔ ᵕ ᵔ˶)"
+      },
+      "phrases": {
+        "thinking": ["Hmm, let me think...", "Processing..."],
+        "tool": ["On it!", "Working..."],
+        "error": ["Oops, something went wrong", "Let me try again"],
+        "idle": ["Ready when you are", "Waiting..."]
+      }
+    },
+    "codex": {
+      "name": "Codex",
+      "baseFace": "[•_•]",
+      "expressions": {
+        "thinking": "[•_•]~",
+        "tool": "[◉_◉]",
+        "error": "[x_x]",
+        "idle": "[•_•]"
+      },
+      "phrases": {
+        "thinking": ["Analyzing...", "Computing..."],
+        "tool": ["Executing...", "Running..."],
+        "error": ["Error encountered", "Retrying..."],
+        "idle": ["Standing by", "Awaiting input"]
+      }
+    },
+    "cursor": {
+      "name": "Cursor",
+      "baseFace": "⌨_⌨",
+      "expressions": {
+        "thinking": "⌨~⌨",
+        "tool": "⌨!⌨",
+        "error": "⌨x⌨",
+        "idle": "⌨_⌨"
+      },
+      "phrases": {
+        "thinking": ["Thinking...", "Processing..."],
+        "tool": ["Executing...", "Working..."],
+        "error": ["Error", "Something went wrong"],
+        "idle": ["Ready", "Waiting..."]
+      }
+    },
+    "auggie": {
+      "name": "Auggie",
+      "baseFace": "◕‿◕",
+      "expressions": {
+        "thinking": "◕~◕",
+        "tool": "◕!◕",
+        "error": "◕_◕",
+        "idle": "◕‿◕"
+      },
+      "phrases": {
+        "thinking": ["Pondering...", "Considering..."],
+        "tool": ["Let me do that!", "Working on it..."],
+        "error": ["Hmm, that didn't work", "Let me try again"],
+        "idle": ["Here to help!", "Ready for action"]
+      }
+    },
+    "mistral": {
+      "name": "Mistral",
+      "baseFace": "≋_≋",
+      "expressions": {
+        "thinking": "≋~≋",
+        "tool": "≋!≋",
+        "error": "≋x≋",
+        "idle": "≋_≋"
+      },
+      "phrases": {
+        "thinking": ["Analyzing...", "Processing..."],
+        "tool": ["Running...", "Executing..."],
+        "error": ["Error detected", "Retrying..."],
+        "idle": ["Awaiting", "Standing by"]
+      }
+    },
+    "opencode": {
+      "name": "OpenCode",
+      "baseFace": "{•_•}",
+      "expressions": {
+        "thinking": "{•~•}",
+        "tool": "{•!•}",
+        "error": "{•x•}",
+        "idle": "{•_•}"
+      },
+      "phrases": {
+        "thinking": ["Processing...", "Analyzing..."],
+        "tool": ["Executing...", "Working..."],
+        "error": ["Error", "Retrying..."],
+        "idle": ["Ready", "Waiting..."]
+      }
+    },
+    "ccr": {
+      "name": "CCR",
+      "baseFace": "<•_•>",
+      "expressions": {
+        "thinking": "<•~•>",
+        "tool": "<•!•>",
+        "error": "<•x•>",
+        "idle": "<•_•>"
+      },
+      "phrases": {
+        "thinking": ["Thinking...", "Processing..."],
+        "tool": ["Running...", "Working..."],
+        "error": ["Error", "Retrying..."],
+        "idle": ["Ready", "Waiting..."]
+      }
+    }
+  },
+  "defaults": {
+    "name": "Agent",
+    "baseFace": "(•_•)",
+    "expressions": {
+      "thinking": "(•_•)?",
+      "tool": "(•_•)!",
+      "error": "(•_•);;",
+      "idle": "(•_•)"
+    },
+    "phrases": {
+      "thinking": ["Thinking..."],
+      "tool": ["Working..."],
+      "error": ["Error"],
+      "idle": ["Ready"]
+    }
+  }
+}

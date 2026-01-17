@@ -13,6 +13,8 @@ import { AgentMonitorService } from "../../../../../agents/monitoring/monitor.js
 import type { AgentRecord } from "../../../../../agents/monitoring/types.js"
 import { existsSync, statSync, openSync, readSync, closeSync, readFileSync } from "fs"
 import type { AgentStatus } from "../state/types.js"
+import { processOutputChunk } from "../state/output.js"
+import type { ActivityType } from "../../../shared/config/agent-characters.types.js"
 
 // Debug logging (writes to tui-debug.log when DEBUG is enabled)
 const DEBUG_ENABLED = process.env.DEBUG &&
@@ -51,6 +53,7 @@ export interface LogStreamResult {
   agentName: string
   isRunning: boolean
   latestThinking: string | null
+  currentActivity: ActivityType | null
   hasMoreAbove: boolean
   isLoadingEarlier: boolean
   loadEarlierError: string | null
@@ -331,6 +334,7 @@ export function useLogStream(
   const [isLoadingEarlier, setIsLoadingEarlier] = createSignal(false)
   const [loadEarlierError, setLoadEarlierError] = createSignal<string | null>(null)
   const [pauseTrimming, setPauseTrimming] = createSignal(false)
+  const [currentActivity, setCurrentActivity] = createSignal<ActivityType | null>(null)
 
   /**
    * Load earlier lines when user scrolls to top of windowed view
@@ -455,6 +459,24 @@ export function useLogStream(
     }
 
     /**
+     * Extract current activity from the most recent log lines
+     * Looks at the last few lines to determine what the agent is doing
+     */
+    function extractCurrentActivity(fileLines: string[]): ActivityType {
+      // Check the last 5 lines to determine activity
+      const recentLines = fileLines.slice(-5)
+      for (let i = recentLines.length - 1; i >= 0; i--) {
+        const line = recentLines[i]
+        if (!line) continue
+        const chunk = processOutputChunk(line)
+        if (chunk.type === "thinking") return "thinking"
+        if (chunk.type === "tool") return "tool"
+        if (chunk.type === "error") return "error"
+      }
+      return "idle"
+    }
+
+    /**
      * Update log lines from file using incremental reading
      */
     function updateLogs(logPath: string, forceFullRead = false): boolean {
@@ -488,6 +510,7 @@ export function useLogStream(
             startOffset: trimCount
           })
           setLatestThinking(thinking)
+          setCurrentActivity(extractCurrentActivity(fileLines))
           setFileSize(currentFileSize)
           setIsConnecting(false)
           setError(null)
@@ -509,6 +532,7 @@ export function useLogStream(
             startOffset: trimCount
           })
           setLatestThinking(thinking)
+          setCurrentActivity(extractCurrentActivity(result.newLines))
           setFileSize(result.fileSize)
           logDebug('updateLogs: file reset, lines=%d', filteredLines.length)
           return true
@@ -536,6 +560,9 @@ export function useLogStream(
             if (thinking) {
               setLatestThinking(thinking)
             }
+
+            // Update activity based on new lines
+            setCurrentActivity(extractCurrentActivity(filteredNewLines))
           }
 
           setFileSize(result.fileSize)
@@ -759,6 +786,9 @@ export function useLogStream(
     },
     get latestThinking() {
       return latestThinking()
+    },
+    get currentActivity() {
+      return currentActivity()
     },
     get isLoadingEarlier() {
       return isLoadingEarlier()
