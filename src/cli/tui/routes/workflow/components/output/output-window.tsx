@@ -7,8 +7,10 @@
  * Shows last N lines with auto-scroll for running agents using OpenTUI scrollbox
  */
 
-import { Show, For, createMemo } from "solid-js"
+import type { ScrollBoxRenderable } from "@opentui/core"
+import { Show, For, createMemo, createSignal, createEffect, onCleanup, on } from "solid-js"
 import { useTheme } from "@tui/shared/context/theme"
+import { debug } from "../../../../../../shared/logging/logger.js"
 import { ShimmerText } from "./shimmer-text"
 import { TypingText } from "./typing-text"
 import { LogLine } from "../shared/log-line"
@@ -45,6 +47,11 @@ export interface OutputWindowProps {
   onPromptBoxFocusExit?: () => void
   // Responsive layout
   availableWidth?: number
+  // Backward pagination
+  hasMoreAbove?: boolean
+  isLoadingEarlier?: boolean
+  loadEarlierError?: string | null
+  onLoadMore?: () => number
 }
 
 /**
@@ -57,6 +64,65 @@ const MIN_WIDTH_FOR_INLINE_STATUS = 75  // Minimum width to show status inline w
 
 export function OutputWindow(props: OutputWindowProps) {
   const themeCtx = useTheme()
+  const [scrollRef, setScrollRef] = createSignal<ScrollBoxRenderable | undefined>()
+  const [userScrolledAway, setUserScrolledAway] = createSignal(false)
+
+  // Reset userScrolledAway when agent changes
+  // Use on() to explicitly track only the agent name, not other props
+  createEffect(
+    on(
+      () => props.currentAgent?.name,
+      (agentName) => {
+        debug('[OutputWindow] Agent changed to: %s, resetting scroll state', agentName)
+        setUserScrolledAway(false)
+      }
+    )
+  )
+
+  // Handle scroll events: load earlier lines + track if user scrolled away from bottom
+  // Use on() to only track scrollRef changes, not other props
+  createEffect(
+    on(scrollRef, (ref) => {
+      debug('[OutputWindow] Scroll effect running, ref exists: %s', !!ref)
+      if (!ref) return
+
+      const handleScrollChange = () => {
+        const scrollTop = ref.scrollTop
+        const scrollHeight = ref.scrollHeight
+        const viewportHeight = ref.height
+        const maxScroll = Math.max(0, scrollHeight - viewportHeight)
+        const isAtBottom = scrollTop >= maxScroll - 3
+
+        debug('[OutputWindow] scroll: top=%d, max=%d, atBottom=%s, hasMore=%s', scrollTop, maxScroll, isAtBottom, props.hasMoreAbove)
+
+        // Track if user scrolled away from bottom (to disable stickyScroll)
+        if (!isAtBottom && !userScrolledAway()) {
+          debug('[OutputWindow] User scrolled away from bottom')
+          setUserScrolledAway(true)
+        } else if (isAtBottom && userScrolledAway()) {
+          debug('[OutputWindow] User returned to bottom')
+          setUserScrolledAway(false)
+        }
+
+        // Trigger load when near the top (within 3 lines) - skip if already loading
+        if (scrollTop <= 3 && props.hasMoreAbove && props.onLoadMore && !props.isLoadingEarlier) {
+          debug('[OutputWindow] Loading earlier lines...')
+          const linesLoaded = props.onLoadMore()
+          debug('[OutputWindow] Lines loaded: %d', linesLoaded)
+          if (linesLoaded > 0) {
+            ref.scrollTop = linesLoaded  // Maintain view position
+          }
+        }
+      }
+
+      debug('[OutputWindow] Setting up scroll listener, verticalScrollBar exists: %s', !!ref.verticalScrollBar)
+      ref.verticalScrollBar?.on("change", handleScrollChange)
+      onCleanup(() => ref.verticalScrollBar?.off("change", handleScrollChange))
+    })
+  )
+
+  // Compute whether stickyScroll should be active
+  const shouldStickyScroll = () => !userScrolledAway()
 
   // Check if we have enough width to show status inline (based on output section width)
   const isWideLayout = createMemo(() => (props.availableWidth ?? 80) >= MIN_WIDTH_FOR_INLINE_STATUS)
@@ -248,10 +314,23 @@ export function OutputWindow(props: OutputWindowProps) {
           </Show>
 
           <Show when={!props.isLoading && !props.isConnecting && !props.error && props.lines.length > 0}>
+            {/* Loading earlier lines indicator */}
+            <Show when={props.isLoadingEarlier}>
+              <text fg={themeCtx.theme.info}>↑ Loading earlier lines...</text>
+            </Show>
+            {/* Error loading earlier lines */}
+            <Show when={props.loadEarlierError}>
+              <text fg={themeCtx.theme.error}>↑ Error: {props.loadEarlierError}</text>
+            </Show>
+            {/* More above indicator (when not loading) */}
+            <Show when={props.hasMoreAbove && !props.isLoadingEarlier && !props.loadEarlierError}>
+              <text fg={themeCtx.theme.textMuted}>↑ Scroll up for earlier logs</text>
+            </Show>
             <scrollbox
+              ref={(r: ScrollBoxRenderable) => setScrollRef(r)}
               flexGrow={1}
               width="100%"
-              stickyScroll={true}
+              stickyScroll={shouldStickyScroll()}
               stickyStart="bottom"
               scrollbarOptions={{
                 showArrows: true,

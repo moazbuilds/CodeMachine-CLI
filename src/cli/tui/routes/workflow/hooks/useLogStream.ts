@@ -2,13 +2,17 @@
  * Log Stream Hook for OpenTUI/SolidJS
  *
  * Streams log file contents with real-time updates for running agents.
- * Ported from src/ui/hooks/useLogStream.ts (React/Ink version)
+ * Optimized with:
+ * - Status-aware polling (fast for running, slow/none for inactive)
+ * - Incremental file reading (byte offset tracking)
+ * - Windowed line storage (memory efficient)
  */
 
 import { createSignal, createEffect, onCleanup } from "solid-js"
 import { AgentMonitorService } from "../../../../../agents/monitoring/monitor.js"
 import type { AgentRecord } from "../../../../../agents/monitoring/types.js"
-import { readFileSync, existsSync, statSync } from "fs"
+import { existsSync, statSync, openSync, readSync, closeSync, readFileSync } from "fs"
+import type { AgentStatus } from "../state/types.js"
 
 // Debug logging (writes to tui-debug.log when DEBUG is enabled)
 const DEBUG_ENABLED = process.env.DEBUG &&
@@ -22,8 +26,23 @@ function logDebug(message: string, ...args: unknown[]) {
   }
 }
 
+// Polling intervals based on agent status
+const FAST_POLL_MS = 500     // Running agents
+const SLOW_POLL_MS = 2000    // Paused/awaiting agents
+const GRACE_PERIOD_MS = 3000 // Continue polling after completion
+
+// Threshold for incremental reads vs full reads
+const INCREMENTAL_THRESHOLD_BYTES = 10 * 1024 // 10KB
+
+export interface LogStreamOptions {
+  monitoringAgentId: () => number | undefined
+  agentStatus?: () => AgentStatus | undefined
+  visibleLineCount?: () => number
+}
+
 export interface LogStreamResult {
   lines: string[]
+  totalLineCount: number
   isLoading: boolean
   isConnecting: boolean
   error: string | null
@@ -32,12 +51,133 @@ export interface LogStreamResult {
   agentName: string
   isRunning: boolean
   latestThinking: string | null
+  hasMoreAbove: boolean
+  isLoadingEarlier: boolean
+  loadEarlierError: string | null
+  loadEarlierLines: () => number
 }
 
 /**
- * Read log file and return array of lines
+ * State for incremental file reading
  */
-function readLogFile(path: string): string[] {
+interface IncrementalReadState {
+  lastFileSize: number
+  lastLineCount: number
+}
+
+/**
+ * Result from incremental read operation
+ */
+interface IncrementalReadResult {
+  newLines: string[]
+  totalLines: number
+  fileSize: number
+  wasReset: boolean
+}
+
+/**
+ * Read log file incrementally using byte offset tracking
+ * Only reads new bytes since last read for efficiency
+ */
+function readLogFileIncremental(
+  path: string,
+  state: IncrementalReadState
+): IncrementalReadResult {
+  try {
+    if (!existsSync(path)) {
+      return { newLines: [], totalLines: 0, fileSize: 0, wasReset: false }
+    }
+
+    const stats = statSync(path)
+    const currentSize = stats.size
+
+    // File unchanged - skip read
+    if (currentSize === state.lastFileSize) {
+      return {
+        newLines: [],
+        totalLines: state.lastLineCount,
+        fileSize: currentSize,
+        wasReset: false
+      }
+    }
+
+    // File was truncated/reset - do full read
+    if (currentSize < state.lastFileSize) {
+      logDebug('File truncated, doing full read. Old size: %d, new size: %d', state.lastFileSize, currentSize)
+      const content = readFileSync(path, "utf-8")
+      const lines = content.split("\n")
+      state.lastFileSize = currentSize
+      state.lastLineCount = lines.length
+      return {
+        newLines: lines,
+        totalLines: lines.length,
+        fileSize: currentSize,
+        wasReset: true
+      }
+    }
+
+    // For small files, just do a full read (simpler and fast enough)
+    if (currentSize < INCREMENTAL_THRESHOLD_BYTES) {
+      const content = readFileSync(path, "utf-8")
+      const lines = content.split("\n")
+      const newLinesCount = lines.length - state.lastLineCount
+      state.lastFileSize = currentSize
+      state.lastLineCount = lines.length
+      return {
+        newLines: newLinesCount > 0 ? lines.slice(-newLinesCount) : [],
+        totalLines: lines.length,
+        fileSize: currentSize,
+        wasReset: false
+      }
+    }
+
+    // Incremental read - only read new bytes
+    const bytesToRead = currentSize - state.lastFileSize
+    const fd = openSync(path, 'r')
+    try {
+      const buffer = Buffer.alloc(bytesToRead)
+      readSync(fd, buffer, 0, bytesToRead, state.lastFileSize)
+
+      let newContent = buffer.toString('utf-8')
+
+      // Handle potential UTF-8 split: if we start mid-character, find the first newline
+      // and discard partial content before it (will be re-read properly later)
+      if (state.lastFileSize > 0 && !newContent.startsWith('\n')) {
+        // Check if the first byte looks like a UTF-8 continuation byte (starts with 10xxxxxx)
+        const firstByte = buffer[0]
+        if (firstByte !== undefined && (firstByte & 0xC0) === 0x80) {
+          // We're in the middle of a multi-byte character - find first complete line
+          const newlineIndex = newContent.indexOf('\n')
+          if (newlineIndex > 0) {
+            newContent = newContent.substring(newlineIndex + 1)
+          }
+        }
+      }
+
+      const newLines = newContent.split('\n').filter(line => line !== '')
+
+      state.lastFileSize = currentSize
+      state.lastLineCount += newLines.length
+
+      return {
+        newLines,
+        totalLines: state.lastLineCount,
+        fileSize: currentSize,
+        wasReset: false
+      }
+    } finally {
+      closeSync(fd)
+    }
+  } catch (err) {
+    logDebug('Error in incremental read: %s', err)
+    return { newLines: [], totalLines: state.lastLineCount, fileSize: state.lastFileSize, wasReset: false }
+  }
+}
+
+/**
+ * Read entire log file (used for initial load or after truncation)
+ */
+function readLogFileFull(path: string): string[] {
   try {
     if (!existsSync(path)) {
       return []
@@ -64,42 +204,214 @@ function getFileSize(path: string): number {
 }
 
 /**
- * Hook to stream log file contents with real-time updates for running agents
- * Uses 500ms polling for reliability across all filesystems
+ * Calculate window size based on visible lines
  */
-export function useLogStream(monitoringAgentId: () => number | undefined): LogStreamResult {
-  const [lines, setLines] = createSignal<string[]>([])
+function calculateWindowSize(visibleLineCount: number): number {
+  const visible = visibleLineCount || 30
+  return Math.ceil(visible * 1.2) // 20% buffer
+}
+
+/**
+ * State for windowed line storage
+ */
+interface WindowedLinesState {
+  lines: string[]
+  totalLineCount: number
+  startOffset: number
+}
+
+/**
+ * Update windowed lines with new data, trimming from front if needed
+ */
+function updateWindowedLines(
+  current: WindowedLinesState,
+  newLines: string[],
+  totalLines: number,
+  maxWindow: number,
+  wasReset: boolean
+): WindowedLinesState {
+  // If file was reset, start fresh
+  if (wasReset) {
+    const trimCount = Math.max(0, newLines.length - maxWindow)
+    return {
+      lines: trimCount > 0 ? newLines.slice(trimCount) : newLines,
+      totalLineCount: totalLines,
+      startOffset: trimCount
+    }
+  }
+
+  // Append new lines
+  const allLines = [...current.lines, ...newLines]
+
+  // Trim from the front if exceeding window
+  if (allLines.length > maxWindow) {
+    const trimCount = allLines.length - maxWindow
+    return {
+      lines: allLines.slice(trimCount),
+      startOffset: current.startOffset + trimCount,
+      totalLineCount: totalLines
+    }
+  }
+
+  return {
+    lines: allLines,
+    startOffset: current.startOffset,
+    totalLineCount: totalLines
+  }
+}
+
+/**
+ * Filter out box-style header lines and telemetry from log display
+ * Moved to module scope for reuse by loadEarlierLines
+ */
+function filterHeaderLines(fileLines: string[]): string[] {
+  const filtered = fileLines.filter((line) => {
+    if (line.includes("╭─") || line.includes("╰─")) return false
+    if (line.includes("Started:") || line.includes("Prompt:")) return false
+    if (line.includes("Tokens:") && (line.includes("in/") || line.includes("out"))) return false
+    return true
+  })
+  while (filtered.length > 0 && !filtered[0]?.trim()) {
+    filtered.shift()
+  }
+  return filtered
+}
+
+/**
+ * Determine polling interval based on agent status
+ */
+function getPollingInterval(status: AgentStatus | undefined): number | null {
+  switch (status) {
+    case 'running':
+    case 'retrying':
+      return FAST_POLL_MS
+    case 'paused':
+    case 'awaiting':
+    case 'pending':
+    case 'delegated':
+      return SLOW_POLL_MS
+    case 'completed':
+    case 'failed':
+    case 'skipped':
+      return null // No polling, but grace period handled separately
+    default:
+      return FAST_POLL_MS // Default to fast polling if status unknown
+  }
+}
+
+/**
+ * Hook to stream log file contents with real-time updates for running agents
+ * Optimized with status-aware polling, incremental reads, and windowed storage
+ *
+ * @param options - Can be a function returning monitoring ID (legacy) or full options object
+ */
+export function useLogStream(
+  options: (() => number | undefined) | LogStreamOptions
+): LogStreamResult {
+  // Normalize options - support both legacy function signature and new options object
+  const opts: LogStreamOptions = typeof options === 'function'
+    ? { monitoringAgentId: options }
+    : options
+
+  const [windowedState, setWindowedState] = createSignal<WindowedLinesState>({
+    lines: [],
+    totalLineCount: 0,
+    startOffset: 0
+  })
   const [isLoading, setIsLoading] = createSignal(true)
   const [isConnecting, setIsConnecting] = createSignal(false)
   const [error, setError] = createSignal<string | null>(null)
   const [fileSize, setFileSize] = createSignal(0)
   const [agent, setAgent] = createSignal<AgentRecord | null>(null)
   const [latestThinking, setLatestThinking] = createSignal<string | null>(null)
+  const [currentLogPath, setCurrentLogPath] = createSignal<string>("")
+  const [isLoadingEarlier, setIsLoadingEarlier] = createSignal(false)
+  const [loadEarlierError, setLoadEarlierError] = createSignal<string | null>(null)
+
+  /**
+   * Load earlier lines when user scrolls to top of windowed view
+   * Returns the number of lines loaded (for scroll position adjustment)
+   * Includes debouncing (won't load if already loading) and error handling
+   */
+  function loadEarlierLines(): number {
+    // Debounce: don't load if already loading
+    if (isLoadingEarlier()) {
+      logDebug('loadEarlierLines: skipped, already loading')
+      return 0
+    }
+
+    const current = windowedState()
+    const logPath = currentLogPath()
+
+    // Already at the beginning of the file
+    if (current.startOffset === 0 || !logPath) return 0
+
+    setIsLoadingEarlier(true)
+    setLoadEarlierError(null)
+
+    try {
+      const visibleLines = opts.visibleLineCount?.() || 30
+      const linesToLoad = calculateWindowSize(visibleLines)
+
+      // Read full file and filter
+      const allLines = readLogFileFull(logPath)
+      const filteredLines = filterHeaderLines(allLines)
+
+      // Calculate new window boundaries (expand backward)
+      const newStartOffset = Math.max(0, current.startOffset - linesToLoad)
+      const linesLoaded = current.startOffset - newStartOffset
+      const earlierLines = filteredLines.slice(newStartOffset, current.startOffset)
+
+      setWindowedState({
+        lines: [...earlierLines, ...current.lines],
+        totalLineCount: filteredLines.length,
+        startOffset: newStartOffset
+      })
+
+      logDebug('loadEarlierLines: loaded %d lines, new startOffset=%d', linesLoaded, newStartOffset)
+      setIsLoadingEarlier(false)
+      return linesLoaded
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to load earlier lines'
+      logDebug('loadEarlierLines: error - %s', errorMsg)
+      setLoadEarlierError(errorMsg)
+      setIsLoadingEarlier(false)
+      return 0
+    }
+  }
 
   createEffect(() => {
-    const agentId = monitoringAgentId()
+    const agentId = opts.monitoringAgentId()
+    const agentStatus = opts.agentStatus?.()
 
-    logDebug('Effect triggered, agentId=%s', agentId)
+    logDebug('Effect triggered, agentId=%s status=%s', agentId, agentStatus)
 
     if (agentId === undefined) {
       logDebug('No agentId, resetting state')
       setIsLoading(true)
       setIsConnecting(false)
       setError(null)
-      setLines([])
+      setWindowedState({ lines: [], totalLineCount: 0, startOffset: 0 })
       return
     }
 
     let mounted = true
     let pollInterval: NodeJS.Timeout | undefined
     let retryInterval: NodeJS.Timeout | undefined
+    let graceTimeout: NodeJS.Timeout | undefined
+    let currentPollMs: number | null = FAST_POLL_MS
+
+    // State for incremental reading
+    const incrementalState: IncrementalReadState = {
+      lastFileSize: 0,
+      lastLineCount: 0
+    }
 
     /**
      * Try to get agent from registry with retries
      */
     async function getAgentWithRetry(attempts = 5, delay = 300): Promise<AgentRecord | null> {
       const monitor = AgentMonitorService.getInstance()
-      // agentId is guaranteed to be defined here because we return early if undefined
       const id = agentId as number
 
       logDebug('getAgentWithRetry id=%d attempts=%d', id, attempts)
@@ -123,33 +435,12 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
     }
 
     /**
-     * Filter out box-style header lines and telemetry from log display
-     * These are kept in log files for debugging but hidden from UI
-     */
-    function filterHeaderLines(fileLines: string[]): string[] {
-      const filtered = fileLines.filter((line) => {
-        if (line.includes("╭─") || line.includes("╰─")) return false
-        if (line.includes("Started:") || line.includes("Prompt:")) return false
-        // Filter out token telemetry lines (shown in telemetry bar instead)
-        if (line.includes("Tokens:") && (line.includes("in/") || line.includes("out"))) return false
-        return true
-      })
-      // Trim empty lines from start
-      while (filtered.length > 0 && !filtered[0]?.trim()) {
-        filtered.shift()
-      }
-      return filtered
-    }
-
-    /**
      * Extract latest thinking line from logs
-     * Looks for lines with "Thinking:" pattern
      */
     function extractLatestThinking(fileLines: string[]): string | null {
       for (let i = fileLines.length - 1; i >= 0; i--) {
         const line = fileLines[i]
         if (line && line.includes("Thinking:")) {
-          // Extract text after "Thinking:" and strip markers
           const match = line.match(/Thinking:\s*(.+)/)
           if (match) {
             return match[1].trim()
@@ -160,9 +451,9 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
     }
 
     /**
-     * Update log lines from file
+     * Update log lines from file using incremental reading
      */
-    function updateLogs(logPath: string): boolean {
+    function updateLogs(logPath: string, forceFullRead = false): boolean {
       if (!mounted) return false
 
       try {
@@ -171,22 +462,136 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
           return false
         }
 
-        const fileLines = readLogFile(logPath)
-        const filteredLines = filterHeaderLines(fileLines)
-        const thinking = extractLatestThinking(fileLines)
-        if (mounted) {
-          setLines(filteredLines)
+        const visibleLines = opts.visibleLineCount?.() || 30
+        const maxWindow = calculateWindowSize(visibleLines)
+
+        if (forceFullRead || incrementalState.lastFileSize === 0) {
+          // Initial read - do full read
+          const fileLines = readLogFileFull(logPath)
+          const filteredLines = filterHeaderLines(fileLines)
+          const thinking = extractLatestThinking(fileLines)
+          const currentFileSize = getFileSize(logPath)
+
+          // Update incremental state
+          incrementalState.lastFileSize = currentFileSize
+          incrementalState.lastLineCount = filteredLines.length
+
+          // Update windowed state
+          const trimCount = Math.max(0, filteredLines.length - maxWindow)
+          setWindowedState({
+            lines: trimCount > 0 ? filteredLines.slice(trimCount) : filteredLines,
+            totalLineCount: filteredLines.length,
+            startOffset: trimCount
+          })
           setLatestThinking(thinking)
-          setFileSize(getFileSize(logPath))
+          setFileSize(currentFileSize)
           setIsConnecting(false)
           setError(null)
-          logDebug('updateLogs: success, lines=%d size=%d', filteredLines.length, getFileSize(logPath))
+          logDebug('updateLogs: full read success, lines=%d size=%d', filteredLines.length, currentFileSize)
           return true
         }
+
+        // Incremental read
+        const result = readLogFileIncremental(logPath, incrementalState)
+
+        if (result.wasReset) {
+          // File was truncated - filter and update
+          const filteredLines = filterHeaderLines(result.newLines)
+          const thinking = extractLatestThinking(result.newLines)
+          const trimCount = Math.max(0, filteredLines.length - maxWindow)
+          setWindowedState({
+            lines: trimCount > 0 ? filteredLines.slice(trimCount) : filteredLines,
+            totalLineCount: filteredLines.length,
+            startOffset: trimCount
+          })
+          setLatestThinking(thinking)
+          setFileSize(result.fileSize)
+          logDebug('updateLogs: file reset, lines=%d', filteredLines.length)
+          return true
+        }
+
+        if (result.newLines.length > 0) {
+          // Filter new lines
+          const filteredNewLines = filterHeaderLines(result.newLines)
+
+          if (filteredNewLines.length > 0) {
+            // Update windowed state with new lines
+            const current = windowedState()
+            const updated = updateWindowedLines(
+              current,
+              filteredNewLines,
+              current.totalLineCount + filteredNewLines.length,
+              maxWindow,
+              false
+            )
+            setWindowedState(updated)
+
+            // Check for thinking in new lines
+            const thinking = extractLatestThinking(filteredNewLines)
+            if (thinking) {
+              setLatestThinking(thinking)
+            }
+          }
+
+          setFileSize(result.fileSize)
+          logDebug('updateLogs: incremental, new=%d total=%d', filteredNewLines.length, windowedState().totalLineCount)
+        }
+
+        return true
       } catch (err) {
         logDebug('updateLogs: error reading file: %s', err)
       }
       return false
+    }
+
+    /**
+     * Update polling interval based on agent status
+     */
+    function updatePollingInterval(logPath: string, status: AgentStatus | undefined): void {
+      const newPollMs = getPollingInterval(status)
+
+      // Status changed to completed/failed/skipped - start grace period
+      if (newPollMs === null && currentPollMs !== null) {
+        logDebug('Agent finished, starting grace period polling')
+        // Do one final read
+        updateLogs(logPath)
+
+        // Continue polling for grace period
+        if (pollInterval) {
+          clearInterval(pollInterval)
+        }
+        pollInterval = setInterval(() => {
+          if (mounted) updateLogs(logPath)
+        }, FAST_POLL_MS)
+
+        graceTimeout = setTimeout(() => {
+          logDebug('Grace period ended, stopping polling')
+          if (pollInterval) {
+            clearInterval(pollInterval)
+            pollInterval = undefined
+          }
+        }, GRACE_PERIOD_MS)
+
+        currentPollMs = null
+        return
+      }
+
+      // No change needed
+      if (newPollMs === currentPollMs) return
+
+      // Update interval
+      logDebug('Changing poll interval from %dms to %dms', currentPollMs, newPollMs)
+      currentPollMs = newPollMs
+
+      if (pollInterval) {
+        clearInterval(pollInterval)
+      }
+
+      if (newPollMs !== null && mounted) {
+        pollInterval = setInterval(() => {
+          if (mounted) updateLogs(logPath)
+        }, newPollMs)
+      }
     }
 
     /**
@@ -210,10 +615,11 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
 
       logDebug('initialize: agent found, logPath=%s', agentRecord.logPath)
       setAgent(agentRecord)
+      setCurrentLogPath(agentRecord.logPath)
       setError(null)
 
       // Initial log read
-      const success = updateLogs(agentRecord.logPath)
+      const success = updateLogs(agentRecord.logPath, true)
       logDebug('initialize: initial updateLogs success=%s', success)
 
       if (mounted) {
@@ -224,7 +630,7 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
       if (!success && mounted) {
         logDebug('initialize: file not ready, starting retry polling')
         setIsConnecting(true)
-        const MAX_RETRIES = 240 // 120 seconds
+        const MAX_RETRIES = 240
         let currentRetry = 0
 
         retryInterval = setInterval(() => {
@@ -243,12 +649,11 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
             return
           }
 
-          const retrySuccess = updateLogs(agentRecord.logPath)
+          const retrySuccess = updateLogs(agentRecord.logPath, true)
 
           if (retrySuccess) {
             logDebug('initialize: retry %d succeeded, starting polling', currentRetry)
             clearInterval(retryInterval)
-            // Always start polling after successful connection
             if (mounted) {
               startPolling(agentRecord.logPath)
             }
@@ -258,7 +663,6 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
         return
       }
 
-      // Always start polling for log updates
       if (success) {
         logDebug('initialize: starting polling immediately')
         startPolling(agentRecord.logPath)
@@ -266,20 +670,37 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
     }
 
     /**
-     * Start polling for log updates
+     * Start polling for log updates with status-aware interval
      */
     function startPolling(logPath: string): void {
-      logDebug('startPolling: path=%s', logPath)
+      const status = opts.agentStatus?.()
+      currentPollMs = getPollingInterval(status) ?? FAST_POLL_MS
+
+      logDebug('startPolling: path=%s interval=%dms', logPath, currentPollMs)
+
       if (pollInterval) {
         clearInterval(pollInterval)
       }
 
-      // 500ms polling
+      let lastStatus = status
+
       pollInterval = setInterval(() => {
         if (mounted) {
           updateLogs(logPath)
+          // Check if we need to adjust polling interval
+          const newStatus = opts.agentStatus?.()
+          if (newStatus !== lastStatus) {
+            // Immediate poll when transitioning TO running (from slow polling state)
+            if ((newStatus === 'running' || newStatus === 'retrying') &&
+                (lastStatus === 'paused' || lastStatus === 'awaiting' || lastStatus === 'pending' || lastStatus === 'delegated')) {
+              logDebug('Status changed to running, triggering immediate poll')
+              updateLogs(logPath)
+            }
+            lastStatus = newStatus
+            updatePollingInterval(logPath, newStatus)
+          }
         }
-      }, 500)
+      }, currentPollMs)
     }
 
     initialize()
@@ -294,12 +715,21 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
       if (retryInterval) {
         clearInterval(retryInterval)
       }
+      if (graceTimeout) {
+        clearTimeout(graceTimeout)
+      }
     })
   })
 
   return {
     get lines() {
-      return lines()
+      return windowedState().lines
+    },
+    get totalLineCount() {
+      return windowedState().totalLineCount
+    },
+    get hasMoreAbove() {
+      return windowedState().startOffset > 0
     },
     get isLoading() {
       return isLoading()
@@ -325,5 +755,12 @@ export function useLogStream(monitoringAgentId: () => number | undefined): LogSt
     get latestThinking() {
       return latestThinking()
     },
+    get isLoadingEarlier() {
+      return isLoadingEarlier()
+    },
+    get loadEarlierError() {
+      return loadEarlierError()
+    },
+    loadEarlierLines,
   }
 }

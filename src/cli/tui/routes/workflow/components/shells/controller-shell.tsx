@@ -28,6 +28,10 @@ export function ControllerShell(props: ControllerShellProps) {
         isConnecting={shell.logStream.isConnecting}
         error={shell.logStream.error}
         latestThinking={shell.logStream.latestThinking}
+        hasMoreAbove={shell.logStream.hasMoreAbove}
+        isLoadingEarlier={shell.logStream.isLoadingEarlier}
+        loadEarlierError={shell.logStream.loadEarlierError}
+        onLoadMore={() => shell.logStream.loadEarlierLines()}
         inputState={shell.state().inputState}
         workflowStatus={shell.state().workflowStatus}
         isPromptBoxFocused={shell.isPromptBoxFocused()}

@@ -75,13 +75,26 @@ export function useWorkflowShell(options: UseWorkflowShellOptions) {
   // Sync sub-agents
   useSubAgentSync(() => state(), ui.actions)
 
-  // Log stream - view-aware
-  const logStream = useLogStream(() => {
-    const s = state()
-    if (s.view === 'controller') {
-      return s.controllerState?.monitoringId
+  // Log stream - view-aware with status-aware polling
+  const logStream = useLogStream({
+    monitoringAgentId: () => {
+      const s = state()
+      if (s.view === 'controller') {
+        return s.controllerState?.monitoringId
+      }
+      return computed.currentAgent()?.monitoringId
+    },
+    agentStatus: () => {
+      const s = state()
+      if (s.view === 'controller') {
+        return s.controllerState?.status
+      }
+      return computed.currentAgent()?.status
+    },
+    visibleLineCount: () => {
+      const height = dimensions()?.height ?? 40
+      return Math.max(5, height - 9) // Match log-viewer calculation
     }
-    return computed.currentAgent()?.monitoringId
   })
 
   // Show toast on workflow status change
