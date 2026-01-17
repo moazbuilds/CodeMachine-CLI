@@ -58,8 +58,8 @@ export function getClaudeAuthPaths(configDir: string): string[] {
  * Checks if Claude is authenticated
  */
 export async function isAuthenticated(options?: ClaudeAuthOptions): Promise<boolean> {
-  // Check if token is set via environment variable
-  if (process.env.CLAUDE_CODE_OAUTH_TOKEN) {
+  // Check if token is set via environment variable (CodeMachine or standard)
+  if (process.env[ENV.CLAUDE_OAUTH_TOKEN] || process.env.CLAUDE_CODE_OAUTH_TOKEN) {
     return true;
   }
 
@@ -78,8 +78,8 @@ export async function isAuthenticated(options?: ClaudeAuthOptions): Promise<bool
  * Ensures Claude is authenticated, running setup-token if needed
  */
 export async function ensureAuth(options?: ClaudeAuthOptions): Promise<boolean> {
-  // Check if token is already set via environment variable
-  if (process.env.CLAUDE_CODE_OAUTH_TOKEN) {
+  // Check if token is already set via environment variable (CodeMachine or standard)
+  if (process.env[ENV.CLAUDE_OAUTH_TOKEN] || process.env.CLAUDE_CODE_OAUTH_TOKEN) {
     return true;
   }
 
@@ -140,12 +140,12 @@ export async function ensureAuth(options?: ClaudeAuthOptions): Promise<boolean> 
     console.error(`────────────────────────────────────────────────────────────`);
     console.error(`\nYour Claude CLI installation uses token-based authentication.`);
     console.error(`Please set the token you received as an environment variable:\n`);
-    console.error(`  export CLAUDE_CODE_OAUTH_TOKEN=<your-token>\n`);
+    console.error(`  export CODEMACHINE_CLAUDE_OAUTH_TOKEN=<your-token>\n`);
     console.error(`For persistence, add this line to your shell configuration:`);
     console.error(`  ~/.bashrc (Bash) or ~/.zshrc (Zsh)\n`);
     console.error(`────────────────────────────────────────────────────────────\n`);
 
-    throw new Error('Authentication incomplete. Please set CLAUDE_CODE_OAUTH_TOKEN environment variable.');
+    throw new Error('Authentication incomplete. Please set CODEMACHINE_CLAUDE_OAUTH_TOKEN environment variable.');
   }
 }
 

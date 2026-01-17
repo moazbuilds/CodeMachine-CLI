@@ -148,6 +148,9 @@ export async function runClaude(options: RunClaudeOptions): Promise<RunClaudeRes
   if (process.env[ENV.ANTHROPIC_API_KEY]) {
     mergedEnv.ANTHROPIC_API_KEY = process.env[ENV.ANTHROPIC_API_KEY];
   }
+  if (process.env[ENV.CLAUDE_OAUTH_TOKEN]) {
+    mergedEnv.CLAUDE_CODE_OAUTH_TOKEN = process.env[ENV.CLAUDE_OAUTH_TOKEN];
+  }
 
   // Force pipe mode to ensure text normalization is applied
   const inheritTTY = false;
