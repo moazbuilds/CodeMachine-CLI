@@ -171,9 +171,32 @@ export function OutputWindow(props: OutputWindowProps) {
   const displayEngine = () => isControllerActive() ? props.controllerState!.engine : props.currentAgent?.engine
   const displayModel = () => isControllerActive() ? props.controllerState!.model : props.currentAgent?.model
 
-  // Get character face and phrase based on engine and current activity
-  const currentFace = () => getFace(displayEngine() ?? "default", props.currentActivity ?? "idle")
-  const currentPhrase = () => getPhrase(displayEngine() ?? "default", props.currentActivity ?? "idle")
+  // Derive activity from agent status, with log-based refinement when running
+  const derivedActivity = (): ActivityType => {
+    const status = effectiveStatus()
+
+    // Error states
+    if (status === "failed" || status === "retrying") {
+      return "error"
+    }
+
+    // Running state - use log-based activity detection for granularity
+    if (status === "running") {
+      // If we have log-based activity (thinking vs tool), use it
+      if (props.currentActivity && props.currentActivity !== "idle") {
+        return props.currentActivity
+      }
+      // Default to thinking when running but no specific activity detected
+      return "thinking"
+    }
+
+    // All other states (pending, completed, skipped, paused, awaiting, delegated)
+    return "idle"
+  }
+
+  // Get character face and phrase based on engine and derived activity
+  const currentFace = () => getFace(displayEngine() ?? "default", derivedActivity())
+  const currentPhrase = () => getPhrase(displayEngine() ?? "default", derivedActivity())
 
   // Check if we have something to display (agent or controller in controller view)
   const hasDisplayContent = () => props.currentAgent != null || isControllerViewMode()
