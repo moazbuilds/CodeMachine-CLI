@@ -4,6 +4,15 @@
 
 import type { WorkflowState } from "./types"
 import packageJson from "../../../../../../../package.json" with { type: "json" }
+import { calculateVisibleItems } from "../../constants"
+
+/**
+ * Get initial visible item count based on actual terminal dimensions
+ */
+function getInitialVisibleItemCount(): number {
+  const termHeight = process.stdout.rows ?? 30
+  return calculateVisibleItems(termHeight)
+}
 
 /**
  * Create initial workflow UI state
@@ -30,7 +39,7 @@ export function createInitialState(workflowName: string, totalSteps = 0): Workfl
     selectedAgentId: null,
     selectedSubAgentId: null,
     selectedItemType: null,
-    visibleItemCount: 10,
+    visibleItemCount: getInitialVisibleItemCount(),
     scrollOffset: 0,
     totalSteps,
     workflowStatus: "running",
