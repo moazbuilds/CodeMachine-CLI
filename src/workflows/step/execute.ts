@@ -46,6 +46,8 @@ export interface StepExecutorOptions {
   resumeSessionId?: string;
   /** Selected conditions for filtering conditional chained prompt paths */
   selectedConditions?: string[];
+  /** Selected track for filtering track-specific chained prompt paths */
+  selectedTrack?: string;
   /** Callback when monitoring ID is registered (for early access before execution completes) */
   onMonitoringRegistered?: (monitoringId: number) => void;
 }
@@ -144,6 +146,7 @@ export async function executeStep(
     resumePrompt: options.resumePrompt,
     resumeSessionId: options.resumeSessionId,
     selectedConditions: options.selectedConditions,
+    selectedTrack: options.selectedTrack,
     // Pass emitter as UI so runner can register monitoring ID immediately
     ui: options.emitter,
     // Telemetry auto-forwarding

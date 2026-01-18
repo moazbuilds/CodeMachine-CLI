@@ -8,7 +8,6 @@ import {
   displayCliNotInstalledError,
   isCommandNotFoundError,
   ensureAuthDirectory,
-  createCredentialFile,
   cleanupAuthFiles,
   getNextAuthAction,
 } from '../../core/auth.js';
@@ -58,8 +57,8 @@ export function getClaudeAuthPaths(configDir: string): string[] {
  * Checks if Claude is authenticated
  */
 export async function isAuthenticated(options?: ClaudeAuthOptions): Promise<boolean> {
-  // Check if token is set via environment variable
-  if (process.env.CLAUDE_CODE_OAUTH_TOKEN) {
+  // Check if token is set via environment variable (CodeMachine or standard)
+  if (process.env[ENV.CLAUDE_OAUTH_TOKEN] || process.env.CLAUDE_CODE_OAUTH_TOKEN) {
     return true;
   }
 
@@ -158,8 +157,8 @@ function watchForCredentials(
  * Ensures Claude is authenticated, running setup-token if needed
  */
 export async function ensureAuth(options?: ClaudeAuthOptions): Promise<boolean> {
-  // Check if token is already set via environment variable
-  if (process.env.CLAUDE_CODE_OAUTH_TOKEN) {
+  // Check if token is already set via environment variable (CodeMachine or standard)
+  if (process.env[ENV.CLAUDE_OAUTH_TOKEN] || process.env.CLAUDE_CODE_OAUTH_TOKEN) {
     return true;
   }
 

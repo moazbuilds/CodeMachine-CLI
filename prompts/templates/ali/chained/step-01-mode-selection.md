@@ -26,17 +26,17 @@ Present the two modes:
 
 | Mode | Description | Best For |
 |------|-------------|----------|
-| **Deep** | Thorough questions, detailed exploration, education about CodeMachine concepts | First-time workflow creators, complex workflows |
-| **MVP** | Same 8 steps, minimum questions per step, skip explanations unless asked | Experienced users, fast generation |
+| **Quick** | Same 8 steps, minimum questions per step, skip explanations unless asked | Experienced users, fast generation |
+| **Expert** | Thorough questions, detailed exploration, education about CodeMachine concepts | First-time workflow creators, complex workflows |
 
 "**Which mode would you like?**
 
-1. **Deep Mode** - I'll ask detailed questions and explain concepts as we go
-2. **MVP Mode** - I'll ask only essential questions for faster completion
+1. **Quick Mode** - I'll ask only essential questions for faster completion
+2. **Expert Mode** - I'll ask detailed questions and explain concepts as we go
 
-Enter **1** for Deep or **2** for MVP:"
+Enter **1** for Quick or **2** for Expert:"
 
-Wait for user response. Store as `mode: 'deep'` or `mode: 'mvp'`.
+Wait for user response. Store as `mode: 'quick'` or `mode: 'expert'`.
 
 ### 3. Offer Brainstorming
 
@@ -108,10 +108,10 @@ Acknowledge their choice:
 ### 5. Confirm Settings
 
 Confirm both selections:
-- If Deep + No brainstorm: "Great! Deep mode selected. I'll guide you thoroughly through each step with explanations."
-- If Deep + Yes brainstorm: "Perfect! Deep mode with brainstorming complete. I'll guide you thoroughly using our ideas."
-- If MVP + No brainstorm: "Got it! MVP mode selected. I'll keep questions to the minimum needed."
-- If MVP + Yes brainstorm: "Done! MVP mode with brainstorming captured. Fast track ahead using our ideas."
+- If Quick + No brainstorm: "Got it! Quick mode selected. I'll keep questions to the minimum needed."
+- If Quick + Yes brainstorm: "Done! Quick mode with brainstorming captured. Fast track ahead using our ideas."
+- If Expert + No brainstorm: "Great! Expert mode selected. I'll guide you thoroughly through each step with explanations."
+- If Expert + Yes brainstorm: "Perfect! Expert mode with brainstorming complete. I'll guide you thoroughly using our ideas."
 
 ### 6. Preview the Journey
 
@@ -130,14 +130,52 @@ Briefly outline what's coming:
 
 Ready to start building!"
 
+## Step 1 Data to Store
+
+**Note:** Cannot write to plan file yet (no workflow_name). Store this XML in memory for Step 2 to write.
+
+**XML Template for Step 1:**
+
+```xml
+<step-01 completed="true" timestamp="{ISO timestamp}">
+  <mode>{quick|expert}</mode>
+  <brainstorming enabled="{true|false}">
+    <problem>{user's problem description or empty}</problem>
+    <agent-ideas>{brainstorming insights or empty}</agent-ideas>
+    <flow-concept>{flow concept or empty}</flow-concept>
+  </brainstorming>
+</step-01>
+```
+
+**On User Confirmation:**
+
+1. Store the XML data in memory (will be written in Step 2)
+2. Use TodoWrite to mark Step 01 completed and Step 02 in_progress:
+
+```javascript
+TodoWrite([
+  { content: "Step 01: Mode Selection", status: "completed", activeForm: "Mode selection completed" },
+  { content: "Step 02: Workflow Definition", status: "in_progress", activeForm: "Defining workflow" },
+  { content: "Step 03: Main Agents", status: "pending", activeForm: "Defining main agents" },
+  { content: "Step 04: Prompts & Placeholders", status: "pending", activeForm: "Creating prompts" },
+  { content: "Step 05: Controller Agent", status: "pending", activeForm: "Creating controller" },
+  { content: "Step 06: Sub-Agents", status: "pending", activeForm: "Configuring sub-agents" },
+  { content: "Step 07: Modules", status: "pending", activeForm: "Configuring modules" },
+  { content: "Step 08: Assembly & Validation", status: "pending", activeForm: "Assembling workflow" }
+])
+```
+
+3. Tell user: "✓ Mode and brainstorming choices recorded. Press **Enter** to proceed."
+
 {ali_step_completion}
 
 ## SUCCESS METRICS
 
-- User has selected Deep or MVP mode
+- User has selected Quick or Expert mode
 - User has decided on brainstorming (yes/no)
 - If brainstorming: insights captured for use in subsequent steps
 - Mode and brainstorming choice stored
+- TodoWrite updated with step progress
 - User understands the 8-step journey ahead
 
 ## FAILURE METRICS
@@ -147,3 +185,4 @@ Ready to start building!"
 - Not capturing brainstorming insights when generated
 - Pressuring user into brainstorming
 - Using file read/search tools (forbidden in step 1)
+- Not updating TodoWrite on completion

@@ -38,7 +38,7 @@ A controller agent is a special agent that responds on behalf of the user during
 
 ### 2. Explain Autonomous Mode
 
-**In Deep mode, explain:**
+**In Expert mode, explain:**
 "**How Autonomous Mode Works:**
 
 | Mode | Who Responds | Keyboard |
@@ -89,7 +89,30 @@ Enter description:"
 
 Wait. Store as `controller.description`.
 
-### 4. Communication Style
+### 4. Controller Engine & Model (Optional)
+
+"**Engine & Model Configuration**
+
+You can optionally specify which AI engine and model the controller should use.
+
+**Engine** (optional - leave blank for system default):
+Available engines: `opencode`, `claude`, `codex`, `cursor`, `mistral`, `auggie`, `ccr`
+
+Enter engine ID (or press Enter to skip):"
+
+Wait. Store as `controller.engine` (or null if blank).
+
+**If engine provided:**
+"**Model** (optional - leave blank for engine's default):
+
+Enter model name:"
+
+Wait. Store as `controller.model` (or null if blank).
+
+**If no engine provided:**
+Store `controller.engine = null` and `controller.model = null`.
+
+### 5. Communication Style
 
 "**How should your controller communicate?**
 
@@ -119,7 +142,7 @@ Enter **1**, **2**, or **3**:"
 
 Wait. Store as `controller.replyLength`.
 
-### 5. Behavior Configuration
+### 6. Behavior Configuration
 
 "**How should the controller behave during workflow execution?**
 
@@ -143,7 +166,7 @@ Enter **1**, **2**, or **3**:"
 
 Wait. Store as `controller.loopDepth`.
 
-### 6. Agent Interactions
+### 7. Agent Interactions
 
 "**Which agents will the controller interact with?**
 
@@ -180,7 +203,7 @@ Wait. Store as `controller.agentInteractions[agent.id].approvalCriteria`.
 
 Repeat for each agent.
 
-### 7. Calibration Schema
+### 8. Calibration Schema
 
 "**Calibration Schema**
 
@@ -206,7 +229,7 @@ Enter default (landing-page/mvp/feature/full-product/enterprise):"
 
 Wait. Store as `controller.defaultProjectType`.
 
-### 8. Controller Prompt Preview
+### 9. Controller Prompt Preview
 
 "**Controller Prompt Preview:**
 
@@ -284,7 +307,7 @@ Does this controller configuration look correct? **[y/n]**"
 2. Write file: `prompts/templates/{workflow_name}/controller/{controller.id}.md`
 3. Confirm: "✓ Created: `prompts/templates/{workflow_name}/controller/{controller.id}.md`"
 
-### 9. Summary
+### 10. Summary
 
 "**Controller Agent - Step 5 Complete!**
 
@@ -294,7 +317,8 @@ Does this controller configuration look correct? **[y/n]**"
 **Controller Details:**
 - ID: `{controller.id}`
 - Name: {controller.name}
-- Role: `controller` (special role in config)
+- Engine: {controller.engine or 'System default'}
+- Model: {controller.model or 'Engine default'}
 - Tone: {tone} | Language: {language} | Length: {length}
 - Pacing: {pacing} | Loop Depth: {loopDepth}
 - Agent Interactions: {count} agents configured
@@ -312,18 +336,76 @@ Does this controller configuration look correct? **[y/n]**"
 
 Controller prompt file is ready. Config will be updated in step 8."
 
+## Step 5: APPEND to Plan File
+
+**On User Confirmation:**
+
+1. **Read** the plan file at `.codemachine/workflow-plans/{workflow_name}-plan.md`
+
+2. **Append step-05 XML** before the closing `</workflow-plan>` tag:
+
+**If controller was created:**
+```xml
+<step-05 completed="true" timestamp="{ISO timestamp}">
+  <controller id="{controller.id}" name="{controller.name}" description="{controller.description}">
+    <engine>{engine or null}</engine>
+    <model>{model or null}</model>
+    <communication tone="{casual|professional|formal}" language="{language}" reply-length="{short|medium|long}" />
+    <behavior pacing="{quick|balanced|thorough}" loop-depth="{minimal|standard|deep}" />
+    <agent-interactions>
+      <!-- For each main agent -->
+      <interaction agent-id="{agent.id}" expected-output="{expected}" guidance="{guidance}" approval-criteria="{criteria}" />
+    </agent-interactions>
+    <calibration ask-project-type="{true|false}" default-type="{landing-page|mvp|feature|full-product|enterprise}" />
+    <file-path>prompts/templates/{workflow_name}/controller/{controller.id}.md</file-path>
+  </controller>
+</step-05>
+```
+
+**If controller was skipped:**
+```xml
+<step-05 completed="skipped" timestamp="{ISO timestamp}">
+  <reason>Controller not needed - autonomous mode disabled</reason>
+</step-05>
+```
+
+3. **Update the Last Updated timestamp** in the file header
+
+4. **Update TodoWrite:**
+
+```javascript
+TodoWrite([
+  { content: "Step 01: Mode Selection", status: "completed", activeForm: "Mode selection completed" },
+  { content: "Step 02: Workflow Definition", status: "completed", activeForm: "Workflow definition completed" },
+  { content: "Step 03: Main Agents", status: "completed", activeForm: "Main agents completed" },
+  { content: "Step 04: Prompts & Placeholders", status: "completed", activeForm: "Prompts created" },
+  { content: "Step 05: Controller Agent", status: "completed", activeForm: "Controller completed" },
+  { content: "Step 06: Sub-Agents", status: "in_progress", activeForm: "Configuring sub-agents" },
+  { content: "Step 07: Modules", status: "pending", activeForm: "Configuring modules" },
+  { content: "Step 08: Assembly & Validation", status: "pending", activeForm: "Assembling workflow" }
+])
+```
+
+5. **Confirm to user:**
+"✓ Controller configuration saved to workflow plan.
+
+Press **Enter** to proceed to the next step."
+
 {ali_step_completion}
 
 ## SUCCESS METRICS
 
 - Controller flag checked from step 2
 - If controller: full identity defined (id, name, description)
+- Engine and model configured or explicitly skipped
 - Communication style configured (tone, language, length)
 - Behavior configured (pacing, loop depth)
 - Agent interactions defined for all main agents
 - Calibration schema configured
 - Controller prompt file WRITTEN to disk
 - User confirmed configuration before file creation
+- **Step-05 XML appended to plan file**
+- **TodoWrite updated**
 
 ## FAILURE METRICS
 
@@ -332,5 +414,7 @@ Controller prompt file is ready. Config will be updated in step 8."
 - Missing controller identity fields
 - Not defining agent interactions
 - Skipping calibration schema
-- Not explaining autonomous mode in Deep mode
+- Not explaining autonomous mode in Expert mode
 - Proceeding without user confirmation
+- **Not appending to plan file**
+- **Not updating TodoWrite**

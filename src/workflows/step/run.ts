@@ -12,7 +12,7 @@ import { getUniqueAgentId } from '../context/index.js';
 import { executeStep } from './execute.js';
 import { selectEngine } from './engine.js';
 import { registry } from '../../infra/engines/index.js';
-import { getSelectedConditions } from '../../shared/workflows/template.js';
+import { getSelectedConditions, getSelectedTrack } from '../../shared/workflows/template.js';
 import { loadAgentConfig } from '../../agents/runner/index.js';
 import { loadChainedPrompts } from '../../agents/runner/chained.js';
 import { beforeRun, afterRun, cleanupRun } from './hooks.js';
@@ -115,14 +115,18 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
     ctx.emitter.updateAgentModel(uniqueAgentId, resolvedModel);
   }
 
+  // Fetch conditions and track for chained prompt filtering
+  const selectedConditions = await getSelectedConditions(ctx.cmRoot);
+  const selectedTrack = await getSelectedTrack(ctx.cmRoot);
+
   // Pre-load chained prompts from agent config so UI can show step info immediately
   const agentConfig = await loadAgentConfig(step.agentId, ctx.cwd);
   if (agentConfig?.chainedPromptsPath) {
-    const selectedConditions = await getSelectedConditions(ctx.cmRoot);
     const preloadedPrompts = await loadChainedPrompts(
       agentConfig.chainedPromptsPath,
       ctx.cwd,
-      selectedConditions
+      selectedConditions,
+      selectedTrack
     );
     if (preloadedPrompts.length > 0) {
       debug('[step/run] Pre-loaded %d chained prompts for UI', preloadedPrompts.length);
@@ -150,6 +154,8 @@ export async function runStepFresh(ctx: RunnerContext): Promise<RunStepResult | 
       emitter: ctx.emitter,
       abortSignal: abortController.signal,
       uniqueAgentId,
+      selectedConditions,
+      selectedTrack: selectedTrack ?? undefined,
     });
 
     debug('[step/run] Step completed');
@@ -289,6 +295,10 @@ export async function runStepResume(
   ctx.machine.send({ type: 'RESUME' });
   ctx.emitter.setWorkflowStatus('running');
 
+  // Fetch conditions and track for chained prompt filtering
+  const selectedConditions = await getSelectedConditions(ctx.cmRoot);
+  const selectedTrack = await getSelectedTrack(ctx.cmRoot);
+
   try {
     const output = await executeStep(step, ctx.cwd, {
       logger: () => {},
@@ -299,6 +309,8 @@ export async function runStepResume(
       resumeMonitoringId: options.resumeMonitoringId,
       resumeSessionId: sessionId,
       resumePrompt: options.resumePrompt,
+      selectedConditions,
+      selectedTrack: selectedTrack ?? undefined,
     });
 
     // Update context with new output
