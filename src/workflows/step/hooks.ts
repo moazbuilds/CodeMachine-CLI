@@ -15,6 +15,7 @@ import { handleTriggerLogic } from '../directives/trigger/index.js';
 import { handleCheckpointLogic } from '../directives/checkpoint/index.js';
 import { handleErrorLogic } from '../directives/error/index.js';
 import { handlePauseLogic } from '../directives/pause/index.js';
+import { resetDirective } from '../directives/reader.js';
 import type { WorkflowEventEmitter } from '../events/index.js';
 import { type ModuleStep, type WorkflowTemplate, isModuleStep } from '../templates/types.js';
 import { getUniqueAgentId } from '../context/index.js';
@@ -307,6 +308,7 @@ export async function afterRun(options: AfterRunOptions): Promise<AfterRunResult
     });
 
     emitter.clearCheckpointState();
+    await resetDirective(cwd);
 
     if (checkpointAction === 'quit') {
       emitter.setWorkflowStatus('stopped');
