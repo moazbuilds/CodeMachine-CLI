@@ -2,6 +2,7 @@ import * as path from 'node:path';
 
 import { CLI_ROOT_CANDIDATES, debugLog, loadAgents } from './discovery.js';
 import { ensureDir, ensureSpecificationsTemplate, mirrorAgentsToJson } from './fs-utils.js';
+import { getImportRoots } from '../../../shared/imports/index.js';
 
 export type WorkspaceStructureOptions = {
   cwd?: string;
@@ -63,10 +64,14 @@ export async function mirrorSubAgents(options: MirrorSubAgentsOptions): Promise<
     return;
   }
 
+  // Include import roots so sub-agents from imported packages can be found
+  const importRoots = getImportRoots();
+
   const agentRoots = Array.from(
     new Set([
       cwd,
-      ...(CLI_ROOT_CANDIDATES ?? [])
+      ...(CLI_ROOT_CANDIDATES ?? []),
+      ...importRoots
     ].filter((root): root is string => Boolean(root)))
   );
 
