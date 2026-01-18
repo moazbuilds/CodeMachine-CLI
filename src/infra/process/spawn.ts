@@ -53,6 +53,75 @@ function resolveCommandExecutable(command: string): string {
 }
 
 /**
+ * Spawn a quiet process with piped stdio (for CLI checks, etc.)
+ * Process is tracked in activeProcesses and will be killed on Ctrl+C
+ * Returns exit code, stdout, and stderr
+ */
+export async function spawnQuiet(
+  command: string,
+  args: string[] = [],
+  options?: { env?: NodeJS.ProcessEnv; cwd?: string; timeout?: number }
+): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  const executable = resolveCommandExecutable(command);
+  const timeout = options?.timeout ?? 10000;
+
+  const child = Bun.spawn([executable, ...args], {
+    cwd: options?.cwd,
+    env: options?.env ? { ...process.env, ...options.env } : process.env,
+    stdin: 'ignore',
+    stdout: 'pipe',
+    stderr: 'pipe',
+  });
+
+  // Track for cleanup on Ctrl+C
+  activeProcesses.add(child);
+
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout')), timeout)
+    );
+
+    const exitCode = await Promise.race([child.exited, timeoutPromise]);
+    const stdout = await new Response(child.stdout).text();
+    const stderr = await new Response(child.stderr).text();
+
+    return { exitCode, stdout, stderr };
+  } finally {
+    activeProcesses.delete(child);
+  }
+}
+
+/**
+ * Spawn an interactive process with inherited stdio (for auth flows, etc.)
+ * Process is tracked in activeProcesses and will be killed on Ctrl+C
+ */
+export async function spawnInteractive(
+  command: string,
+  args: string[] = [],
+  options?: { env?: NodeJS.ProcessEnv; cwd?: string }
+): Promise<number> {
+  const executable = resolveCommandExecutable(command);
+
+  const child = Bun.spawn([executable, ...args], {
+    cwd: options?.cwd,
+    env: options?.env ? { ...process.env, ...options.env } : process.env,
+    stdin: 'inherit',
+    stdout: 'inherit',
+    stderr: 'inherit',
+  });
+
+  // Track for cleanup on Ctrl+C
+  activeProcesses.add(child);
+
+  try {
+    const exitCode = await child.exited;
+    return exitCode;
+  } finally {
+    activeProcesses.delete(child);
+  }
+}
+
+/**
  * Kill all active child processes
  * Called during cleanup to ensure no orphaned processes
  */
