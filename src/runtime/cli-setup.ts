@@ -76,6 +76,11 @@ const DEFAULT_SPEC_PATH = '.codemachine/inputs/specifications.md';
  * Note: .codemachine folder initialization is handled by workflow run, not here
  */
 async function initializeInBackground(cwd: string): Promise<void> {
+  // Check for updates (writes to ~/.codemachine/resources/updates.json)
+  appDebug('[Init] Checking for updates');
+  const { check } = await import('../shared/updates/index.js');
+  check().catch(err => appDebug('[Init] Update check error: %s', err));
+
   const cmRoot = path.join(cwd, '.codemachine');
 
   // Only bootstrap if .codemachine doesn't exist
