@@ -12,8 +12,23 @@ import { getTemplatePathFromTracking, getSelectedTrack, hasSelectedConditions, g
 import { validateSpecification } from '../runtime/services/index.js';
 import { ensureWorkspaceStructure } from '../runtime/services/workspace/index.js';
 import type { AgentDefinition } from '../shared/agents/config/types.js';
+import { registerImportedAgents, clearImportedAgents } from './utils/config.js';
+import { getAllInstalledImports } from '../shared/imports/index.js';
 
 export { ValidationError } from '../runtime/services/index.js';
+
+/**
+ * Ensure imported agents are registered before loading templates
+ * This must be called before any loadTemplateWithPath() call to ensure
+ * resolveStep() can find agents from imported packages
+ */
+function ensureImportedAgentsRegistered(): void {
+  clearImportedAgents();
+  const importedPackages = getAllInstalledImports();
+  for (const imp of importedPackages) {
+    registerImportedAgents(imp.resolvedPaths.config);
+  }
+}
 
 /**
  * Onboarding requirements - what the user needs to configure before workflow can start
@@ -39,6 +54,10 @@ export async function checkOnboardingRequired(options: { cwd?: string } = {}): P
 
   // Ensure workspace structure exists
   await ensureWorkspaceStructure({ cwd });
+
+  // Ensure imported agents are registered before loading template
+  // This allows resolveStep() to find agents from imported packages
+  ensureImportedAgentsRegistered();
 
   // Load template
   const templatePath = await getTemplatePathFromTracking(cmRoot);
@@ -86,6 +105,10 @@ export async function checkSpecificationRequired(options: { cwd?: string } = {})
 
   // Ensure workspace structure exists
   await ensureWorkspaceStructure({ cwd });
+
+  // Ensure imported agents are registered before loading template
+  // This allows resolveStep() to find agents from imported packages
+  ensureImportedAgentsRegistered();
 
   // Load template to check specification requirement
   const templatePath = await getTemplatePathFromTracking(cmRoot);
