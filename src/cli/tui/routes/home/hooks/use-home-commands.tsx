@@ -154,6 +154,12 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
 
           const isAuthenticated = await engine.auth.isAuthenticated()
 
+          // Special handling for OpenCode when already authenticated
+          if (providerId === "opencode" && isAuthenticated) {
+            await handleOpenCodeAddProvider(providerId, providerName)
+            return
+          }
+
           if (isAuthenticated) {
             toast.show({
               variant: "info",
@@ -167,6 +173,40 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
             `${providerName} Authentication`,
             async () => {
               await handleLogin(providerId)
+            }
+          )
+        }}
+        onCancel={() => dialog.close()}
+      />
+    ))
+  }
+
+  /**
+   * Handles adding another OpenCode provider by spawning `opencode auth login` interactively
+   */
+  const handleOpenCodeAddProvider = async (providerId: string, providerName: string) => {
+    const { registry } = await import("../../../../../infra/engines/index.js")
+
+    dialog.show(() => (
+      <SelectMenu
+        message={`${providerName} is authenticated. Add another provider?`}
+        choices={[
+          { title: "Add another provider", value: "add" },
+          { title: "Cancel", value: "cancel" },
+        ]}
+        onSelect={async (choice: string) => {
+          dialog.close()
+          if (choice === "cancel") return
+
+          const engine = registry.get(providerId)
+          if (!engine) return
+
+          await dialog.handleAuthCommand(
+            `${providerName} - Add Provider`,
+            async () => {
+              // Call ensureAuth(true) directly to force interactive login
+              // This bypasses handleLogin's clack confirmation which doesn't work well after TUI destruction
+              await engine.auth.ensureAuth(true)
             }
           )
         }}
