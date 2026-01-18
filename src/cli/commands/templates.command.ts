@@ -2,6 +2,7 @@ import type { Command } from 'commander';
 import * as path from 'node:path';
 import { existsSync, readdirSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
+import { text, isCancel } from '@clack/prompts';
 import { loadWorkflowModule, isWorkflowTemplate, WorkflowTemplate } from '../../workflows/index.js';
 import { hasTemplateChanged, setActiveTemplate } from '../../shared/workflows/index.js';
 import { ensureWorkspaceStructure, mirrorSubAgents } from '../../runtime/services/workspace/index.js';
@@ -9,6 +10,7 @@ import { selectFromMenu, type SelectionChoice } from '../utils/selection-menu.js
 import { isModuleStep } from '../../workflows/templates/types.js';
 import { resolvePackageRoot } from '../../shared/runtime/root.js';
 import { getAllInstalledImports } from '../../shared/imports/index.js';
+import { runInteractiveImport } from './import.command.js';
 
 const packageRoot = resolvePackageRoot(import.meta.url, 'templates command');
 

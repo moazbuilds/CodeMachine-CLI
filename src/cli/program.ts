@@ -7,6 +7,7 @@ import {
   registerStepCommand,
   registerAgentsCommand,
   registerImportCommand,
+  registerExportCommand,
 } from './commands/index.js';
 import { resolvePackageJson } from '../shared/runtime/root.js';
 
@@ -32,6 +33,7 @@ export async function registerCli(program: Command): Promise<void> {
   registerAuthCommands(program);
   registerAgentsCommand(program);
   registerImportCommand(program);
+  registerExportCommand(program);
   await registerRunCommand(program);
   await registerStepCommand(program);
 }

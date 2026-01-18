@@ -4,3 +4,4 @@ export { registerRunCommand } from './run.command.js';
 export { registerStepCommand } from './step.command.js';
 export { registerAgentsCommand } from './agents/register.js';
 export { registerImportCommand } from './import.command.js';
+export { registerExportCommand } from './export.command.js';

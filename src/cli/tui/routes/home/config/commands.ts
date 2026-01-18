@@ -47,6 +47,7 @@ export const HOME_COMMANDS = {
   LOGIN: "/login",
   LOGOUT: "/logout",
   IMPORT: "/import",
+  EXPORT: "/export",
   EXIT: "/exit",
   QUIT: "/quit",
 } as const

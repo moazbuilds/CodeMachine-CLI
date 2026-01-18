@@ -54,6 +54,11 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
       return
     }
 
+    if (cmd === HOME_COMMANDS.EXPORT) {
+      handleExportCommand()
+      return
+    }
+
     if (cmd === HOME_COMMANDS.EXIT || cmd === HOME_COMMANDS.QUIT) {
       handleExitCommand()
       return
@@ -399,6 +404,19 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
         onInstall={performInstall}
       />
     ))
+  }
+
+  const handleExportCommand = () => {
+    const { getImportsDir, ensureImportsDir } = require("../../../../../shared/imports/index.js")
+
+    ensureImportsDir()
+    const importsDir = getImportsDir()
+
+    toast.show({
+      variant: "info",
+      message: `Imports can be accessed manually from: ${importsDir}`,
+      duration: 10000,
+    })
   }
 
   const handleExitCommand = () => {

@@ -11,6 +11,7 @@ const SLASH_COMMANDS: SlashCommand[] = [
   { command: "login", description: "Authenticate with AI providers" },
   { command: "logout", description: "Sign out of AI providers" },
   { command: "import", description: "Import external workflow packages" },
+  { command: "export", description: "Open imports folder in file explorer" },
   { command: "exit", description: "Exit the session" },
 ]
 
