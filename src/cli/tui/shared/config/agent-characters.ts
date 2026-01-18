@@ -3,12 +3,13 @@
  *
  * Loads and caches the agent characters configuration,
  * providing helper functions for accessing faces and phrases.
+ * Uses a persona-based system where agents map to personas.
  */
 
 import * as path from "node:path"
 import { existsSync, readFileSync } from "node:fs"
 import { resolvePackageRoot } from "../../../../shared/runtime/root.js"
-import type { ActivityType, AgentCharactersConfig, EngineCharacter } from "./agent-characters.types.js"
+import type { ActivityType, AgentCharactersConfig, Persona } from "./agent-characters.types.js"
 
 let cachedConfig: AgentCharactersConfig | null = null
 
@@ -59,8 +60,7 @@ export function loadAgentCharactersConfig(): AgentCharactersConfig {
  * Returns a minimal default config when the JSON file is unavailable
  */
 function getDefaultConfig(): AgentCharactersConfig {
-  const defaults: EngineCharacter = {
-    name: "Agent",
+  const defaultPersona: Persona = {
     baseFace: "(•_•)",
     expressions: {
       thinking: "(•_•)?",
@@ -75,32 +75,36 @@ function getDefaultConfig(): AgentCharactersConfig {
       idle: ["Ready"],
     },
   }
-  return { engines: {}, defaults }
+  return {
+    personas: { default: defaultPersona },
+    agents: {},
+    defaultPersona: "default",
+  }
 }
 
 /**
- * Gets the character configuration for a specific engine
- * Falls back to defaults if engine not found
+ * Gets the persona configuration for a specific agent
+ * Looks up agent -> persona mapping, falls back to defaultPersona
  */
-export function getCharacter(engineId: string): EngineCharacter {
+export function getCharacter(agentId: string): Persona {
   const config = loadAgentCharactersConfig()
-  const normalizedId = engineId.toLowerCase()
-  return config.engines[normalizedId] ?? config.defaults
+  const personaName = config.agents[agentId] ?? config.defaultPersona
+  return config.personas[personaName] ?? config.personas[config.defaultPersona] ?? getDefaultConfig().personas.default
 }
 
 /**
- * Gets the face expression for a specific engine and activity
+ * Gets the face expression for a specific agent and activity
  */
-export function getFace(engineId: string, activity: ActivityType): string {
-  const character = getCharacter(engineId)
+export function getFace(agentId: string, activity: ActivityType): string {
+  const character = getCharacter(agentId)
   return character.expressions[activity] ?? character.baseFace
 }
 
 /**
- * Gets a random phrase for a specific engine and activity
+ * Gets a random phrase for a specific agent and activity
  */
-export function getPhrase(engineId: string, activity: ActivityType): string {
-  const character = getCharacter(engineId)
+export function getPhrase(agentId: string, activity: ActivityType): string {
+  const character = getCharacter(agentId)
   const phrases = character.phrases[activity]
   if (!phrases || phrases.length === 0) {
     return activity === "idle" ? "Ready" : "..."

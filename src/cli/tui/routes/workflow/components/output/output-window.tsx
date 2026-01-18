@@ -166,10 +166,11 @@ export function OutputWindow(props: OutputWindowProps) {
     return themeCtx.theme.warning
   }
 
-  // Get display name/engine/model (controller when delegated or controller view, step agent otherwise)
+  // Get display name/engine/model/id (controller when delegated or controller view, step agent otherwise)
   const displayName = () => isControllerActive() ? props.controllerState!.name : props.currentAgent?.name
   const displayEngine = () => isControllerActive() ? props.controllerState!.engine : props.currentAgent?.engine
   const displayModel = () => isControllerActive() ? props.controllerState!.model : props.currentAgent?.model
+  const displayAgentId = () => isControllerActive() ? props.controllerState!.id : props.currentAgent?.id
 
   // Derive activity from agent status, with log-based refinement when running
   const derivedActivity = (): ActivityType => {
@@ -194,9 +195,9 @@ export function OutputWindow(props: OutputWindowProps) {
     return "idle"
   }
 
-  // Get character face and phrase based on engine and derived activity
-  const currentFace = () => getFace(displayEngine() ?? "default", derivedActivity())
-  const currentPhrase = () => getPhrase(displayEngine() ?? "default", derivedActivity())
+  // Get character face and phrase based on agent ID and derived activity
+  const currentFace = () => getFace(displayAgentId() ?? "default", derivedActivity())
+  const currentPhrase = () => getPhrase(displayAgentId() ?? "default", derivedActivity())
 
   // Check if we have something to display (agent or controller in controller view)
   const hasDisplayContent = () => props.currentAgent != null || isControllerViewMode()

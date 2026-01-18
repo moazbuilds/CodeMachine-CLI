@@ -1,7 +1,6 @@
 {
-  "engines": {
-    "claude": {
-      "name": "Claude",
+  "personas": {
+    "friendly": {
       "baseFace": "(˶ᵔ ᵕ ᵔ˶)",
       "expressions": {
         "thinking": "(╭ರ_•́)",
@@ -16,8 +15,7 @@
         "idle": ["Ready when you are", "Waiting..."]
       }
     },
-    "codex": {
-      "name": "Codex",
+    "analytical": {
       "baseFace": "[•_•]",
       "expressions": {
         "thinking": "[•_•]~",
@@ -32,24 +30,7 @@
         "idle": ["Standing by", "Awaiting input"]
       }
     },
-    "cursor": {
-      "name": "Cursor",
-      "baseFace": "⌨_⌨",
-      "expressions": {
-        "thinking": "⌨~⌨",
-        "tool": "⌨!⌨",
-        "error": "⌨x⌨",
-        "idle": "⌨_⌨"
-      },
-      "phrases": {
-        "thinking": ["Thinking...", "Processing..."],
-        "tool": ["Executing...", "Working..."],
-        "error": ["Error", "Something went wrong"],
-        "idle": ["Ready", "Waiting..."]
-      }
-    },
-    "auggie": {
-      "name": "Auggie",
+    "cheerful": {
       "baseFace": "◕‿◕",
       "expressions": {
         "thinking": "◕~◕",
@@ -64,24 +45,7 @@
         "idle": ["Here to help!", "Ready for action"]
       }
     },
-    "mistral": {
-      "name": "Mistral",
-      "baseFace": "≋_≋",
-      "expressions": {
-        "thinking": "≋~≋",
-        "tool": "≋!≋",
-        "error": "≋x≋",
-        "idle": "≋_≋"
-      },
-      "phrases": {
-        "thinking": ["Analyzing...", "Processing..."],
-        "tool": ["Running...", "Executing..."],
-        "error": ["Error detected", "Retrying..."],
-        "idle": ["Awaiting", "Standing by"]
-      }
-    },
-    "opencode": {
-      "name": "OpenCode",
+    "technical": {
       "baseFace": "{•_•}",
       "expressions": {
         "thinking": "{•~•}",
@@ -96,8 +60,7 @@
         "idle": ["Ready", "Waiting..."]
       }
     },
-    "ccr": {
-      "name": "CCR",
+    "precise": {
       "baseFace": "<•_•>",
       "expressions": {
         "thinking": "<•~•>",
@@ -106,27 +69,37 @@
         "idle": "<•_•>"
       },
       "phrases": {
-        "thinking": ["Thinking...", "Processing..."],
-        "tool": ["Running...", "Working..."],
-        "error": ["Error", "Retrying..."],
-        "idle": ["Ready", "Waiting..."]
+        "thinking": ["Evaluating...", "Checking..."],
+        "tool": ["Validating...", "Running checks..."],
+        "error": ["Issue detected", "Reviewing..."],
+        "idle": ["Ready", "Monitoring..."]
       }
     }
   },
-  "defaults": {
-    "name": "Agent",
-    "baseFace": "(•_•)",
-    "expressions": {
-      "thinking": "(•_•)?",
-      "tool": "(•_•)!",
-      "error": "(•_•);;",
-      "idle": "(•_•)"
-    },
-    "phrases": {
-      "thinking": ["Thinking..."],
-      "tool": ["Working..."],
-      "error": ["Error"],
-      "idle": ["Ready"]
-    }
-  }
+  "agents": {
+    "bmad-analyst": "friendly",
+    "bmad-pm": "analytical",
+    "bmad-ux": "cheerful",
+    "bmad-architect": "analytical",
+    "bmad-epics": "analytical",
+    "bmad-tea": "precise",
+    "bmad-readiness": "precise",
+    "bmad-sprints": "cheerful",
+    "bmad-stories": "cheerful",
+    "bmad-dev": "technical",
+    "bmad-po": "analytical",
+    "cm-workflow-builder": "friendly",
+    "init": "friendly",
+    "principal-analyst": "analytical",
+    "blueprint-orchestrator": "analytical",
+    "plan-agent": "analytical",
+    "task-breakdown": "technical",
+    "context-manager": "technical",
+    "code-generation": "technical",
+    "task-sanity-check": "precise",
+    "runtime-prep": "technical",
+    "git-commit": "technical",
+    "plan-fallback": "analytical"
+  },
+  "defaultPersona": "friendly"
 }

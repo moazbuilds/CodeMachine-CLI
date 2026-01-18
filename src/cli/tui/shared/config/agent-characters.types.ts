@@ -2,7 +2,7 @@
  * Agent Characters Configuration Types
  *
  * Defines the types for configurable ASCII art faces and phrases
- * that give personality to different AI engines.
+ * that give personality to different agents via personas.
  */
 
 /**
@@ -11,11 +11,9 @@
 export type ActivityType = "thinking" | "tool" | "error" | "idle"
 
 /**
- * Configuration for a single engine's character
+ * Configuration for a persona's visual character
  */
-export interface EngineCharacter {
-  /** Display name for the engine */
-  name: string
+export interface Persona {
   /** Default face when no specific activity */
   baseFace: string
   /** ASCII art faces for different activities */
@@ -28,8 +26,10 @@ export interface EngineCharacter {
  * Full agent characters configuration
  */
 export interface AgentCharactersConfig {
-  /** Character configs keyed by engine ID */
-  engines: Record<string, EngineCharacter>
-  /** Default character for unknown engines */
-  defaults: EngineCharacter
+  /** Persona definitions keyed by persona name */
+  personas: Record<string, Persona>
+  /** Agent ID to persona name mapping */
+  agents: Record<string, string>
+  /** Default persona for unmapped agents */
+  defaultPersona: string
 }
