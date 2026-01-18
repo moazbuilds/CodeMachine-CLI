@@ -8,7 +8,6 @@ import {
   displayCliNotInstalledError,
   isCommandNotFoundError,
   ensureAuthDirectory,
-  createCredentialFile,
   cleanupAuthFiles,
   getNextAuthAction,
 } from '../../core/auth.js';
@@ -75,6 +74,86 @@ export async function isAuthenticated(options?: ClaudeAuthOptions): Promise<bool
 }
 
 /**
+ * Polls for credentials file and terminates process when found
+ */
+function watchForCredentials(
+  credPath: string,
+  proc: ReturnType<typeof Bun.spawn>,
+  timeoutMs: number = 600000,
+  pollIntervalMs: number = 500
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    let resolved = false;
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+    const cleanup = () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+      clearTimeout(timeout);
+    };
+
+    const finish = (success: boolean) => {
+      if (resolved) return;
+      resolved = true;
+      cleanup();
+      resolve(success);
+    };
+
+    // Overall timeout
+    const timeout = setTimeout(async () => {
+      if (resolved) return;
+      proc.kill('SIGTERM');
+      finish(false);
+    }, timeoutMs);
+
+    // Poll for credential file
+    pollInterval = setInterval(async () => {
+      if (resolved) return;
+
+      try {
+        await stat(credPath);
+      } catch {
+        return; // File doesn't exist yet
+      }
+
+      // File exists - wait for it to be fully written
+      await new Promise((r) => setTimeout(r, 200));
+
+      // Verify file still exists
+      try {
+        await stat(credPath);
+      } catch {
+        return; // File disappeared
+      }
+
+      console.log('\nAuthentication detected, closing Claude...\n');
+      proc.kill('SIGTERM');
+
+      // Fallback to SIGKILL if process doesn't exit
+      const killTimeout = setTimeout(() => proc.kill('SIGKILL'), 2000);
+      await proc.exited;
+      clearTimeout(killTimeout);
+
+      finish(true);
+    }, pollIntervalMs);
+
+    // Also resolve if process exits on its own
+    proc.exited.then(async () => {
+      if (resolved) return;
+      // Check if credentials exist after natural exit
+      try {
+        await stat(credPath);
+        finish(true);
+      } catch {
+        finish(false);
+      }
+    });
+  });
+}
+
+/**
  * Ensures Claude is authenticated, running setup-token if needed
  */
 export async function ensureAuth(options?: ClaudeAuthOptions): Promise<boolean> {
@@ -101,25 +180,36 @@ export async function ensureAuth(options?: ClaudeAuthOptions): Promise<boolean> 
     throw new Error(`${metadata.name} CLI is not installed.`);
   }
 
-  // Run interactive setup-token via Claude CLI with proper env
+  // Ensure config directory exists for watcher
+  await ensureAuthDirectory(configDir);
+
   console.log(`\nRunning Claude authentication...\n`);
   console.log(`Config directory: ${configDir}\n`);
 
   try {
-    // Resolve claude command to handle Windows .cmd files
     const resolvedClaude = Bun.which('claude') ?? 'claude';
 
-    const proc = Bun.spawn([resolvedClaude, 'setup-token'], {
+    // Spawn claude (not setup-token) - interactive
+    const proc = Bun.spawn([resolvedClaude], {
       env: { ...process.env, CLAUDE_CONFIG_DIR: configDir },
       stdio: ['inherit', 'inherit', 'inherit'],
     });
-    await proc.exited;
+
+    // Poll for credentials and terminate on success
+    const success = await watchForCredentials(credPath, proc);
+
+    if (success) {
+      return true;
+    }
+
+    // Auth failed or timed out
+    throw new Error('Authentication timed out or was not completed.');
   } catch (error) {
     if (isCommandNotFoundError(error)) {
       console.error(`\n────────────────────────────────────────────────────────────`);
       console.error(`  ⚠️  ${metadata.name} CLI Not Found`);
       console.error(`────────────────────────────────────────────────────────────`);
-      console.error(`\n'${metadata.cliBinary} setup-token' failed because the CLI is missing.`);
+      console.error(`\n'${metadata.cliBinary}' failed because the CLI is missing.`);
       console.error(`Please install ${metadata.name} CLI before trying again:\n`);
       console.error(`  ${metadata.installCommand}\n`);
       console.error(`────────────────────────────────────────────────────────────\n`);
@@ -127,25 +217,6 @@ export async function ensureAuth(options?: ClaudeAuthOptions): Promise<boolean> 
     }
 
     throw error;
-  }
-
-  // Verify the credentials were created
-  try {
-    await stat(credPath);
-    return true;
-  } catch {
-    // Credentials file wasn't created - Claude CLI returned token instead
-    console.error(`\n────────────────────────────────────────────────────────────`);
-    console.error(`  ℹ️  Claude CLI Authentication Notice`);
-    console.error(`────────────────────────────────────────────────────────────`);
-    console.error(`\nYour Claude CLI installation uses token-based authentication.`);
-    console.error(`Please set the token you received as an environment variable:\n`);
-    console.error(`  export CODEMACHINE_CLAUDE_OAUTH_TOKEN=<your-token>\n`);
-    console.error(`For persistence, add this line to your shell configuration:`);
-    console.error(`  ~/.bashrc (Bash) or ~/.zshrc (Zsh)\n`);
-    console.error(`────────────────────────────────────────────────────────────\n`);
-
-    throw new Error('Authentication incomplete. Please set CODEMACHINE_CLAUDE_OAUTH_TOKEN environment variable.');
   }
 }
 
