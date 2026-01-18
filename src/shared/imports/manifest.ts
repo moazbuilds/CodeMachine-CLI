@@ -7,7 +7,6 @@ import { join } from 'node:path';
 import type { ImportManifest, ValidationResult } from './types.js';
 
 const MANIFEST_FILENAME = 'codemachine.json';
-const REQUIRED_SUFFIX = '-codemachine';
 
 /**
  * Default paths following CodeMachine conventions
@@ -115,22 +114,8 @@ export function validateImport(importPath: string): ValidationResult {
 }
 
 /**
- * Check if a repo name follows the -codemachine suffix convention
- */
-export function hasValidSuffix(repoName: string): boolean {
-  return repoName.endsWith(REQUIRED_SUFFIX);
-}
-
-/**
  * Get the manifest filename constant
  */
 export function getManifestFilename(): string {
   return MANIFEST_FILENAME;
-}
-
-/**
- * Get the required suffix constant
- */
-export function getRequiredSuffix(): string {
-  return REQUIRED_SUFFIX;
 }

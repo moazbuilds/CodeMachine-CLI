@@ -4,7 +4,6 @@
  */
 
 import type { ResolvedSource } from './types.js';
-import { hasValidSuffix, getRequiredSuffix } from './manifest.js';
 
 const GITHUB_BASE = 'https://github.com';
 const GITHUB_API_BASE = 'https://api.github.com';
@@ -13,9 +12,9 @@ const GITHUB_API_BASE = 'https://api.github.com';
  * Resolve an import source string to a clone-able URL
  *
  * Supported formats:
- * - Short name: `bmad-workflow-codemachine` (searches GitHub)
- * - Owner/repo: `user/repo-codemachine` (assumes GitHub)
- * - Full URL: `github.com/user/repo-codemachine` or `https://...`
+ * - Short name: `package-name` (searches GitHub)
+ * - Owner/repo: `user/repo` (assumes GitHub)
+ * - Full URL: `github.com/user/repo` or `https://...`
  * - Git URL: `git@github.com:user/repo.git`
  */
 export async function resolveSource(input: string): Promise<ResolvedSource> {
@@ -36,13 +35,13 @@ export async function resolveSource(input: string): Promise<ResolvedSource> {
     return resolveFullUrl(`https://${trimmed}`);
   }
 
-  // Owner/repo format (e.g., user/repo-codemachine)
+  // Owner/repo format (e.g., user/repo)
   if (trimmed.includes('/') && !trimmed.includes('.')) {
     const [owner, repo] = trimmed.split('/');
     return resolveOwnerRepo(owner, repo);
   }
 
-  // Short name (e.g., bmad-workflow-codemachine) - search GitHub
+  // Short name (e.g., package-name) - search GitHub
   return resolveShortName(trimmed);
 }
 
@@ -57,13 +56,6 @@ function resolveFullUrl(url: string): ResolvedSource {
   let repoName = pathParts[pathParts.length - 1] || 'unknown';
   if (repoName.endsWith('.git')) {
     repoName = repoName.slice(0, -4);
-  }
-
-  // Validate suffix
-  if (!hasValidSuffix(repoName)) {
-    throw new Error(
-      `Repository name "${repoName}" must end with "${getRequiredSuffix()}"`
-    );
   }
 
   // Determine if it's GitHub
@@ -95,12 +87,6 @@ function resolveGitUrl(url: string): ResolvedSource {
     repoName = repoName.slice(0, -4);
   }
 
-  if (!hasValidSuffix(repoName)) {
-    throw new Error(
-      `Repository name "${repoName}" must end with "${getRequiredSuffix()}"`
-    );
-  }
-
   return {
     type: 'git-url',
     url,
@@ -113,12 +99,6 @@ function resolveGitUrl(url: string): ResolvedSource {
  * Resolve owner/repo format to GitHub URL
  */
 function resolveOwnerRepo(owner: string, repo: string): ResolvedSource {
-  if (!hasValidSuffix(repo)) {
-    throw new Error(
-      `Repository name "${repo}" must end with "${getRequiredSuffix()}"`
-    );
-  }
-
   return {
     type: 'github-repo',
     url: `${GITHUB_BASE}/${owner}/${repo}.git`,
@@ -129,15 +109,9 @@ function resolveOwnerRepo(owner: string, repo: string): ResolvedSource {
 
 /**
  * Resolve a short name by searching GitHub
- * Uses GitHub search API to find repositories ending with -codemachine
+ * Uses GitHub search API to find repositories
  */
 async function resolveShortName(name: string): Promise<ResolvedSource> {
-  if (!hasValidSuffix(name)) {
-    throw new Error(
-      `Package name "${name}" must end with "${getRequiredSuffix()}"`
-    );
-  }
-
   // Search GitHub for the exact repo name
   const searchUrl = `${GITHUB_API_BASE}/search/repositories?q=${encodeURIComponent(name)}+in:name`;
 

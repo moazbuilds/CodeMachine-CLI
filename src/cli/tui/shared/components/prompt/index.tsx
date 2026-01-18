@@ -10,6 +10,7 @@ const SLASH_COMMANDS: SlashCommand[] = [
   { command: "templates", description: "Select and configure workflow templates" },
   { command: "login", description: "Authenticate with AI providers" },
   { command: "logout", description: "Sign out of AI providers" },
+  { command: "import", description: "Import external workflow packages" },
   { command: "exit", description: "Exit the session" },
 ]
 

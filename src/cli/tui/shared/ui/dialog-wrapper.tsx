@@ -34,6 +34,7 @@ export function DialogWrapper(props: DialogWrapperProps) {
       width={safeWidth()}
       height={safeHeight()}
       backgroundColor={backdropOverlay}
+      flexDirection="column"
       alignItems="center"
       justifyContent="center"
       zIndex={2000}

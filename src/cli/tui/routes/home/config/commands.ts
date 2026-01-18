@@ -46,6 +46,7 @@ export const HOME_COMMANDS = {
   TEMPLATE: "/template",
   LOGIN: "/login",
   LOGOUT: "/logout",
+  IMPORT: "/import",
   EXIT: "/exit",
   QUIT: "/quit",
 } as const

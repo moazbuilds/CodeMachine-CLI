@@ -23,7 +23,6 @@ import {
   unregisterImport,
   getAllInstalledImports,
   getInstalledImport,
-  getRequiredSuffix,
 } from '../../shared/imports/index.js';
 
 interface ImportCommandOptions {
@@ -196,8 +195,8 @@ function listImports(): void {
   if (imports.length === 0) {
     console.log('\nNo imports installed.');
     console.log(`\nTo install an import, use:`);
-    console.log(`  codemachine import <package-name${getRequiredSuffix()}>`);
-    console.log(`  codemachine import <owner>/<repo${getRequiredSuffix()}>`);
+    console.log(`  codemachine import <package-name>`);
+    console.log(`  codemachine import <owner>/<repo>`);
     console.log(`  codemachine import <https://github.com/...>`);
     return;
   }
@@ -244,8 +243,8 @@ async function runImportCommand(
     if (!source) {
       console.error('❌ Please specify a source to import.');
       console.log('\nUsage:');
-      console.log(`  codemachine import <package-name${getRequiredSuffix()}>`);
-      console.log(`  codemachine import <owner>/<repo${getRequiredSuffix()}>`);
+      console.log(`  codemachine import <package-name>`);
+      console.log(`  codemachine import <owner>/<repo>`);
       console.log(`  codemachine import <https://github.com/...>`);
       console.log('\nOther options:');
       console.log('  codemachine import --list            List installed imports');

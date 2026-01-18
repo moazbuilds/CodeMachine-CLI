@@ -31,9 +31,7 @@ export {
   parseManifest,
   getResolvedPaths,
   validateImport,
-  hasValidSuffix,
   getManifestFilename,
-  getRequiredSuffix,
 } from './manifest.js';
 
 // Registry management

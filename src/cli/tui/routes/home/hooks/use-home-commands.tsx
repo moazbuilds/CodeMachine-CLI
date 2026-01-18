@@ -10,6 +10,8 @@ import { useToast } from "@tui/shared/context/toast"
 import { useDialog } from "@tui/shared/context/dialog"
 import { useSession } from "@tui/shared/context/session"
 import { DialogSelect } from "@tui/shared/ui/dialog-select"
+import { StatusBadge } from "@tui/shared/ui/status-badge"
+import { ImportDialog } from "../dialogs/import-dialog"
 import * as path from "node:path"
 import { HOME_COMMANDS } from "../config/commands"
 
@@ -44,6 +46,11 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
 
     if (cmd === HOME_COMMANDS.LOGOUT) {
       await handleLogoutCommand()
+      return
+    }
+
+    if (cmd === HOME_COMMANDS.IMPORT) {
+      await handleImportCommand()
       return
     }
 
@@ -241,6 +248,155 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
           }
         }}
         onCancel={() => dialog.close()}
+      />
+    ))
+  }
+
+  const handleImportCommand = async () => {
+    const {
+      resolveSource,
+      validateImport,
+      parseManifest,
+      registerImport,
+      getImportInstallPath,
+      isImportInstalled,
+      ensureImportsDir,
+    } = await import("../../../../../shared/imports/index.js")
+    const { existsSync, rmSync } = await import("node:fs")
+    const { spawn } = await import("node:child_process")
+
+    const cloneRepo = (url: string, destPath: string): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        const args = ["clone", "--depth", "1", url, destPath]
+        const proc = spawn("git", args, { stdio: "pipe" })
+
+        let stderr = ""
+        if (proc.stderr) {
+          proc.stderr.on("data", (data: Buffer) => {
+            stderr += data.toString()
+          })
+        }
+
+        proc.on("close", (code: number | null) => {
+          if (code === 0) {
+            resolve()
+          } else {
+            reject(new Error(`git clone failed: ${stderr}`))
+          }
+        })
+
+        proc.on("error", (err: Error) => {
+          reject(new Error(`Failed to run git: ${err.message}`))
+        })
+      })
+    }
+
+    const removeGitDir = (repoPath: string): void => {
+      const { join } = require("node:path")
+      const gitDir = join(repoPath, ".git")
+      if (existsSync(gitDir)) {
+        rmSync(gitDir, { recursive: true, force: true })
+      }
+    }
+
+    const performInstall = async (source: string) => {
+      try {
+        // Resolve the source to a clone URL
+        const resolved = await resolveSource(source)
+        const installPath = getImportInstallPath(resolved.repoName)
+
+        // Check if already installed and remove
+        if (isImportInstalled(resolved.repoName)) {
+          rmSync(installPath, { recursive: true, force: true })
+        }
+
+        // Ensure imports directory exists
+        ensureImportsDir()
+
+        // Clone the repository
+        await cloneRepo(resolved.url, installPath)
+
+        // Remove .git directory
+        removeGitDir(installPath)
+
+        // Validate the import
+        const validation = validateImport(installPath)
+
+        if (!validation.valid) {
+          // Invalid import, remove it
+          rmSync(installPath, { recursive: true, force: true })
+
+          // Determine specific error reason
+          const hasMissingManifest = validation.errors.some((e) =>
+            e.includes("codemachine.json")
+          )
+
+          if (hasMissingManifest) {
+            return {
+              success: false,
+              error: "Missing codemachine.json file",
+              errorDetails:
+                "The repository must contain a codemachine.json manifest file in the root directory.",
+            }
+          }
+
+          return {
+            success: false,
+            error: "Validation failed",
+            errorDetails: validation.errors.join("\n"),
+          }
+        }
+
+        // Register the import
+        const manifest = parseManifest(installPath)
+        if (!manifest) {
+          rmSync(installPath, { recursive: true, force: true })
+          return {
+            success: false,
+            error: "Failed to parse manifest",
+            errorDetails: "The codemachine.json file could not be parsed.",
+          }
+        }
+
+        registerImport(resolved.repoName, manifest, source)
+
+        return {
+          success: true,
+          name: manifest.name,
+          version: manifest.version,
+          location: installPath,
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+
+        // Check for specific error types
+        if (errorMessage.includes("Could not find repository")) {
+          return {
+            success: false,
+            error: "Repository not found",
+            errorDetails: errorMessage,
+          }
+        }
+
+        if (errorMessage.includes("git clone failed")) {
+          return {
+            success: false,
+            error: "Failed to clone repository",
+            errorDetails: "Check that the URL is correct and the repository is accessible.",
+          }
+        }
+
+        return {
+          success: false,
+          error: errorMessage,
+        }
+      }
+    }
+
+    dialog.show(() => (
+      <ImportDialog
+        onClose={() => dialog.close()}
+        onInstall={performInstall}
       />
     ))
   }
