@@ -21,6 +21,8 @@ export interface ImportManifest {
     workflows?: string;
     /** Prompts directory (default: 'prompts/') */
     prompts?: string;
+    /** Agent characters file (default: 'config/agent-characters.json') */
+    characters?: string;
   };
 }
 
@@ -43,6 +45,7 @@ export interface InstalledImport {
     config: string;
     workflows: string;
     prompts: string;
+    characters: string;
   };
 }
 

@@ -4,11 +4,14 @@
  * Loads and caches the agent characters configuration,
  * providing helper functions for accessing faces and phrases.
  * Uses a persona-based system where agents map to personas.
+ *
+ * Supports merging characters from imported packages.
  */
 
 import * as path from "node:path"
 import { existsSync, readFileSync } from "node:fs"
 import { resolvePackageRoot } from "../../../../shared/runtime/root.js"
+import { getAllInstalledImports } from "../../../../shared/imports/registry.js"
 import type { ActivityType, AgentCharactersConfig, Persona } from "./agent-characters.types.js"
 
 let cachedConfig: AgentCharactersConfig | null = null
@@ -25,7 +28,39 @@ function getPackageRoot(): string | null {
 }
 
 /**
+ * Merges two agent characters configs
+ * Imported config extends/overrides the base config
+ */
+function mergeCharactersConfigs(
+  base: AgentCharactersConfig,
+  imported: AgentCharactersConfig
+): AgentCharactersConfig {
+  return {
+    personas: { ...base.personas, ...imported.personas },
+    agents: { ...base.agents, ...imported.agents },
+    defaultPersona: base.defaultPersona, // Keep base default
+  }
+}
+
+/**
+ * Loads characters config from a file path
+ */
+function loadCharactersFromPath(configPath: string): AgentCharactersConfig | null {
+  if (!existsSync(configPath)) {
+    return null
+  }
+
+  try {
+    const content = readFileSync(configPath, "utf-8")
+    return JSON.parse(content) as AgentCharactersConfig
+  } catch {
+    return null
+  }
+}
+
+/**
  * Loads the agent characters configuration from JSON
+ * Merges base config with any imported package characters
  * Caches the result after first load
  */
 export function loadAgentCharactersConfig(): AgentCharactersConfig {
@@ -33,27 +68,34 @@ export function loadAgentCharactersConfig(): AgentCharactersConfig {
     return cachedConfig
   }
 
+  // Start with default config
+  let config = getDefaultConfig()
+
+  // Load base config from package root
   const packageRoot = getPackageRoot()
-  if (!packageRoot) {
-    console.warn("Warning: Could not find codemachine package root for agent characters")
-    return getDefaultConfig()
+  if (packageRoot) {
+    const basePath = path.join(packageRoot, "config", "agent-characters.json")
+    const baseConfig = loadCharactersFromPath(basePath)
+    if (baseConfig) {
+      config = baseConfig
+    }
   }
 
-  const configPath = path.join(packageRoot, "config", "agent-characters.json")
-
-  if (!existsSync(configPath)) {
-    console.warn(`Warning: Agent characters config not found at ${configPath}`)
-    return getDefaultConfig()
-  }
-
+  // Merge characters from all installed imports
   try {
-    const content = readFileSync(configPath, "utf-8")
-    cachedConfig = JSON.parse(content) as AgentCharactersConfig
-    return cachedConfig
-  } catch (error) {
-    console.warn(`Warning: Failed to parse agent characters config: ${error instanceof Error ? error.message : String(error)}`)
-    return getDefaultConfig()
+    const imports = getAllInstalledImports()
+    for (const imp of imports) {
+      const importedConfig = loadCharactersFromPath(imp.resolvedPaths.characters)
+      if (importedConfig) {
+        config = mergeCharactersConfigs(config, importedConfig)
+      }
+    }
+  } catch {
+    // Silently ignore import errors - may not have imports system initialized
   }
+
+  cachedConfig = config
+  return cachedConfig
 }
 
 /**
