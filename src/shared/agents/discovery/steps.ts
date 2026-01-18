@@ -2,6 +2,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import * as path from 'node:path';
 
 import { loadWorkflowModule, isWorkflowTemplate } from '../../../workflows/index.js';
+import { getAllWorkflowDirectories } from '../../imports/index.js';
 
 export type WorkflowAgentDefinition = {
   id: string;
@@ -22,46 +23,85 @@ function discoverWorkflowFiles(root: string): string[] {
     .map((file) => path.resolve(baseDir, file));
 }
 
+/**
+ * Discover workflow files from all workflow directories including imports
+ */
+function discoverAllWorkflowFiles(localRoot: string): string[] {
+  const allFiles: string[] = [];
+  const seenDirs = new Set<string>();
+
+  // Get all workflow directories (imports + local)
+  const workflowDirs = getAllWorkflowDirectories(localRoot);
+
+  for (const dir of workflowDirs) {
+    if (seenDirs.has(dir) || !existsSync(dir)) continue;
+    seenDirs.add(dir);
+
+    const files = readdirSync(dir)
+      .filter((file) => file.endsWith('.workflow.js'))
+      .map((file) => path.resolve(dir, file));
+    allFiles.push(...files);
+  }
+
+  return allFiles;
+}
+
 export async function collectAgentsFromWorkflows(roots: string[]): Promise<WorkflowAgentDefinition[]> {
   const seenFiles = new Set<string>();
   const byId = new Map<string, WorkflowAgentDefinition>();
 
+  // Collect workflow files from all roots
+  const allWorkflowFiles: string[] = [];
+
   for (const root of roots) {
     if (!root) continue;
     const resolvedRoot = path.resolve(root);
-    for (const filePath of discoverWorkflowFiles(resolvedRoot)) {
-      if (seenFiles.has(filePath)) continue;
-      seenFiles.add(filePath);
 
-      try {
-        const template = await loadWorkflowModule(filePath);
-        if (!isWorkflowTemplate(template)) {
+    // Use both traditional discovery and import-aware discovery
+    for (const filePath of discoverWorkflowFiles(resolvedRoot)) {
+      allWorkflowFiles.push(filePath);
+    }
+  }
+
+  // Also discover from all import directories (handles case where imports aren't in roots)
+  if (roots.length > 0) {
+    const importFiles = discoverAllWorkflowFiles(roots[0]);
+    allWorkflowFiles.push(...importFiles);
+  }
+
+  // Process all discovered workflow files
+  for (const filePath of allWorkflowFiles) {
+    if (seenFiles.has(filePath)) continue;
+    seenFiles.add(filePath);
+
+    try {
+      const template = await loadWorkflowModule(filePath);
+      if (!isWorkflowTemplate(template)) {
+        continue;
+      }
+
+      for (const step of template.steps ?? []) {
+        if (!step || step.type !== 'module') {
           continue;
         }
 
-        for (const step of template.steps ?? []) {
-          if (!step || step.type !== 'module') {
-            continue;
-          }
-
-          const id = typeof step.agentId === 'string' ? step.agentId.trim() : '';
-          if (!id) {
-            continue;
-          }
-
-          const existing = byId.get(id) ?? { id };
-          byId.set(id, {
-            ...existing,
-            id,
-            name: step.agentName ?? existing.name,
-            promptPath: step.promptPath ?? existing.promptPath,
-            model: step.model ?? existing.model,
-            modelReasoningEffort: step.modelReasoningEffort ?? existing.modelReasoningEffort,
-          });
+        const id = typeof step.agentId === 'string' ? step.agentId.trim() : '';
+        if (!id) {
+          continue;
         }
-      } catch {
-        // Ignore templates that fail to load; other files might still provide definitions.
+
+        const existing = byId.get(id) ?? { id };
+        byId.set(id, {
+          ...existing,
+          id,
+          name: step.agentName ?? existing.name,
+          promptPath: step.promptPath ?? existing.promptPath,
+          model: step.model ?? existing.model,
+          modelReasoningEffort: step.modelReasoningEffort ?? existing.modelReasoningEffort,
+        });
       }
+    } catch {
+      // Ignore templates that fail to load; other files might still provide definitions.
     }
   }
 

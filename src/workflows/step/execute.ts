@@ -14,6 +14,10 @@ import { processPromptString } from '../../shared/prompts/index.js';
 import { execute, type ChainedPrompt } from '../../agents/execution/index.js';
 import type { WorkflowEventEmitter } from '../events/emitter.js';
 import { debug } from '../../shared/logging/logger.js';
+import { resolvePromptPath } from '../../shared/imports/index.js';
+import { resolvePackageRoot } from '../../shared/runtime/root.js';
+
+const packageRoot = resolvePackageRoot(import.meta.url, 'step executor');
 
 export type { ChainedPrompt } from '../../agents/execution/index.js';
 
@@ -92,10 +96,17 @@ export async function executeStep(
     throw new Error(`Agent ${step.agentId} has no promptPath configured`);
   }
 
-  // Load and process the prompt template(s)
-  const resolvedPromptPaths = promptSources.map(p =>
-    path.isAbsolute(p) ? p : path.resolve(cwd, p),
-  );
+  // Load and process the prompt template(s) - check imports first, then local
+  const resolvedPromptPaths = promptSources.map(p => {
+    if (path.isAbsolute(p)) return p;
+
+    // Try to resolve from imports first, then fall back to cwd
+    const importResolved = resolvePromptPath(p, packageRoot);
+    if (importResolved) return importResolved;
+
+    // Fall back to cwd-relative resolution
+    return path.resolve(cwd, p);
+  });
   debug(`[step/execute] Resolved promptPath(s): ${resolvedPromptPaths.join(', ')}`);
 
   let rawPrompt: string;

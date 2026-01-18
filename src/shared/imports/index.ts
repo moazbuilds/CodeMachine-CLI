@@ -51,3 +51,13 @@ export {
   resolveSource,
   extractRepoName,
 } from './resolver.js';
+
+// Import-aware path resolution
+export {
+  resolvePromptPath,
+  resolvePromptFolder,
+  resolveWorkflowTemplate,
+  resolvePathWithImports,
+  getAllWorkflowDirectories,
+  getAllPromptDirectories,
+} from './resolve.js';

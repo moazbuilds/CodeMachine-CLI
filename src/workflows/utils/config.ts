@@ -104,10 +104,14 @@ export function registerImportedAgents(configPath: string): void {
 
 /**
  * Clear all imported agents (useful for cleanup between operations)
+ * Also clears the lazy-loaded caches to ensure fresh data on next access
  */
 export function clearImportedAgents(): void {
   _importedMainAgents = [];
   _importedModules = [];
+  // Clear lazy-loaded caches so next access gets fresh data
+  _mainAgents = null;
+  _moduleCatalog = null;
 }
 
 // Legacy exports for backwards compatibility (will trigger lazy load)

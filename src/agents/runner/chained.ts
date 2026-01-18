@@ -3,6 +3,10 @@ import * as path from 'node:path';
 
 import { debug } from '../../shared/logging/logger.js';
 import type { ChainedPathEntry, ConditionalChainedPath } from '../../shared/agents/config/types.js';
+import { resolvePathWithImports } from '../../shared/imports/index.js';
+import { resolvePackageRoot } from '../../shared/runtime/root.js';
+
+const packageRoot = resolvePackageRoot(import.meta.url, 'chained prompts');
 
 /**
  * Represents a chained prompt loaded from a .md file
@@ -89,14 +93,20 @@ function filenameToName(filename: string): string {
 
 /**
  * Load a single chained prompt from a file
+ * Checks imported packages first, then project root
  */
 async function loadPromptFromFile(
   filePath: string,
   projectRoot: string
 ): Promise<ChainedPrompt | null> {
-  const absolutePath = path.isAbsolute(filePath)
-    ? filePath
-    : path.resolve(projectRoot, filePath);
+  let absolutePath: string;
+  if (path.isAbsolute(filePath)) {
+    absolutePath = filePath;
+  } else {
+    // Try to resolve from imports first, then fall back to project root
+    const importResolved = resolvePathWithImports(filePath, packageRoot, [projectRoot]);
+    absolutePath = importResolved ?? path.resolve(projectRoot, filePath);
+  }
 
   try {
     const rawContent = await fs.readFile(absolutePath, 'utf-8');
@@ -117,15 +127,20 @@ async function loadPromptFromFile(
 
 /**
  * Load chained prompts from a single folder
+ * Checks imported packages first, then project root
  */
 async function loadPromptsFromFolder(
   folderPath: string,
   projectRoot: string
 ): Promise<ChainedPrompt[]> {
-  // Resolve path
-  const absolutePath = path.isAbsolute(folderPath)
-    ? folderPath
-    : path.resolve(projectRoot, folderPath);
+  // Resolve path - check imports first
+  let absolutePath: string;
+  if (path.isAbsolute(folderPath)) {
+    absolutePath = folderPath;
+  } else {
+    const importResolved = resolvePathWithImports(folderPath, packageRoot, [projectRoot]);
+    absolutePath = importResolved ?? path.resolve(projectRoot, folderPath);
+  }
 
   // Check if directory exists
   try {
@@ -174,14 +189,19 @@ async function loadPromptsFromFolder(
 
 /**
  * Load chained prompts from a path (file or folder)
+ * Checks imported packages first, then project root
  */
 async function loadPromptsFromPath(
   inputPath: string,
   projectRoot: string
 ): Promise<ChainedPrompt[]> {
-  const absolutePath = path.isAbsolute(inputPath)
-    ? inputPath
-    : path.resolve(projectRoot, inputPath);
+  let absolutePath: string;
+  if (path.isAbsolute(inputPath)) {
+    absolutePath = inputPath;
+  } else {
+    const importResolved = resolvePathWithImports(inputPath, packageRoot, [projectRoot]);
+    absolutePath = importResolved ?? path.resolve(projectRoot, inputPath);
+  }
 
   try {
     const stat = await fs.stat(absolutePath);

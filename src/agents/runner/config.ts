@@ -3,6 +3,10 @@ import * as path from 'node:path';
 
 import { collectAgentDefinitions, resolveProjectRoot } from '../../shared/agents/index.js';
 import type { AgentDefinition } from '../../shared/agents/config/types.js';
+import { resolvePromptPath } from '../../shared/imports/index.js';
+import { resolvePackageRoot } from '../../shared/runtime/root.js';
+
+const packageRoot = resolvePackageRoot(import.meta.url, 'agent runner config');
 
 export type AgentConfig = AgentDefinition & {
   name: string;
@@ -65,10 +69,17 @@ export async function loadAgentTemplate(agentId: string, projectRoot?: string): 
     throw new Error(`Agent ${agentId} has an invalid promptPath configuration`);
   }
 
-  // If path is absolute, use it directly; otherwise resolve relative to project root
-  const resolvedPromptPaths = promptSources.map(p =>
-    path.isAbsolute(p) ? p : path.resolve(resolvedRoot, p),
-  );
+  // If path is absolute, use it directly; otherwise check imports first, then project root
+  const resolvedPromptPaths = promptSources.map(p => {
+    if (path.isAbsolute(p)) return p;
+
+    // Try to resolve from imports first
+    const importResolved = resolvePromptPath(p, packageRoot);
+    if (importResolved) return importResolved;
+
+    // Fall back to project root
+    return path.resolve(resolvedRoot, p);
+  });
 
   const contentParts = await Promise.all(
     resolvedPromptPaths.map(promptPath => fs.readFile(promptPath, 'utf-8')),

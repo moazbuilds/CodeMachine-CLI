@@ -2,6 +2,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import * as path from 'node:path';
 import type { StepOverrides, WorkflowStep } from '../types.js';
 import { mainAgents, packageRoot } from '../config.js';
+import { resolvePromptFolder } from '../../../shared/imports/index.js';
 
 function extractOrderPrefix(filename: string): number | null {
   const match = filename.match(/^(\d+)\s*-/);
@@ -16,10 +17,11 @@ export function resolveFolder(folderName: string, overrides: StepOverrides = {})
     throw new Error(`Folder configuration not found in main.agents.js: ${folderName}`);
   }
 
-  const promptsDir = path.resolve(packageRoot, 'prompts', 'templates', folderName);
+  // Check imported packages first, then local
+  const promptsDir = resolvePromptFolder(folderName, packageRoot);
 
-  if (!existsSync(promptsDir) || !statSync(promptsDir).isDirectory()) {
-    throw new Error(`Folder not found: prompts/templates/${folderName}`);
+  if (!promptsDir || !existsSync(promptsDir) || !statSync(promptsDir).isDirectory()) {
+    throw new Error(`Folder not found: prompts/templates/${folderName} (checked imports and local)`);
   }
 
   const files = readdirSync(promptsDir);
@@ -35,7 +37,7 @@ export function resolveFolder(folderName: string, overrides: StepOverrides = {})
     .sort((a, b) => (a.order! - b.order!));
 
   if (orderedFiles.length === 0) {
-    throw new Error(`No ordered files found in folder: prompts/templates/${folderName}`);
+    throw new Error(`No ordered files found in folder: ${promptsDir}`);
   }
 
   // Create a step for each file using folder config
@@ -45,7 +47,8 @@ export function resolveFolder(folderName: string, overrides: StepOverrides = {})
 
     // Remove number prefix and extension to get the agent ID
     const agentId = basename.replace(/^\d+\s*-\s*/, '').replace(ext, '').trim();
-    const promptPath = `prompts/templates/${folderName}/${basename}`;
+    // Use absolute path since promptsDir is already resolved
+    const promptPath = path.join(promptsDir, basename);
     const model = overrides.model ?? folderConfig.model;
 
     if (!model) {

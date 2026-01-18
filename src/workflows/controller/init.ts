@@ -14,6 +14,10 @@ import { AgentMonitorService } from '../../agents/monitoring/index.js';
 import { processPromptString } from '../../shared/prompts/index.js';
 import { debug } from '../../shared/logging/logger.js';
 import { saveControllerConfig } from './config.js';
+import { resolvePromptPath } from '../../shared/imports/index.js';
+import { resolvePackageRoot } from '../../shared/runtime/root.js';
+
+const packageRoot = resolvePackageRoot(import.meta.url, 'controller init');
 
 /**
  * Initialize controller agent session
@@ -35,16 +39,23 @@ export async function initControllerAgent(
   const promptPaths = Array.isArray(promptPath) ? promptPath : [promptPath];
   debug('[Controller] Prompt paths to load: %o', promptPaths);
 
-  // Load and combine all prompt files
+  // Load and combine all prompt files - check imports first, then cwd
   const promptParts: string[] = [];
   for (const p of promptPaths) {
-    const resolvedPath = path.isAbsolute(p) ? p : path.resolve(cwd, p);
+    let resolvedPath: string;
+    if (path.isAbsolute(p)) {
+      resolvedPath = p;
+    } else {
+      // Try to resolve from imports first
+      const importResolved = resolvePromptPath(p, packageRoot);
+      resolvedPath = importResolved ?? path.resolve(cwd, p);
+    }
     debug('[Controller] Resolved prompt path: %s', resolvedPath);
 
     const promptExists = existsSync(resolvedPath);
     debug('[Controller] Prompt file exists: %s', promptExists);
     if (!promptExists) {
-      throw new Error(`Prompt file not found: ${resolvedPath}`);
+      throw new Error(`Prompt file not found: ${resolvedPath} (checked imports and cwd)`);
     }
 
     const content = await readFile(resolvedPath, 'utf8');

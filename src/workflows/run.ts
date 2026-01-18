@@ -30,6 +30,8 @@ import { WorkflowRunner } from './runner/index.js';
 import { getUniqueAgentId } from './context/index.js';
 import { setupWorkflowMCP, cleanupWorkflowMCP } from './mcp.js';
 import { runControllerView } from './controller/view.js';
+import { getAllInstalledImports } from '../shared/imports/index.js';
+import { registerImportedAgents, clearImportedAgents } from './utils/config.js';
 
 // Re-export from preflight for backward compatibility
 export { ValidationError, checkWorkflowCanStart, checkSpecificationRequired, checkOnboardingRequired, needsOnboarding } from './preflight.js';
@@ -44,6 +46,15 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
 
   // Ensure workspace structure exists (creates .codemachine folder tree)
   await ensureWorkspaceStructure({ cwd });
+
+  // Auto-register agents from all installed imports
+  // This ensures imported agents/modules are available before template loading
+  clearImportedAgents();
+  const importedPackages = getAllInstalledImports();
+  for (const imp of importedPackages) {
+    registerImportedAgents(imp.resolvedPaths.config);
+  }
+  debug('[Workflow] Registered agents from %d imported packages', importedPackages.length);
 
   // Load template
   const cmRoot = path.join(cwd, '.codemachine');
