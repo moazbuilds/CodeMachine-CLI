@@ -1,0 +1,105 @@
+{
+  "personas": {
+    "friendly": {
+      "baseFace": "(˶ᵔ ᵕ ᵔ˶)",
+      "expressions": {
+        "thinking": "(╭ರ_•́)",
+        "tool": "(•̀ᴗ•́)و",
+        "error": "(╥﹏╥)",
+        "idle": "(˶ᵔ ᵕ ᵔ˶)"
+      },
+      "phrases": {
+        "thinking": ["Hmm, let me think...", "Processing..."],
+        "tool": ["On it!", "Working..."],
+        "error": ["Oops, something went wrong", "Let me try again"],
+        "idle": ["Ready when you are", "Waiting..."]
+      }
+    },
+    "analytical": {
+      "baseFace": "[•_•]",
+      "expressions": {
+        "thinking": "[•_•]~",
+        "tool": "[◉_◉]",
+        "error": "[x_x]",
+        "idle": "[•_•]"
+      },
+      "phrases": {
+        "thinking": ["Analyzing...", "Computing..."],
+        "tool": ["Executing...", "Running..."],
+        "error": ["Error encountered", "Retrying..."],
+        "idle": ["Standing by", "Awaiting input"]
+      }
+    },
+    "cheerful": {
+      "baseFace": "◕‿◕",
+      "expressions": {
+        "thinking": "◕~◕",
+        "tool": "◕!◕",
+        "error": "◕_◕",
+        "idle": "◕‿◕"
+      },
+      "phrases": {
+        "thinking": ["Pondering...", "Considering..."],
+        "tool": ["Let me do that!", "Working on it..."],
+        "error": ["Hmm, that didn't work", "Let me try again"],
+        "idle": ["Here to help!", "Ready for action"]
+      }
+    },
+    "technical": {
+      "baseFace": "{•_•}",
+      "expressions": {
+        "thinking": "{•~•}",
+        "tool": "{•!•}",
+        "error": "{•x•}",
+        "idle": "{•_•}"
+      },
+      "phrases": {
+        "thinking": ["Processing...", "Analyzing..."],
+        "tool": ["Executing...", "Working..."],
+        "error": ["Error", "Retrying..."],
+        "idle": ["Ready", "Waiting..."]
+      }
+    },
+    "precise": {
+      "baseFace": "<•_•>",
+      "expressions": {
+        "thinking": "<•~•>",
+        "tool": "<•!•>",
+        "error": "<•x•>",
+        "idle": "<•_•>"
+      },
+      "phrases": {
+        "thinking": ["Evaluating...", "Checking..."],
+        "tool": ["Validating...", "Running checks..."],
+        "error": ["Issue detected", "Reviewing..."],
+        "idle": ["Ready", "Monitoring..."]
+      }
+    }
+  },
+  "agents": {
+    "bmad-analyst": "friendly",
+    "bmad-pm": "analytical",
+    "bmad-ux": "cheerful",
+    "bmad-architect": "analytical",
+    "bmad-epics": "analytical",
+    "bmad-tea": "precise",
+    "bmad-readiness": "precise",
+    "bmad-sprints": "cheerful",
+    "bmad-stories": "cheerful",
+    "bmad-dev": "technical",
+    "bmad-po": "analytical",
+    "cm-workflow-builder": "friendly",
+    "init": "friendly",
+    "principal-analyst": "analytical",
+    "blueprint-orchestrator": "analytical",
+    "plan-agent": "analytical",
+    "task-breakdown": "technical",
+    "context-manager": "technical",
+    "code-generation": "technical",
+    "task-sanity-check": "precise",
+    "runtime-prep": "technical",
+    "git-commit": "technical",
+    "plan-fallback": "analytical"
+  },
+  "defaultPersona": "friendly"
+}
