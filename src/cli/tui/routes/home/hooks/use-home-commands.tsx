@@ -96,7 +96,9 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
     const { getAvailableTemplates, selectTemplateByNumber } = await import("../../../../commands/templates.command.js")
 
     const templates = await getAvailableTemplates()
-    const options = templates.map((t, index) => {
+    const IMPORT_ACTION = "__IMPORT_TEMPLATE__"
+
+    const templateOptions = templates.map((t, index) => {
       // Extract source from description like "5 step(s) - file.js [bmad]"
       const sourceMatch = t.description?.match(/\[([^\]]+)\]$/)
       const source = sourceMatch?.[1]
@@ -108,16 +110,35 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
         title: t.title,
         value: index + 1,
         description: steps ? `${steps} steps` : undefined,
-        category: source ? "Imported" : "Core",
+        category: source ? "Imported" : "Builtin",
       }
     })
+
+    // Add import option at the top (no category)
+    const selectOptions = [
+      {
+        title: "⬇ Import template from GitHub",
+        value: IMPORT_ACTION,
+      },
+      ...templateOptions,
+    ]
 
     dialog.show(() => (
       <DialogSelect
         title="Select Workflow Template"
-        options={options}
+        options={selectOptions}
         placeholder="Search templates..."
-        onSelect={async (templateNumber: number) => {
+        onSelect={async (selection: number | string) => {
+          // Handle import action
+          if (selection === IMPORT_ACTION) {
+            dialog.close()
+            await new Promise((resolve) => setTimeout(resolve, 100))
+            await handleImportCommand()
+            return
+          }
+
+          // Handle template selection
+          const templateNumber = selection as number
           dialog.close()
           try {
             const selectedTemplate = templates[templateNumber - 1]
