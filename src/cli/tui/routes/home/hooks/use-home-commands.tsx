@@ -9,7 +9,7 @@ import { useRenderer } from "@opentui/solid"
 import { useToast } from "@tui/shared/context/toast"
 import { useDialog } from "@tui/shared/context/dialog"
 import { useSession } from "@tui/shared/context/session"
-import { SelectMenu } from "@tui/shared/components/select-menu"
+import { DialogSelect } from "@tui/shared/ui/dialog-select"
 import * as path from "node:path"
 import { HOME_COMMANDS } from "../config/commands"
 
@@ -84,16 +84,27 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
     const { getAvailableTemplates, selectTemplateByNumber } = await import("../../../../commands/templates.command.js")
 
     const templates = await getAvailableTemplates()
-    const choices = templates.map((t, index) => ({
-      title: t.title,
-      value: index + 1,
-      description: t.description,
-    }))
+    const options = templates.map((t, index) => {
+      // Extract source from description like "5 step(s) - file.js [bmad]"
+      const sourceMatch = t.description?.match(/\[([^\]]+)\]$/)
+      const source = sourceMatch?.[1]
+      // Extract step count
+      const stepsMatch = t.description?.match(/^(\d+)\s+step/)
+      const steps = stepsMatch?.[1]
+
+      return {
+        title: t.title,
+        value: index + 1,
+        description: steps ? `${steps} steps` : undefined,
+        category: source ? "Imported" : "Core",
+      }
+    })
 
     dialog.show(() => (
-      <SelectMenu
-        message="Choose a workflow template:"
-        choices={choices}
+      <DialogSelect
+        title="Select Workflow Template"
+        options={options}
+        placeholder="Search templates..."
         onSelect={async (templateNumber: number) => {
           dialog.close()
           try {
@@ -126,18 +137,27 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
     const { registry } = await import("../../../../../infra/engines/index.js")
     const { handleLogin } = await import("../../../../commands/auth.command.js")
 
-    const providers = registry.getAll().map((engine) => ({
-      title: engine.metadata.name,
-      value: engine.metadata.id,
-      description: engine.metadata.description,
-    }))
+    // Check auth status for each provider
+    const engines = registry.getAll()
+    const providersWithStatus = await Promise.all(
+      engines.map(async (engine) => {
+        const isAuth = await engine.auth.isAuthenticated()
+        return {
+          title: engine.metadata.name,
+          value: engine.metadata.id,
+          description: engine.metadata.description,
+          footer: isAuth ? "✓ Connected" : undefined,
+        }
+      })
+    )
 
     dialog.show(() => (
-      <SelectMenu
-        message="Choose authentication provider to login:"
-        choices={providers}
+      <DialogSelect
+        title="Select Provider to Login"
+        options={providersWithStatus}
+        placeholder="Search providers..."
         onSelect={async (providerId: string) => {
-          const providerName = providers.find((p) => p.value === providerId)?.title || "Provider"
+          const providerName = providersWithStatus.find((p) => p.value === providerId)?.title || "Provider"
           const engine = registry.get(providerId)
 
           if (!engine) {
@@ -179,18 +199,28 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
     const { registry } = await import("../../../../../infra/engines/index.js")
     const { handleLogout } = await import("../../../../commands/auth.command.js")
 
-    const providers = registry.getAll().map((engine) => ({
-      title: engine.metadata.name,
-      value: engine.metadata.id,
-      description: engine.metadata.description,
-    }))
+    // Check auth status for each provider
+    const engines = registry.getAll()
+    const providersWithStatus = await Promise.all(
+      engines.map(async (engine) => {
+        const isAuth = await engine.auth.isAuthenticated()
+        return {
+          title: engine.metadata.name,
+          value: engine.metadata.id,
+          description: engine.metadata.description,
+          footer: isAuth ? "✓ Connected" : "Not connected",
+          disabled: !isAuth, // Disable logout for providers not connected
+        }
+      })
+    )
 
     dialog.show(() => (
-      <SelectMenu
-        message="Choose authentication provider to logout:"
-        choices={providers}
+      <DialogSelect
+        title="Select Provider to Logout"
+        options={providersWithStatus}
+        placeholder="Search providers..."
         onSelect={async (providerId: string) => {
-          const providerName = providers.find((p) => p.value === providerId)?.title || "Provider"
+          const providerName = providersWithStatus.find((p) => p.value === providerId)?.title || "Provider"
 
           dialog.close()
           await new Promise((resolve) => setTimeout(resolve, 200))
