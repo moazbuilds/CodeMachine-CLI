@@ -7,8 +7,10 @@
  * Shows last N lines with auto-scroll for running agents using OpenTUI scrollbox
  */
 
-import { Show, For, createMemo } from "solid-js"
+import type { ScrollBoxRenderable } from "@opentui/core"
+import { Show, For, createMemo, createSignal, createEffect, onCleanup, on } from "solid-js"
 import { useTheme } from "@tui/shared/context/theme"
+import { debug } from "../../../../../../shared/logging/logger.js"
 import { ShimmerText } from "./shimmer-text"
 import { TypingText } from "./typing-text"
 import { LogLine } from "../shared/log-line"
@@ -16,6 +18,8 @@ import { LogTable } from "../shared/log-table"
 import { groupLinesWithTables } from "../shared/markdown-table"
 import { PromptLine, type PromptLineState } from "./prompt-line"
 import type { AgentState, SubAgentState, InputState, ControllerState } from "../../state/types"
+import { getFace, getPhrase } from "../../../../shared/config/agent-characters.js"
+import type { ActivityType } from "../../../../shared/config/agent-characters.types.js"
 
 // Rotating messages shown while connecting to agent
 const CONNECTING_MESSAGES = [
@@ -36,6 +40,7 @@ export interface OutputWindowProps {
   maxLines?: number
   connectingMessageIndex?: number
   latestThinking?: string | null
+  currentActivity?: ActivityType | null
   // Prompt line props
   inputState?: InputState | null
   workflowStatus?: string
@@ -45,6 +50,12 @@ export interface OutputWindowProps {
   onPromptBoxFocusExit?: () => void
   // Responsive layout
   availableWidth?: number
+  // Backward pagination
+  hasMoreAbove?: boolean
+  isLoadingEarlier?: boolean
+  loadEarlierError?: string | null
+  onLoadMore?: () => number
+  onPauseTrimmingChange?: (paused: boolean) => void
 }
 
 /**
@@ -57,6 +68,72 @@ const MIN_WIDTH_FOR_INLINE_STATUS = 75  // Minimum width to show status inline w
 
 export function OutputWindow(props: OutputWindowProps) {
   const themeCtx = useTheme()
+  const [scrollRef, setScrollRef] = createSignal<ScrollBoxRenderable | undefined>()
+  const [userScrolledAway, setUserScrolledAway] = createSignal(false)
+
+  // Reset userScrolledAway when agent changes
+  // Use on() to explicitly track only the agent name, not other props
+  createEffect(
+    on(
+      () => props.currentAgent?.name,
+      (agentName) => {
+        debug('[OutputWindow] Agent changed to: %s, resetting scroll state', agentName)
+        setUserScrolledAway(false)
+      }
+    )
+  )
+
+  // Handle scroll events: load earlier lines + track if user scrolled away from bottom
+  // Use on() to only track scrollRef changes, not other props
+  createEffect(
+    on(scrollRef, (ref) => {
+      debug('[OutputWindow] Scroll effect running, ref exists: %s', !!ref)
+      if (!ref) return
+
+      const handleScrollChange = () => {
+        const scrollTop = ref.scrollTop
+        const scrollHeight = ref.scrollHeight
+        const viewportHeight = ref.height
+        const maxScroll = Math.max(0, scrollHeight - viewportHeight)
+        const isAtBottom = scrollTop >= maxScroll - 3
+
+        debug('[OutputWindow] scroll: top=%d, max=%d, atBottom=%s, hasMore=%s', scrollTop, maxScroll, isAtBottom, props.hasMoreAbove)
+
+        // Track if user scrolled away from bottom (to disable stickyScroll)
+        if (!isAtBottom && !userScrolledAway()) {
+          debug('[OutputWindow] User scrolled away from bottom')
+          setUserScrolledAway(true)
+        } else if (isAtBottom && userScrolledAway()) {
+          debug('[OutputWindow] User returned to bottom')
+          setUserScrolledAway(false)
+        }
+
+        // Trigger load when near the top (within 3 lines) - skip if already loading
+        if (scrollTop <= 3 && props.hasMoreAbove && props.onLoadMore && !props.isLoadingEarlier) {
+          debug('[OutputWindow] Loading earlier lines...')
+          const linesLoaded = props.onLoadMore()
+          debug('[OutputWindow] Lines loaded: %d', linesLoaded)
+          if (linesLoaded > 0) {
+            ref.scrollTop = linesLoaded  // Maintain view position
+          }
+        }
+      }
+
+      debug('[OutputWindow] Setting up scroll listener, verticalScrollBar exists: %s', !!ref.verticalScrollBar)
+      ref.verticalScrollBar?.on("change", handleScrollChange)
+      onCleanup(() => ref.verticalScrollBar?.off("change", handleScrollChange))
+    })
+  )
+
+  // Compute whether stickyScroll should be active
+  const shouldStickyScroll = () => !userScrolledAway()
+
+  // Notify parent when user scrolls away (to pause trimming in log stream)
+  createEffect(
+    on(userScrolledAway, (scrolledAway) => {
+      props.onPauseTrimmingChange?.(scrolledAway)
+    })
+  )
 
   // Check if we have enough width to show status inline (based on output section width)
   const isWideLayout = createMemo(() => (props.availableWidth ?? 80) >= MIN_WIDTH_FOR_INLINE_STATUS)
@@ -89,10 +166,38 @@ export function OutputWindow(props: OutputWindowProps) {
     return themeCtx.theme.warning
   }
 
-  // Get display name/engine/model (controller when delegated or controller view, step agent otherwise)
+  // Get display name/engine/model/id (controller when delegated or controller view, step agent otherwise)
   const displayName = () => isControllerActive() ? props.controllerState!.name : props.currentAgent?.name
   const displayEngine = () => isControllerActive() ? props.controllerState!.engine : props.currentAgent?.engine
   const displayModel = () => isControllerActive() ? props.controllerState!.model : props.currentAgent?.model
+  const displayAgentId = () => isControllerActive() ? props.controllerState!.id : props.currentAgent?.id
+
+  // Derive activity from agent status, with log-based refinement when running
+  const derivedActivity = (): ActivityType => {
+    const status = effectiveStatus()
+
+    // Error states
+    if (status === "failed" || status === "retrying") {
+      return "error"
+    }
+
+    // Running state - use log-based activity detection for granularity
+    if (status === "running") {
+      // If we have log-based activity (thinking vs tool), use it
+      if (props.currentActivity && props.currentActivity !== "idle") {
+        return props.currentActivity
+      }
+      // Default to thinking when running but no specific activity detected
+      return "thinking"
+    }
+
+    // All other states (pending, completed, skipped, paused, awaiting, delegated)
+    return "idle"
+  }
+
+  // Get character face and phrase based on agent ID and derived activity
+  const currentFace = () => getFace(displayAgentId() ?? "default", derivedActivity())
+  const currentPhrase = () => getPhrase(displayAgentId() ?? "default", derivedActivity())
 
   // Check if we have something to display (agent or controller in controller view)
   const hasDisplayContent = () => props.currentAgent != null || isControllerViewMode()
@@ -186,7 +291,7 @@ export function OutputWindow(props: OutputWindowProps) {
             <box flexDirection="row" justifyContent="space-between" paddingRight={2}>
               <box flexDirection="row">
                 <text fg={themeCtx.theme.border}>│  </text>
-                <text fg={themeCtx.theme.text}>{isRunning() && props.latestThinking ? "(╭ರ_•́)" : "(˶ᵔ ᵕ ᵔ˶)"}</text>
+                <text fg={themeCtx.theme.text}>{currentFace()}</text>
                 <text>  </text>
                 <text fg={themeCtx.theme.text} attributes={1}>{displayName()}</text>
               </box>
@@ -204,7 +309,7 @@ export function OutputWindow(props: OutputWindowProps) {
           <Show when={!isWideLayout()}>
             <box flexDirection="row">
               <text fg={themeCtx.theme.border}>│  </text>
-              <text fg={themeCtx.theme.text}>{isRunning() && props.latestThinking ? "(╭ರ_•́)" : "(˶ᵔ ᵕ ᵔ˶)"}</text>
+              <text fg={themeCtx.theme.text}>{currentFace()}</text>
               <text>  </text>
               <text fg={themeCtx.theme.text} attributes={1}>{displayName()}</text>
             </box>
@@ -220,7 +325,7 @@ export function OutputWindow(props: OutputWindowProps) {
 
           <box flexDirection="row">
             <text fg={themeCtx.theme.border}>│  </text>
-            <Show when={isRunning() && props.latestThinking} fallback={<text fg={themeCtx.theme.textMuted}>↳ Waiting...</text>}>
+            <Show when={isRunning() && props.latestThinking} fallback={<text fg={themeCtx.theme.textMuted}>↳ {currentPhrase()}</text>}>
               <TypingText text={`↳ ${props.latestThinking}`} speed={30} />
             </Show>
           </box>
@@ -248,10 +353,19 @@ export function OutputWindow(props: OutputWindowProps) {
           </Show>
 
           <Show when={!props.isLoading && !props.isConnecting && !props.error && props.lines.length > 0}>
+            {/* Loading earlier lines indicator */}
+            <Show when={props.isLoadingEarlier}>
+              <text fg={themeCtx.theme.info}>↑ Loading earlier lines...</text>
+            </Show>
+            {/* Error loading earlier lines */}
+            <Show when={props.loadEarlierError}>
+              <text fg={themeCtx.theme.error}>↑ Error: {props.loadEarlierError}</text>
+            </Show>
             <scrollbox
+              ref={(r: ScrollBoxRenderable) => setScrollRef(r)}
               flexGrow={1}
               width="100%"
-              stickyScroll={true}
+              stickyScroll={shouldStickyScroll()}
               stickyStart="bottom"
               scrollbarOptions={{
                 showArrows: true,
