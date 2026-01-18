@@ -99,18 +99,11 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
     const IMPORT_ACTION = "__IMPORT_TEMPLATE__"
 
     const templateOptions = templates.map((t, index) => {
-      // Extract source from description like "5 step(s) - file.js [bmad]"
-      const sourceMatch = t.description?.match(/\[([^\]]+)\]$/)
-      const source = sourceMatch?.[1]
-      // Extract step count
-      const stepsMatch = t.description?.match(/^(\d+)\s+step/)
-      const steps = stepsMatch?.[1]
-
       return {
         title: t.title,
         value: index + 1,
-        description: steps ? `${steps} steps` : undefined,
-        category: source ? "Imported" : "Builtin",
+        description: `${t.stepCount} steps`,
+        category: t.category === 'imported' ? "Imported" : "Builtin",
       }
     })
 

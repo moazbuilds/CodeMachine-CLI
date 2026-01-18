@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import { resolvePackageRoot } from '../runtime/root.js';
 import { debug } from '../logging/logger.js';
+import { getAllInstalledImports } from '../imports/index.js';
 
 const TEMPLATE_TRACKING_FILE = 'template.json';
 
@@ -160,6 +161,7 @@ export async function hasTemplateChanged(cmRoot: string, templateName: string): 
 /**
  * Gets the full template path from the tracking file.
  * Returns the default template if no template is tracked.
+ * Searches both local templates and imported packages.
  */
 export async function getTemplatePathFromTracking(cmRoot: string): Promise<string> {
   const activeTemplate = await getActiveTemplate(cmRoot);
@@ -169,8 +171,24 @@ export async function getTemplatePathFromTracking(cmRoot: string): Promise<strin
     return path.join(templatesDir, 'bmad.workflow.js');
   }
 
-  // Return full path from template name
-  return path.join(templatesDir, activeTemplate);
+  // First check local templates directory
+  const localPath = path.join(templatesDir, activeTemplate);
+  if (existsSync(localPath)) {
+    return localPath;
+  }
+
+  // Search in imported packages' workflow directories
+  const imports = getAllInstalledImports();
+  for (const imp of imports) {
+    const importedPath = path.join(imp.resolvedPaths.workflows, activeTemplate);
+    if (existsSync(importedPath)) {
+      debug('[Template] Found template in imported package %s: %s', imp.name, importedPath);
+      return importedPath;
+    }
+  }
+
+  // Fallback to local path (will fail with proper error message)
+  return localPath;
 }
 
 /**
