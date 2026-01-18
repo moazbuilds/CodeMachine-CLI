@@ -9,6 +9,7 @@ import type { AgentDefinition } from '../config/types.js';
 import { AGENT_MODULE_FILENAMES } from '../config/types.js';
 import { resolvePackageRoot } from '../../runtime/root.js';
 import { debug } from '../../logging/logger.js';
+import { getImportRoots } from '../../imports/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -76,7 +77,16 @@ export function loadAgentsFromModule(modulePath: string): AgentDefinition[] {
 export async function collectAgentDefinitions(projectRoot: string): Promise<AgentDefinition[]> {
   debug('[AgentCatalog] collectAgentDefinitions called with projectRoot=%s', projectRoot);
   const candidates = new Set<string>();
-  const roots = [projectRoot, ...CLI_ROOT_CANDIDATES.filter((root) => root && root !== projectRoot)];
+
+  // Include imported package roots
+  const importedRoots = getImportRoots();
+  debug('[AgentCatalog] Found %d imported roots: %o', importedRoots.length, importedRoots);
+
+  const roots = [
+    projectRoot,
+    ...CLI_ROOT_CANDIDATES.filter((root) => root && root !== projectRoot),
+    ...importedRoots,
+  ];
   debug('[AgentCatalog] Searching roots: %o', roots);
 
   for (const root of roots) {

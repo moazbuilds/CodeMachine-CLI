@@ -8,6 +8,7 @@ import { ensureWorkspaceStructure, mirrorSubAgents } from '../../runtime/service
 import { selectFromMenu, type SelectionChoice } from '../utils/selection-menu.js';
 import { isModuleStep } from '../../workflows/templates/types.js';
 import { resolvePackageRoot } from '../../shared/runtime/root.js';
+import { getAllInstalledImports } from '../../shared/imports/index.js';
 
 const packageRoot = resolvePackageRoot(import.meta.url, 'templates command');
 
@@ -70,31 +71,48 @@ async function handleTemplateSelectionSuccess(template: WorkflowTemplate, templa
 }
 
 export async function getAvailableTemplates(): Promise<TemplateChoice[]> {
-  if (!existsSync(templatesDir)) {
-    return [];
-  }
-
-  const files = readdirSync(templatesDir).filter(file =>
-    file.endsWith('.workflow.js') && !file.startsWith('_example.')
-  );
   const templates: TemplateChoice[] = [];
 
-  for (const file of files) {
-    try {
-      const filePath = path.join(templatesDir, file);
-      const template = await loadWorkflowModule(filePath);
-
-      if (isWorkflowTemplate(template)) {
-        templates.push({
-          title: template.name,
-          value: filePath,
-          description: `${template.steps.length} step(s) - ${file}`
-        });
-      }
-    } catch (error) {
-      // Skip invalid templates
-      console.warn(`Warning: Could not load template ${file}:`, error);
+  // Helper to load templates from a directory
+  async function loadFromDir(dir: string, sourceLabel?: string): Promise<void> {
+    if (!existsSync(dir)) {
+      return;
     }
+
+    const files = readdirSync(dir).filter(file =>
+      file.endsWith('.workflow.js') && !file.startsWith('_example.')
+    );
+
+    for (const file of files) {
+      try {
+        const filePath = path.join(dir, file);
+        const template = await loadWorkflowModule(filePath);
+
+        if (isWorkflowTemplate(template)) {
+          const description = sourceLabel
+            ? `${template.steps.length} step(s) - ${file} [${sourceLabel}]`
+            : `${template.steps.length} step(s) - ${file}`;
+
+          templates.push({
+            title: template.name,
+            value: filePath,
+            description,
+          });
+        }
+      } catch (error) {
+        // Skip invalid templates
+        console.warn(`Warning: Could not load template ${file}:`, error);
+      }
+    }
+  }
+
+  // Load core templates
+  await loadFromDir(templatesDir);
+
+  // Load templates from imported packages
+  const importedPackages = getAllInstalledImports();
+  for (const imp of importedPackages) {
+    await loadFromDir(imp.resolvedPaths.workflows, imp.name);
   }
 
   return templates.sort((a, b) => a.title.localeCompare(b.title));
