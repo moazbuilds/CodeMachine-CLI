@@ -142,21 +142,59 @@ export function parseMarkdownTable(lines: string[]): ParsedTable | null {
 }
 
 /**
+ * Calculate the visible length of text after stripping inline markdown
+ * Removes **bold** and `code` markers from length calculation
+ */
+function visibleLength(text: string): number {
+  // Remove **bold** markers (but keep the content)
+  let stripped = text.replace(/\*\*([^*]+)\*\*/g, '$1')
+  // Remove `code` markers (but keep the content)
+  stripped = stripped.replace(/`([^`]+)`/g, '$1')
+  return stripped.length
+}
+
+/**
+ * Strip inline markdown markers from text
+ */
+function stripInlineMarkdown(text: string): string {
+  let stripped = text.replace(/\*\*([^*]+)\*\*/g, '$1')
+  stripped = stripped.replace(/`([^`]+)`/g, '$1')
+  return stripped
+}
+
+/**
+ * Truncate text to a visible width, stripping markdown if needed
+ * Returns plain text truncated to the specified visible width
+ */
+function truncateToVisibleWidth(text: string, width: number): string {
+  // First strip markdown to get clean text for truncation
+  const stripped = stripInlineMarkdown(text)
+  if (stripped.length <= width) {
+    return stripped
+  }
+  // Truncate and add ellipsis indicator if there's room
+  if (width > 3) {
+    return stripped.slice(0, width - 1) + '…'
+  }
+  return stripped.slice(0, width)
+}
+
+/**
  * Calculate the width needed for each column
  */
 function calculateColumnWidths(headers: string[], rows: string[][], columnCount: number): number[] {
   const widths: number[] = new Array(columnCount).fill(0)
 
-  // Check header widths
+  // Check header widths (use visible length)
   headers.forEach((h, i) => {
-    widths[i] = Math.max(widths[i], h.length)
+    widths[i] = Math.max(widths[i], visibleLength(h))
   })
 
-  // Check row widths
+  // Check row widths (use visible length)
   rows.forEach(row => {
     row.forEach((cell, i) => {
       if (i < columnCount) {
-        widths[i] = Math.max(widths[i], cell.length)
+        widths[i] = Math.max(widths[i], visibleLength(cell))
       }
     })
   })
@@ -167,10 +205,16 @@ function calculateColumnWidths(headers: string[], rows: string[][], columnCount:
 
 /**
  * Pad a string according to alignment
+ * Note: text may contain markdown markers, so we use visible length for padding
  */
 function padCell(text: string, width: number, align: ColumnAlignment): string {
-  const padding = width - text.length
-  if (padding <= 0) return text.slice(0, width)
+  const textVisibleLen = visibleLength(text)
+  const padding = width - textVisibleLen
+
+  // If text is too long, truncate it properly (handles markdown)
+  if (padding < 0) {
+    return truncateToVisibleWidth(text, width)
+  }
 
   switch (align) {
     case 'center': {
@@ -187,35 +231,50 @@ function padCell(text: string, width: number, align: ColumnAlignment): string {
 }
 
 /**
+ * Break a long word into chunks that fit within width
+ * Strips markdown to avoid breaking mid-marker
+ */
+function breakLongWord(word: string, width: number): string[] {
+  const stripped = stripInlineMarkdown(word)
+  const chunks: string[] = []
+  for (let i = 0; i < stripped.length; i += width) {
+    chunks.push(stripped.slice(i, i + width))
+  }
+  return chunks.length > 0 ? chunks : [stripped]
+}
+
+/**
  * Wrap text to fit within a given width
+ * Uses visible length (excluding markdown markers) for width calculations
  */
 function wrapText(text: string, width: number): string[] {
   if (width <= 0) return [text]
-  if (text.length <= width) return [text]
+  if (visibleLength(text) <= width) return [text]
 
   const lines: string[] = []
   const words = text.split(' ')
   let currentLine = ''
 
   for (const word of words) {
+    const wordVisibleLen = visibleLength(word)
+    const currentLineVisibleLen = visibleLength(currentLine)
+
     if (currentLine.length === 0) {
-      // First word - if too long, break it
-      if (word.length > width) {
-        for (let i = 0; i < word.length; i += width) {
-          lines.push(word.slice(i, i + width))
-        }
+      // First word - if too long, break it into chunks
+      if (wordVisibleLen > width) {
+        const chunks = breakLongWord(word, width)
+        lines.push(...chunks)
       } else {
         currentLine = word
       }
-    } else if (currentLine.length + 1 + word.length <= width) {
+    } else if (currentLineVisibleLen + 1 + wordVisibleLen <= width) {
       currentLine += ' ' + word
     } else {
       lines.push(currentLine)
       // Handle word longer than width
-      if (word.length > width) {
-        for (let i = 0; i < word.length; i += width) {
-          lines.push(word.slice(i, i + width))
-        }
+      if (wordVisibleLen > width) {
+        const chunks = breakLongWord(word, width)
+        lines.push(...chunks)
         currentLine = ''
       } else {
         currentLine = word

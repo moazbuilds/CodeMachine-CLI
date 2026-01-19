@@ -12,12 +12,39 @@ import { useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
 import { useUIState } from "../../context/ui-state"
 import { parseMarkdownTable, renderBoxTable } from "./markdown-table"
+import { parseInlineMarkdown } from "./log-line"
 
 export interface LogTableProps {
   /** Raw markdown table lines */
   lines: string[]
   /** Optional max width constraint */
   maxWidth?: number
+}
+
+// Box-drawing characters for detecting borders
+const BORDER_CHARS = new Set(['┌', '┐', '└', '┘', '┬', '┴', '├', '┤', '┼', '─', '│'])
+
+/**
+ * Parse a line into border and content segments for styling
+ */
+function parseLineSegments(line: string): { text: string; isBorder: boolean }[] {
+  const segments: { text: string; isBorder: boolean }[] = []
+  let current = ''
+  let isBorder = false
+
+  for (const char of line) {
+    const charIsBorder = BORDER_CHARS.has(char)
+    if (charIsBorder !== isBorder && current) {
+      segments.push({ text: current, isBorder })
+      current = ''
+    }
+    isBorder = charIsBorder
+    current += char
+  }
+  if (current) {
+    segments.push({ text: current, isBorder })
+  }
+  return segments
 }
 
 /**
@@ -50,16 +77,46 @@ export function LogTable(props: LogTableProps) {
     <box flexDirection="column">
       <For each={renderedLines()}>
         {(line, index) => {
+          const segments = parseLineSegments(line)
           // First line (header row after top border) gets bold
           const isHeaderRow = () => index() === 1 && renderedLines().length > 3
 
           return (
-            <text
-              fg={themeCtx.theme.text}
-              attributes={isHeaderRow() ? TextAttributes.BOLD : TextAttributes.NONE}
-            >
-              {line}
-            </text>
+            <box flexDirection="row">
+              <For each={segments}>
+                {(segment) => {
+                  // For border segments, render as-is
+                  if (segment.isBorder) {
+                    return (
+                      <text
+                        fg={themeCtx.theme.textMuted}
+                        attributes={TextAttributes.NONE}
+                      >
+                        {segment.text}
+                      </text>
+                    )
+                  }
+                  // For content segments, parse inline markdown
+                  const inlineSegments = parseInlineMarkdown(segment.text)
+                  return (
+                    <For each={inlineSegments}>
+                      {(inline) => (
+                        <text
+                          fg={inline.code ? themeCtx.theme.purple : themeCtx.theme.text}
+                          attributes={
+                            (isHeaderRow() || inline.bold)
+                              ? TextAttributes.BOLD
+                              : TextAttributes.NONE
+                          }
+                        >
+                          {inline.text}
+                        </text>
+                      )}
+                    </For>
+                  )
+                }}
+              </For>
+            </box>
           )
         }}
       </For>
@@ -93,52 +150,47 @@ export function LogTableStyled(props: LogTableProps & { borderColor?: number }) 
     return renderBoxTable(parsed, maxWidth())
   })
 
-  // Detect which parts of a line are borders vs content
-  const parseLine = (line: string) => {
-    const segments: { text: string; isBorder: boolean }[] = []
-    let current = ''
-    let isBorder = false
-    const borderChars = new Set(['┌', '┐', '└', '┘', '┬', '┴', '├', '┤', '┼', '─', '│'])
-
-    for (const char of line) {
-      const charIsBorder = borderChars.has(char)
-      if (charIsBorder !== isBorder && current) {
-        segments.push({ text: current, isBorder })
-        current = ''
-      }
-      isBorder = charIsBorder
-      current += char
-    }
-    if (current) {
-      segments.push({ text: current, isBorder })
-    }
-    return segments
-  }
-
   return (
     <box flexDirection="column">
       <For each={renderedLines()}>
         {(line, index) => {
-          const segments = parseLine(line)
+          const segments = parseLineSegments(line)
           const isHeaderRow = () => index() === 1 && renderedLines().length > 3
 
           return (
             <box flexDirection="row">
               <For each={segments}>
-                {(segment) => (
-                  <text
-                    fg={segment.isBorder
-                      ? (props.borderColor ?? themeCtx.theme.textMuted)
-                      : themeCtx.theme.text
-                    }
-                    attributes={isHeaderRow() && !segment.isBorder
-                      ? TextAttributes.BOLD
-                      : TextAttributes.NONE
-                    }
-                  >
-                    {segment.text}
-                  </text>
-                )}
+                {(segment) => {
+                  // For border segments, render as-is
+                  if (segment.isBorder) {
+                    return (
+                      <text
+                        fg={props.borderColor ?? themeCtx.theme.textMuted}
+                        attributes={TextAttributes.NONE}
+                      >
+                        {segment.text}
+                      </text>
+                    )
+                  }
+                  // For content segments, parse inline markdown
+                  const inlineSegments = parseInlineMarkdown(segment.text)
+                  return (
+                    <For each={inlineSegments}>
+                      {(inline) => (
+                        <text
+                          fg={inline.code ? themeCtx.theme.purple : themeCtx.theme.text}
+                          attributes={
+                            (isHeaderRow() || inline.bold)
+                              ? TextAttributes.BOLD
+                              : TextAttributes.NONE
+                          }
+                        >
+                          {inline.text}
+                        </text>
+                      )}
+                    </For>
+                  )
+                }}
               </For>
             </box>
           )
