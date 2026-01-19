@@ -259,9 +259,9 @@ export async function runControllerView(
   const resolvedEngine = await selectEngine(stepLike, emitter, controller.id);
   debug('[ControllerView] Resolved engine: %s', resolvedEngine);
 
-  // Resolve model from definition override or engine default
+  // Resolve model from definition override, agent config, or engine default
   const engineModule = registry.get(resolvedEngine);
-  const resolvedModel = definition.options?.model ?? engineModule?.metadata.defaultModel;
+  const resolvedModel = definition.options?.model ?? controller.model ?? engineModule?.metadata.defaultModel;
   debug('[ControllerView] Resolved model: %s', resolvedModel);
 
   // Emit controller info BEFORE execution so UI shows it immediately
