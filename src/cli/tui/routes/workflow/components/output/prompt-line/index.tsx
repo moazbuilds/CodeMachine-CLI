@@ -153,7 +153,7 @@ export function PromptLine(props: PromptLineProps) {
     if (props.state.mode === "chained") {
       return {
         index: props.state.index + 1,
-        name: props.state.name,
+        name: props.state.nextStepName,
         description: props.state.description,
         total: props.state.total,
       }

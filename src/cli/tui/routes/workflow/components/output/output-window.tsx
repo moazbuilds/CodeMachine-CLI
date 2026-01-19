@@ -253,11 +253,19 @@ export function OutputWindow(props: OutputWindowProps) {
       // Has queued prompts = show chained UI
       if (inputState.queuedPrompts && inputState.queuedPrompts.length > 0) {
         const idx = inputState.currentIndex ?? 0
-        const prompt = inputState.queuedPrompts[idx]
+        const nextPrompt = inputState.queuedPrompts[idx]
+        // Current prompt is the previous one in the queue (idx - 1), next prompt is at idx
+        const currentPrompt = idx > 0 ? inputState.queuedPrompts[idx - 1] : null
+        // Strip "Step XX - " prefix to avoid redundancy with "Step X/Y:"
+        const currentRawName = currentPrompt?.name ?? nextPrompt?.name ?? "current step"
+        const currentCleanName = currentRawName.replace(/^Step\s+\d+\s*[-:]\s*/i, "")
+        const nextRawName = nextPrompt?.name ?? "next step"
+        const nextCleanName = nextRawName.replace(/^Step\s+\d+\s*[-:]\s*/i, "")
         return {
           mode: "chained",
-          name: prompt?.name ?? "next step",
-          description: prompt?.label ?? "",
+          name: currentCleanName,
+          nextStepName: nextCleanName,
+          description: nextPrompt?.label ?? "",
           index: idx + 1,
           total: inputState.queuedPrompts.length,
         }
@@ -271,11 +279,16 @@ export function OutputWindow(props: OutputWindowProps) {
       // Preserve chained step info even when agent is working
       if (inputState?.queuedPrompts && inputState.queuedPrompts.length > 0) {
         const idx = inputState.currentIndex ?? 0
-        const prompt = inputState.queuedPrompts[idx]
+        const nextPrompt = inputState.queuedPrompts[idx]
+        // Current prompt is the previous one in the queue (idx - 1), next prompt is at idx
+        const currentPrompt = idx > 0 ? inputState.queuedPrompts[idx - 1] : null
+        // Strip "Step XX - " prefix to avoid redundancy with "Step X/Y:"
+        const rawName = currentPrompt?.name ?? nextPrompt?.name ?? "current step"
+        const cleanName = rawName.replace(/^Step\s+\d+\s*[-:]\s*/i, "")
         return {
           mode: "passive",
           chainedStep: {
-            name: prompt?.name ?? "next step",
+            name: cleanName,
             index: idx + 1,
             total: inputState.queuedPrompts.length,
           },
