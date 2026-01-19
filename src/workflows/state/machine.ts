@@ -124,6 +124,7 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
     steps: [],
     currentOutput: null,
     autoMode: false,
+    hasController: false,
     paused: false,
     cwd: process.cwd(),
     cmRoot: '',
@@ -154,11 +155,15 @@ export function createWorkflowMachine(initialContext: Partial<WorkflowContext> =
         on: {
           STEP_COMPLETE: [
             // Controller mode -> delegated state
+            // For interactive steps, requires a controller to be configured
+            // For non-interactive steps (interactive: false), controller is not needed (scenarios 5-6)
             {
               target: 'delegated',
               guard: (ctx) => {
                 const step = ctx.steps[ctx.currentStepIndex];
-                return ctx.autoMode && !ctx.paused && step?.interactive !== false;
+                const isInteractive = step?.interactive !== false;
+                // Interactive steps need a controller; non-interactive steps can be fully autonomous
+                return ctx.autoMode && !ctx.paused && (ctx.hasController || !isInteractive);
               },
               action: (ctx, event) => {
                 if (event.type === 'STEP_COMPLETE') {

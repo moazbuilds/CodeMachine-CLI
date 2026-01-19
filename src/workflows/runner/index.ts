@@ -215,17 +215,23 @@ export class WorkflowRunner implements RunnerContext {
   async run(): Promise<void> {
     debug('[Runner] Starting workflow');
 
-    // Load initial auto mode state
+    // Load initial auto mode and controller state
     // autoMode can work without controller for non-interactive steps (Scenarios 5-6)
-    // For interactive steps without controller, controller provider delegates to user input
+    // For interactive steps, controller is required to enter delegated state
     const controllerState = await loadControllerConfig(this.cmRoot);
     // Check for string 'true' or 'always' (autonomous mode)
     const isAutoMode = controllerState?.autonomousMode === 'true' || controllerState?.autonomousMode === 'always';
+    const hasController = controllerState?.controllerConfig != null;
+
     if (isAutoMode) {
       this.mode.enableAutoMode();
       // Sync machine context with mode state
       this.machine.context.autoMode = true;
     }
+
+    // Set controller availability for FSM guard
+    this.machine.context.hasController = hasController;
+    debug('[Runner] Controller state: autoMode=%s, hasController=%s', isAutoMode, hasController);
 
     // Start the machine
     this.machine.send({ type: 'START' });

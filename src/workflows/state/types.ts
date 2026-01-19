@@ -61,6 +61,9 @@ export interface WorkflowContext {
   // Input mode
   autoMode: boolean;
 
+  // Controller availability (for FSM guard)
+  hasController: boolean;
+
   // Pause state
   paused: boolean;
 
