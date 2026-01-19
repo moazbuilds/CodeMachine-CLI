@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 
 import { CLI_ROOT_CANDIDATES, debugLog, loadAgents } from './discovery.js';
-import { ensureDir, ensureSpecificationsTemplate, mirrorAgentsToJson } from './fs-utils.js';
+import { ensureDir, mirrorAgentsToJson } from './fs-utils.js';
 import { getImportRoots } from '../../../shared/imports/index.js';
 
 export type WorkspaceStructureOptions = {
@@ -48,8 +48,8 @@ export async function ensureWorkspaceStructure(options?: WorkspaceStructureOptio
     ensureDir(logsDir)
   ]);
 
-  // Ensure specifications template exists (do not overwrite if present)
-  await ensureSpecificationsTemplate(inputsDir);
+  // Note: specifications.md is only created when template.specification === true
+  // See validateSpecification() in validation.ts
 }
 
 /**

@@ -50,19 +50,6 @@ export function slugify(value: unknown): string {
     .replace(/(^-|-$)/g, '');
 }
 
-export async function ensureSpecificationsTemplate(inputsDir: string): Promise<void> {
-  const specPath = path.join(inputsDir, 'specifications.md');
-  try {
-    await readFile(specPath, 'utf8');
-    return; // exists, do not overwrite
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-  }
-
-  const template = `# Project Specifications\n\n- Describe goals, constraints, and context.\n- Link any relevant docs or tickets.\n- This file is created by workspace bootstrap and can be safely edited.\n`;
-  await writeFile(specPath, template, 'utf8');
-}
-
 export async function mirrorAgentsToJson(
   agentsDir: string,
   agents: AgentDefinition[],
