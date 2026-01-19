@@ -7,13 +7,17 @@
  */
 
 import { createMemo, For } from "solid-js"
-import { TextAttributes, type RGBA } from "@opentui/core"
+import { TextAttributes } from "@opentui/core"
+import { useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
+import { useUIState } from "../../context/ui-state"
 import { parseMarkdownTable, renderBoxTable } from "./markdown-table"
 
 export interface LogTableProps {
   /** Raw markdown table lines */
   lines: string[]
+  /** Optional max width constraint */
+  maxWidth?: number
 }
 
 /**
@@ -21,15 +25,25 @@ export interface LogTableProps {
  */
 export function LogTable(props: LogTableProps) {
   const themeCtx = useTheme()
+  const dimensions = useTerminalDimensions()
+  const ui = useUIState()
 
-  // Parse and render the table
+  // Calculate max width for table (same pattern as LogLine)
+  const maxWidth = createMemo(() => {
+    if (props.maxWidth) return props.maxWidth
+    const termWidth = dimensions()?.width ?? 120
+    const isFullWidth = ui.state().timelineCollapsed || ui.state().view === 'controller'
+    const widthRatio = isFullWidth ? 1 : 0.65
+    return Math.floor(termWidth * widthRatio) - 6
+  })
+
+  // Parse and render the table with responsive wrapping
   const renderedLines = createMemo(() => {
     const parsed = parseMarkdownTable(props.lines)
     if (!parsed) {
-      // Fallback to original lines if parsing fails
       return props.lines
     }
-    return renderBoxTable(parsed)
+    return renderBoxTable(parsed, maxWidth())
   })
 
   return (
@@ -37,7 +51,6 @@ export function LogTable(props: LogTableProps) {
       <For each={renderedLines()}>
         {(line, index) => {
           // First line (header row after top border) gets bold
-          // Box characters get muted color, content gets normal color
           const isHeaderRow = () => index() === 1 && renderedLines().length > 3
 
           return (
@@ -59,13 +72,25 @@ export function LogTable(props: LogTableProps) {
  */
 export function LogTableStyled(props: LogTableProps & { borderColor?: number }) {
   const themeCtx = useTheme()
+  const dimensions = useTerminalDimensions()
+  const ui = useUIState()
 
+  // Calculate max width for table (same pattern as LogLine)
+  const maxWidth = createMemo(() => {
+    if (props.maxWidth) return props.maxWidth
+    const termWidth = dimensions()?.width ?? 120
+    const isFullWidth = ui.state().timelineCollapsed || ui.state().view === 'controller'
+    const widthRatio = isFullWidth ? 1 : 0.65
+    return Math.floor(termWidth * widthRatio) - 6
+  })
+
+  // Parse and render the table with responsive wrapping
   const renderedLines = createMemo(() => {
     const parsed = parseMarkdownTable(props.lines)
     if (!parsed) {
       return props.lines
     }
-    return renderBoxTable(parsed)
+    return renderBoxTable(parsed, maxWidth())
   })
 
   // Detect which parts of a line are borders vs content

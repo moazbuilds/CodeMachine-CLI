@@ -187,6 +187,77 @@ function padCell(text: string, width: number, align: ColumnAlignment): string {
 }
 
 /**
+ * Wrap text to fit within a given width
+ */
+function wrapText(text: string, width: number): string[] {
+  if (width <= 0) return [text]
+  if (text.length <= width) return [text]
+
+  const lines: string[] = []
+  const words = text.split(' ')
+  let currentLine = ''
+
+  for (const word of words) {
+    if (currentLine.length === 0) {
+      // First word - if too long, break it
+      if (word.length > width) {
+        for (let i = 0; i < word.length; i += width) {
+          lines.push(word.slice(i, i + width))
+        }
+      } else {
+        currentLine = word
+      }
+    } else if (currentLine.length + 1 + word.length <= width) {
+      currentLine += ' ' + word
+    } else {
+      lines.push(currentLine)
+      // Handle word longer than width
+      if (word.length > width) {
+        for (let i = 0; i < word.length; i += width) {
+          lines.push(word.slice(i, i + width))
+        }
+        currentLine = ''
+      } else {
+        currentLine = word
+      }
+    }
+  }
+
+  if (currentLine.length > 0) {
+    lines.push(currentLine)
+  }
+
+  return lines.length > 0 ? lines : ['']
+}
+
+/**
+ * Constrain column widths to fit within maxWidth
+ * Distributes space proportionally, respecting minimum width
+ */
+function constrainColumnWidths(widths: number[], maxWidth: number): number[] {
+  const columnCount = widths.length
+  // Account for borders: │ col │ col │ = columnCount + 1 borders + 2 padding per cell
+  const borderOverhead = columnCount + 1 + (columnCount * 2)
+  const availableForContent = maxWidth - borderOverhead
+
+  if (availableForContent <= 0) {
+    // Extreme case - just use minimum widths
+    return widths.map(() => 3)
+  }
+
+  const totalNaturalWidth = widths.reduce((a, b) => a + b, 0)
+
+  if (totalNaturalWidth <= availableForContent) {
+    // Fits naturally, no constraint needed
+    return widths
+  }
+
+  // Shrink proportionally
+  const ratio = availableForContent / totalNaturalWidth
+  return widths.map(w => Math.max(3, Math.floor(w * ratio)))
+}
+
+/**
  * Render a horizontal line (top, middle, or bottom)
  */
 function renderHorizontalLine(
@@ -201,7 +272,7 @@ function renderHorizontalLine(
 }
 
 /**
- * Render a data row with cell content
+ * Render a data row with cell content (single line)
  */
 function renderDataRow(
   cells: string[],
@@ -217,10 +288,50 @@ function renderDataRow(
 }
 
 /**
- * Render a parsed table as box-drawing strings
+ * Render a data row with wrapped cell content (multiple lines)
  */
-export function renderBoxTable(table: ParsedTable): string[] {
-  const { headers, alignments, rows, columnWidths } = table
+function renderWrappedDataRow(
+  cells: string[],
+  widths: number[],
+  alignments: ColumnAlignment[]
+): string[] {
+  // Wrap each cell's content
+  const wrappedCells = widths.map((width, i) => {
+    const cell = cells[i] || ''
+    return wrapText(cell, width)
+  })
+
+  // Find max line count
+  const maxLines = Math.max(...wrappedCells.map(c => c.length))
+
+  // Render each line
+  const outputLines: string[] = []
+  for (let lineIdx = 0; lineIdx < maxLines; lineIdx++) {
+    const paddedCells = widths.map((width, colIdx) => {
+      const cellLines = wrappedCells[colIdx]
+      const text = cellLines[lineIdx] || ''
+      const align = alignments[colIdx] || 'left'
+      return ' ' + padCell(text, width, align) + ' '
+    })
+    outputLines.push(BOX.vertical + paddedCells.join(BOX.vertical) + BOX.vertical)
+  }
+
+  return outputLines
+}
+
+/**
+ * Render a parsed table as box-drawing strings
+ * @param table - Parsed table data
+ * @param maxWidth - Optional max width constraint for responsive wrapping
+ */
+export function renderBoxTable(table: ParsedTable, maxWidth?: number): string[] {
+  const { headers, alignments, rows, columnWidths: naturalWidths } = table
+
+  // Apply width constraint if provided
+  const columnWidths = maxWidth
+    ? constrainColumnWidths(naturalWidths, maxWidth)
+    : naturalWidths
+
   const lines: string[] = []
 
   // Top border
@@ -234,7 +345,7 @@ export function renderBoxTable(table: ParsedTable): string[] {
 
   // Header row (if present)
   if (headers.length > 0) {
-    lines.push(renderDataRow(headers, columnWidths, alignments))
+    lines.push(...renderWrappedDataRow(headers, columnWidths, alignments))
     // Header separator
     lines.push(renderHorizontalLine(
       columnWidths,
@@ -247,7 +358,7 @@ export function renderBoxTable(table: ParsedTable): string[] {
 
   // Data rows
   rows.forEach((row, index) => {
-    lines.push(renderDataRow(row, columnWidths, alignments))
+    lines.push(...renderWrappedDataRow(row, columnWidths, alignments))
     // Add separator between rows (except after last row)
     if (index < rows.length - 1) {
       lines.push(renderHorizontalLine(
@@ -309,12 +420,14 @@ export function groupLinesWithTables(lines: string[]): LineGroup[] {
 /**
  * Convert markdown table lines directly to box-drawing lines
  * Convenience function that combines parsing and rendering
+ * @param lines - Raw markdown table lines
+ * @param maxWidth - Optional max width constraint for responsive wrapping
  */
-export function markdownTableToBox(lines: string[]): string[] {
+export function markdownTableToBox(lines: string[], maxWidth?: number): string[] {
   const parsed = parseMarkdownTable(lines)
   if (!parsed) {
     // If parsing fails, return original lines
     return lines
   }
-  return renderBoxTable(parsed)
+  return renderBoxTable(parsed, maxWidth)
 }
