@@ -168,7 +168,7 @@ export async function getTemplatePathFromTracking(cmRoot: string): Promise<strin
 
   if (!activeTemplate) {
     // No template tracked, return default
-    return path.join(templatesDir, 'bmad.workflow.js');
+    return path.join(templatesDir, 'ali.workflow.js');
   }
 
   // First check local templates directory
