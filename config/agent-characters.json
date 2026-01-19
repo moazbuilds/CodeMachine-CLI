@@ -77,29 +77,7 @@
     }
   },
   "agents": {
-    "bmad-analyst": "friendly",
-    "bmad-pm": "analytical",
-    "bmad-ux": "cheerful",
-    "bmad-architect": "analytical",
-    "bmad-epics": "analytical",
-    "bmad-tea": "precise",
-    "bmad-readiness": "precise",
-    "bmad-sprints": "cheerful",
-    "bmad-stories": "cheerful",
-    "bmad-dev": "technical",
-    "bmad-po": "analytical",
-    "cm-workflow-builder": "friendly",
-    "init": "friendly",
-    "principal-analyst": "analytical",
-    "blueprint-orchestrator": "analytical",
-    "plan-agent": "analytical",
-    "task-breakdown": "technical",
-    "context-manager": "technical",
-    "code-generation": "technical",
-    "task-sanity-check": "precise",
-    "runtime-prep": "technical",
-    "git-commit": "technical",
-    "plan-fallback": "analytical"
+    "cm-workflow-builder": "friendly"
   },
   "defaultPersona": "friendly"
 }
