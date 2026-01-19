@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import '../src/shared/runtime/suppress-baseline-warning.js';
-import { mkdirSync, rmSync, cpSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
+import { mkdirSync, rmSync, cpSync, readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { platform, arch } from 'node:os';
+import { platform, arch, homedir } from 'node:os';
 import { $ } from 'bun';
 
 // Simple ANSI colors
@@ -42,6 +42,13 @@ const mainVersion = mainPackage.version;
 console.log(`\n${bold}${cyan}╭────────────────────────────────────────╮${reset}`);
 console.log(`${bold}${cyan}│${reset}  Building ${bold}CodeMachine${reset} v${mainVersion}  ${bold}${cyan}│${reset}`);
 console.log(`${bold}${cyan}╰────────────────────────────────────────╯${reset}\n`);
+
+// Clean cached resources for this version to ensure fresh extraction on next run
+const cachedResourcesDir = join(homedir(), '.codemachine', 'resources', mainVersion);
+if (existsSync(cachedResourcesDir)) {
+  rmSync(cachedResourcesDir, { recursive: true, force: true });
+  console.log(`${green}✓${reset} ${dim}Cleaned cached resources at ${cachedResourcesDir}${reset}`);
+}
 
 // Collect resource files for embedding and generate a manifest that imports them.
 function collectFiles(dir: string): string[] {
