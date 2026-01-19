@@ -105,7 +105,7 @@ export async function runControllerView(
     debug('[ControllerView] Recovery: originalControllerView=%s', originalControllerView);
 
     if (originalControllerView) {
-      // Resume to controller view - wait for user to trigger workflow:controller-continue
+      // Resume to controller view - set up conversation loop for existing session
       await setAutonomousMode(cmRoot, 'never');
       emitter.setWorkflowView('controller');
       emitter.updateControllerStatus('awaiting');
@@ -114,14 +114,89 @@ export async function runControllerView(
         monitoringId: existingConfig.controllerConfig.monitoringId,
       });
 
-      debug('[ControllerView] Recovery: waiting for workflow:controller-continue');
-      await new Promise<void>((resolve) => {
-        const onContinue = () => {
+      debug('[ControllerView] Recovery: starting conversation loop for existing session');
+
+      // Conversation loop for recovery - handles both workflow:input and workflow:controller-continue
+      await new Promise<void>((resolve, reject) => {
+        const controllerConfig = {
+          agentId: existingConfig.controllerConfig!.agentId,
+          sessionId: existingConfig.controllerConfig!.sessionId,
+          monitoringId: existingConfig.controllerConfig!.monitoringId,
+          engine: controllerAgent?.engine,
+          model: controllerAgent?.modelName,
+        };
+
+        const cleanup = () => {
+          ;(process as NodeJS.EventEmitter).off('workflow:input', onInput);
           ;(process as NodeJS.EventEmitter).off('workflow:controller-continue', onContinue);
+        };
+
+        const onInput = async (data: { prompt?: string; skip?: boolean }) => {
+          debug('[ControllerView] Recovery: received input: prompt="%s" skip=%s',
+            data.prompt?.slice(0, 50) ?? '(empty)', data.skip ?? false);
+
+          // Skip signal means user wants to end controller view
+          if (data.skip) {
+            debug('[ControllerView] Recovery: skip signal - ending conversation');
+            cleanup();
+            resolve();
+            return;
+          }
+
+          // Empty prompt means user is done
+          if (!data.prompt || data.prompt.trim() === '') {
+            debug('[ControllerView] Recovery: empty prompt - ending conversation');
+            cleanup();
+            resolve();
+            return;
+          }
+
+          // Run conversation turn
+          emitter.updateControllerStatus('running');
+          emitter.setInputState(null);
+
+          try {
+            // Log input and execute agent
+            const formatted = formatUserInput(data.prompt);
+            AgentLoggerService.getInstance().write(controllerConfig.monitoringId, `\n${formatted}\n`);
+
+            // Add USER prefix with system username so controller knows input source
+            const prefixedPrompt = controllerPrefixUser(os.userInfo().username, data.prompt);
+
+            await executeAgent(controllerConfig.agentId, prefixedPrompt, {
+              workingDir: cwd,
+              resumeSessionId: controllerConfig.sessionId,
+              resumePrompt: prefixedPrompt,
+              resumeMonitoringId: controllerConfig.monitoringId,
+              engine: controllerConfig.engine,
+              model: controllerConfig.model,
+            });
+
+            // After response, go back to awaiting input
+            emitter.updateControllerStatus('awaiting');
+            emitter.setInputState({
+              active: true,
+              monitoringId: controllerConfig.monitoringId,
+            });
+            debug('[ControllerView] Recovery: turn complete, waiting for next input');
+          } catch (error) {
+            debug('[ControllerView] Recovery: error during conversation: %s', (error as Error).message);
+            cleanup();
+            reject(error);
+          }
+        };
+
+        const onContinue = () => {
+          debug('[ControllerView] Recovery: received controller-continue signal');
+          cleanup();
           resolve();
         };
+
+        ;(process as NodeJS.EventEmitter).on('workflow:input', onInput);
         ;(process as NodeJS.EventEmitter).on('workflow:controller-continue', onContinue);
       });
+
+      debug('[ControllerView] Recovery: conversation loop ended, transitioning to executing view');
 
       // User triggered continue - transition to executing
       emitter.setInputState(null);
