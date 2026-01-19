@@ -109,8 +109,7 @@ function readLogFileIncremental(
     if (currentSize < state.lastFileSize) {
       logDebug('File truncated, doing full read. Old size: %d, new size: %d', state.lastFileSize, currentSize)
       const content = readFileSync(path, "utf-8")
-      // Filter empty lines to match incremental read behavior
-      const lines = content.split("\n").filter(line => line !== '')
+      const lines = content.split("\n")
       state.lastFileSize = currentSize
       state.lastLineCount = lines.length
       return {
@@ -124,9 +123,8 @@ function readLogFileIncremental(
     // For small files, just do a full read (simpler and fast enough)
     if (currentSize < INCREMENTAL_THRESHOLD_BYTES) {
       const content = readFileSync(path, "utf-8")
-      // Filter empty lines to match incremental read behavior
-      const lines = content.split("\n").filter(line => line !== '')
-      const newLinesCount = Math.max(0, lines.length - state.lastLineCount)
+      const lines = content.split("\n")
+      const newLinesCount = lines.length - state.lastLineCount
       state.lastFileSize = currentSize
       state.lastLineCount = lines.length
       return {
@@ -182,7 +180,6 @@ function readLogFileIncremental(
 
 /**
  * Read entire log file (used for initial load or after truncation)
- * Filters empty lines to match incremental read behavior
  */
 function readLogFileFull(path: string): string[] {
   try {
@@ -190,7 +187,7 @@ function readLogFileFull(path: string): string[] {
       return []
     }
     const content = readFileSync(path, "utf-8")
-    return content.split("\n").filter(line => line !== '')
+    return content.split("\n")
   } catch {
     return []
   }
@@ -502,9 +499,8 @@ export function useLogStream(
           const currentFileSize = getFileSize(logPath)
 
           // Update incremental state
-          // IMPORTANT: Track RAW line count, not filtered, to match readLogFileIncremental
           incrementalState.lastFileSize = currentFileSize
-          incrementalState.lastLineCount = fileLines.length
+          incrementalState.lastLineCount = filteredLines.length
 
           // Update windowed state
           const trimCount = Math.max(0, filteredLines.length - maxWindow)
