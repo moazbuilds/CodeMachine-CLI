@@ -37,7 +37,7 @@ let accumulatedThinking = '';
 /**
  * Formats a Cursor stream-json line for display
  */
-function formatStreamJsonLine(line: string): string | null {
+function formatStreamJsonLine(line: string): string[] | null {
   try {
     const json = JSON.parse(line);
 
@@ -49,7 +49,7 @@ function formatStreamJsonLine(line: string): string | null {
 
     // Handle user messages (request started)
     if (json.type === 'user' && json.message) {
-      return formatStatus('Cursor is analyzing your request...');
+      return [formatStatus('Cursor is analyzing your request...')];
     }
 
     // Handle root-level thinking messages (Grok and other models)
@@ -64,7 +64,7 @@ function formatStreamJsonLine(line: string): string | null {
         if (accumulatedThinking) {
           const result = formatThinking(accumulatedThinking);
           accumulatedThinking = ''; // Reset for next thinking block
-          return result;
+          return [result];
         }
         return null;
       }
@@ -80,7 +80,7 @@ function formatStreamJsonLine(line: string): string | null {
 
       if (json.subtype === 'started') {
         // Show tool starting
-        return formatCommand(toolName, 'started');
+        return [formatCommand(toolName, 'started')];
       } else if (json.subtype === 'completed') {
         // Show tool completed with result (like OpenCode's tool_use)
         const toolData = toolCallObj?.[toolKey!];
@@ -90,7 +90,7 @@ function formatStreamJsonLine(line: string): string | null {
           const errorMsg = typeof result.error === 'string'
             ? result.error
             : (result.error?.message || JSON.stringify(result.error));
-          return formatCommand(toolName, 'error') + '\n' + formatResult(errorMsg, true);
+          return [formatCommand(toolName, 'error') + '\n' + formatResult(errorMsg, true)];
         } else if (result?.success !== undefined) {
           // Get a preview of the success result
           let preview: string;
@@ -105,30 +105,33 @@ function formatStreamJsonLine(line: string): string | null {
             const successStr = JSON.stringify(success);
             preview = successStr.length > 150 ? successStr.substring(0, 150) + '...' : successStr;
           }
-          return formatCommand(toolName, 'success') + '\n' + formatResult(preview || 'done', false);
+          return [formatCommand(toolName, 'success') + '\n' + formatResult(preview || 'done', false)];
         }
         // Fallback for unknown result format
-        return formatCommand(toolName, 'success');
+        return [formatCommand(toolName, 'success')];
       }
     }
 
     // Handle assistant messages
     if (json.type === 'assistant' && json.message?.content) {
+      const parts: string[] = [];
       for (const content of json.message.content) {
         if (content.type === 'text') {
-          return content.text;
+          parts.push(content.text);
         } else if (content.type === 'thinking') {
-          return formatThinking(content.text);
+          parts.push(formatThinking(content.text));
         } else if (content.type === 'tool_use') {
           // Track tool name for later use with result
           if (content.id && content.name) {
             toolNameMap.set(content.id, content.name);
           }
           const commandName = content.name || 'tool';
-          return formatCommand(commandName, 'started');
+          parts.push(formatCommand(commandName, 'started'));
         }
       }
+      return parts.length > 0 ? parts : null;
     } else if (json.type === 'user' && json.message?.content) {
+      const parts: string[] = [];
       for (const content of json.message.content) {
         if (content.type === 'tool_result') {
           // Get tool name from map
@@ -144,7 +147,7 @@ function formatStreamJsonLine(line: string): string | null {
           if (content.is_error) {
             preview = typeof content.content === 'string' ? content.content : JSON.stringify(content.content);
             // Show command in red with nested error
-            return formatCommand(commandName, 'error') + '\n' + formatResult(preview, true);
+            parts.push(formatCommand(commandName, 'error') + '\n' + formatResult(preview, true));
           } else {
             if (typeof content.content === 'string') {
               const trimmed = content.content.trim();
@@ -155,12 +158,13 @@ function formatStreamJsonLine(line: string): string | null {
               preview = JSON.stringify(content.content);
             }
             // Show command in green with nested result
-            return formatCommand(commandName, 'success') + '\n' + formatResult(preview, false);
+            parts.push(formatCommand(commandName, 'success') + '\n' + formatResult(preview, false));
           }
         }
       }
+      return parts.length > 0 ? parts : null;
     } else if (json.type === 'result') {
-      return `⏱️  Duration: ${json.duration_ms}ms | Cost: $${json.total_cost_usd} | Tokens: ${json.usage.input_tokens}in/${json.usage.output_tokens}out`;
+      return [`⏱️  Duration: ${json.duration_ms}ms | Cost: $${json.total_cost_usd} | Tokens: ${json.usage.input_tokens}in/${json.usage.output_tokens}out`];
     }
 
     return null;
@@ -255,8 +259,11 @@ export async function runCursor(options: RunCursorOptions): Promise<RunCursorRes
             }
 
             const formatted = formatStreamJsonLine(line);
-            if (formatted) {
-              onData?.(formatted + '\n');
+            if (formatted?.length) {
+              for (const part of formatted) {
+                if (!part) continue;
+                onData?.(part + '\n');
+              }
             }
           }
         },

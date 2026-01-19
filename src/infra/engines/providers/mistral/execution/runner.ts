@@ -84,7 +84,7 @@ const toolNameMap = new Map<string, string>();
 /**
  * Formats a Mistral stream-json line for display
  */
-function formatStreamJsonLine(line: string): string | null {
+function formatStreamJsonLine(line: string): string[] | null {
   try {
     const json = JSON.parse(line);
 
@@ -103,25 +103,27 @@ function formatStreamJsonLine(line: string): string | null {
           }
           results.push(formatCommand(toolName, 'started'));
         }
-        return results.join('\n');
+        return results;
       }
 
       // Handle text content
       if (typeof content === 'string' && content.trim()) {
-        return content;
+        return [content];
       } else if (Array.isArray(content)) {
+        const parts: string[] = [];
         for (const block of content) {
           if (block.type === 'text' && block.text) {
-            return block.text;
+            parts.push(block.text);
           } else if (block.type === 'thinking' && block.text) {
-            return formatThinking(block.text);
+            parts.push(formatThinking(block.text));
           } else if (block.type === 'tool_use') {
             if (block.id && block.name) {
               toolNameMap.set(block.id, block.name);
             }
-            return formatCommand(block.name || 'tool', 'started');
+            parts.push(formatCommand(block.name || 'tool', 'started'));
           }
         }
+        return parts.length > 0 ? parts : null;
       }
     } else if (role === 'tool') {
       // Handle tool results
@@ -141,10 +143,11 @@ function formatStreamJsonLine(line: string): string | null {
       } else {
         preview = JSON.stringify(toolContent);
       }
-      return formatCommand(toolName, 'success') + '\n' + formatResult(preview, false);
+      return [formatCommand(toolName, 'success') + '\n' + formatResult(preview, false)];
     } else if (role === 'user') {
       // Handle user messages with tool results
       if (Array.isArray(content)) {
+        const parts: string[] = [];
         for (const block of content) {
           if (block.type === 'tool_result') {
             const toolName = block.tool_use_id ? toolNameMap.get(block.tool_use_id) : undefined;
@@ -157,7 +160,7 @@ function formatStreamJsonLine(line: string): string | null {
             let preview: string;
             if (block.is_error) {
               preview = typeof block.content === 'string' ? block.content : JSON.stringify(block.content);
-              return formatCommand(commandName, 'error') + '\n' + formatResult(preview, true);
+              parts.push(formatCommand(commandName, 'error') + '\n' + formatResult(preview, true));
             } else {
               if (typeof block.content === 'string') {
                 const trimmed = block.content.trim();
@@ -167,14 +170,15 @@ function formatStreamJsonLine(line: string): string | null {
               } else {
                 preview = JSON.stringify(block.content);
               }
-              return formatCommand(commandName, 'success') + '\n' + formatResult(preview, false);
+              parts.push(formatCommand(commandName, 'success') + '\n' + formatResult(preview, false));
             }
           }
         }
+        return parts.length > 0 ? parts : null;
       }
     } else if (role === 'system' || (json.type === 'system' && json.subtype === 'init')) {
       // Show status message when session starts
-      return formatStatus('Mistral is analyzing your request...');
+      return [formatStatus('Mistral is analyzing your request...')];
     } else if (json.type === 'result' || json.usage) {
       // Handle telemetry/result messages
       // Calculate total input tokens (non-cached + cached)
@@ -187,7 +191,7 @@ function formatStreamJsonLine(line: string): string | null {
       const durationStr = formatDuration(json.duration_ms);
       const costStr = formatCost(json.total_cost_usd);
       const tokensStr = formatTokens(totalIn, json.usage?.output_tokens || 0, totalCached > 0 ? totalCached : undefined);
-      return addMarker('GRAY', `${SYMBOL_BULLET} `, 'DIM') + `${durationStr} ${addMarker('GRAY', '│', 'DIM')} ${costStr} ${addMarker('GRAY', '│', 'DIM')} ${tokensStr}`;
+      return [addMarker('GRAY', `${SYMBOL_BULLET} `, 'DIM') + `${durationStr} ${addMarker('GRAY', '│', 'DIM')} ${costStr} ${addMarker('GRAY', '│', 'DIM')} ${tokensStr}`];
     }
 
     return null;
@@ -317,8 +321,11 @@ export async function runMistral(options: RunMistralOptions): Promise<RunMistral
             }
 
             const formatted = formatStreamJsonLine(line);
-            if (formatted) {
-              onData?.(formatted + '\n');
+            if (formatted?.length) {
+              for (const part of formatted) {
+                if (!part) continue;
+                onData?.(part + '\n');
+              }
             }
           }
         },
@@ -424,4 +431,3 @@ export async function runMistral(options: RunMistralOptions): Promise<RunMistral
     stderr: result.stderr,
   };
 }
-
