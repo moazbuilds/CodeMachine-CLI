@@ -7,6 +7,7 @@
  * - Attributes: bold, dim, italic, underline, inverse, strikethrough
  * - Combined markers: [GREEN:BOLD], [RED:UNDERLINE,BOLD], etc.
  * - Line prefix formatting: * for bold highlight, - for bullet points
+ * - Markdown headings: # (cyan+bold), ## (bold), ### (bold+dim)
  *
  * Uses the enhanced parseMarker system for professional CLI output.
  */
@@ -36,6 +37,18 @@ function detectLinePrefix(text: string): { type: 'star' | 'bullet' | null; conte
     return { type: 'bullet', content: indentStr + trimmed.slice(2) }
   }
   return { type: null, content: text }
+}
+
+/**
+ * Detect markdown heading level for special formatting
+ * Returns: level 1-3 for headings, null otherwise
+ */
+function detectHeading(text: string): { level: 1 | 2 | 3 | null; content: string } {
+  const match = text.match(/^(#{1,3})\s+(.+)$/)
+  if (match) {
+    return { level: match[1].length as 1 | 2 | 3, content: match[2] }
+  }
+  return { level: null, content: text }
 }
 
 /**
@@ -165,8 +178,15 @@ export function LogLine(props: LogLineProps) {
   // Detect line prefix after marker parsing
   const prefixInfo = createMemo(() => detectLinePrefix(parsed().text))
 
-  // Map marker colors to theme colors
+  // Detect markdown headings
+  const headingInfo = createMemo(() => detectHeading(prefixInfo().content))
+
+  // Map marker colors to theme colors (headings override)
   const lineColor = createMemo(() => {
+    // H1 headings get cyan/info color
+    if (headingInfo().level === 1) {
+      return themeCtx.theme.info
+    }
     const color = parsed().color
     switch (color) {
       case "green": return themeCtx.theme.success
@@ -187,18 +207,27 @@ export function LogLine(props: LogLineProps) {
   // Check if this is controller output (blue) - show with distinct background
   const isControllerOutput = () => parsed().color === "blue"
 
-  // Compute text attributes bitmask (add bold for star prefix)
+  // Compute text attributes bitmask (add bold for star prefix and headings)
   const textAttrs = createMemo(() => {
     let attrs = getTextAttributes(parsed())
     if (prefixInfo().type === 'star') {
       attrs |= TextAttributes.BOLD
     }
+    // All headings get bold, H3 also gets dim
+    const level = headingInfo().level
+    if (level !== null) {
+      attrs |= TextAttributes.BOLD
+      if (level === 3) {
+        attrs |= TextAttributes.DIM
+      }
+    }
     return attrs
   })
 
-  // Strip ANSI codes from display text
+  // Strip ANSI codes from display text (use heading content if detected)
   const displayText = createMemo(() => {
-    let text = prefixInfo().content
+    // Use heading content (without #) if it's a heading, otherwise use prefix content
+    let text = headingInfo().level !== null ? headingInfo().content : prefixInfo().content
     // Strip any remaining ANSI codes
     // eslint-disable-next-line no-control-regex
     text = text.replace(/\x1b\[[0-9;]*m/g, "")
@@ -265,7 +294,14 @@ export function LogLineInline(props: { line: string }) {
   // Detect line prefix after marker parsing
   const prefixInfo = createMemo(() => detectLinePrefix(parsed().text))
 
+  // Detect markdown headings
+  const headingInfo = createMemo(() => detectHeading(prefixInfo().content))
+
   const lineColor = createMemo(() => {
+    // H1 headings get cyan/info color
+    if (headingInfo().level === 1) {
+      return themeCtx.theme.info
+    }
     const color = parsed().color
     switch (color) {
       case "green": return themeCtx.theme.success
@@ -280,17 +316,26 @@ export function LogLineInline(props: { line: string }) {
     }
   })
 
-  // Compute text attributes bitmask (add bold for star prefix)
+  // Compute text attributes bitmask (add bold for star prefix and headings)
   const textAttrs = createMemo(() => {
     let attrs = getTextAttributes(parsed())
     if (prefixInfo().type === 'star') {
       attrs |= TextAttributes.BOLD
     }
+    // All headings get bold, H3 also gets dim
+    const level = headingInfo().level
+    if (level !== null) {
+      attrs |= TextAttributes.BOLD
+      if (level === 3) {
+        attrs |= TextAttributes.DIM
+      }
+    }
     return attrs
   })
 
   const displayText = createMemo(() => {
-    let text = prefixInfo().content
+    // Use heading content (without #) if it's a heading, otherwise use prefix content
+    let text = headingInfo().level !== null ? headingInfo().content : prefixInfo().content
     // eslint-disable-next-line no-control-regex
     text = text.replace(/\x1b\[[0-9;]*m/g, "")
     return text
