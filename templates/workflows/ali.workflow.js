@@ -1,5 +1,5 @@
 export default {
-  name: 'CM Workflow Builder',
+  name: 'Ali | The CM Guy',
   autonomousMode: 'never',
   steps: [
     resolveStep('cm-workflow-builder', {engine: 'claude'}),
