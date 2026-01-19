@@ -249,8 +249,9 @@ export async function runControllerView(
   const { registry } = await import('../../infra/engines/index.js');
 
   // Create a step-like object for selectEngine
+  // Priority: workflow template options > agent config > first authenticated engine
   const stepLike = {
-    engine: definition.options?.engine,
+    engine: definition.options?.engine ?? controller.engine,
     agentId: controller.id,
     agentName: (controller.name as string | undefined) ?? controller.id,
   };
