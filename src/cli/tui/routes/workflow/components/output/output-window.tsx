@@ -111,10 +111,17 @@ export function OutputWindow(props: OutputWindowProps) {
         // Trigger load when near the top (within 3 lines) - skip if already loading
         if (scrollTop <= 3 && props.hasMoreAbove && props.onLoadMore && !props.isLoadingEarlier) {
           debug('[OutputWindow] Loading earlier lines...')
+          const scrollHeightBefore = ref.scrollHeight
           const linesLoaded = props.onLoadMore()
           debug('[OutputWindow] Lines loaded: %d', linesLoaded)
           if (linesLoaded > 0) {
-            ref.scrollTop = linesLoaded  // Maintain view position
+            // SolidJS updates DOM synchronously, so we can measure and adjust immediately
+            const scrollHeightAfter = ref.scrollHeight
+            const heightAdded = scrollHeightAfter - scrollHeightBefore
+            // Maintain view position with small slack to prevent immediate re-trigger
+            const slack = 5
+            ref.scrollTop = scrollTop + heightAdded + slack
+            debug('[OutputWindow] Scroll adjusted: heightAdded=%d, slack=%d, newScrollTop=%d', heightAdded, slack, ref.scrollTop)
           }
         }
       }
