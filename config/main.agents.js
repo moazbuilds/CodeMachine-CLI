@@ -8,7 +8,7 @@ module.exports = [
   // ========================================
   {
     id: 'cm-workflow-builder',
-    name: 'Ali [Workflow Builder]',
+    name: 'Ali | The CM Guy',
     description: 'CodeMachine workflow builder for creating agents, prompts, and workflows',
     promptPath: [
       path.join(promptsDir, 'ali', 'ali.md'),

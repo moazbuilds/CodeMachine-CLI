@@ -195,9 +195,24 @@ export function OutputWindow(props: OutputWindowProps) {
     return "idle"
   }
 
-  // Get character face and phrase based on agent ID and derived activity
+  // Get character face based on agent ID and derived activity
   const currentFace = () => getFace(displayAgentId() ?? "default", derivedActivity())
-  const currentPhrase = () => getPhrase(displayAgentId() ?? "default", derivedActivity())
+
+  // Lock phrase when activity changes (avoid random re-selection on every render)
+  const [lockedPhrase, setLockedPhrase] = createSignal("")
+  let prevActivity: ActivityType | null = null
+  let prevAgentId: string | null = null
+  createEffect(() => {
+    const activity = derivedActivity()
+    const agentId = displayAgentId() ?? "default"
+    // Only get new random phrase when activity or agent actually changes
+    if (activity !== prevActivity || agentId !== prevAgentId) {
+      prevActivity = activity
+      prevAgentId = agentId
+      setLockedPhrase(getPhrase(agentId, activity))
+    }
+  })
+  const currentPhrase = () => lockedPhrase() || getPhrase(displayAgentId() ?? "default", derivedActivity())
 
   // Check if we have something to display (agent or controller in controller view)
   const hasDisplayContent = () => props.currentAgent != null || isControllerViewMode()
@@ -325,8 +340,8 @@ export function OutputWindow(props: OutputWindowProps) {
 
           <box flexDirection="row">
             <text fg={themeCtx.theme.border}>│  </text>
-            <Show when={isRunning() && props.latestThinking} fallback={<text fg={themeCtx.theme.textMuted}>↳ {currentPhrase()}</text>}>
-              <TypingText text={`↳ ${props.latestThinking}`} speed={30} />
+            <Show when={derivedActivity() !== "idle"} fallback={<text fg={themeCtx.theme.textMuted}>↳ {currentPhrase()}</text>}>
+              <TypingText text={`↳ ${currentPhrase()}`} speed={30} />
             </Show>
           </box>
           <text fg={themeCtx.theme.border}>╰─</text>
