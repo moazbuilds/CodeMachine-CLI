@@ -80,7 +80,7 @@ export interface LogLineProps {
 /**
  * Styled text segment from inline markdown parsing
  */
-interface TextSegment {
+export interface TextSegment {
   text: string
   bold?: boolean
   code?: boolean
@@ -90,7 +90,7 @@ interface TextSegment {
  * Parse inline markdown and return styled segments
  * Handles **bold** and `code` patterns
  */
-function parseInlineMarkdown(text: string): TextSegment[] {
+export function parseInlineMarkdown(text: string): TextSegment[] {
   const segments: TextSegment[] = []
   const regex = /(\*\*([^*]+)\*\*|`([^`]+)`)/g
   let lastIndex = 0
