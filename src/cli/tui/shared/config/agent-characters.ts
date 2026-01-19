@@ -115,8 +115,8 @@ export function loadAgentCharactersConfig(): AgentCharactersConfig {
     const baseConfig = loadCharactersFromPath(basePath)
     if (baseConfig) {
       config = baseConfig
-      debug('[Characters] Loaded base config from %s, personas=%o, agents=%o, default=%s',
-        basePath, Object.keys(config.personas), Object.keys(config.agents), config.defaultPersona)
+      debug('[Characters] Loaded base config from %s (%d personas, %d agents)',
+        basePath, Object.keys(config.personas).length, Object.keys(config.agents).length)
     }
   }
 
@@ -135,10 +135,10 @@ export function loadAgentCharactersConfig(): AgentCharactersConfig {
         }
         const importedConfig = loadCharactersFromPath(charactersPath)
         if (importedConfig) {
-          debug('[Characters] Merging import %s: personas=%o, agents=%o',
+          debug('[Characters] Merging import %s (%d personas, %d agents)',
             imp.name,
-            importedConfig.personas ? Object.keys(importedConfig.personas) : [],
-            importedConfig.agents ? Object.keys(importedConfig.agents) : [])
+            importedConfig.personas ? Object.keys(importedConfig.personas).length : 0,
+            importedConfig.agents ? Object.keys(importedConfig.agents).length : 0)
           // Namespace agent IDs and persona names with the import package name
           config = mergeCharactersConfigs(config, importedConfig, imp.name)
         } else {
@@ -153,8 +153,8 @@ export function loadAgentCharactersConfig(): AgentCharactersConfig {
     debug('[Characters] Error loading imports registry: %s', err)
   }
 
-  debug('[Characters] Final config: personas=%o, agents=%o, default=%s',
-    Object.keys(config.personas), Object.keys(config.agents), config.defaultPersona)
+  debug('[Characters] Final config: %d personas, %d agents, default=%s',
+    Object.keys(config.personas).length, Object.keys(config.agents).length, config.defaultPersona)
 
   cachedConfig = config
   return cachedConfig
@@ -192,7 +192,7 @@ function getDefaultConfig(): AgentCharactersConfig {
  * and finds namespaced agents (e.g., "bmad:bmad-analyst")
  */
 function resolveAgentId(agentId: string, agents: Record<string, string>): string | null {
-  debug('[Characters] resolveAgentId: input=%s, available agents=%o', agentId, Object.keys(agents))
+  debug('[Characters] resolveAgentId: input=%s (%d agents available)', agentId, Object.keys(agents).length)
 
   // 1. Try exact match first
   if (agents[agentId]) {
