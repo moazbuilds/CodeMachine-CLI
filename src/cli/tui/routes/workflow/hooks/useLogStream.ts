@@ -8,7 +8,7 @@
  * - Windowed line storage (memory efficient)
  */
 
-import { createSignal, createEffect, onCleanup } from "solid-js"
+import { createSignal, createEffect, onCleanup, on } from "solid-js"
 import { AgentMonitorService } from "../../../../../agents/monitoring/monitor.js"
 import type { AgentRecord } from "../../../../../agents/monitoring/types.js"
 import { existsSync, statSync, openSync, readSync, closeSync, readFileSync } from "fs"
@@ -225,6 +225,38 @@ interface WindowedLinesState {
 }
 
 /**
+ * Deduplicate new lines by checking for overlap with current lines
+ * Returns the portion of newLines that don't already exist at the end of current
+ */
+function deduplicateNewLines(currentLines: string[], newLines: string[]): string[] {
+  if (currentLines.length === 0 || newLines.length === 0) {
+    return newLines
+  }
+
+  // Check for overlap: find if any prefix of newLines matches the suffix of currentLines
+  // Start with larger potential overlaps and work down
+  const maxOverlap = Math.min(currentLines.length, newLines.length)
+
+  for (let overlapSize = maxOverlap; overlapSize > 0; overlapSize--) {
+    // Check if last 'overlapSize' lines of current match first 'overlapSize' of new
+    let isMatch = true
+    for (let i = 0; i < overlapSize; i++) {
+      const currentIdx = currentLines.length - overlapSize + i
+      if (currentLines[currentIdx] !== newLines[i]) {
+        isMatch = false
+        break
+      }
+    }
+    if (isMatch) {
+      logDebug('deduplicateNewLines: found overlap of %d lines, removing duplicates', overlapSize)
+      return newLines.slice(overlapSize)
+    }
+  }
+
+  return newLines
+}
+
+/**
  * Update windowed lines with new data, trimming from front if needed
  * @param skipTrim - If true, don't trim lines (used when user has scrolled away)
  */
@@ -246,8 +278,16 @@ function updateWindowedLines(
     }
   }
 
-  // Append new lines
-  const allLines = [...current.lines, ...newLines]
+  // Deduplicate new lines before appending
+  const dedupedNewLines = deduplicateNewLines(current.lines, newLines)
+
+  if (dedupedNewLines.length === 0) {
+    // All new lines were duplicates
+    return current
+  }
+
+  // Append deduplicated new lines
+  const allLines = [...current.lines, ...dedupedNewLines]
 
   // Trim from the front if exceeding window (unless skipTrim is true)
   if (!skipTrim && allLines.length > maxWindow) {
@@ -388,11 +428,12 @@ export function useLogStream(
     }
   }
 
-  createEffect(() => {
-    const agentId = opts.monitoringAgentId()
-    const agentStatus = opts.agentStatus?.()
-
-    logDebug('Effect triggered, agentId=%s status=%s', agentId, agentStatus)
+  // Use on() to explicitly track ONLY agentId changes, not status changes
+  // Status changes are handled within the polling loop to avoid full re-initialization
+  createEffect(on(
+    () => opts.monitoringAgentId(),
+    (agentId) => {
+    logDebug('Effect triggered, agentId=%s (status changes handled in polling loop)', agentId)
 
     if (agentId === undefined) {
       logDebug('No agentId, resetting state')
@@ -498,9 +539,10 @@ export function useLogStream(
           const thinking = extractLatestThinking(fileLines)
           const currentFileSize = getFileSize(logPath)
 
-          // Update incremental state
+          // Update incremental state - use RAW line count for consistency
+          // The incremental read function uses raw line counts to detect new lines
           incrementalState.lastFileSize = currentFileSize
-          incrementalState.lastLineCount = filteredLines.length
+          incrementalState.lastLineCount = fileLines.length
 
           // Update windowed state
           const trimCount = Math.max(0, filteredLines.length - maxWindow)
@@ -722,12 +764,10 @@ export function useLogStream(
           // Check if we need to adjust polling interval
           const newStatus = opts.agentStatus?.()
           if (newStatus !== lastStatus) {
-            // Immediate poll when transitioning TO running (from slow polling state)
-            if ((newStatus === 'running' || newStatus === 'retrying') &&
-                (lastStatus === 'paused' || lastStatus === 'awaiting' || lastStatus === 'pending' || lastStatus === 'delegated')) {
-              logDebug('Status changed to running, triggering immediate poll')
-              updateLogs(logPath)
-            }
+            // Status changed - just adjust the polling interval
+            // Don't do an extra updateLogs here since we just did one above
+            // The new polling interval will naturally handle faster updates
+            logDebug('Status changed from %s to %s, adjusting poll interval', lastStatus, newStatus)
             lastStatus = newStatus
             updatePollingInterval(logPath, newStatus)
           }
@@ -751,7 +791,7 @@ export function useLogStream(
         clearTimeout(graceTimeout)
       }
     })
-  })
+  }))
 
   return {
     get lines() {
