@@ -14,6 +14,7 @@ import { StatusBadge } from "@tui/shared/ui/status-badge"
 import { ImportDialog } from "../dialogs/import-dialog"
 import * as path from "node:path"
 import { HOME_COMMANDS } from "../config/commands"
+import {SelectMenu} from "@tui/shared/components/select-menu";
 
 export interface UseHomeCommandsOptions {
   onStartWorkflow?: () => void

@@ -109,8 +109,7 @@ function readLogFileIncremental(
     if (currentSize < state.lastFileSize) {
       logDebug('File truncated, doing full read. Old size: %d, new size: %d', state.lastFileSize, currentSize)
       const content = readFileSync(path, "utf-8")
-      // Filter empty lines to match incremental read behavior
-      const lines = content.split("\n").filter(line => line !== '')
+      const lines = content.split("\n")
       state.lastFileSize = currentSize
       state.lastLineCount = lines.length
       return {
@@ -124,8 +123,7 @@ function readLogFileIncremental(
     // For small files, just do a full read (simpler and fast enough)
     if (currentSize < INCREMENTAL_THRESHOLD_BYTES) {
       const content = readFileSync(path, "utf-8")
-      // Filter empty lines to match incremental read behavior
-      const lines = content.split("\n").filter(line => line !== '')
+      const lines = content.split("\n")
       const newLinesCount = Math.max(0, lines.length - state.lastLineCount)
       state.lastFileSize = currentSize
       state.lastLineCount = lines.length
@@ -160,7 +158,7 @@ function readLogFileIncremental(
         }
       }
 
-      const newLines = newContent.split('\n').filter(line => line !== '')
+      const newLines = newContent.split('\n')
 
       state.lastFileSize = currentSize
       state.lastLineCount += newLines.length
@@ -182,7 +180,6 @@ function readLogFileIncremental(
 
 /**
  * Read entire log file (used for initial load or after truncation)
- * Filters empty lines to match incremental read behavior
  */
 function readLogFileFull(path: string): string[] {
   try {
@@ -190,7 +187,7 @@ function readLogFileFull(path: string): string[] {
       return []
     }
     const content = readFileSync(path, "utf-8")
-    return content.split("\n").filter(line => line !== '')
+    return content.split("\n")
   } catch {
     return []
   }
@@ -393,9 +390,10 @@ export function useLogStream(
 
   createEffect(() => {
     const agentId = opts.monitoringAgentId()
-    const agentStatus = opts.agentStatus?.()
+    // NOTE: Don't access agentStatus here - it's tracked inside polling to avoid effect re-runs
+    // that would reset incrementalState and cause duplicate lines
 
-    logDebug('Effect triggered, agentId=%s status=%s', agentId, agentStatus)
+    logDebug('Effect triggered, agentId=%s', agentId)
 
     if (agentId === undefined) {
       logDebug('No agentId, resetting state')
