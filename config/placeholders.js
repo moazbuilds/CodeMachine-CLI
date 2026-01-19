@@ -8,5 +8,6 @@ module.exports = {
   packageDir: {
     // Ali Workflow Builder shared files
     ali_step_completion: path.join('prompts', 'templates', 'ali', 'shared', 'step-completion.md'),
+    ali_brain_methods: path.join('prompts', 'templates', 'ali', 'shared', 'brain-methods.csv'),
   }
 };

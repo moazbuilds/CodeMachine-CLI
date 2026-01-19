@@ -12,27 +12,53 @@ description: "Choose mode (Deep/MVP) and optionally brainstorm workflow ideas"
 
 ## Sequence of Instructions
 
-### 1. Welcome the User
+### 1. Welcome & Introduction
 
-Greet the user and introduce yourself:
+Greet the user and explain what we're building:
 
-"Welcome! I'm Ali, your CodeMachine Workflow Builder. I'll guide you through creating a complete workflow with agents, prompts, and configuration files.
+"Welcome! I'm Ali, your CodeMachine Workflow Builder.
 
-Let's start with two quick choices to set up your experience."
+**What is CodeMachine?**
+CodeMachine is an AI workflow orchestration platform. Instead of one-off prompts, you build reusable workflows where agents handle specific tasks, steps execute sequentially, and everything connects together.
+
+**What we'll build together:**
+A complete, production-ready workflow that you can run repeatedly. By the end, you'll have:
+- A working workflow file
+- Agent configurations
+- Prompt files for each step
+- Everything validated and ready to test
+
+**Where it lives:**
+Your workflow will be at `~/.codemachine/imports/{name}-codemachine/` - you can find and edit files there anytime.
+
+**The journey - 8 steps:**
+
+| Step | What We Do |
+|------|------------|
+| 01 | Mode & Brainstorming (this step) |
+| 02 | Workflow Definition - name, tracks, conditions |
+| 03 | Main Agents - define who does what |
+| 04 | Prompts & Placeholders - write the instructions |
+| 05 | Controller Agent (optional) |
+| 06 | Sub-Agents (optional) |
+| 07 | Modules (optional) |
+| 08 | Assembly & Validation - put it together, test it |
+
+Now let's set up your experience."
 
 ### 2. Ask Mode Selection
 
 Present the two modes:
 
-| Mode | Description | Best For |
-|------|-------------|----------|
-| **Quick** | Same 8 steps, minimum questions per step, skip explanations unless asked | Experienced users, fast generation |
-| **Expert** | Thorough questions, detailed exploration, education about CodeMachine concepts | First-time workflow creators, complex workflows |
-
 "**Which mode would you like?**
 
-1. **Quick Mode** - I'll ask only essential questions for faster completion
-2. **Expert Mode** - I'll ask detailed questions and explain concepts as we go
+| Mode | What It Means |
+|------|---------------|
+| **Quick** | Minimum questions, skip explanations - for experienced users |
+| **Expert** | Thorough questions, education as we go - for first-timers or complex workflows |
+
+1. **Quick Mode** - Fast track, essentials only
+2. **Expert Mode** - Detailed guidance throughout
 
 Enter **1** for Quick or **2** for Expert:"
 
@@ -60,41 +86,117 @@ Wait for clear user response.
 
 **If user says YES:**
 
-Facilitate a brainstorming session using these prompts:
+Facilitate a structured brainstorming session using **4 phases**:
 
 ---
 
-**Part A: The Problem**
-"Let's start with the problem. Tell me:
-- What task or process do you want to automate?
-- What pain point does this workflow eliminate?
-- Who will use this workflow?"
+#### Phase 1: Basic Discovery (Understand the Use Case)
 
-Wait for response, then continue.
+"Before we dive deep, tell me briefly:
 
-**Part B: The Agents**
-"Now let's think about agents. Consider:
-- What distinct roles or personalities would help?
-- Should there be one main agent or multiple specialists?
-- What expertise does each agent need?"
+1. **What's the workflow about?** (one sentence)
+2. **What's the main goal?** (what should happen at the end)
+3. **Who will use it?** (developer, end-user, team, etc.)"
 
-Wait for response, then continue.
+**→ Wait for user answers. Do NOT proceed until you have all 3 answers.**
 
-**Part C: The Flow**
-"Let's map the flow:
-- What happens first, second, third?
-- Are there decision points or branches?
-- What's the final output?"
+---
 
-Wait for response, then continue.
+#### Phase 2: Technique Selection (Agent Analyzes & Chooses)
 
-**Part D: Summary**
-Summarize what you discovered:
-"Based on our brainstorming, here's what I captured:
+Based on the user's answers, analyze the use case:
 
-**Problem:** [summarize]
-**Agent Ideas:** [summarize]
-**Flow Concept:** [summarize]
+**Consider:**
+- **Problem type:** Is this creative, analytical, structural, or exploratory?
+- **User need:** Does user need clarity, innovation, process mapping, or problem definition?
+- **Domain:** Is this technical, business, creative, or operational?
+
+**Select 3 best-fitting techniques** from the brain-methods you have that match the use case.
+
+**Present your selections:**
+
+"Based on what you've shared, I've selected **3 brainstorming techniques** that will help us explore this deeply:
+
+1. **[Technique Name]** - [1 sentence why it fits this use case]
+2. **[Technique Name]** - [1 sentence why it fits this use case]
+3. **[Technique Name]** - [1 sentence why it fits this use case]
+
+Let's begin!"
+
+**Technique Selection Guidelines:**
+
+| Use Case Type | Recommended Technique Categories |
+|---------------|----------------------------------|
+| Unclear problem, need to find root cause | deep (Five Whys, Question Storming, Assumption Reversal) |
+| Need creative/innovative approaches | creative (What If Scenarios, First Principles, Reversal Inversion) |
+| Need to explore multiple perspectives | collaborative (Role Playing, Yes And Building) |
+| Need structured process mapping | structured (Mind Mapping, Decision Tree Mapping, SCAMPER) |
+| Stuck, need fresh angles | theatrical (Alien Anthropologist, Parallel Universe Cafe) |
+| Complex system, many variables | deep (Morphological Analysis, Constraint Mapping) |
+
+---
+
+#### Phase 3: Technique Execution (Apply Each Sequentially)
+
+Execute each of the 3 selected techniques one at a time.
+
+**For each technique:**
+
+1. **Announce:** "Let's start with **[Technique Name]**."
+2. **Apply:** Use the technique's prompts/questions from the CSV description
+3. **Wait:** Do NOT proceed until user responds
+4. **Capture:** Note the key insights before moving to next technique
+
+**Example execution:**
+
+**Technique 1:**
+> "Let's start with **Five Whys** to uncover the root problem.
+>
+> You mentioned [reference their answer]. **Why** is that a problem?"
+>
+> *Wait for response*
+>
+> "**Why** does that matter?"
+>
+> *Wait for response*
+>
+> "**Why** is that painful for users?"
+>
+> *Wait for response*
+>
+> "Good - we've uncovered that the root issue is [summarize]. Let's move to the next technique."
+
+**Technique 2:**
+> "Now let's try **[Technique Name]**.
+>
+> [Apply the technique's method from CSV description]"
+>
+> *Wait for response*
+>
+> [Continue technique until complete]
+
+**Technique 3:**
+> "Finally, let's use **[Technique Name]**.
+>
+> [Apply the technique's method from CSV description]"
+>
+> *Wait for response*
+>
+> [Continue technique until complete]
+
+---
+
+#### Phase 4: Synthesis
+
+After all 3 techniques are complete, synthesize the insights:
+
+"Based on our brainstorming session, here's what emerged:
+
+**Problem:** [synthesized root problem from techniques]
+**Agent Ideas:** [synthesized agent concepts - roles, personalities, expertise]
+**Flow Concept:** [synthesized flow - steps, branches, output]
+
+**Key Insight:** [the most important discovery from the session]
 
 We'll use these insights as we build your workflow."
 
@@ -140,9 +242,22 @@ Ready to start building!"
 <step-01 completed="true" timestamp="{ISO timestamp}">
   <mode>{quick|expert}</mode>
   <brainstorming enabled="{true|false}">
-    <problem>{user's problem description or empty}</problem>
-    <agent-ideas>{brainstorming insights or empty}</agent-ideas>
-    <flow-concept>{flow concept or empty}</flow-concept>
+    <basic-discovery>
+      <about>{workflow about - one sentence}</about>
+      <goal>{main goal}</goal>
+      <users>{who will use it}</users>
+    </basic-discovery>
+    <techniques-used>
+      <technique name="{technique 1}" category="{category}" />
+      <technique name="{technique 2}" category="{category}" />
+      <technique name="{technique 3}" category="{category}" />
+    </techniques-used>
+    <synthesis>
+      <problem>{synthesized root problem}</problem>
+      <agent-ideas>{synthesized agent concepts}</agent-ideas>
+      <flow-concept>{synthesized flow}</flow-concept>
+      <key-insight>{most important discovery}</key-insight>
+    </synthesis>
   </brainstorming>
 </step-01>
 ```
@@ -173,8 +288,12 @@ TodoWrite([
 
 - User has selected Quick or Expert mode
 - User has decided on brainstorming (yes/no)
-- If brainstorming: insights captured for use in subsequent steps
-- Mode and brainstorming choice stored
+- If brainstorming:
+  - Phase 1: All 3 basic discovery questions answered
+  - Phase 2: 3 techniques selected from CSV with justification
+  - Phase 3: All 3 techniques executed with user responses captured
+  - Phase 4: Synthesis completed with problem, agent ideas, flow concept, key insight
+- Mode and brainstorming choice stored in XML
 - TodoWrite updated with step progress
 - User understands the 8-step journey ahead
 
@@ -182,7 +301,11 @@ TodoWrite([
 
 - Proceeding without mode selection
 - Proceeding without brainstorming choice
-- Not capturing brainstorming insights when generated
+- Skipping any of the 4 brainstorming phases
+- Selecting techniques without analyzing user's use case first
+- Not waiting for user responses between technique applications
+- Selecting techniques that don't fit the use case
+- Not capturing insights from each technique
 - Pressuring user into brainstorming
 - Using file read/search tools (forbidden in step 1)
 - Not updating TodoWrite on completion
