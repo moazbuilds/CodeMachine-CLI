@@ -209,10 +209,13 @@ function getFileSize(path: string): number {
 
 /**
  * Calculate window size based on visible lines
+ * Uses 3x multiplier to ensure smooth scrolling with large buffer
+ * This means we keep 3x the visible lines in memory, allowing seamless
+ * backward pagination without visible loading
  */
 function calculateWindowSize(visibleLineCount: number): number {
   const visible = visibleLineCount || 30
-  return Math.ceil(visible * 1.2) // 20% buffer
+  return Math.ceil(visible * 3) // 3x buffer for smooth pagination
 }
 
 /**
@@ -380,6 +383,9 @@ export function useLogStream(
    * Load earlier lines when user scrolls to top of windowed view
    * Returns the number of lines loaded (for scroll position adjustment)
    * Includes debouncing (won't load if already loading) and error handling
+   *
+   * Loads 2x the window size to ensure user has plenty of content above
+   * This creates a large buffer that makes pagination invisible to the user
    */
   function loadEarlierLines(): number {
     // Debounce: don't load if already loading
@@ -399,6 +405,7 @@ export function useLogStream(
 
     try {
       const visibleLines = opts.visibleLineCount?.() || 30
+      // Load 1x window size (which is already 3x visible) - balanced for smooth scrolling
       const linesToLoad = calculateWindowSize(visibleLines)
 
       // Read full file and filter

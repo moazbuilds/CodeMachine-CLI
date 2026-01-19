@@ -70,6 +70,8 @@ export function OutputWindow(props: OutputWindowProps) {
   const themeCtx = useTheme()
   const [scrollRef, setScrollRef] = createSignal<ScrollBoxRenderable | undefined>()
   const [userScrolledAway, setUserScrolledAway] = createSignal(false)
+  // Scroll lock prevents ALL scroll handling during content prepend operations
+  const [scrollLock, setScrollLock] = createSignal(false)
 
   // Reset userScrolledAway when agent changes
   // Use on() to explicitly track only the agent name, not other props
@@ -90,7 +92,17 @@ export function OutputWindow(props: OutputWindowProps) {
       debug('[OutputWindow] Scroll effect running, ref exists: %s', !!ref)
       if (!ref) return
 
+      // PRELOAD_THRESHOLD: Load earlier for smoother experience
+      // When user is 15 lines from top, start loading
+      const PRELOAD_THRESHOLD = 15
+
       const handleScrollChange = () => {
+        // Absolute lock during content prepend operations - prevents ALL interference
+        if (scrollLock()) {
+          debug('[OutputWindow] Scroll event ignored - scroll lock active')
+          return
+        }
+
         const scrollTop = ref.scrollTop
         const scrollHeight = ref.scrollHeight
         const viewportHeight = ref.height
@@ -108,13 +120,40 @@ export function OutputWindow(props: OutputWindowProps) {
           setUserScrolledAway(false)
         }
 
-        // Trigger load when near the top (within 3 lines) - skip if already loading
-        if (scrollTop <= 3 && props.hasMoreAbove && props.onLoadMore && !props.isLoadingEarlier) {
-          debug('[OutputWindow] Loading earlier lines...')
+        // Preload when near the top
+        if (scrollTop <= PRELOAD_THRESHOLD && props.hasMoreAbove && props.onLoadMore && !props.isLoadingEarlier) {
+          debug('[OutputWindow] Preloading earlier lines (scrollTop=%d, threshold=%d)...', scrollTop, PRELOAD_THRESHOLD)
+
+          // 1. Lock and detach listener to prevent any scroll events during operation
+          setScrollLock(true)
+          ref.verticalScrollBar?.off("change", handleScrollChange)
+
+          // 2. Capture current scroll position BEFORE loading
+          const originalScrollTop = scrollTop
+
+          // 3. Load content (this updates state and triggers re-render)
           const linesLoaded = props.onLoadMore()
           debug('[OutputWindow] Lines loaded: %d', linesLoaded)
+
           if (linesLoaded > 0) {
-            ref.scrollTop = linesLoaded  // Maintain view position
+            // 4. SYNCHRONOUS scroll adjustment - no async delay
+            // Set scroll position immediately in the same execution frame
+            // This prevents the flash by adjusting before the next paint
+            const newScrollTop = originalScrollTop + linesLoaded
+            ref.scrollTop = newScrollTop
+            debug('[OutputWindow] Scroll restored (sync): original=%d, added=%d, new=%d',
+              originalScrollTop, linesLoaded, ref.scrollTop)
+
+            // 5. Use setImmediate only for re-attaching listener (after scroll is stable)
+            setImmediate(() => {
+              ref.verticalScrollBar?.on("change", handleScrollChange)
+              setScrollLock(false)
+              debug('[OutputWindow] Scroll lock released, listener re-attached')
+            })
+          } else {
+            // No lines loaded, re-attach and unlock immediately
+            ref.verticalScrollBar?.on("change", handleScrollChange)
+            setScrollLock(false)
           }
         }
       }
@@ -126,7 +165,8 @@ export function OutputWindow(props: OutputWindowProps) {
   )
 
   // Compute whether stickyScroll should be active
-  const shouldStickyScroll = () => !userScrolledAway()
+  // Disable during scroll lock to prevent interference with scroll position restoration
+  const shouldStickyScroll = () => !userScrolledAway() && !scrollLock()
 
   // Notify parent when user scrolls away (to pause trimming in log stream)
   createEffect(
