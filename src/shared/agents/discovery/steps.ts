@@ -12,6 +12,14 @@ export type WorkflowAgentDefinition = {
   modelReasoningEffort?: 'low' | 'medium' | 'high';
 };
 
+/**
+ * Workflow file with source metadata for namespacing
+ */
+interface WorkflowFileWithSource {
+  filePath: string;
+  packageName: string | null;
+}
+
 function discoverWorkflowFiles(root: string): string[] {
   const baseDir = path.resolve(root, 'templates', 'workflows');
   if (!existsSync(baseDir)) {
@@ -25,9 +33,13 @@ function discoverWorkflowFiles(root: string): string[] {
 
 /**
  * Discover workflow files from all workflow directories including imports
+ * Returns files with their source package name for namespacing
  */
-function discoverAllWorkflowFiles(localRoot: string): string[] {
-  const allFiles: string[] = [];
+function discoverAllWorkflowFilesWithSource(
+  localRoot: string,
+  importPathToPackage: Map<string, string>
+): WorkflowFileWithSource[] {
+  const allFiles: WorkflowFileWithSource[] = [];
   const seenDirs = new Set<string>();
 
   // Get all workflow directories (imports + local)
@@ -37,40 +49,64 @@ function discoverAllWorkflowFiles(localRoot: string): string[] {
     if (seenDirs.has(dir) || !existsSync(dir)) continue;
     seenDirs.add(dir);
 
+    // Determine package name by checking if this dir is under an import root
+    let packageName: string | null = null;
+    for (const [importPath, pkgName] of importPathToPackage) {
+      if (dir.startsWith(importPath)) {
+        packageName = pkgName;
+        break;
+      }
+    }
+
     const files = readdirSync(dir)
       .filter((file) => file.endsWith('.workflow.js'))
-      .map((file) => path.resolve(dir, file));
+      .map((file) => ({
+        filePath: path.resolve(dir, file),
+        packageName,
+      }));
     allFiles.push(...files);
   }
 
   return allFiles;
 }
 
-export async function collectAgentsFromWorkflows(roots: string[]): Promise<WorkflowAgentDefinition[]> {
+/**
+ * Collect agent definitions from workflow templates
+ * @param roots - Root directories to search for workflows
+ * @param importPathToPackage - Map from import path to package name for namespacing (optional)
+ */
+export async function collectAgentsFromWorkflows(
+  roots: string[],
+  importPathToPackage?: Map<string, string>
+): Promise<WorkflowAgentDefinition[]> {
   const seenFiles = new Set<string>();
   const byId = new Map<string, WorkflowAgentDefinition>();
+  const pathToPackage = importPathToPackage ?? new Map<string, string>();
 
-  // Collect workflow files from all roots
-  const allWorkflowFiles: string[] = [];
+  // Collect workflow files from all roots with source tracking
+  const allWorkflowFiles: WorkflowFileWithSource[] = [];
 
   for (const root of roots) {
     if (!root) continue;
     const resolvedRoot = path.resolve(root);
 
-    // Use both traditional discovery and import-aware discovery
+    // Determine package name for this root
+    const packageName = pathToPackage.get(resolvedRoot) ?? null;
+
+    // Use traditional discovery for this root
     for (const filePath of discoverWorkflowFiles(resolvedRoot)) {
-      allWorkflowFiles.push(filePath);
+      allWorkflowFiles.push({ filePath, packageName });
     }
   }
 
-  // Also discover from all import directories (handles case where imports aren't in roots)
+  // Also discover from all import directories with source tracking
   if (roots.length > 0) {
-    const importFiles = discoverAllWorkflowFiles(roots[0]);
+    const importFiles = discoverAllWorkflowFilesWithSource(roots[0], pathToPackage);
     allWorkflowFiles.push(...importFiles);
   }
 
   // Process all discovered workflow files
-  for (const filePath of allWorkflowFiles) {
+  for (const { filePath, packageName } of allWorkflowFiles) {
     if (seenFiles.has(filePath)) continue;
     seenFiles.add(filePath);
 
@@ -85,10 +121,13 @@ export async function collectAgentsFromWorkflows(roots: string[]): Promise<Workf
           continue;
         }
 
-        const id = typeof step.agentId === 'string' ? step.agentId.trim() : '';
-        if (!id) {
+        const rawId = typeof step.agentId === 'string' ? step.agentId.trim() : '';
+        if (!rawId) {
           continue;
         }
+
+        // Namespace the ID if from an imported package
+        const id = packageName ? `${packageName}:${rawId}` : rawId;
 
         const existing = byId.get(id) ?? { id };
         byId.set(id, {

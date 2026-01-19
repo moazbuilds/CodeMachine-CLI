@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { collectAgentsFromWorkflows } from '../../../shared/agents/index.js';
 import { resolvePackageRoot } from '../../../shared/runtime/root.js';
+import { getImportRootsWithMetadata } from '../../../shared/imports/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,29 +41,52 @@ export function debugLog(...args: unknown[]): void {
 export type AgentDefinition = Record<string, unknown> & { mirrorPath?: string };
 export type LoadedAgent = AgentDefinition & { id: string; source?: 'main' | 'sub' | 'legacy' | 'workflow' };
 
+/**
+ * Module candidate with metadata for namespacing
+ */
+interface ModuleCandidate {
+  source: 'main' | 'sub' | 'legacy';
+  packageName: string | null;
+}
+
 export async function loadAgents(
   candidateRoots: string[],
   filterIds?: string[]
 ): Promise<{ allAgents: AgentDefinition[]; subAgents: AgentDefinition[] }> {
-  const candidateModules = new Map<string, 'main' | 'sub' | 'legacy'>();
+  // Build a map from import path to package name for namespacing
+  const importedRootsWithMeta = getImportRootsWithMetadata();
+  const importPathToPackage = new Map<string, string>();
+  for (const imp of importedRootsWithMeta) {
+    importPathToPackage.set(path.resolve(imp.path), imp.packageName);
+  }
+
+  const candidateModules = new Map<string, ModuleCandidate>();
 
   for (const root of candidateRoots) {
     if (!root) continue;
     const resolvedRoot = path.resolve(root);
+
+    // Determine if this root is from an import
+    const packageName = importPathToPackage.get(resolvedRoot) ?? null;
+
     for (const filename of AGENT_MODULE_FILENAMES) {
       const moduleCandidate = path.join(resolvedRoot, 'config', filename);
       const distCandidate = path.join(resolvedRoot, 'dist', 'config', filename);
 
-      const tag = filename === 'main.agents.js' ? 'main' : filename === 'sub.agents.js' ? 'sub' : 'legacy';
+      const source = filename === 'main.agents.js' ? 'main' : filename === 'sub.agents.js' ? 'sub' : 'legacy';
 
-      if (existsSync(moduleCandidate)) candidateModules.set(moduleCandidate, tag);
-      if (existsSync(distCandidate)) candidateModules.set(distCandidate, tag);
+      if (existsSync(moduleCandidate)) {
+        candidateModules.set(moduleCandidate, { source, packageName });
+      }
+      if (existsSync(distCandidate)) {
+        candidateModules.set(distCandidate, { source, packageName });
+      }
     }
   }
 
   const byId = new Map<string, LoadedAgent>();
 
-  for (const [modulePath, source] of candidateModules.entries()) {
+  for (const [modulePath, { source, packageName }] of candidateModules.entries()) {
     try {
       delete require.cache[require.resolve(modulePath)];
     } catch {
@@ -76,10 +100,14 @@ export async function loadAgents(
       if (!agent || typeof agent.id !== 'string') {
         continue;
       }
-      const id = agent.id.trim();
-      if (!id) {
+      const rawId = agent.id.trim();
+      if (!rawId) {
         continue;
       }
+
+      // Namespace the ID if from an imported package
+      const id = packageName ? `${packageName}:${rawId}` : rawId;
+
       const existing = byId.get(id);
       const sourceTag = existing?.source ?? source;
       const merged: LoadedAgent = {
@@ -92,7 +120,8 @@ export async function loadAgents(
     }
   }
 
-  const workflowAgents = await collectAgentsFromWorkflows(candidateRoots);
+  // Pass import path map for workflow agent namespacing
+  const workflowAgents = await collectAgentsFromWorkflows(candidateRoots, importPathToPackage);
   for (const agent of workflowAgents) {
     if (!agent || typeof agent.id !== 'string') continue;
     const id = agent.id.trim();
@@ -111,6 +140,7 @@ export async function loadAgents(
   const allAgents = Array.from(byId.values()).map(({ source: _source, ...agent }) => ({ ...agent }));
 
   // Filter sub-agents by IDs if filterIds is provided
+  // Note: filterIds should use namespaced IDs for imported agents
   const subAgents = Array.from(byId.values())
     .filter((agent) => {
       if (agent.source !== 'sub') return false;

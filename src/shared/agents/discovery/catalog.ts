@@ -9,7 +9,7 @@ import type { AgentDefinition } from '../config/types.js';
 import { AGENT_MODULE_FILENAMES } from '../config/types.js';
 import { resolvePackageRoot } from '../../runtime/root.js';
 import { debug } from '../../logging/logger.js';
-import { getImportRoots } from '../../imports/index.js';
+import { getImportRootsWithMetadata } from '../../imports/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -76,33 +76,50 @@ export function loadAgentsFromModule(modulePath: string): AgentDefinition[] {
 
 export async function collectAgentDefinitions(projectRoot: string): Promise<AgentDefinition[]> {
   debug('[AgentCatalog] collectAgentDefinitions called with projectRoot=%s', projectRoot);
-  const candidates = new Set<string>();
 
-  // Include imported package roots
-  const importedRoots = getImportRoots();
-  debug('[AgentCatalog] Found %d imported roots: %o', importedRoots.length, importedRoots);
+  // Track module candidates with their source package name (if from import)
+  const candidates = new Map<string, string | null>(); // modulePath -> packageName or null for local
 
-  const roots = [
+  // Get imported roots with package name metadata for namespacing
+  const importedRootsWithMeta = getImportRootsWithMetadata();
+  debug('[AgentCatalog] Found %d imported roots: %o', importedRootsWithMeta.length, importedRootsWithMeta);
+
+  // Build a map from resolved path to package name for quick lookups
+  const importPathToPackage = new Map<string, string>();
+  for (const imp of importedRootsWithMeta) {
+    importPathToPackage.set(path.resolve(imp.path), imp.packageName);
+  }
+
+  // Local roots (projectRoot and CLI roots) - no namespacing
+  const localRoots = [
     projectRoot,
     ...CLI_ROOT_CANDIDATES.filter((root) => root && root !== projectRoot),
-    ...importedRoots,
   ];
-  debug('[AgentCatalog] Searching roots: %o', roots);
 
-  for (const root of roots) {
+  // All roots for searching
+  const allRoots = [
+    ...localRoots,
+    ...importedRootsWithMeta.map((imp) => imp.path),
+  ];
+  debug('[AgentCatalog] Searching roots: %o', allRoots);
+
+  // Discover module candidates and track their source
+  for (const root of allRoots) {
     if (!root) continue;
     const resolvedRoot = path.resolve(root);
+    const packageName = importPathToPackage.get(resolvedRoot) ?? null;
+
     for (const filename of AGENT_MODULE_FILENAMES) {
       const moduleCandidate = path.join(resolvedRoot, 'config', filename);
       const distCandidate = path.join(resolvedRoot, 'dist', 'config', filename);
 
-      if (existsSync(moduleCandidate)) {
-        debug('[AgentCatalog] Found module candidate: %s', moduleCandidate);
-        candidates.add(moduleCandidate);
+      if (existsSync(moduleCandidate) && !candidates.has(moduleCandidate)) {
+        debug('[AgentCatalog] Found module candidate: %s (package: %s)', moduleCandidate, packageName ?? 'local');
+        candidates.set(moduleCandidate, packageName);
       }
-      if (existsSync(distCandidate)) {
-        debug('[AgentCatalog] Found dist candidate: %s', distCandidate);
-        candidates.add(distCandidate);
+      if (existsSync(distCandidate) && !candidates.has(distCandidate)) {
+        debug('[AgentCatalog] Found dist candidate: %s (package: %s)', distCandidate, packageName ?? 'local');
+        candidates.set(distCandidate, packageName);
       }
     }
   }
@@ -110,25 +127,35 @@ export async function collectAgentDefinitions(projectRoot: string): Promise<Agen
   debug('[AgentCatalog] Total module candidates: %d', candidates.size);
   const byId = new Map<string, AgentDefinition>();
 
-  for (const modulePath of candidates) {
+  // Load agents and namespace IDs for imports
+  for (const [modulePath, packageName] of candidates) {
     debug('[AgentCatalog] Loading agents from: %s', modulePath);
     const agents = loadAgentsFromModule(modulePath);
     debug('[AgentCatalog] Loaded %d agents from %s', agents.length, modulePath);
+
     for (const agent of agents) {
       if (!agent || typeof agent.id !== 'string') {
         continue;
       }
-      const id = agent.id.trim();
-      if (!id || byId.has(id)) {
+      const rawId = agent.id.trim();
+      if (!rawId) continue;
+
+      // Namespace the ID if from an imported package
+      const id = packageName ? `${packageName}:${rawId}` : rawId;
+
+      if (byId.has(id)) {
         continue;
       }
+      debug('[AgentCatalog] Registered agent: %s (raw: %s)', id, rawId);
       byId.set(id, { ...agent, id });
     }
   }
 
   debug('[AgentCatalog] After module loading: %d unique agents', byId.size);
   debug('[AgentCatalog] Collecting agents from workflows...');
-  const workflowAgents = await collectAgentsFromWorkflows(roots);
+
+  // Pass import metadata to workflow collection for namespacing
+  const workflowAgents = await collectAgentsFromWorkflows(allRoots, importPathToPackage);
   debug('[AgentCatalog] Found %d workflow agents', workflowAgents.length);
 
   for (const agent of workflowAgents) {
