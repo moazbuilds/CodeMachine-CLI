@@ -72,6 +72,8 @@ export function OutputWindow(props: OutputWindowProps) {
   const [userScrolledAway, setUserScrolledAway] = createSignal(false)
   // Scroll lock prevents ALL scroll handling during content prepend operations
   const [scrollLock, setScrollLock] = createSignal(false)
+  // Saved scroll position to restore after content updates when user has scrolled away
+  const [savedScrollTop, setSavedScrollTop] = createSignal<number | null>(null)
 
   // Reset userScrolledAway when agent changes
   // Use on() to explicitly track only the agent name, not other props
@@ -81,6 +83,26 @@ export function OutputWindow(props: OutputWindowProps) {
       (agentName) => {
         debug('[OutputWindow] Agent changed to: %s, resetting scroll state', agentName)
         setUserScrolledAway(false)
+        setSavedScrollTop(null)
+      }
+    )
+  )
+
+  // Restore scroll position after content changes when user has scrolled away
+  // This prevents the view from jumping when new lines are added
+  createEffect(
+    on(
+      () => props.lines.length, // Track when lines change
+      () => {
+        const ref = scrollRef()
+        const saved = savedScrollTop()
+        if (ref && userScrolledAway() && saved !== null && !scrollLock()) {
+          // Content changed while user is scrolled away - restore position
+          if (ref.scrollTop !== saved) {
+            debug('[OutputWindow] Restoring scroll position: current=%d, saved=%d', ref.scrollTop, saved)
+            ref.scrollTop = saved
+          }
+        }
       }
     )
   )
@@ -113,11 +135,16 @@ export function OutputWindow(props: OutputWindowProps) {
 
         // Track if user scrolled away from bottom (to disable stickyScroll)
         if (!isAtBottom && !userScrolledAway()) {
-          debug('[OutputWindow] User scrolled away from bottom')
+          debug('[OutputWindow] User scrolled away from bottom, saving scrollTop=%d', scrollTop)
           setUserScrolledAway(true)
+          setSavedScrollTop(scrollTop) // Save position to restore after content updates
         } else if (isAtBottom && userScrolledAway()) {
           debug('[OutputWindow] User returned to bottom')
           setUserScrolledAway(false)
+          setSavedScrollTop(null) // Clear saved position
+        } else if (userScrolledAway()) {
+          // User is scrolling while away from bottom - update saved position
+          setSavedScrollTop(scrollTop)
         }
 
         // Preload when near the top
