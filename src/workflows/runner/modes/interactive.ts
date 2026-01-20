@@ -177,7 +177,9 @@ export const interactiveHandler: ModeHandler = {
     }
 
     // Update agent status for user-facing scenarios
-    if (scenario.inputSource === 'user') {
+    // Also when controller scenario but no controller is configured (will delegate to user)
+    const noController = scenario.inputSource === 'controller' && !ctx.machine.context.hasController;
+    if (scenario.inputSource === 'user' || noController) {
       const status = StatusService.getInstance();
       status.awaiting(uniqueAgentId);
     }
@@ -189,8 +191,8 @@ export const interactiveHandler: ModeHandler = {
         : ctx.mode.getUserInput();
 
     // Emit input state for UI
-    // Active when: paused (waiting for user to resume), user input mode, or forced scenarios
-    const isActive = ctx.mode.paused || scenario.inputSource === 'user' || scenario.wasForced;
+    // Active when: paused (waiting for user to resume), user input mode, forced scenarios, or no controller
+    const isActive = ctx.mode.paused || scenario.inputSource === 'user' || scenario.wasForced || noController;
     emitInputState(ctx, scenario, isActive);
 
     // Get input from provider
