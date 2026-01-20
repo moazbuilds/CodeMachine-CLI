@@ -20,7 +20,7 @@ const STATIC_PLACEHOLDERS: Record<string, () => string> = {
 };
 
 // Context-dependent placeholders (loaded from template.json)
-const CONTEXT_PLACEHOLDERS = ['project_name'] as const;
+const CONTEXT_PLACEHOLDERS = ['project_name', 'selected_track', 'selected_conditions'] as const;
 
 /**
  * Gets built-in placeholder content.
@@ -42,6 +42,14 @@ export async function getBuiltInContent(
     return loadProjectName(cwd);
   }
 
+  if (name === 'selected_track') {
+    return loadSelectedTrack(cwd);
+  }
+
+  if (name === 'selected_conditions') {
+    return loadSelectedConditions(cwd);
+  }
+
   return null;
 }
 
@@ -53,9 +61,9 @@ export function isBuiltInPlaceholder(name: string): boolean {
 }
 
 /**
- * Loads project name from template.json
+ * Loads template.json data
  */
-async function loadProjectName(cwd: string): Promise<string | null> {
+async function loadTemplateData(cwd: string): Promise<Record<string, unknown> | null> {
   const templatePath = path.join(cwd, CM_FOLDER, TEMPLATE_FILE);
 
   if (!existsSync(templatePath)) {
@@ -64,9 +72,37 @@ async function loadProjectName(cwd: string): Promise<string | null> {
 
   try {
     const content = await readFile(templatePath, 'utf8');
-    const data = JSON.parse(content);
-    return data.projectName ?? null;
+    return JSON.parse(content);
   } catch {
     return null;
   }
+}
+
+/**
+ * Loads project name from template.json
+ */
+async function loadProjectName(cwd: string): Promise<string | null> {
+  const data = await loadTemplateData(cwd);
+  return (data?.projectName as string) ?? null;
+}
+
+/**
+ * Loads selected track from template.json
+ */
+async function loadSelectedTrack(cwd: string): Promise<string | null> {
+  const data = await loadTemplateData(cwd);
+  return (data?.selectedTrack as string) ?? null;
+}
+
+/**
+ * Loads selected conditions from template.json
+ * Returns comma-separated string
+ */
+async function loadSelectedConditions(cwd: string): Promise<string | null> {
+  const data = await loadTemplateData(cwd);
+  const conditions = data?.selectedConditions as string[] | undefined;
+  if (!conditions || conditions.length === 0) {
+    return null;
+  }
+  return conditions.join(', ');
 }
