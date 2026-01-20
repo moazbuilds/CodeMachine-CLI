@@ -164,6 +164,45 @@ export async function runCcr(options: RunCcrOptions): Promise<RunCcrResult> {
   // Track JSON error events (CCR may exit 0 even on errors)
   let capturedError: string | null = null;
   let sessionIdCaptured = false;
+  let stdoutBuffer = '';
+
+  const handleStreamLine = (line: string): void => {
+    if (!line.trim()) return;
+
+    // Capture telemetry data
+    telemetryCapture.captureFromStreamJson(line);
+
+    // Check for error events (CCR may exit 0 even on errors like invalid model)
+    try {
+      const json = JSON.parse(line);
+
+      // Capture session ID from first event that contains it
+      if (!sessionIdCaptured && json.session_id && onSessionId) {
+        sessionIdCaptured = true;
+        onSessionId(json.session_id);
+      }
+
+      // Check for error in result type
+      if (json.type === 'result' && json.is_error && json.result && !capturedError) {
+        capturedError = json.result;
+      }
+      // Check for error in assistant message
+      if (json.type === 'assistant' && json.error && !capturedError) {
+        const messageText = json.message?.content?.[0]?.text;
+        capturedError = messageText || json.error;
+      }
+    } catch {
+      // Ignore parse errors
+    }
+
+    const formatted = formatStreamJsonLine(line);
+    if (formatted?.length) {
+      for (const part of formatted) {
+        if (!part) continue;
+        onData?.(part + '\n');
+      }
+    }
+  };
 
   let result;
   try {
@@ -176,46 +215,12 @@ export async function runCcr(options: RunCcrOptions): Promise<RunCcrResult> {
       onStdout: inheritTTY
         ? undefined
         : (chunk) => {
-            const out = normalize(chunk);
+            stdoutBuffer += normalize(chunk);
 
-            // Format and display each JSON line
-            const lines = out.trim().split('\n');
+            const lines = stdoutBuffer.split('\n');
+            stdoutBuffer = lines.pop() ?? '';
             for (const line of lines) {
-              if (!line.trim()) continue;
-
-              // Capture telemetry data
-              telemetryCapture.captureFromStreamJson(line);
-
-              // Check for error events (CCR may exit 0 even on errors like invalid model)
-              try {
-                const json = JSON.parse(line);
-
-                // Capture session ID from first event that contains it
-                if (!sessionIdCaptured && json.session_id && onSessionId) {
-                  sessionIdCaptured = true;
-                  onSessionId(json.session_id);
-                }
-
-                // Check for error in result type
-                if (json.type === 'result' && json.is_error && json.result && !capturedError) {
-                  capturedError = json.result;
-                }
-                // Check for error in assistant message
-                if (json.type === 'assistant' && json.error && !capturedError) {
-                  const messageText = json.message?.content?.[0]?.text;
-                  capturedError = messageText || json.error;
-                }
-              } catch {
-                // Ignore parse errors
-              }
-
-              const formatted = formatStreamJsonLine(line);
-              if (formatted?.length) {
-                for (const part of formatted) {
-                  if (!part) continue;
-                  onData?.(part + '\n');
-                }
-              }
+              handleStreamLine(line);
             }
           },
       onStderr: inheritTTY
@@ -240,6 +245,11 @@ export async function runCcr(options: RunCcrOptions): Promise<RunCcrResult> {
       throw new Error(`'${command}' is not available on this system. Please install ${name} first:\n  ${install}`);
     }
     throw error;
+  }
+
+  if (stdoutBuffer.trim()) {
+    handleStreamLine(stdoutBuffer);
+    stdoutBuffer = '';
   }
 
   if (result.exitCode !== 0 || capturedError) {

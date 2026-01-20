@@ -185,6 +185,62 @@ export async function runClaude(options: RunClaudeOptions): Promise<RunClaudeRes
   // Track JSON error events (Claude may exit 0 even on errors)
   let capturedError: string | null = null;
   let sessionIdCaptured = false;
+  let stdoutBuffer = '';
+
+  const handleStreamLine = (line: string): void => {
+    if (!line.trim()) return;
+
+    // Capture telemetry data
+    telemetryCapture.captureFromStreamJson(line);
+
+    // Check for error events (Claude may exit 0 even on errors like invalid model)
+    try {
+      const json = JSON.parse(line);
+
+      // Capture session ID from first event that contains it
+      if (!sessionIdCaptured && json.session_id && onSessionId) {
+        sessionIdCaptured = true;
+        onSessionId(json.session_id);
+      }
+
+      // Check for error in result type
+      if (json.type === 'result' && json.is_error && json.result && !capturedError) {
+        capturedError = json.result;
+      }
+      // Check for error in assistant message
+      if (json.type === 'assistant' && json.error && !capturedError) {
+        const messageText = json.message?.content?.[0]?.text;
+        capturedError = messageText || json.error;
+      }
+    } catch {
+      // Ignore parse errors
+    }
+
+    // Emit telemetry event if captured and callback provided
+    if (onTelemetry) {
+      const captured = telemetryCapture.getCaptured();
+      if (captured && captured.tokens) {
+        // tokensIn should be TOTAL input tokens (non-cached + cached)
+        // to match the log output format
+        const totalIn = (captured.tokens.input ?? 0) + (captured.tokens.cached ?? 0);
+        onTelemetry({
+          tokensIn: totalIn,
+          tokensOut: captured.tokens.output ?? 0,
+          cached: captured.tokens.cached,
+          cost: captured.cost,
+          duration: captured.duration,
+        });
+      }
+    }
+
+    const formatted = formatStreamJsonLine(line);
+    if (formatted?.length) {
+      for (const part of formatted) {
+        if (!part) continue;
+        onData?.(part + '\n');
+      }
+    }
+  };
 
   let result;
   try {
@@ -197,63 +253,12 @@ export async function runClaude(options: RunClaudeOptions): Promise<RunClaudeRes
     onStdout: inheritTTY
       ? undefined
       : (chunk) => {
-          const out = normalize(chunk);
+          stdoutBuffer += normalize(chunk);
 
-          // Format and display each JSON line
-          const lines = out.trim().split('\n');
+          const lines = stdoutBuffer.split('\n');
+          stdoutBuffer = lines.pop() ?? '';
           for (const line of lines) {
-            if (!line.trim()) continue;
-
-            // Capture telemetry data
-            telemetryCapture.captureFromStreamJson(line);
-
-            // Check for error events (Claude may exit 0 even on errors like invalid model)
-            try {
-              const json = JSON.parse(line);
-
-              // Capture session ID from first event that contains it
-              if (!sessionIdCaptured && json.session_id && onSessionId) {
-                sessionIdCaptured = true;
-                onSessionId(json.session_id);
-              }
-
-              // Check for error in result type
-              if (json.type === 'result' && json.is_error && json.result && !capturedError) {
-                capturedError = json.result;
-              }
-              // Check for error in assistant message
-              if (json.type === 'assistant' && json.error && !capturedError) {
-                const messageText = json.message?.content?.[0]?.text;
-                capturedError = messageText || json.error;
-              }
-            } catch {
-              // Ignore parse errors
-            }
-
-            // Emit telemetry event if captured and callback provided
-            if (onTelemetry) {
-              const captured = telemetryCapture.getCaptured();
-              if (captured && captured.tokens) {
-                // tokensIn should be TOTAL input tokens (non-cached + cached)
-                // to match the log output format
-                const totalIn = (captured.tokens.input ?? 0) + (captured.tokens.cached ?? 0);
-                onTelemetry({
-                  tokensIn: totalIn,
-                  tokensOut: captured.tokens.output ?? 0,
-                  cached: captured.tokens.cached,
-                  cost: captured.cost,
-                  duration: captured.duration,
-                });
-              }
-            }
-
-            const formatted = formatStreamJsonLine(line);
-            if (formatted?.length) {
-              for (const part of formatted) {
-                if (!part) continue;
-                onData?.(part + '\n');
-              }
-            }
+            handleStreamLine(line);
           }
         },
     onStderr: inheritTTY
@@ -276,6 +281,11 @@ export async function runClaude(options: RunClaudeOptions): Promise<RunClaudeRes
       throw new Error(`'${command}' is not available on this system. Please install ${name} first:\n  ${install}`);
     }
     throw error;
+  }
+
+  if (stdoutBuffer.trim()) {
+    handleStreamLine(stdoutBuffer);
+    stdoutBuffer = '';
   }
 
   // Check for errors - Claude may exit with code 0 even on errors (e.g., invalid model)

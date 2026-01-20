@@ -184,6 +184,56 @@ export async function runCodex(options: RunCodexOptions): Promise<RunCodexResult
 
   // Track JSON error events (Codex may exit 0 even on errors)
   let capturedError: string | null = null;
+  let stdoutBuffer = '';
+
+  const handleStreamLine = (line: string): void => {
+    if (!line.trim()) return;
+
+    // Capture telemetry data
+    telemetryCapture.captureFromStreamJson(line);
+
+    // Capture session_id from thread.started event and check for errors
+    try {
+      const json = JSON.parse(line);
+      if (json.type === 'thread.started' && json.thread_id) {
+        debug(`[SESSION_ID CAPTURED] ${json.thread_id}`);
+        if (onSessionId) {
+          onSessionId(json.thread_id);
+        }
+      }
+      // Capture error events (Codex exits 0 even on errors like invalid model)
+      if (json.type === 'error' && json.message && !capturedError) {
+        capturedError = json.message;
+      }
+      if (json.type === 'turn.failed' && json.error?.message && !capturedError) {
+        capturedError = json.error.message;
+      }
+    } catch {
+      // Ignore parse errors
+    }
+
+    // Emit telemetry event if captured and callback provided
+    if (onTelemetry) {
+      const captured = telemetryCapture.getCaptured();
+      if (captured && captured.tokens) {
+        // tokensIn should be TOTAL input tokens (non-cached + cached)
+        // to match the log output format: "13391in/406out (5888 cached)"
+        const totalIn = (captured.tokens.input ?? 0) + (captured.tokens.cached ?? 0);
+        onTelemetry({
+          tokensIn: totalIn,
+          tokensOut: captured.tokens.output ?? 0,
+          cached: captured.tokens.cached,
+          cost: captured.cost,
+          duration: captured.duration,
+        });
+      }
+    }
+
+    const formatted = formatCodexStreamJsonLine(line);
+    if (formatted) {
+      onData?.(formatted + '\n');
+    }
+  };
 
   let result;
   try {
@@ -196,57 +246,12 @@ export async function runCodex(options: RunCodexOptions): Promise<RunCodexResult
     onStdout: inheritTTY
       ? undefined
       : (chunk) => {
-          const out = normalize(chunk);
+          stdoutBuffer += normalize(chunk);
 
-          // Format and display each JSON line
-          const lines = out.trim().split('\n');
+          const lines = stdoutBuffer.split('\n');
+          stdoutBuffer = lines.pop() ?? '';
           for (const line of lines) {
-            if (!line.trim()) continue;
-
-            // Capture telemetry data
-            telemetryCapture.captureFromStreamJson(line);
-
-            // Capture session_id from thread.started event and check for errors
-            try {
-              const json = JSON.parse(line);
-              if (json.type === 'thread.started' && json.thread_id) {
-                debug(`[SESSION_ID CAPTURED] ${json.thread_id}`);
-                if (onSessionId) {
-                  onSessionId(json.thread_id);
-                }
-              }
-              // Capture error events (Codex exits 0 even on errors like invalid model)
-              if (json.type === 'error' && json.message && !capturedError) {
-                capturedError = json.message;
-              }
-              if (json.type === 'turn.failed' && json.error?.message && !capturedError) {
-                capturedError = json.error.message;
-              }
-            } catch {
-              // Ignore parse errors
-            }
-
-            // Emit telemetry event if captured and callback provided
-            if (onTelemetry) {
-              const captured = telemetryCapture.getCaptured();
-              if (captured && captured.tokens) {
-                // tokensIn should be TOTAL input tokens (non-cached + cached)
-                // to match the log output format: "13391in/406out (5888 cached)"
-                const totalIn = (captured.tokens.input ?? 0) + (captured.tokens.cached ?? 0);
-                onTelemetry({
-                  tokensIn: totalIn,
-                  tokensOut: captured.tokens.output ?? 0,
-                  cached: captured.tokens.cached,
-                  cost: captured.cost,
-                  duration: captured.duration,
-                });
-              }
-            }
-
-            const formatted = formatCodexStreamJsonLine(line);
-            if (formatted) {
-              onData?.(formatted + '\n');
-            }
+            handleStreamLine(line);
           }
         },
     onStderr: inheritTTY
@@ -269,6 +274,11 @@ export async function runCodex(options: RunCodexOptions): Promise<RunCodexResult
       throw new Error(`'${command}' is not available on this system. Please install ${name} first:\n  ${install}`);
     }
     throw error;
+  }
+
+  if (stdoutBuffer.trim()) {
+    handleStreamLine(stdoutBuffer);
+    stdoutBuffer = '';
   }
 
   // Check for errors - Codex may exit with code 0 even on errors (e.g., invalid model)

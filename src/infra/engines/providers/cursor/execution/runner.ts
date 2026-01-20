@@ -228,6 +228,30 @@ export async function runCursor(options: RunCursorOptions): Promise<RunCursorRes
   debug(`Cursor runner - args count: ${args.length}, model: ${model ?? 'auto'}`);
 
   let sessionIdCaptured = false;
+  let stdoutBuffer = '';
+
+  const handleStreamLine = (line: string): void => {
+    if (!line.trim()) return;
+
+    // Capture session ID from first event that contains it
+    try {
+      const json = JSON.parse(line);
+      if (!sessionIdCaptured && json.session_id && onSessionId) {
+        sessionIdCaptured = true;
+        onSessionId(json.session_id);
+      }
+    } catch {
+      // Ignore parse errors
+    }
+
+    const formatted = formatStreamJsonLine(line);
+    if (formatted?.length) {
+      for (const part of formatted) {
+        if (!part) continue;
+        onData?.(part + '\n');
+      }
+    }
+  };
 
   let result;
   try {
@@ -240,31 +264,12 @@ export async function runCursor(options: RunCursorOptions): Promise<RunCursorRes
     onStdout: inheritTTY
       ? undefined
       : (chunk) => {
-          const out = normalize(chunk);
+          stdoutBuffer += normalize(chunk);
 
-          // Format and display each JSON line
-          const lines = out.trim().split('\n');
+          const lines = stdoutBuffer.split('\n');
+          stdoutBuffer = lines.pop() ?? '';
           for (const line of lines) {
-            if (!line.trim()) continue;
-
-            // Capture session ID from first event that contains it
-            try {
-              const json = JSON.parse(line);
-              if (!sessionIdCaptured && json.session_id && onSessionId) {
-                sessionIdCaptured = true;
-                onSessionId(json.session_id);
-              }
-            } catch {
-              // Ignore parse errors
-            }
-
-            const formatted = formatStreamJsonLine(line);
-            if (formatted?.length) {
-              for (const part of formatted) {
-                if (!part) continue;
-                onData?.(part + '\n');
-              }
-            }
+            handleStreamLine(line);
           }
         },
     onStderr: inheritTTY
@@ -293,6 +298,11 @@ export async function runCursor(options: RunCursorOptions): Promise<RunCursorRes
       throw new Error(`'${command}' is not available on this system. Please install ${name} first:\n  ${install}`);
     }
     throw error;
+  }
+
+  if (stdoutBuffer.trim()) {
+    handleStreamLine(stdoutBuffer);
+    stdoutBuffer = '';
   }
 
   if (result.exitCode !== 0) {
