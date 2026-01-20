@@ -100,7 +100,7 @@ export async function setActiveTemplate(cmRoot: string, templateName: string, au
           lastUpdated: new Date().toISOString(),
         };
       } else {
-        // Different template - reset step tracking
+        // Different template - full reset (don't preserve old tracks/conditions as they may not be compatible)
         data = {
           activeTemplate: templateName,
           lastUpdated: new Date().toISOString(),
@@ -108,10 +108,6 @@ export async function setActiveTemplate(cmRoot: string, templateName: string, au
           notCompletedSteps: [],
           resumeFromLastStep: true,
           autonomousMode: autonomousModeOverride ?? 'true', // Use template override or default to 'true'
-          // Preserve user preferences
-          selectedTrack: existing.selectedTrack,
-          selectedConditions: existing.selectedConditions,
-          projectName: existing.projectName,
         };
       }
     } catch {
