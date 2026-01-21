@@ -20,6 +20,7 @@ import { formatUserInput } from '../../shared/formatters/outputMarkers.js';
 import { controllerPrefixUser } from '../../shared/prompts/index.js';
 import { AgentLoggerService, AgentMonitorService } from '../../agents/monitoring/index.js';
 import { executeAgent } from '../../agents/runner/runner.js';
+import { createTelemetryCallback } from '../../agents/execution/telemetry.js';
 
 export interface ControllerViewOptions {
   cwd: string;
@@ -172,6 +173,11 @@ export async function runControllerView(
               resumeMonitoringId: controllerConfig.monitoringId,
               engine: controllerConfig.engine,
               model: controllerConfig.model,
+              onTelemetry: createTelemetryCallback({
+                uniqueAgentId: '',
+                emitter,
+                isController: true,
+              }),
             });
 
             // After response, go back to awaiting input
@@ -368,6 +374,11 @@ export async function runControllerView(
             resumeMonitoringId: controllerConfig.monitoringId,
             engine: controllerConfig.engine,
             model: controllerConfig.model,
+            onTelemetry: createTelemetryCallback({
+              uniqueAgentId: '',
+              emitter,
+              isController: true,
+            }),
           });
 
           // After response, go back to awaiting input

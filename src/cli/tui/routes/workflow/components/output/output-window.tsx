@@ -425,11 +425,25 @@ export function OutputWindow(props: OutputWindowProps) {
               </Show>
             </box>
             <text fg={themeCtx.theme.textMuted}>
-              context: {(() => {
-                const total = (props.currentAgent?.telemetry.tokensIn ?? 0) + (props.currentAgent?.telemetry.tokensOut ?? 0)
-                if (total >= 1000000) return `${(total / 1000000).toFixed(1)}M`
-                if (total >= 1000) return `${(total / 1000).toFixed(1)}K`
-                return `${total}`
+              {(() => {
+                const formatTokens = (total: number) => {
+                  if (total >= 1000000) return `${(total / 1000000).toFixed(1)}M`
+                  if (total >= 1000) return `${(total / 1000).toFixed(1)}K`
+                  return `${total}`
+                }
+                const controllerTotal = (props.controllerState?.telemetry?.tokensIn ?? 0) + (props.controllerState?.telemetry?.tokensOut ?? 0)
+                const stepTotal = (props.currentAgent?.telemetry.tokensIn ?? 0) + (props.currentAgent?.telemetry.tokensOut ?? 0)
+
+                // Controller view mode - show only controller
+                if (isControllerViewMode()) {
+                  return `controller: ${formatTokens(controllerTotal)}`
+                }
+                // Workflow has controller configured - show both
+                if (props.controllerState != null) {
+                  return `controller: ${formatTokens(controllerTotal)} │ step: ${formatTokens(stepTotal)}`
+                }
+                // No controller - show step only
+                return `context: ${formatTokens(stepTotal)}`
               })()}
             </text>
           </box>

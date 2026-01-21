@@ -1,4 +1,4 @@
-import type { AgentState, AgentStatus, AgentTelemetry } from "./types"
+import type { AgentState, AgentStatus, AgentTelemetry, ControllerState } from "./types"
 import { debug } from "../../../../../shared/logging/logger.js"
 
 export function updateAgentTelemetryInList(
@@ -52,4 +52,36 @@ export function updateAgentStatusInList(
         }
       : agent,
   )
+}
+
+export function updateControllerTelemetry(
+  controller: ControllerState,
+  telemetry: Partial<AgentTelemetry>
+): ControllerState {
+  // Context = input tokens (total)
+  // Note: cached tokens are already INCLUDED in tokensIn, not separate
+  // cached is just metadata showing how many of those tokens were served from cache
+  const currentContext = telemetry.tokensIn ?? 0
+  const newTokensIn = currentContext > 0 ? currentContext : controller.telemetry.tokensIn
+  const newTokensOut = telemetry.tokensOut ?? controller.telemetry.tokensOut
+  const newCached = telemetry.cached ?? controller.telemetry.cached
+  // Cost accumulates
+  const newCost = (controller.telemetry.cost ?? 0) + (telemetry.cost ?? 0) || undefined
+
+  debug('[TELEMETRY:5-UTILS] [CONTROLLER] updateControllerTelemetry')
+  debug('[TELEMETRY:5-UTILS] [CONTROLLER]   INPUT: context=%d (cached=%d), output=%d',
+    telemetry.tokensIn ?? 0, telemetry.cached ?? 0, telemetry.tokensOut ?? 0)
+  debug('[TELEMETRY:5-UTILS] [CONTROLLER]   RESULT: context=%d, output=%d (REPLACES previous)',
+    newTokensIn, newTokensOut)
+
+  return {
+    ...controller,
+    telemetry: {
+      tokensIn: newTokensIn,
+      tokensOut: newTokensOut,
+      cached: newCached,
+      cost: newCost,
+      duration: telemetry.duration ?? controller.telemetry.duration,
+    },
+  }
 }
