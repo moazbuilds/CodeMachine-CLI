@@ -20,25 +20,46 @@ export default {
   },
   conditionGroups: [
     {
-      id: 'focus_area',
-      question: 'What area do you want to focus on? (Select all for first time or full workflow)',
-      multiSelect: true,
+      id: 'workflow_scope',
+      question: 'How do you want to build your workflow?',
+      multiSelect: false,
+      tracks: ['create-workflow', 'modify-workflow', 'have-questions'],
       conditions: {
-        'workflow-definition': {
-          label: 'Workflow Definition',
-          description: 'Define workflow name, tracks, conditions, and autonomous mode'
+        'full-workflow': {
+          label: 'Full Workflow',
+          description: 'Complete workflow with all phases (recommended for first time)'
         },
-        agents: {
-          label: 'Agents',
-          description: 'Configure main agents, sub-agents, modules, and controller'
+        'select-parts': {
+          label: 'Select Parts',
+          description: 'Choose specific phases to focus on'
         },
-        prompts: {
-          label: 'Prompts',
-          description: 'Create and configure agent prompts and placeholders'
-        },
-        'workflow-generation': {
-          label: 'Workflow Generation',
-          description: 'Generate final workflow files and validate configuration'
+      },
+      children: {
+        'select-parts': {
+          question: 'What areas do you want to focus on?',
+          multiSelect: true,
+          conditions: {
+            brainstorming: {
+              label: 'Brainstorming',
+              description: 'Optional creative exploration and idea generation'
+            },
+            'workflow-definition': {
+              label: 'Workflow Definition',
+              description: 'Define workflow name, tracks, conditions, and autonomous mode'
+            },
+            agents: {
+              label: 'Agents',
+              description: 'Configure main agents, sub-agents, modules, and controller'
+            },
+            prompts: {
+              label: 'Prompts',
+              description: 'Create and configure agent prompts and placeholders'
+            },
+            'workflow-generation': {
+              label: 'Workflow Generation',
+              description: 'Generate final workflow files and validate configuration'
+            },
+          },
         },
       },
     },

@@ -57,17 +57,20 @@ You can find and edit your files there anytime. Once complete, you can test the 
     └── shared/
 ```
 
-## The 5-Step Journey
+## The 6-Step Journey (Step 0 + 5 Chained Steps)
 
 | Step | Name | What We Do |
 |------|------|------------|
-| 01 | Brainstorming | Choose your pace + optional creative exploration |
+| 00 | Mode Selection | Choose Quick or Expert mode (in ali.md intro) |
+| 01 | Brainstorming | Optional creative exploration |
 | 02 | Workflow Definition | Name it, set up tracks & conditions |
 | 03 | Agents | Define all agents: main, sub-agents, modules, controller |
 | 04 | Prompts | Write the actual instructions |
 | 05 | Workflow Generation | Put it all together, validate, done! |
 
-## Two Modes
+## Two Modes (Selected in Step 0)
+
+Mode selection happens immediately when Ali spawns (Step 0 in `ali.md` intro), before any chained steps load.
 
 ### Quick Mode
 - Minimum questions per step
@@ -174,10 +177,11 @@ Throughout the workflow, track:
 
 This is a **chained prompt workflow**. Here's how it works:
 
-1. **Step 1 loads with persona** - When Ali starts, you receive `ali.md` + `workflow.md` + `step-01-brainstorming.md` together
-2. **User completes step** - You guide user through step 1, following the step completion instructions at the end of each step file
-3. **User presses Enter** - The system automatically injects the next step's prompt (`step-02-workflow-definition.md`) directly into your context
-4. **Continue sequentially** - This repeats for all 5 steps
+1. **Step 0 executes in persona** - When Ali starts, the `ali.md` intro executes Step 0 (mode selection) immediately
+2. **Step 1 loads after Step 0** - After mode is selected and user proceeds, `step-01-brainstorming.md` loads
+3. **User completes step** - You guide user through step 1, following the step completion instructions at the end of each step file
+4. **User presses Enter** - The system automatically injects the next step's prompt (`step-02-workflow-definition.md`) directly into your context
+5. **Continue sequentially** - This repeats for all 5 chained steps
 
 **Important implications:**
 - You **cannot skip steps** - they are injected one-by-one in order

@@ -9,8 +9,9 @@ description: "Choose mode (Quick/Expert) and optionally brainstorm workflow idea
 
 1. Route based on selected track and conditions
 2. Confirm the journey with renumbered steps
-3. Help user choose mode (Quick/Expert)
-4. Offer guidance/brainstorming before proceeding
+3. Offer guidance/brainstorming before proceeding
+
+**Note:** Mode selection (Quick/Expert) is handled in Step 0 (ali.md intro) before this step loads.
 
 ## Track & Condition Routing (EXECUTE FIRST)
 
@@ -112,27 +113,9 @@ At any point during our session, if you need to:
 
 Just delete `./.codemachine/template.json`. This clears my current context and restarts the Ali workflow. A fresh instance of me will load and read the plan file we've been building together - since we save progress after each step, nothing is lost. You can then choose exactly where to pick up."
 
-### 2. Ask Mode Selection
+### 2. Offer Brainstorming
 
-Present the two modes:
-
-"**Which mode would you like?**
-
-| Mode | What It Means |
-|------|---------------|
-| **Quick** | Minimum questions, skip explanations - for experienced users |
-| **Expert** | Thorough questions, education as we go - for first-timers or complex workflows |
-
-1. **Quick Mode** - Fast track, essentials only
-2. **Expert Mode** - Detailed guidance throughout
-
-Enter **1** for Quick or **2** for Expert:"
-
-Wait for user response. Store as `mode: 'quick'` or `mode: 'expert'`.
-
-### 3. Offer Brainstorming
-
-After mode is selected, offer brainstorming:
+Offer brainstorming (mode was already selected in Step 0):
 
 "**Would you like to brainstorm your workflow idea first?**
 
@@ -148,7 +131,7 @@ Would you like to brainstorm? **[y/n]**"
 
 Wait for clear user response.
 
-### 4. Handle Brainstorming Choice
+### 3. Handle Brainstorming Choice
 
 **If user says YES:**
 
@@ -275,20 +258,19 @@ We'll use these insights as we build your workflow."
 Acknowledge their choice:
 "Got it! We'll dive straight into building. You can always describe your concept as we go."
 
-### 5. Confirm Settings
+### 4. Confirm Brainstorming Choice
 
-Confirm both selections:
-- If Quick + No brainstorm: "Got it! Quick mode selected. I'll keep questions to the minimum needed."
-- If Quick + Yes brainstorm: "Done! Quick mode with brainstorming captured. Fast track ahead using our ideas."
-- If Expert + No brainstorm: "Great! Expert mode selected. I'll guide you thoroughly through each step with explanations."
-- If Expert + Yes brainstorm: "Perfect! Expert mode with brainstorming complete. I'll guide you thoroughly using our ideas."
+Confirm the brainstorming selection (mode was already confirmed in Step 0):
+- If No brainstorm: "Got it! We'll dive straight into building."
+- If Yes brainstorm: "Done! Brainstorming captured. Let's use those ideas as we build."
 
-### 6. Preview the Journey
+### 5. Preview the Journey
 
 Briefly outline what's coming:
 
 "Here's what we'll build together:
 
+0. ✓ Mode Selection (done in intro)
 1. ✓ Brainstorming (this step)
 2. Workflow Definition - name, tracks, conditions
 3. Agents - all agents (main, sub-agents, modules, controller)
@@ -348,7 +330,7 @@ TodoWrite([
 
 ## SUCCESS METRICS
 
-- User has selected Quick or Expert mode
+- Mode was already selected in Step 0 (available as `mode` variable)
 - User has decided on brainstorming (yes/no)
 - If brainstorming:
   - Phase 1: All 3 basic discovery questions answered
@@ -361,7 +343,6 @@ TodoWrite([
 
 ## FAILURE METRICS
 
-- Proceeding without mode selection
 - Proceeding without brainstorming choice
 - Skipping any of the 4 brainstorming phases
 - Selecting techniques without analyzing user's use case first

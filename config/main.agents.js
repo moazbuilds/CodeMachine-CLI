@@ -13,24 +13,27 @@ module.exports = [
     promptPath: [
       path.join(promptsDir, 'ali', 'ali.md'),
       path.join(promptsDir, 'ali', 'workflow.md'),
-      path.join(promptsDir, 'ali', 'chained', 'step-01-brainstorming.md'),
     ],
     chainedPromptsPath: [
       {
+        path: path.join(promptsDir, 'ali', 'chained', 'step-01-brainstorming.md'),
+        conditionsAny: ['full-workflow', 'brainstorming'],
+      },
+      {
         path: path.join(promptsDir, 'ali', 'chained', 'step-02-workflow-definition.md'),
-        conditions: ['workflow-definition'],
+        conditionsAny: ['full-workflow', 'workflow-definition'],
       },
       {
         path: path.join(promptsDir, 'ali', 'chained', 'step-03-agents.md'),
-        conditions: ['agents'],
+        conditionsAny: ['full-workflow', 'agents'],
       },
       {
         path: path.join(promptsDir, 'ali', 'chained', 'step-04-prompts.md'),
-        conditions: ['prompts'],
+        conditionsAny: ['full-workflow', 'prompts'],
       },
       {
         path: path.join(promptsDir, 'ali', 'chained', 'step-05-workflow-generation.md'),
-        conditions: ['workflow-generation'],
+        conditionsAny: ['full-workflow', 'workflow-generation'],
       },
     ],
   },
