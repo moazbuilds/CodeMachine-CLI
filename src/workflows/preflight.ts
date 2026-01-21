@@ -73,7 +73,8 @@ export async function checkOnboardingRequired(options: { cwd?: string } = {}): P
   const hasConditionGroups = !!(template.conditionGroups && template.conditionGroups.length > 0);
   const needsTrackSelection = hasTracks && !selectedTrack;
   const needsConditionsSelection = hasConditionGroups && !conditionsSelected;
-  const needsProjectName = !existingProjectName;
+  // TODO: Re-enable project name check - temporarily disabled due to persistence bug
+  const needsProjectName = false; // !existingProjectName;
 
   // Controller is now pre-specified via controller() function - no selection needed
   const needsControllerSelection = false;
