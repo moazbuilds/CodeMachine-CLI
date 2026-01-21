@@ -1,6 +1,6 @@
 ---
 name: "Step 01 - Brainstorming"
-description: "Choose mode (Quick/Expert) and optionally brainstorm workflow ideas"
+description: "Optionally brainstorm workflow ideas using structured techniques"
 ---
 
 # Step 01: Brainstorming
@@ -18,17 +18,23 @@ description: "Choose mode (Quick/Expert) and optionally brainstorm workflow idea
 
 ### Step Renumbering
 
-Steps 02-05 load conditionally. Renumber based on selected conditions:
+Steps 01-05 load conditionally. Renumber based on selected conditions:
 
 | Condition | Original Step | Your New # |
 |-----------|---------------|------------|
+| `brainstorming` | Step 01 | Step \{next_available\} |
 | `workflow-definition` | Step 02 | Step \{next_available\} |
 | `agents` | Step 03 | Step \{next_available\} |
 | `prompts` | Step 04 | Step \{next_available\} |
 | `workflow-generation` | Step 05 | Step \{next_available\} |
 
 **Example:** If only `agents` + `prompts` selected:
-- Step 01 = Brainstorming (this step - always)
+- Step 01 = Agents
+- Step 02 = Prompts
+- Done (2 steps total)
+
+**Example:** If `brainstorming` + `agents` + `prompts` selected:
+- Step 01 = Brainstorming (this step)
 - Step 02 = Agents
 - Step 03 = Prompts
 - Done (3 steps total)

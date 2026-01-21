@@ -31,21 +31,65 @@ Enter **1** for Quick or **2** for Expert:"
 
 Wait for response. Store as `mode`.
 
-**2. Confirm mode and show journey:**
+**2. Confirm mode and calculate journey:**
 
 - If Quick: "Got it! Quick mode."
 - If Expert: "Great! Expert mode - I'll guide you thoroughly."
 
-"**Your journey:**
+**Calculate which steps will load based on `{selected_conditions}`:**
 
+| Condition | Maps To |
+|-----------|---------|
+| `full-workflow` | All steps (01-05) |
+| `brainstorming` | Step 01 |
+| `workflow-definition` | Step 02 |
+| `agents` | Step 03 |
+| `prompts` | Step 04 |
+| `workflow-generation` | Step 05 |
+
+**Build the journey table dynamically:**
+
+- Step 00 (Setup) = always shown as "done"
+- Steps 01-05 = only if matching condition selected OR `full-workflow` selected
+
+**Renumber the steps sequentially** based on what's selected.
+
+**Example:** If `{selected_conditions}` = `prompts`:
+```
 | Step | Focus |
 |------|-------|
-| 00 | Setup (this step) |
+| 00 | Setup (done) |
+| 01 | Prompts |
+```
+
+**Example:** If `{selected_conditions}` = `brainstorming` + `prompts`:
+```
+| Step | Focus |
+|------|-------|
+| 00 | Setup (done) |
+| 01 | Brainstorming |
+| 02 | Prompts |
+```
+
+**Example:** If `{selected_conditions}` = `full-workflow`:
+```
+| Step | Focus |
+|------|-------|
+| 00 | Setup (done) |
 | 01 | Brainstorming |
 | 02 | Workflow Definition |
 | 03 | Agents |
 | 04 | Prompts |
-| 05 | Workflow Generation |"
+| 05 | Workflow Generation |
+```
+
+**Show the calculated journey:**
+
+"**Your journey ({total_steps} steps):**
+
+| Step | Focus |
+|------|-------|
+{dynamically_generated_rows}"
 
 **3. Ask for workflow concept (call to action):**
 
@@ -80,18 +124,10 @@ Enter **1** for Quick or **2** for Expert:"
 
 Wait for response. Store as `mode`.
 
-**2. Confirm mode and show journey:**
+**2. Confirm mode:**
 
 - If Quick: "Got it! Quick mode."
 - If Expert: "Great! Expert mode."
-
-"**Your journey:**
-
-| Step | Focus |
-|------|-------|
-| 00 | Setup (this step) |
-| 01 | Load & Review |
-| 02-05 | Modify selected areas |"
 
 **3. Ask which workflow (call to action):**
 
@@ -121,9 +157,21 @@ Enter **1-4**:"
 
 Wait for response. Store as `modify_focus`.
 
-**6. Confirm and proceed:**
+**6. Show journey based on modify_focus and proceed:**
 
-"Got it! We'll focus on **{modify_focus}** for **{existing_workflow_name}**.
+Map `modify_focus` to steps:
+- 1 (Workflow Definition) → Step 02
+- 2 (Agents) → Step 03
+- 3 (Prompts) → Step 04
+- 4 (Full review) → Steps 02-05
+
+"**Your journey for modifying {existing_workflow_name}:**
+
+| Step | Focus |
+|------|-------|
+| 00 | Setup (done) |
+| 01 | Load & Review |
+{steps based on modify_focus}
 
 Press **Enter** to proceed."
 

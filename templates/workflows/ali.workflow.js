@@ -1,6 +1,8 @@
 export default {
   name: 'CodeMachine Workflow Builder',
   autonomousMode: 'never',
+  projectName: true,
+  
   tracks: {
     question: 'What do you want to do?',
     options: {
@@ -18,6 +20,7 @@ export default {
       },
     },
   },
+
   conditionGroups: [
     {
       id: 'workflow_scope',
@@ -27,7 +30,7 @@ export default {
       conditions: {
         'full-workflow': {
           label: 'Full Workflow',
-          description: 'Complete workflow with all phases (recommended for first time)'
+          description: 'Complete workflow with all phases'
         },
         'select-parts': {
           label: 'Select Parts',
@@ -64,6 +67,7 @@ export default {
       },
     },
   ],
+
   steps: [
     resolveStep('cm-workflow-builder', {engine: 'claude'}),
   ],
