@@ -15,6 +15,8 @@ description: "Setup check, workflow name, tracks, and condition groups"
 6. Configure conditionGroups (optional - feature selection)
 7. Set workflow flags (controller, specification, engine, model)
 
+**🎯 GUIDE USER TO CORRECT STEP:** If user asks about something that belongs to a later step (e.g., agents, prompts, workflow generation), guide them to proceed step-by-step. Say: "Great question! We'll cover that in Step {X}. Let's finish this step first, then press **Enter** to continue."
+
 ## Track-Based Behavior
 
 **Check `{selected_track}` and adapt accordingly:**

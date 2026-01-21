@@ -13,6 +13,8 @@ Create the actual prompt files for all agents:
 - Create shared files
 - Register NEW placeholders in config
 
+**🎯 GUIDE USER TO CORRECT STEP:** If user asks about something that belongs to a later step (e.g., workflow generation), guide them to proceed step-by-step. Say: "Great question! We'll cover that in Step {X}. Let's finish prompts first, then press **Enter** to continue."
+
 ## Track-Based Behavior
 
 **Check `{selected_track}` and adapt accordingly:**

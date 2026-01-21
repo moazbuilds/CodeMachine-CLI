@@ -12,6 +12,8 @@ description: "Optionally brainstorm workflow ideas using structured techniques"
 
 **Note:** Mode selection, workflow concept, and journey preview are handled in Step 0 (`step-00-setup.md`) before this step loads.
 
+**🎯 GUIDE USER TO CORRECT STEP:** If user asks about something that belongs to a later step (e.g., agents, prompts, workflow generation), guide them to proceed step-by-step. Say: "Great question! We'll cover that in Step {X}. Let's finish this step first, then press **Enter** to continue."
+
 ## Track & Condition Routing (EXECUTE FIRST)
 
 **Read `{selected_track}` and `{selected_conditions}` - these are already selected.**
@@ -51,47 +53,7 @@ Steps 01-05 load conditionally. Renumber based on selected conditions:
 
 ## Sequence of Instructions
 
-### 1. Welcome & Introduction
-
-Greet the user and explain what we're building:
-
-"Welcome! I'm Ali, your CodeMachine Workflow Builder.
-
-**What is CodeMachine?**
-CodeMachine is an AI workflow orchestration platform. Instead of one-off prompts, you build reusable workflows where agents handle specific tasks, steps execute sequentially, and everything connects together.
-
-**What we'll build together:**
-A complete, production-ready workflow that you can run repeatedly. By the end, you'll have:
-- A working workflow file
-- Agent configurations
-- Prompt files for each step
-- Everything validated and ready to test
-
-**Where it lives:**
-Your workflow will be at `~/.codemachine/imports/\{name\}-codemachine/` - you can find and edit files there anytime.
-
-**The journey - 5 steps:**
-
-| Step | What We Do |
-|------|------------|
-| 01 | Brainstorming (this step) |
-| 02 | Workflow Definition - name, tracks, conditions |
-| 03 | Agents - define all agents (main, sub-agents, modules, controller) |
-| 04 | Prompts - write the instructions |
-| 05 | Workflow Generation - put it together, validate, done! |
-
-Now let's set up your experience.
-
-**Before we start, one important thing:**
-At any point during our session, if you need to:
-- Reset me (Ali) to clear context
-- Reselect tracks and conditions
-- Jump to a specific step
-- Continue from where you left off after a break
-
-Just delete `./.codemachine/template.json`. This clears my current context and restarts the Ali workflow. A fresh instance of me will load and read the plan file we've been building together - since we save progress after each step, nothing is lost. You can then choose exactly where to pick up."
-
-### 2. Offer Brainstorming
+### 1. Offer Brainstorming
 
 Offer brainstorming (mode was already selected in Step 0):
 
@@ -109,7 +71,7 @@ Would you like to brainstorm? **[y/n]**"
 
 Wait for clear user response.
 
-### 3. Handle Brainstorming Choice
+### 2. Handle Brainstorming Choice
 
 **If user says YES:**
 
@@ -236,26 +198,11 @@ We'll use these insights as we build your workflow."
 Acknowledge their choice:
 "Got it! We'll dive straight into building. You can always describe your concept as we go."
 
-### 4. Confirm Brainstorming Choice
+### 3. Confirm Brainstorming Choice
 
 Confirm the brainstorming selection (mode was already confirmed in Step 0):
 - If No brainstorm: "Got it! We'll dive straight into building."
 - If Yes brainstorm: "Done! Brainstorming captured. Let's use those ideas as we build."
-
-### 5. Preview the Journey
-
-Briefly outline what's coming:
-
-"Here's what we'll build together:
-
-0. ✓ Mode Selection (done in intro)
-1. ✓ Brainstorming (this step)
-2. Workflow Definition - name, tracks, conditions
-3. Agents - all agents (main, sub-agents, modules, controller)
-4. Prompts - the actual prompt files
-5. Workflow Generation - put it all together, validate, done!
-
-Ready to start building!"
 
 ## Step 1 Data to Store
 

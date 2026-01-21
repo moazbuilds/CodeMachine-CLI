@@ -13,6 +13,8 @@ Final step - complete the workflow:
 3. Verify all files exist - fix anything missing
 4. Educate user about running the workflow
 
+**🎯 GUIDE USER TO CORRECT STEP:** This is the final step. If user wants to go back and modify something from earlier steps (agents, prompts, workflow definition), guide them: "To modify that, you can delete `./.codemachine/template.json` to reset and reselect tracks/conditions, or we can make adjustments after generation is complete."
+
 ## Track-Based Behavior
 
 **Check `{selected_track}` and adapt accordingly:**

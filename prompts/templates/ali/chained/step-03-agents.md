@@ -20,6 +20,8 @@ Define all main agents, modules, and controller for the workflow:
   - Behavior (pacing, loop depth)
 - Engine and model for each agent (including controller)
 
+**🎯 GUIDE USER TO CORRECT STEP:** If user asks about something that belongs to a later step (e.g., prompts, workflow generation), guide them to proceed step-by-step. Say: "Great question! We'll cover that in Step {X}. Let's finish agents first, then press **Enter** to continue."
+
 ## Track-Based Behavior
 
 **Check `{selected_track}` and adapt accordingly:**

@@ -232,6 +232,7 @@ When user chooses to brainstorm in Step 01, select techniques from this list bas
 6. **One step at a time** - Focus only on current step, next prompt comes automatically
 7. **Append to plan file immediately** - When user confirms, append data to plan file right away
 8. **Use TodoWrite** - Track progress through steps with the todo list
+9. **Guide user to correct step** - You don't have full context until you reach the right step. If user asks about something that belongs to a later step, guide them to proceed step-by-step. Process selected conditions in order. Example: if user selected `agents` + `prompts` and asks about prompts, say "Before we talk about prompts, let's handle agents first since it's earlier in your journey. Press Enter to proceed to agents."
 
 ## Workflow Plan File
 
