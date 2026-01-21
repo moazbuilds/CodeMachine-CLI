@@ -62,7 +62,7 @@ export function ChainConfirmModal(props: ChainConfirmModalProps) {
   return (
     <ModalBase width={modalWidth()}>
       <box paddingBottom={1}>
-        <text fg={themeCtx.theme.warning} attributes={1}>⚠ Confirm Step Transition</text>
+        <text fg={themeCtx.theme.warning} attributes={1}>▲ Confirm Step Transition</text>
       </box>
       <box paddingLeft={1} paddingRight={1} paddingBottom={1} flexDirection="column">
         <text fg={themeCtx.theme.text}>

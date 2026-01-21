@@ -328,7 +328,7 @@ export function OutputWindow(props: OutputWindowProps) {
           nextStepName: nextCleanName,
           description: nextPrompt?.label ?? "",
           index: idx,  // 0-based: Init = step 0
-          total: inputState.queuedPrompts.length + 1,  // +1 for Init step
+          total: inputState.queuedPrompts.length,  // Only count chained prompts
         }
       }
       // No queue = simple pause/steering
@@ -349,7 +349,7 @@ export function OutputWindow(props: OutputWindowProps) {
           chainedStep: {
             name: cleanName,
             index: idx,  // 0-based: Init = step 0
-            total: inputState.queuedPrompts.length + 1,  // +1 for Init step
+            total: inputState.queuedPrompts.length,  // Only count chained prompts
           },
         }
       }
