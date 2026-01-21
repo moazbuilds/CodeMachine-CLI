@@ -53,3 +53,28 @@ export interface MCPAdapter {
   /** Check if MCP is configured */
   isConfigured(workflowDir: string, scope: ConfigScope): Promise<boolean>;
 }
+
+// ============================================================================
+// MCP FILTERING TYPES
+// ============================================================================
+
+/** Server config with optional tool filtering */
+export interface MCPServerFilterConfig {
+  server: string;
+  only?: string[];      // Allowlist - only these tools are available
+  exclude?: string[];   // Blocklist - these tools are excluded
+}
+
+/** MCP config entry can be a simple server name or a filter config */
+export type MCPConfigEntry = string | MCPServerFilterConfig;
+
+/** MCP configuration for agent/step - list of servers with optional filters */
+export type MCPConfig = MCPConfigEntry[];
+
+/** Context file written by step execution and read by MCP router */
+export interface MCPContextFile {
+  version: 1;
+  activeServers: MCPServerFilterConfig[];
+  uniqueAgentId?: string;
+  timestamp: number;
+}

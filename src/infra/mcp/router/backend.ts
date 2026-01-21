@@ -10,6 +10,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import type { Tool, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { debug } from '../../../shared/logging/logger.js';
 import type { BackendServerConfig } from './config.js';
+import type { MCPServerFilterConfig } from '../types.js';
 
 // ============================================================================
 // TYPES
@@ -321,5 +322,104 @@ export class BackendManager {
       status[id] = backend.getStatus();
     }
     return status;
+  }
+
+  // ==========================================================================
+  // TOOL FILTERING
+  // ==========================================================================
+
+  /**
+   * Get tools filtered by active server configuration
+   *
+   * If activeServers is empty, returns NO tools (agent must explicitly opt-in).
+   * Otherwise, only returns tools from specified servers with only/exclude applied.
+   *
+   * @param activeServers - Server filter configurations (empty = no access)
+   * @returns Filtered list of tools
+   */
+  getFilteredTools(activeServers: MCPServerFilterConfig[]): Tool[] {
+    // Empty config means no MCP access - return no tools
+    if (activeServers.length === 0) {
+      return [];
+    }
+
+    const filteredTools: Tool[] = [];
+    const allowedServerIds = new Set(activeServers.map((s) => s.server));
+
+    for (const [backendId, backend] of this.backends) {
+      // Skip disconnected backends or backends not in allowed list
+      if (!backend.isConnected() || !allowedServerIds.has(backendId)) {
+        continue;
+      }
+
+      // Get the filter config for this server
+      const serverConfig = activeServers.find((s) => s.server === backendId);
+      if (!serverConfig) continue;
+
+      // Apply tool-level filtering
+      filteredTools.push(...this.filterToolsForServer(backend.getTools(), serverConfig));
+    }
+
+    return filteredTools;
+  }
+
+  /**
+   * Filter tools for a single server based on only/exclude config
+   *
+   * @param tools - Tools from the server
+   * @param config - Server filter configuration
+   * @returns Filtered tools
+   */
+  private filterToolsForServer(tools: Tool[], config: MCPServerFilterConfig): Tool[] {
+    // Only filter takes precedence - return only matching tools
+    if (config.only && config.only.length > 0) {
+      return tools.filter((t) => config.only!.includes(t.name));
+    }
+
+    // Exclude filter - return tools not in exclude list
+    if (config.exclude && config.exclude.length > 0) {
+      return tools.filter((t) => !config.exclude!.includes(t.name));
+    }
+
+    // No filter - return all tools
+    return tools;
+  }
+
+  /**
+   * Check if a specific tool is allowed by the current filter configuration
+   *
+   * @param toolName - Name of the tool to check
+   * @param activeServers - Server filter configurations (empty = no access)
+   * @returns True if tool is allowed, false otherwise
+   */
+  isToolAllowed(toolName: string, activeServers: MCPServerFilterConfig[]): boolean {
+    // Empty config means no MCP access - no tools allowed
+    if (activeServers.length === 0) {
+      return false;
+    }
+
+    // Find which backend owns this tool
+    const backendId = this.toolRouting.get(toolName);
+    if (!backendId) {
+      return false; // Unknown tool
+    }
+
+    // Check if backend is in allowed list
+    const config = activeServers.find((s) => s.server === backendId);
+    if (!config) {
+      return false; // Backend not in allowed list
+    }
+
+    // Check tool-level filters
+    if (config.only && config.only.length > 0) {
+      return config.only.includes(toolName);
+    }
+
+    if (config.exclude && config.exclude.length > 0) {
+      return !config.exclude.includes(toolName);
+    }
+
+    // No tool-level filter - tool is allowed
+    return true;
   }
 }

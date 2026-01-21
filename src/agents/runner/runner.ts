@@ -10,6 +10,8 @@ import { formatForLogFile } from '../../shared/formatters/logFileFormatter.js';
 import { renderToChalk } from '../../shared/formatters/outputMarkers.js';
 import { info, error, debug } from '../../shared/logging/logger.js';
 import { STEP_RESUME_DEFAULT } from '../../shared/prompts/injected.js';
+import { mergeMCPConfigs, writeMCPContext, clearMCPContext } from '../../infra/mcp/context.js';
+import type { MCPConfig } from '../../infra/mcp/types.js';
 
 /**
  * Cache for engine authentication status with TTL (shared across all subagents)
@@ -153,6 +155,12 @@ export interface ExecuteAgentOptions {
    * Skip writing to agent's log file (caller handles logging externally)
    */
   skipLogFile?: boolean;
+
+  /**
+   * Step-level MCP config (merged with agent config for tool filtering)
+   * Step config overrides agent config on a per-server basis.
+   */
+  stepMCPConfig?: MCPConfig;
 }
 
 /**
@@ -284,6 +292,18 @@ export async function executeAgent(
   // Ensure MCP config exists (lazy init - fast check, write only if missing)
   const { ensureMCPConfig } = await import('../../infra/mcp/writer.js');
   await ensureMCPConfig(engineType, workingDir);
+
+  // Write MCP context for tool filtering (unified location for all agent executions)
+  // Merges agent.mcp config with step-level override if provided
+  const agentMCPConfig = agentConfig.mcp as MCPConfig | undefined;
+  const mergedMCP = mergeMCPConfigs(agentMCPConfig, options.stepMCPConfig);
+  if (mergedMCP.length > 0) {
+    await writeMCPContext(workingDir, mergedMCP, uniqueAgentId);
+    debug(`[AgentRunner] Wrote MCP context with ${mergedMCP.length} servers for ${uniqueAgentId ?? agentId}`);
+  } else {
+    await clearMCPContext(workingDir);
+    debug(`[AgentRunner] Cleared MCP context (no MCP config for ${uniqueAgentId ?? agentId})`);
+  }
 
   // Get engine module for defaults
   const engineModule = registry.get(engineType);

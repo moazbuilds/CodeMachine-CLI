@@ -27,6 +27,7 @@ import {
 
 import { BackendManager } from './backend.js';
 import { loadBackendConfigs, ROUTER_ID } from './config.js';
+import { readMCPContext } from '../context.js';
 
 // ============================================================================
 // ROUTER CLASS
@@ -75,16 +76,37 @@ class MCPRouter {
    * Setup MCP protocol handlers
    */
   private setupHandlers(): void {
-    // Handle tools/list - aggregate tools from all backends
+    // Handle tools/list - aggregate tools from all backends with filtering
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+      // Read context to determine active servers and filtering
+      const context = await readMCPContext(this.workingDir);
+      const activeServers = context?.activeServers ?? [];
+
       return {
-        tools: this.backendManager.getAllTools(),
+        tools: this.backendManager.getFilteredTools(activeServers),
       };
     });
 
-    // Handle tools/call - route to appropriate backend
+    // Handle tools/call - route to appropriate backend with access control
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
+
+      // Read context to check tool access
+      const context = await readMCPContext(this.workingDir);
+      const activeServers = context?.activeServers ?? [];
+
+      // Check if tool is allowed by current configuration
+      if (!this.backendManager.isToolAllowed(name, activeServers)) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Tool "${name}" is not available for current agent/step.`,
+            },
+          ],
+          isError: true,
+        };
+      }
 
       try {
         const result = await this.backendManager.callTool(name, args || {});

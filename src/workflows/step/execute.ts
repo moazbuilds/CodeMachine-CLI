@@ -142,7 +142,9 @@ export async function executeStep(
 
   debug(`[step/execute] Calling execute...`);
   // Execute via the unified execution layer
+  // MCP context is written in runner.ts (unified location for all agent executions)
   const result = await execute(step.agentId, prompt, {
+    stepMCPConfig: step.mcp, // Pass step-level MCP config to runner (merges with agent.mcp)
     workingDir: cwd,
     engine: engineType,
     model: step.model,

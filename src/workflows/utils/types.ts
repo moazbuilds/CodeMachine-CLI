@@ -1,3 +1,5 @@
+import type { MCPConfig } from '../../infra/mcp/types.js';
+
 export interface StepOverrides {
   agentName?: string;
   promptPath?: string | string[];
@@ -9,6 +11,7 @@ export interface StepOverrides {
   tracks?: string[]; // Track names this step belongs to (e.g., ['bmad', 'enterprise'])
   conditions?: string[]; // Conditions required for this step (e.g., ['has_ui', 'has_api'])
   conditionsAny?: string[]; // OR conditions for this step (e.g., ['full-workflow', 'workflow-definition'])
+  mcp?: MCPConfig; // MCP server access configuration (allowlist/blocklist filtering)
 }
 
 export interface WorkflowStep {
@@ -25,6 +28,7 @@ export interface WorkflowStep {
   tracks?: string[]; // Track names this step belongs to (e.g., ['bmad', 'enterprise'])
   conditions?: string[]; // Conditions required for this step (e.g., ['has_ui', 'has_api'])
   conditionsAny?: string[]; // OR conditions for this step (e.g., ['full-workflow', 'workflow-definition'])
+  mcp?: MCPConfig; // MCP server access configuration (allowlist/blocklist filtering)
 }
 
 export interface LoopBehaviorConfig {

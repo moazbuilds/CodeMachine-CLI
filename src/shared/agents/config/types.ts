@@ -1,3 +1,5 @@
+import type { MCPConfig } from '../../../infra/mcp/types.js';
+
 /**
  * Conditional chained prompt path entry
  */
@@ -23,6 +25,7 @@ export type AgentDefinition = {
   role?: 'controller'; // Agent role - 'controller' agents can drive autonomous mode
   conditions?: string[];
   conditionsAny?: string[];
+  mcp?: MCPConfig; // MCP server access configuration (allowlist/blocklist filtering)
   [key: string]: unknown;
 };
 

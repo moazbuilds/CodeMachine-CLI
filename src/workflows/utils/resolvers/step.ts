@@ -1,4 +1,5 @@
 import type { StepOverrides, WorkflowStep } from '../types.js';
+import type { MCPConfig } from '../../../infra/mcp/types.js';
 import { mainAgents } from '../config.js';
 
 export function resolveStep(id: string, overrides: StepOverrides = {}): WorkflowStep {
@@ -34,5 +35,6 @@ export function resolveStep(id: string, overrides: StepOverrides = {}): Workflow
     tracks: overrides.tracks ?? agent.tracks as string[] | undefined,
     conditions: overrides.conditions ?? agent.conditions as string[] | undefined,
     conditionsAny: overrides.conditionsAny ?? agent.conditionsAny as string[] | undefined,
+    mcp: overrides.mcp ?? agent.mcp as MCPConfig | undefined,
   };
 }
