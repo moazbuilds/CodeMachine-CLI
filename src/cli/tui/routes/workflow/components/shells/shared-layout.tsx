@@ -17,6 +17,7 @@ import {
   ErrorModal,
   ControllerContinueModal
 } from "../modals"
+import { ChainConfirmModal } from "../output/prompt-line/chain-confirm-modal"
 import type { useWorkflowShell } from "../../hooks/use-workflow-shell"
 
 export interface SharedLayoutProps {
@@ -152,6 +153,25 @@ export function SharedLayout(props: SharedLayoutProps) {
           <ControllerContinueModal
             onConfirm={shell.handleControllerContinueConfirm}
             onCancel={shell.handleControllerContinueCancel}
+          />
+        </box>
+      </Show>
+
+      <Show when={shell.modals.isChainConfirmActive()}>
+        <box position="absolute" left={0} top={0} width="100%" height="100%" zIndex={2000}>
+          <ChainConfirmModal
+            stepIndex={shell.modals.chainConfirmInfo()!.stepIndex}
+            stepName={shell.modals.chainConfirmInfo()!.stepName}
+            stepDescription={shell.modals.chainConfirmInfo()!.stepDescription}
+            totalSteps={shell.modals.chainConfirmInfo()!.totalSteps}
+            onConfirm={() => {
+              shell.modals.onChainConfirmResolve?.(true)
+              shell.modals.hideChainConfirm()
+            }}
+            onCancel={() => {
+              shell.modals.onChainConfirmResolve?.(false)
+              shell.modals.hideChainConfirm()
+            }}
           />
         </box>
       </Show>

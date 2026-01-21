@@ -23,7 +23,7 @@ export interface ChainConfirmModalProps {
 export function ChainConfirmModal(props: ChainConfirmModalProps) {
   const themeCtx = useTheme()
   const dimensions = useTerminalDimensions()
-  const [selectedButton, setSelectedButton] = createSignal<"yes" | "no">("no")
+  const [selectedButton, setSelectedButton] = createSignal<"yes" | "no">("yes")
 
   const modalWidth = () => {
     const safeWidth = Math.max(40, (dimensions()?.width ?? 80) - 8)
@@ -80,8 +80,8 @@ export function ChainConfirmModal(props: ChainConfirmModalProps) {
         <box
           paddingLeft={2}
           paddingRight={2}
-          backgroundColor={selectedButton() === "yes" ? themeCtx.theme.warning : themeCtx.theme.backgroundElement}
-          borderColor={selectedButton() === "yes" ? themeCtx.theme.warning : themeCtx.theme.borderSubtle}
+          backgroundColor={selectedButton() === "yes" ? themeCtx.theme.success : themeCtx.theme.backgroundElement}
+          borderColor={selectedButton() === "yes" ? themeCtx.theme.success : themeCtx.theme.borderSubtle}
           border
         >
           <text fg={selectedButton() === "yes" ? themeCtx.theme.background : themeCtx.theme.text}>Yes, Proceed</text>
@@ -89,8 +89,8 @@ export function ChainConfirmModal(props: ChainConfirmModalProps) {
         <box
           paddingLeft={2}
           paddingRight={2}
-          backgroundColor={selectedButton() === "no" ? themeCtx.theme.success : themeCtx.theme.backgroundElement}
-          borderColor={selectedButton() === "no" ? themeCtx.theme.success : themeCtx.theme.borderSubtle}
+          backgroundColor={selectedButton() === "no" ? themeCtx.theme.warning : themeCtx.theme.backgroundElement}
+          borderColor={selectedButton() === "no" ? themeCtx.theme.warning : themeCtx.theme.borderSubtle}
           border
         >
           <text fg={selectedButton() === "no" ? themeCtx.theme.background : themeCtx.theme.text}>Cancel</text>

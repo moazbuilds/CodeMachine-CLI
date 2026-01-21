@@ -40,6 +40,21 @@ export function ControllerShell(props: ControllerShellProps) {
         onPromptSubmit={shell.handlePromptSubmit}
         onSkip={shell.handleSkip}
         onPromptBoxFocusExit={() => shell.setIsPromptBoxFocused(false)}
+        onShowChainConfirm={(request) => {
+          shell.modals.showChainConfirm({
+            stepIndex: request.stepIndex,
+            stepName: request.stepName,
+            stepDescription: request.stepDescription,
+            totalSteps: request.totalSteps,
+          })
+          shell.modals.setOnChainConfirmResolve((confirmed) => {
+            if (confirmed) {
+              request.onConfirm()
+            } else {
+              request.onCancel()
+            }
+          })
+        }}
       />
     </box>
   )

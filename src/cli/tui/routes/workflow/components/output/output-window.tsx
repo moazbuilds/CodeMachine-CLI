@@ -16,7 +16,7 @@ import { TypingText } from "./typing-text"
 import { LogLine } from "../shared/log-line"
 import { LogTable } from "../shared/log-table"
 import { groupLinesWithTables } from "../shared/markdown-table"
-import { PromptLine, type PromptLineState } from "./prompt-line"
+import { PromptLine, type PromptLineState, type ChainConfirmRequest } from "./prompt-line"
 import type { AgentState, SubAgentState, InputState, ControllerState } from "../../state/types"
 import { getFace, getPhrase } from "../../../../shared/config/agent-characters.js"
 import type { ActivityType } from "../../../../shared/config/agent-characters.types.js"
@@ -56,6 +56,8 @@ export interface OutputWindowProps {
   loadEarlierError?: string | null
   onLoadMore?: () => number
   onPauseTrimmingChange?: (paused: boolean) => void
+  // Chain confirm modal (rendered at top level)
+  onShowChainConfirm?: (request: ChainConfirmRequest) => void
 }
 
 /**
@@ -314,10 +316,9 @@ export function OutputWindow(props: OutputWindowProps) {
       if (inputState.queuedPrompts && inputState.queuedPrompts.length > 0) {
         const idx = inputState.currentIndex ?? 0
         const nextPrompt = inputState.queuedPrompts[idx]
-        // Current prompt is the previous one in the queue (idx - 1), next prompt is at idx
-        const currentPrompt = idx > 0 ? inputState.queuedPrompts[idx - 1] : null
+        // Current step: "Init" for first step, or previous queued prompt name
+        const currentRawName = idx === 0 ? "Init" : (inputState.queuedPrompts[idx - 1]?.name ?? "current step")
         // Strip "Step XX - " prefix to avoid redundancy with "Step X/Y:"
-        const currentRawName = currentPrompt?.name ?? nextPrompt?.name ?? "current step"
         const currentCleanName = currentRawName.replace(/^Step\s+\d+\s*[-:]\s*/i, "")
         const nextRawName = nextPrompt?.name ?? "next step"
         const nextCleanName = nextRawName.replace(/^Step\s+\d+\s*[-:]\s*/i, "")
@@ -327,7 +328,7 @@ export function OutputWindow(props: OutputWindowProps) {
           nextStepName: nextCleanName,
           description: nextPrompt?.label ?? "",
           index: idx + 1,
-          total: inputState.queuedPrompts.length,
+          total: inputState.queuedPrompts.length + 1,  // +1 for Init step
         }
       }
       // No queue = simple pause/steering
@@ -339,18 +340,16 @@ export function OutputWindow(props: OutputWindowProps) {
       // Preserve chained step info even when agent is working
       if (inputState?.queuedPrompts && inputState.queuedPrompts.length > 0) {
         const idx = inputState.currentIndex ?? 0
-        const nextPrompt = inputState.queuedPrompts[idx]
-        // Current prompt is the previous one in the queue (idx - 1), next prompt is at idx
-        const currentPrompt = idx > 0 ? inputState.queuedPrompts[idx - 1] : null
+        // Current step: "Init" for first step, or previous queued prompt name
+        const rawName = idx === 0 ? "Init" : (inputState.queuedPrompts[idx - 1]?.name ?? "current step")
         // Strip "Step XX - " prefix to avoid redundancy with "Step X/Y:"
-        const rawName = currentPrompt?.name ?? nextPrompt?.name ?? "current step"
         const cleanName = rawName.replace(/^Step\s+\d+\s*[-:]\s*/i, "")
         return {
           mode: "passive",
           chainedStep: {
             name: cleanName,
             index: idx + 1,
-            total: inputState.queuedPrompts.length,
+            total: inputState.queuedPrompts.length + 1,  // +1 for Init step
           },
         }
       }
@@ -494,6 +493,7 @@ export function OutputWindow(props: OutputWindowProps) {
           onSubmit={props.onPromptSubmit ?? (() => {})}
           onSkip={props.onSkip}
           onFocusExit={props.onPromptBoxFocusExit ?? (() => {})}
+          onShowChainConfirm={props.onShowChainConfirm}
         />
       </Show>
     </box>
