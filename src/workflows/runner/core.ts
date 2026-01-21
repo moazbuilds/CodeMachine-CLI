@@ -39,18 +39,18 @@ function isQueueExhausted(ctx: RunnerContext): boolean {
 /**
  * Resolve the effective interactive value for a step
  *
- * Handles undefined by defaulting to hasChainedPrompts.
+ * Handles undefined by defaulting to true (user-driven).
  */
 function resolveEffectiveInteractive(
   ctx: RunnerContext,
-  hasChainedPrompts: boolean
+  _hasChainedPrompts: boolean
 ): boolean {
   const machineCtx = ctx.machine.context;
   const step = ctx.moduleSteps[machineCtx.currentStepIndex];
   const interactive = step.interactive;
 
   if (interactive === undefined) {
-    return hasChainedPrompts;
+    return true; // Default to interactive (user-driven)
   }
   return interactive;
 }
