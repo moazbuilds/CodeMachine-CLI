@@ -399,7 +399,7 @@ export function OutputWindow(props: OutputWindowProps) {
             </box>
           </Show>
 
-          {/* Narrow layout: name on one line, status on next line */}
+          {/* Narrow layout: name on one line, status on next line, telemetry on third */}
           <Show when={!isWideLayout()}>
             <box flexDirection="row">
               <text fg={themeCtx.theme.border}>│  </text>
@@ -417,11 +417,21 @@ export function OutputWindow(props: OutputWindowProps) {
             </box>
           </Show>
 
-          <box flexDirection="row">
-            <text fg={themeCtx.theme.border}>│  </text>
-            <Show when={derivedActivity() !== "idle"} fallback={<text fg={themeCtx.theme.textMuted}>↳ {currentPhrase()}</text>}>
-              <TypingText text={`↳ ${currentPhrase()}`} speed={30} />
-            </Show>
+          <box flexDirection="row" justifyContent="space-between" paddingRight={2}>
+            <box flexDirection="row">
+              <text fg={themeCtx.theme.border}>│  </text>
+              <Show when={derivedActivity() !== "idle"} fallback={<text fg={themeCtx.theme.textMuted}>↳ {currentPhrase()}</text>}>
+                <TypingText text={`↳ ${currentPhrase()}`} speed={30} />
+              </Show>
+            </box>
+            <text fg={themeCtx.theme.textMuted}>
+              context: {(() => {
+                const total = (props.currentAgent?.telemetry.tokensIn ?? 0) + (props.currentAgent?.telemetry.tokensOut ?? 0)
+                if (total >= 1000000) return `${(total / 1000000).toFixed(1)}M`
+                if (total >= 1000) return `${(total / 1000).toFixed(1)}K`
+                return `${total}`
+              })()}
+            </text>
           </box>
           <text fg={themeCtx.theme.border}>╰─</text>
         </box>

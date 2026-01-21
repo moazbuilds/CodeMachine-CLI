@@ -5,17 +5,10 @@
  */
 
 import { createMemo, type Accessor } from "solid-js"
-import { debug } from "../../../../../shared/logging/logger.js"
 import type { WorkflowState, AgentState, SubAgentState } from "../state/types"
 
 export interface UseWorkflowComputedOptions {
   getState: Accessor<WorkflowState>
-}
-
-export interface TotalTelemetry {
-  tokensIn: number
-  tokensOut: number
-  cached?: number
 }
 
 export interface UseWorkflowComputedResult {
@@ -33,9 +26,6 @@ export interface UseWorkflowComputedResult {
 
   // Checkpoint
   isCheckpointActive: Accessor<boolean>
-
-  // Telemetry
-  totalTelemetry: Accessor<TotalTelemetry>
 
   // Layout
   isTimelineCollapsed: Accessor<boolean>
@@ -99,49 +89,6 @@ export function useWorkflowComputed(options: UseWorkflowComputedOptions): UseWor
   // Checkpoint state
   const isCheckpointActive = () => getState().checkpointState?.active ?? false
 
-  // Total telemetry - memoized
-  const totalTelemetry = createMemo((prev: TotalTelemetry | undefined) => {
-    const agents = getState().agents
-    const subAgents = getState().subAgents
-    const controller = getState().controllerState
-    let tokensIn = 0, tokensOut = 0, cached = 0
-
-    for (const agent of agents) {
-      tokensIn += agent.telemetry.tokensIn
-      tokensOut += agent.telemetry.tokensOut
-      cached += agent.telemetry.cached ?? 0
-    }
-
-    for (const subs of subAgents.values()) {
-      for (const sub of subs) {
-        tokensIn += sub.telemetry.tokensIn
-        tokensOut += sub.telemetry.tokensOut
-        cached += sub.telemetry.cached ?? 0
-      }
-    }
-
-    // Include controller telemetry
-    if (controller?.telemetry) {
-      tokensIn += controller.telemetry.tokensIn
-      tokensOut += controller.telemetry.tokensOut
-      cached += controller.telemetry.cached ?? 0
-    }
-
-    const result: TotalTelemetry = {
-      tokensIn,
-      tokensOut,
-      cached: cached > 0 ? cached : undefined
-    }
-
-    // Only log when values actually change
-    if (!prev || prev.tokensIn !== tokensIn || prev.tokensOut !== tokensOut || prev.cached !== result.cached) {
-      debug('[TELEMETRY:6-TOTAL] totalTokensIn=%d, totalTokensOut=%d, totalCached=%s',
-        tokensIn, tokensOut, result.cached)
-    }
-
-    return result
-  })
-
   // Timeline collapsed state
   const isTimelineCollapsed = () => getState().timelineCollapsed
 
@@ -153,7 +100,6 @@ export function useWorkflowComputed(options: UseWorkflowComputedOptions): UseWor
     currentAgent,
     isShowingRunningAgent,
     isCheckpointActive,
-    totalTelemetry,
     isTimelineCollapsed
   }
 }

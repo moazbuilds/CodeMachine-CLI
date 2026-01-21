@@ -48,7 +48,6 @@ export function SharedLayout(props: SharedLayoutProps) {
           workflowName={shell.state().workflowName}
           runtime={shell.timer.workflowRuntime()}
           status={shell.state().workflowStatus}
-          total={shell.totalTelemetry()}
           autonomousMode={shell.state().autonomousMode}
         />
         <StatusFooter
