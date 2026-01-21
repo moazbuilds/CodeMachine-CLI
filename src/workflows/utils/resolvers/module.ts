@@ -68,6 +68,7 @@ export function resolveModule(id: string, overrides: ModuleOverrides = {}): Work
     interactive: overrides.interactive,
     tracks: overrides.tracks ?? moduleEntry.tracks as string[] | undefined,
     conditions: overrides.conditions ?? moduleEntry.conditions as string[] | undefined,
+    conditionsAny: overrides.conditionsAny ?? moduleEntry.conditionsAny as string[] | undefined,
     module: {
       id: moduleEntry.id,
       behavior,

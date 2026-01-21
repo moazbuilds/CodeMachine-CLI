@@ -209,11 +209,20 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
         idx, step.agentId, step.tracks, selectedTrack);
       return false;
     }
+    const selected = selectedConditions ?? [];
     if (step.conditions?.length) {
-      const missing = step.conditions.filter(c => !(selectedConditions ?? []).includes(c));
+      const missing = step.conditions.filter(c => !selected.includes(c));
       if (missing.length > 0) {
         debug('[Workflow] Step %d: agentId=%s, conditions=%O, missing=%O → EXCLUDED (missing conditions)',
           idx, step.agentId, step.conditions, missing);
+        return false;
+      }
+    }
+    if (step.conditionsAny?.length) {
+      const matched = step.conditionsAny.some(c => selected.includes(c));
+      if (!matched) {
+        debug('[Workflow] Step %d: agentId=%s, conditionsAny=%O → EXCLUDED (no match)',
+          idx, step.agentId, step.conditionsAny);
         return false;
       }
     }

@@ -233,8 +233,18 @@ function isConditionalPath(entry: ChainedPathEntry): entry is ConditionalChained
  */
 function meetsConditions(entry: ChainedPathEntry, selectedConditions: string[]): boolean {
   if (typeof entry === 'string') return true;
-  if (!entry.conditions?.length) return true;
-  return entry.conditions.every(c => selectedConditions.includes(c));
+  const requiredAll = entry.conditions ?? [];
+  const requiredAny = entry.conditionsAny ?? [];
+
+  if (requiredAll.length > 0 && !requiredAll.every(c => selectedConditions.includes(c))) {
+    return false;
+  }
+
+  if (requiredAny.length > 0 && !requiredAny.some(c => selectedConditions.includes(c))) {
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -279,8 +289,11 @@ export async function loadChainedPrompts(
     // Check both conditions AND tracks (both must pass)
     if (!meetsConditions(entry, selectedConditions)) {
       const pathStr = getPath(entry);
-      const conditions = isConditionalPath(entry) ? entry.conditions : [];
-      debug(`Skipped chained path: ${pathStr} (unmet conditions: ${conditions?.join(', ')})`);
+      const conditionsAll = isConditionalPath(entry) ? entry.conditions : [];
+      const conditionsAny = isConditionalPath(entry) ? entry.conditionsAny : [];
+      debug(
+        `Skipped chained path: ${pathStr} (unmet conditions: all=${conditionsAll?.join(', ') || 'n/a'}, any=${conditionsAny?.join(', ') || 'n/a'})`
+      );
       continue;
     }
 

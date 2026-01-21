@@ -4,6 +4,7 @@
 export type ConditionalChainedPath = {
   path: string;
   conditions?: string[];
+  conditionsAny?: string[];
   tracks?: string[];
 };
 
@@ -20,6 +21,8 @@ export type AgentDefinition = {
   engine?: string; // Engine to use for this agent (dynamically determined from registry)
   chainedPromptsPath?: ChainedPathEntry | ChainedPathEntry[]; // Path(s) to folder(s) containing chained prompt .md files
   role?: 'controller'; // Agent role - 'controller' agents can drive autonomous mode
+  conditions?: string[];
+  conditionsAny?: string[];
   [key: string]: unknown;
 };
 

@@ -42,6 +42,7 @@ export interface ModuleStep {
   interactive?: boolean; // Controls waiting behavior: true=wait for input, false=auto-advance
   tracks?: string[]; // Track names this step belongs to (e.g., ['bmad', 'enterprise'])
   conditions?: string[]; // Conditions required for this step (e.g., ['has_ui', 'has_api'])
+  conditionsAny?: string[]; // OR conditions for this step (e.g., ['full-workflow', 'workflow-definition'])
 }
 
 export interface Separator {
