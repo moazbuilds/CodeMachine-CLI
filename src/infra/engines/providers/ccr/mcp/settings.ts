@@ -10,8 +10,7 @@ import * as path from 'path';
 import { homedir } from 'os';
 import { debug } from '../../../../../shared/logging/logger.js';
 import type { ConfigScope, MCPServerConfig } from '../../../../mcp/types.js';
-import { getServerPath as getWorkflowSignalsPath } from '../../../../mcp/servers/workflow-signals/config.js';
-import { getServerPath as getAgentCoordinationPath } from '../../../../mcp/servers/agent-coordination/config.js';
+import { getRouterConfig, ROUTER_ID } from '../../../../mcp/router/config.js';
 import { ENV } from '../config.js';
 
 // ============================================================================
@@ -88,29 +87,11 @@ export async function writeSettings(
 // ============================================================================
 
 /**
- * Get MCP server configuration for CCR format
- *
- * CCR uses: { command, args, env }
+ * Get MCP router configuration for CCR format
  */
-export function getWorkflowSignalsConfig(workflowDir: string): MCPServerConfig {
-  return {
-    command: 'bun',
-    args: ['run', getWorkflowSignalsPath()],
-    env: {
-      WORKFLOW_DIR: workflowDir,
-    },
-  };
+export function getMCPRouterConfig(workingDir: string): MCPServerConfig {
+  return getRouterConfig(workingDir);
 }
 
-/**
- * Get agent-coordination MCP server configuration for CCR format
- */
-export function getAgentCoordinationConfig(workingDir: string): MCPServerConfig {
-  return {
-    command: 'bun',
-    args: ['run', getAgentCoordinationPath()],
-    env: {
-      CODEMACHINE_WORKING_DIR: workingDir,
-    },
-  };
-}
+// Re-export router ID
+export { ROUTER_ID };

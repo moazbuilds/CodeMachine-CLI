@@ -10,8 +10,7 @@ import * as path from 'path';
 import { homedir } from 'os';
 import { debug } from '../../../../../shared/logging/logger.js';
 import type { ConfigScope, MCPServerConfig } from '../../../../mcp/types.js';
-import { getServerPath as getWorkflowSignalsPath } from '../../../../mcp/servers/workflow-signals/config.js';
-import { getServerPath as getAgentCoordinationPath } from '../../../../mcp/servers/agent-coordination/config.js';
+import { getRouterConfig, ROUTER_ID } from '../../../../mcp/router/config.js';
 
 // ============================================================================
 // TYPES
@@ -88,29 +87,16 @@ export async function writeSettings(
 // ============================================================================
 
 /**
- * Get MCP server configuration for Claude format
+ * Get MCP router configuration for Claude format
+ *
+ * The router aggregates tools from all backend servers (workflow-signals,
+ * agent-coordination, and user-defined servers) into a single MCP server.
  *
  * Claude uses: { command, args, env }
  */
-export function getWorkflowSignalsConfig(workflowDir: string): MCPServerConfig {
-  return {
-    command: 'bun',
-    args: ['run', getWorkflowSignalsPath()],
-    env: {
-      WORKFLOW_DIR: workflowDir,
-    },
-  };
+export function getMCPRouterConfig(workingDir: string): MCPServerConfig {
+  return getRouterConfig(workingDir);
 }
 
-/**
- * Get agent-coordination MCP server configuration for Claude format
- */
-export function getAgentCoordinationConfig(workingDir: string): MCPServerConfig {
-  return {
-    command: 'bun',
-    args: ['run', getAgentCoordinationPath()],
-    env: {
-      CODEMACHINE_WORKING_DIR: workingDir,
-    },
-  };
-}
+// Re-export router ID for use in adapter
+export { ROUTER_ID };

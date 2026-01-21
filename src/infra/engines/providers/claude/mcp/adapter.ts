@@ -21,23 +21,17 @@ export const claudeAdapter: MCPAdapter = {
   getSettingsPath: settings.getSettingsPath,
 
   async configure(workflowDir: string, scope: ConfigScope): Promise<void> {
-    debug('[MCP:claude] Configuring MCP servers (scope: %s)', scope);
+    debug('[MCP:claude] Configuring MCP router (scope: %s)', scope);
 
     try {
       const settingsPath = settings.getSettingsPath(scope, workflowDir);
       const data = await settings.readSettings(settingsPath);
 
-      // Initialize mcpServers if not present
       data.mcpServers = data.mcpServers || {};
-
-      // Add/update workflow-signals MCP server
-      data.mcpServers['workflow-signals'] = settings.getWorkflowSignalsConfig(workflowDir);
-
-      // Add/update agent-coordination MCP server
-      data.mcpServers['agent-coordination'] = settings.getAgentCoordinationConfig(workflowDir);
+      data.mcpServers[settings.ROUTER_ID] = settings.getMCPRouterConfig(workflowDir);
 
       await settings.writeSettings(settingsPath, data);
-      debug('[MCP:claude] Configuration complete (workflow-signals, agent-coordination)');
+      debug('[MCP:claude] Configuration complete (router: %s)', settings.ROUTER_ID);
     } catch (error) {
       throw new MCPConfigError(
         `Failed to configure: ${(error as Error).message}`,
@@ -48,32 +42,20 @@ export const claudeAdapter: MCPAdapter = {
   },
 
   async cleanup(workflowDir: string, scope: ConfigScope): Promise<void> {
-    debug('[MCP:claude] Cleaning up MCP servers (scope: %s)', scope);
+    debug('[MCP:claude] Cleaning up MCP configuration (scope: %s)', scope);
 
     try {
       const settingsPath = settings.getSettingsPath(scope, workflowDir);
       const data = await settings.readSettings(settingsPath);
 
-      let cleaned = false;
-      if (data.mcpServers) {
-        if ('workflow-signals' in data.mcpServers) {
-          delete data.mcpServers['workflow-signals'];
-          cleaned = true;
-        }
-        if ('agent-coordination' in data.mcpServers) {
-          delete data.mcpServers['agent-coordination'];
-          cleaned = true;
-        }
-      }
-
-      if (cleaned) {
+      if (data.mcpServers && settings.ROUTER_ID in data.mcpServers) {
+        delete data.mcpServers[settings.ROUTER_ID];
         await settings.writeSettings(settingsPath, data);
         debug('[MCP:claude] Cleanup complete');
       } else {
-        debug('[MCP:claude] No MCP servers to cleanup');
+        debug('[MCP:claude] No MCP configuration to cleanup');
       }
     } catch (error) {
-      // Ignore cleanup errors - file might not exist
       debug('[MCP:claude] Cleanup error (ignored): %s', (error as Error).message);
     }
   },
@@ -82,11 +64,8 @@ export const claudeAdapter: MCPAdapter = {
     try {
       const settingsPath = settings.getSettingsPath(scope, workflowDir);
       const data = await settings.readSettings(settingsPath);
-      // Check if at least one of our servers is configured
-      const configured = !!(
-        data.mcpServers &&
-        ('workflow-signals' in data.mcpServers || 'agent-coordination' in data.mcpServers)
-      );
+      // Check if the router is configured
+      const configured = !!(data.mcpServers && settings.ROUTER_ID in data.mcpServers);
       debug('[MCP:claude] isConfigured: %s', configured);
       return configured;
     } catch {

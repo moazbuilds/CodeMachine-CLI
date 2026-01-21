@@ -10,11 +10,10 @@ import * as path from 'path';
 import { homedir } from 'os';
 import { debug } from '../../../../../shared/logging/logger.js';
 import type { ConfigScope } from '../../../../mcp/types.js';
-import {
-  getServerPath as getWorkflowSignalsPath,
-  getMCPInfraDir,
-} from '../../../../mcp/servers/workflow-signals/config.js';
-import { getServerPath as getAgentCoordinationPath } from '../../../../mcp/servers/agent-coordination/config.js';
+import { getRouterPath, ROUTER_ID } from '../../../../mcp/router/config.js';
+
+// Re-export router ID
+export { ROUTER_ID };
 
 // ============================================================================
 // PATH RESOLUTION
@@ -70,43 +69,20 @@ export async function writeConfig(configPath: string, content: string): Promise<
 // ============================================================================
 
 /**
- * Generate TOML section for workflow-signals MCP server
+ * Generate TOML section for MCP router
  *
  * Codex uses TOML format with: command, args, cwd, startup_timeout_sec, env
  */
-export function generateWorkflowSignalsSection(workflowDir: string): string {
-  const serverPath = getWorkflowSignalsPath();
-  const mcpDir = getMCPInfraDir();
+export function generateRouterSection(workingDir: string): string {
+  const routerPath = getRouterPath();
 
   const lines = [
-    '[mcp_servers."workflow-signals"]',
+    `[mcp_servers."${ROUTER_ID}"]`,
     'command = "bun"',
-    `args = ["run", "${serverPath}"]`,
-    `cwd = "${mcpDir}"`,
-    'startup_timeout_sec = 40',
-    '',
-    '[mcp_servers."workflow-signals".env]',
-    `WORKFLOW_DIR = "${workflowDir}"`,
-  ];
-
-  return lines.join('\n');
-}
-
-/**
- * Generate TOML section for agent-coordination MCP server
- */
-export function generateAgentCoordinationSection(workingDir: string): string {
-  const serverPath = getAgentCoordinationPath();
-  const mcpDir = getMCPInfraDir();
-
-  const lines = [
-    '[mcp_servers."agent-coordination"]',
-    'command = "bun"',
-    `args = ["run", "${serverPath}"]`,
-    `cwd = "${mcpDir}"`,
+    `args = ["run", "${routerPath}"]`,
     'startup_timeout_sec = 60',
     '',
-    '[mcp_servers."agent-coordination".env]',
+    `[mcp_servers."${ROUTER_ID}".env]`,
     `CODEMACHINE_WORKING_DIR = "${workingDir}"`,
   ];
 
@@ -114,54 +90,34 @@ export function generateAgentCoordinationSection(workingDir: string): string {
 }
 
 /**
- * Generate all MCP sections
+ * Generate all MCP sections (just the router)
  */
 export function generateAllMCPSections(workflowDir: string): string {
-  return [
-    generateWorkflowSignalsSection(workflowDir),
-    '',
-    generateAgentCoordinationSection(workflowDir),
-  ].join('\n');
+  return generateRouterSection(workflowDir);
 }
 
 /**
- * Remove all codemachine MCP server sections from TOML content
- *
- * Cleans workflow-signals and agent-coordination related lines including malformed entries.
+ * Remove codemachine MCP router section from TOML content
  */
 export function removeAllMCPSections(content: string): string {
   const lines = content.split('\n');
   const cleanedLines: string[] = [];
   let skipUntilNextSection = false;
 
-  // Patterns for our MCP servers
-  const mcpServerPatterns = ['workflow-signals', 'agent-coordination'];
-
   for (const line of lines) {
     const trimmed = line.trim();
 
-    // Check if this is one of our MCP server sections
-    if (trimmed.startsWith('[') && mcpServerPatterns.some((p) => trimmed.includes(p))) {
+    // Check if this is the router section
+    if (trimmed.startsWith('[') && trimmed.includes(ROUTER_ID)) {
       skipUntilNextSection = true;
       continue;
     }
 
-    // Check if this is a malformed line starting with ["run" (broken args)
-    if (trimmed.startsWith('["run"')) {
-      skipUntilNextSection = true;
-      continue;
-    }
-
-    // If we hit a new section that's NOT one of our MCP servers, stop skipping
-    if (
-      skipUntilNextSection &&
-      trimmed.startsWith('[') &&
-      !mcpServerPatterns.some((p) => trimmed.includes(p))
-    ) {
+    // If we hit a new section that's NOT the router, stop skipping
+    if (skipUntilNextSection && trimmed.startsWith('[') && !trimmed.includes(ROUTER_ID)) {
       skipUntilNextSection = false;
     }
 
-    // Skip lines while in our MCP server section
     if (skipUntilNextSection) {
       continue;
     }
@@ -173,13 +129,8 @@ export function removeAllMCPSections(content: string): string {
 }
 
 /**
- * Check if config contains any codemachine MCP server sections
+ * Check if config contains codemachine MCP router section
  */
 export function hasMCPSections(content: string): boolean {
-  return (
-    content.includes('[mcp_servers."workflow-signals"]') ||
-    content.includes('[mcp_servers.workflow-signals]') ||
-    content.includes('[mcp_servers."agent-coordination"]') ||
-    content.includes('[mcp_servers.agent-coordination]')
-  );
+  return content.includes(`[mcp_servers."${ROUTER_ID}"]`);
 }

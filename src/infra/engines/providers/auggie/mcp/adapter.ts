@@ -21,17 +21,17 @@ export const auggieAdapter: MCPAdapter = {
   getSettingsPath: settings.getSettingsPath,
 
   async configure(workflowDir: string, scope: ConfigScope): Promise<void> {
-    debug('[MCP:auggie] Configuring MCP servers (scope: %s)', scope);
+    debug('[MCP:auggie] Configuring MCP router (scope: %s)', scope);
 
     try {
       const settingsPath = settings.getSettingsPath(scope, workflowDir);
       const existingSettings = await settings.readSettings(settingsPath);
 
-      // Add MCP servers to settings
+      // Add MCP router to settings
       const updatedSettings = settings.addMCPServers(existingSettings, workflowDir);
 
       await settings.writeSettings(settingsPath, updatedSettings);
-      debug('[MCP:auggie] Configuration complete (workflow-signals, agent-coordination)');
+      debug('[MCP:auggie] Configuration complete (router: %s)', settings.ROUTER_ID);
     } catch (error) {
       throw new MCPConfigError(
         `Failed to configure: ${(error as Error).message}`,

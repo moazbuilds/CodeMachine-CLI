@@ -31,4 +31,11 @@ export const mcp: EngineMCPConfig = {
 // ============================================================================
 
 export { ccrAdapter };
-export { getSettingsPath, readSettings, writeSettings } from './settings.js';
+export {
+  getSettingsPath,
+  readSettings,
+  writeSettings,
+  getMCPRouterConfig,
+  ROUTER_ID,
+} from './settings.js';
+export type { CCRSettings } from './settings.js';

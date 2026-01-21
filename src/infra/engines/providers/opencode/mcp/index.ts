@@ -35,8 +35,8 @@ export {
   getSettingsPath,
   readSettings,
   writeSettings,
-  getWorkflowSignalsConfig,
-  getAgentCoordinationConfig,
+  getMCPRouterConfig,
+  ROUTER_ID,
   type OpenCodeMCPServer,
   type OpenCodeSettings,
 } from './settings.js';

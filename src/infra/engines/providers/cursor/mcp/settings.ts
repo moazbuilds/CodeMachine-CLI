@@ -12,10 +12,7 @@ import { debug } from '../../../../../shared/logging/logger.js';
 import type { ConfigScope } from '../../../../mcp/types.js';
 import { expandHomeDir } from '../../../../../shared/utils/index.js';
 import { ENV } from '../config.js';
-import {
-  getServerPath as getWorkflowSignalsPath,
-} from '../../../../mcp/servers/workflow-signals/config.js';
-import { getServerPath as getAgentCoordinationPath } from '../../../../mcp/servers/agent-coordination/config.js';
+import { getRouterConfig, ROUTER_ID } from '../../../../mcp/router/config.js';
 
 // ============================================================================
 // PATH RESOLUTION
@@ -94,58 +91,42 @@ export async function writeConfig(configPath: string, config: CursorMCPConfig): 
 // ============================================================================
 
 /**
- * Generate workflow-signals MCP server config
+ * Get MCP router configuration for Cursor format
  */
-export function generateWorkflowSignalsConfig(workflowDir: string): MCPServerConfig {
-  const serverPath = getWorkflowSignalsPath();
-
+export function getMCPRouterConfig(workingDir: string): MCPServerConfig {
+  const config = getRouterConfig(workingDir);
   return {
-    command: 'bun',
-    args: ['run', serverPath],
-    env: {
-      WORKFLOW_DIR: workflowDir,
-    },
+    command: config.command,
+    args: config.args,
+    env: config.env,
   };
 }
 
-/**
- * Generate agent-coordination MCP server config
- */
-export function generateAgentCoordinationConfig(workingDir: string): MCPServerConfig {
-  const serverPath = getAgentCoordinationPath();
-
-  return {
-    command: 'bun',
-    args: ['run', serverPath],
-    env: {
-      CODEMACHINE_WORKING_DIR: workingDir,
-    },
-  };
-}
+// Re-export router ID
+export { ROUTER_ID };
 
 /**
- * Add MCP servers to config
+ * Add MCP router to config
  */
 export function addMCPServers(config: CursorMCPConfig, workflowDir: string): CursorMCPConfig {
   return {
     ...config,
     mcpServers: {
       ...config.mcpServers,
-      'workflow-signals': generateWorkflowSignalsConfig(workflowDir),
-      'agent-coordination': generateAgentCoordinationConfig(workflowDir),
+      [ROUTER_ID]: getMCPRouterConfig(workflowDir),
     },
   };
 }
 
 /**
- * Remove codemachine MCP servers from config
+ * Remove codemachine MCP router from config
  */
 export function removeMCPServers(config: CursorMCPConfig): CursorMCPConfig {
   if (!config.mcpServers) {
     return config;
   }
 
-  const { 'workflow-signals': _, 'agent-coordination': __, ...remainingServers } = config.mcpServers;
+  const { [ROUTER_ID]: _, ...remainingServers } = config.mcpServers;
 
   return {
     ...config,
@@ -154,11 +135,8 @@ export function removeMCPServers(config: CursorMCPConfig): CursorMCPConfig {
 }
 
 /**
- * Check if config contains codemachine MCP servers
+ * Check if config contains codemachine MCP router
  */
 export function hasMCPServers(config: CursorMCPConfig): boolean {
-  return !!(
-    config.mcpServers?.['workflow-signals'] ||
-    config.mcpServers?.['agent-coordination']
-  );
+  return !!(config.mcpServers?.[ROUTER_ID]);
 }

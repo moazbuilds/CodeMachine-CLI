@@ -21,21 +21,17 @@ export const opencodeAdapter: MCPAdapter = {
   getSettingsPath: settings.getSettingsPath,
 
   async configure(workflowDir: string, scope: ConfigScope): Promise<void> {
-    debug('[MCP:opencode] Configuring MCP servers (scope: %s)', scope);
+    debug('[MCP:opencode] Configuring MCP router (scope: %s)', scope);
 
     try {
       const settingsPath = settings.getSettingsPath(scope, workflowDir);
       const data = await settings.readSettings(settingsPath);
 
-      // Initialize mcp if not present
       data.mcp = data.mcp || {};
-
-      // Add/update MCP servers
-      data.mcp['workflow-signals'] = settings.getWorkflowSignalsConfig();
-      data.mcp['agent-coordination'] = settings.getAgentCoordinationConfig();
+      data.mcp[settings.ROUTER_ID] = settings.getMCPRouterConfig();
 
       await settings.writeSettings(settingsPath, data);
-      debug('[MCP:opencode] Configuration complete (workflow-signals, agent-coordination)');
+      debug('[MCP:opencode] Configuration complete (router: %s)', settings.ROUTER_ID);
     } catch (error) {
       throw new MCPConfigError(
         `Failed to configure: ${(error as Error).message}`,
@@ -46,32 +42,20 @@ export const opencodeAdapter: MCPAdapter = {
   },
 
   async cleanup(workflowDir: string, scope: ConfigScope): Promise<void> {
-    debug('[MCP:opencode] Cleaning up MCP servers (scope: %s)', scope);
+    debug('[MCP:opencode] Cleaning up MCP configuration (scope: %s)', scope);
 
     try {
       const settingsPath = settings.getSettingsPath(scope, workflowDir);
       const data = await settings.readSettings(settingsPath);
 
-      let cleaned = false;
-      if (data.mcp) {
-        if ('workflow-signals' in data.mcp) {
-          delete data.mcp['workflow-signals'];
-          cleaned = true;
-        }
-        if ('agent-coordination' in data.mcp) {
-          delete data.mcp['agent-coordination'];
-          cleaned = true;
-        }
-      }
-
-      if (cleaned) {
+      if (data.mcp && settings.ROUTER_ID in data.mcp) {
+        delete data.mcp[settings.ROUTER_ID];
         await settings.writeSettings(settingsPath, data);
         debug('[MCP:opencode] Cleanup complete');
       } else {
-        debug('[MCP:opencode] No MCP servers to cleanup');
+        debug('[MCP:opencode] No MCP configuration to cleanup');
       }
     } catch (error) {
-      // Ignore cleanup errors - file might not exist
       debug('[MCP:opencode] Cleanup error (ignored): %s', (error as Error).message);
     }
   },
@@ -80,11 +64,7 @@ export const opencodeAdapter: MCPAdapter = {
     try {
       const settingsPath = settings.getSettingsPath(scope, workflowDir);
       const data = await settings.readSettings(settingsPath);
-      // Check if at least one of our servers is configured
-      const configured = !!(
-        data.mcp &&
-        ('workflow-signals' in data.mcp || 'agent-coordination' in data.mcp)
-      );
+      const configured = !!(data.mcp && settings.ROUTER_ID in data.mcp);
       debug('[MCP:opencode] isConfigured: %s', configured);
       return configured;
     } catch {

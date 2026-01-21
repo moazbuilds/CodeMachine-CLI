@@ -12,11 +12,10 @@ import { debug } from '../../../../../shared/logging/logger.js';
 import type { ConfigScope } from '../../../../mcp/types.js';
 import { expandHomeDir } from '../../../../../shared/utils/index.js';
 import { ENV } from '../config.js';
-import {
-  getServerPath as getWorkflowSignalsPath,
-  getMCPInfraDir,
-} from '../../../../mcp/servers/workflow-signals/config.js';
-import { getServerPath as getAgentCoordinationPath } from '../../../../mcp/servers/agent-coordination/config.js';
+import { getRouterPath, ROUTER_ID } from '../../../../mcp/router/config.js';
+
+// Re-export router ID
+export { ROUTER_ID };
 
 // ============================================================================
 // PATH RESOLUTION
@@ -83,43 +82,19 @@ export async function writeConfig(configPath: string, content: string): Promise<
 // ============================================================================
 
 /**
- * Generate TOML section for workflow-signals MCP server
+ * Generate TOML section for MCP router
  *
  * Vibe uses [[mcp_servers]] array format with: name, transport, command, args
  */
-export function generateWorkflowSignalsSection(workflowDir: string): string {
-  const serverPath = getWorkflowSignalsPath();
-  const mcpDir = getMCPInfraDir();
+export function generateRouterSection(workingDir: string): string {
+  const routerPath = getRouterPath();
 
   const lines = [
     '[[mcp_servers]]',
-    'name = "workflow-signals"',
+    `name = "${ROUTER_ID}"`,
     'transport = "stdio"',
     'command = "bun"',
-    `args = ["run", "${serverPath}"]`,
-    `cwd = "${mcpDir}"`,
-    '',
-    '[mcp_servers.env]',
-    `WORKFLOW_DIR = "${workflowDir}"`,
-  ];
-
-  return lines.join('\n');
-}
-
-/**
- * Generate TOML section for agent-coordination MCP server
- */
-export function generateAgentCoordinationSection(workingDir: string): string {
-  const serverPath = getAgentCoordinationPath();
-  const mcpDir = getMCPInfraDir();
-
-  const lines = [
-    '[[mcp_servers]]',
-    'name = "agent-coordination"',
-    'transport = "stdio"',
-    'command = "bun"',
-    `args = ["run", "${serverPath}"]`,
-    `cwd = "${mcpDir}"`,
+    `args = ["run", "${routerPath}"]`,
     '',
     '[mcp_servers.env]',
     `CODEMACHINE_WORKING_DIR = "${workingDir}"`,
@@ -129,29 +104,19 @@ export function generateAgentCoordinationSection(workingDir: string): string {
 }
 
 /**
- * Generate all MCP sections
+ * Generate all MCP sections (just the router)
  */
 export function generateAllMCPSections(workflowDir: string): string {
-  return [
-    generateWorkflowSignalsSection(workflowDir),
-    '',
-    generateAgentCoordinationSection(workflowDir),
-  ].join('\n');
+  return generateRouterSection(workflowDir);
 }
 
 /**
- * Remove all codemachine MCP server sections from TOML content
- *
- * Handles [[mcp_servers]] array format used by Vibe.
- * Removes workflow-signals and agent-coordination entries.
+ * Remove codemachine MCP router section from TOML content
  */
 export function removeAllMCPSections(content: string): string {
   const lines = content.split('\n');
   const cleanedLines: string[] = [];
   let skipUntilNextSection = false;
-
-  // Patterns for our MCP servers
-  const mcpServerPatterns = ['workflow-signals', 'agent-coordination'];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -159,29 +124,23 @@ export function removeAllMCPSections(content: string): string {
 
     // Check if this is a [[mcp_servers]] section
     if (trimmed === '[[mcp_servers]]') {
-      // Look ahead to check if this is one of our servers
       const nextLines = lines.slice(i + 1, i + 5).join('\n');
-      const isOurServer = mcpServerPatterns.some(
-        (p) => nextLines.includes(`name = "${p}"`) || nextLines.includes(`name = '${p}'`)
-      );
+      const isRouter = nextLines.includes(`name = "${ROUTER_ID}"`);
 
-      if (isOurServer) {
+      if (isRouter) {
         skipUntilNextSection = true;
         continue;
       }
     }
 
-    // Check if this is a [mcp_servers.env] section (belongs to previous [[mcp_servers]])
     if (trimmed === '[mcp_servers.env]' && skipUntilNextSection) {
       continue;
     }
 
-    // If we hit a new section, stop skipping
     if (skipUntilNextSection && trimmed.startsWith('[') && trimmed !== '[mcp_servers.env]') {
       skipUntilNextSection = false;
     }
 
-    // Skip lines while in our MCP server section
     if (skipUntilNextSection) {
       continue;
     }
@@ -189,29 +148,12 @@ export function removeAllMCPSections(content: string): string {
     cleanedLines.push(line);
   }
 
-  // Clean up multiple consecutive empty lines
-  const result: string[] = [];
-  let lastWasEmpty = false;
-  for (const line of cleanedLines) {
-    const isEmpty = line.trim() === '';
-    if (isEmpty && lastWasEmpty) {
-      continue;
-    }
-    result.push(line);
-    lastWasEmpty = isEmpty;
-  }
-
-  return result.join('\n').trim();
+  return cleanedLines.join('\n').trim();
 }
 
 /**
- * Check if config contains any codemachine MCP server sections
+ * Check if config contains codemachine MCP router section
  */
 export function hasMCPSections(content: string): boolean {
-  return (
-    content.includes('name = "workflow-signals"') ||
-    content.includes("name = 'workflow-signals'") ||
-    content.includes('name = "agent-coordination"') ||
-    content.includes("name = 'agent-coordination'")
-  );
+  return content.includes(`name = "${ROUTER_ID}"`);
 }

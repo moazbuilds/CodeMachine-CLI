@@ -9,9 +9,11 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { debug } from '../../../../../shared/logging/logger.js';
 import type { ConfigScope } from '../../../../mcp/types.js';
-import { getServerPath as getWorkflowSignalsPath } from '../../../../mcp/servers/workflow-signals/config.js';
-import { getServerPath as getAgentCoordinationPath } from '../../../../mcp/servers/agent-coordination/config.js';
+import { getRouterPath, ROUTER_ID } from '../../../../mcp/router/config.js';
 import { resolveOpenCodeHome } from '../auth.js';
+
+// Re-export router ID
+export { ROUTER_ID };
 
 // ============================================================================
 // TYPES
@@ -94,25 +96,14 @@ export async function writeSettings(
 // ============================================================================
 
 /**
- * Get workflow-signals MCP server configuration for OpenCode format
+ * Get MCP router configuration for OpenCode format
  *
  * OpenCode uses: { type, command[], enabled }
  */
-export function getWorkflowSignalsConfig(): OpenCodeMCPServer {
+export function getMCPRouterConfig(): OpenCodeMCPServer {
   return {
     type: 'local',
-    command: ['bun', 'run', getWorkflowSignalsPath()],
-    enabled: true,
-  };
-}
-
-/**
- * Get agent-coordination MCP server configuration for OpenCode format
- */
-export function getAgentCoordinationConfig(): OpenCodeMCPServer {
-  return {
-    type: 'local',
-    command: ['bun', 'run', getAgentCoordinationPath()],
+    command: ['bun', 'run', getRouterPath()],
     enabled: true,
   };
 }

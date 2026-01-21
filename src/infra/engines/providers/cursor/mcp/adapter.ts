@@ -21,17 +21,16 @@ export const cursorAdapter: MCPAdapter = {
   getSettingsPath: settings.getSettingsPath,
 
   async configure(workflowDir: string, scope: ConfigScope): Promise<void> {
-    debug('[MCP:cursor] Configuring MCP servers (scope: %s)', scope);
+    debug('[MCP:cursor] Configuring MCP router (scope: %s)', scope);
 
     try {
       const configPath = settings.getSettingsPath(scope, workflowDir);
       const existingConfig = await settings.readConfig(configPath);
 
-      // Add MCP servers to config
       const updatedConfig = settings.addMCPServers(existingConfig, workflowDir);
 
       await settings.writeConfig(configPath, updatedConfig);
-      debug('[MCP:cursor] Configuration complete (workflow-signals, agent-coordination)');
+      debug('[MCP:cursor] Configuration complete (router: %s)', settings.ROUTER_ID);
     } catch (error) {
       throw new MCPConfigError(
         `Failed to configure: ${(error as Error).message}`,

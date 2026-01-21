@@ -21,24 +21,20 @@ export const codexAdapter: MCPAdapter = {
   getSettingsPath: settings.getSettingsPath,
 
   async configure(workflowDir: string, scope: ConfigScope): Promise<void> {
-    debug('[MCP:codex] Configuring MCP servers (scope: %s)', scope);
+    debug('[MCP:codex] Configuring MCP router (scope: %s)', scope);
 
     try {
       const configPath = settings.getSettingsPath(scope, workflowDir);
       const existingContent = await settings.readConfig(configPath);
 
-      // Remove any existing MCP sections
       const cleanedContent = settings.removeAllMCPSections(existingContent);
-      debug('[MCP:codex] Cleaned existing MCP sections');
-
-      // Generate new sections and combine
       const newSections = settings.generateAllMCPSections(workflowDir);
       const finalContent = cleanedContent
         ? cleanedContent + '\n\n' + newSections
         : newSections;
 
       await settings.writeConfig(configPath, finalContent);
-      debug('[MCP:codex] Configuration complete (workflow-signals, agent-coordination)');
+      debug('[MCP:codex] Configuration complete (router: %s)', settings.ROUTER_ID);
     } catch (error) {
       throw new MCPConfigError(
         `Failed to configure: ${(error as Error).message}`,
