@@ -81,7 +81,9 @@ export async function runControllerView(
 
   // Find the controller agent from available agents (needed for both paths)
   const allAgents = await collectAgentDefinitions(cwd);
-  const controller = allAgents.find(a => a.id === definition.agentId);
+  // Resolve agent ID - try exact match first, then namespaced (e.g., "bmad:bmad-po" for "bmad-po")
+  const controller = allAgents.find(a => a.id === definition.agentId)
+    ?? allAgents.find(a => a.id.endsWith(`:${definition.agentId}`));
 
   // Check if controller session already exists
   const existingConfig = await loadControllerConfig(cmRoot);
