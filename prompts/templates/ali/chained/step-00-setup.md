@@ -129,7 +129,27 @@ Wait for response. Store as `mode`.
 - If Quick: "Got it! Quick mode."
 - If Expert: "Great! Expert mode."
 
-**3. Ask which workflow (call to action):**
+**3. Show journey based on selected conditions:**
+
+Calculate step count from `{selected_conditions}` (same logic as create-workflow):
+
+| Condition | Maps To |
+|-----------|---------|
+| `full-workflow` | All steps (01-05) |
+| `workflow-definition` | Step 02 |
+| `agents` | Step 03 |
+| `prompts` | Step 04 |
+| `workflow-generation` | Step 05 |
+
+"**Your journey for modifying ({total_steps} steps):**
+
+| Step | Focus |
+|------|-------|
+| 00 | Setup (done) |
+| 01 | Load & Review |
+{dynamically_generated_rows based on selected_conditions}"
+
+**4. Ask which workflow (call to action):**
 
 "**Which workflow do you want to modify?**
 
@@ -137,43 +157,17 @@ Enter the workflow name (e.g., `docs-generator`):"
 
 Wait for response. Store as `existing_workflow_name`.
 
-**4. Load existing plan:**
-
-Load `.codemachine/workflow-plans/{existing_workflow_name}-plan.md`.
-
-- If not found: "Couldn't find **{existing_workflow_name}**. Check the name and try again." (ask again)
-- If found: Show current workflow summary from plan file.
-
 **5. Ask what to modify (call to action):**
 
-"**What do you want to modify?**
-
-1. Workflow Definition (name, tracks, conditions, mode)
-2. Agents (add, edit, remove)
-3. Prompts (edit prompt files)
-4. Full review (everything)
-
-Enter **1-4**:"
+"**What do you want to modify in {selected_conditions}?**"
 
 Wait for response. Store as `modify_focus`.
 
-**6. Show journey based on modify_focus and proceed:**
+**6. Push to proceed:**
 
-Map `modify_focus` to steps:
-- 1 (Workflow Definition) → Step 02
-- 2 (Agents) → Step 03
-- 3 (Prompts) → Step 04
-- 4 (Full review) → Steps 02-05
+"Ready to start modifying **{existing_workflow_name}**.
 
-"**Your journey for modifying {existing_workflow_name}:**
-
-| Step | Focus |
-|------|-------|
-| 00 | Setup (done) |
-| 01 | Load & Review |
-{steps based on modify_focus}
-
-Press **Enter** to proceed."
+Press **Enter** to proceed to Step 01."
 
 ---
 
@@ -199,19 +193,36 @@ Wait for response. Store as `mode`.
 - If Quick: "Got it! Quick mode."
 - If Expert: "Great! I'll explain thoroughly."
 
-**3. Ask what they need (call to action):**
+**3. Show journey based on selected conditions:**
 
-"**What would you like to know about?**
+Calculate step count from `{selected_conditions}` (same logic as create-workflow):
 
-1. CodeMachine concepts (workflows, agents, tracks, conditions)
-2. Creating workflows
-3. Modifying workflows
-4. Troubleshooting
-5. Something else
+| Condition | Maps To |
+|-----------|---------|
+| `full-workflow` | All steps (01-05) |
+| `workflow-definition` | Step 02 |
+| `agents` | Step 03 |
+| `prompts` | Step 04 |
+| `workflow-generation` | Step 05 |
 
-Enter **1-5** or describe your question:"
+"**Your Q&A journey ({total_steps} steps):**
 
-Wait for response. Store as `question_topic`. Route to relevant help.
+| Step | Focus |
+|------|-------|
+| 00 | Setup (done) |
+{dynamically_generated_rows based on selected_conditions}"
+
+**4. Ask what they need (call to action):**
+
+"**What would you like to know about in {selected_conditions}?**"
+
+Wait for response. Store as `question_topic`.
+
+**5. Push to proceed:**
+
+"Ready to answer your questions about **{question_topic}**.
+
+Press **Enter** to proceed to Step 01."
 
 ---
 
@@ -233,18 +244,20 @@ Wait for response. Store as `question_topic`. Route to relevant help.
 ## SUCCESS METRICS
 
 - Mode selected (quick/expert)
-- Journey preview shown
+- Journey preview shown with step count
 - Track-specific questions answered with clear call to action
 - `create-workflow`: workflow_concept captured
-- `modify-workflow`: existing workflow loaded, modify_focus selected
-- `have-questions`: question topic identified
-- User knows what's next (proceed message)
+- `modify-workflow`: existing_workflow_name and modify_focus captured
+- `have-questions`: question_topic captured
+- User pushed to press Enter to proceed
 
 ## FAILURE METRICS
 
 - Skipping mode selection
-- Not showing journey preview
+- Not showing journey preview with step count
 - Ending on informational content instead of call to action
 - Not asking for workflow concept (create-workflow)
-- Not loading existing plan (modify-workflow)
+- Not asking for workflow name (modify-workflow)
 - Proceeding without clear "Press Enter" instruction
+- Using Write tool (FORBIDDEN in Step 0)
+- Loading or modifying files (FORBIDDEN in Step 0)
