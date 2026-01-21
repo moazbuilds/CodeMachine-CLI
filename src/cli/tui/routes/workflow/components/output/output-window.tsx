@@ -327,7 +327,7 @@ export function OutputWindow(props: OutputWindowProps) {
           name: currentCleanName,
           nextStepName: nextCleanName,
           description: nextPrompt?.label ?? "",
-          index: idx + 1,
+          index: idx,  // 0-based: Init = step 0
           total: inputState.queuedPrompts.length + 1,  // +1 for Init step
         }
       }
@@ -348,7 +348,7 @@ export function OutputWindow(props: OutputWindowProps) {
           mode: "passive",
           chainedStep: {
             name: cleanName,
-            index: idx + 1,
+            index: idx,  // 0-based: Init = step 0
             total: inputState.queuedPrompts.length + 1,  // +1 for Init step
           },
         }
