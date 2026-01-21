@@ -1,14 +1,74 @@
 ---
-name: "Step 01 - Mode Selection & Brainstorming"
-description: "Choose mode (Deep/MVP) and optionally brainstorm workflow ideas"
+name: "Step 01 - Brainstorming"
+description: "Choose mode (Quick/Expert) and optionally brainstorm workflow ideas"
 ---
 
-# Step 01: Mode Selection & Brainstorming
+# Step 01: Brainstorming
 
 ## STEP GOAL
 
-1. Help user choose their workflow mode: **Deep** or **MVP**
-2. Offer optional **brainstorming** to explore workflow ideas before building
+1. Route based on selected track and conditions
+2. Confirm the journey with renumbered steps
+3. Help user choose mode (Quick/Expert)
+4. Offer guidance/brainstorming before proceeding
+
+## Track & Condition Routing (EXECUTE FIRST)
+
+**Read `{selected_track}` and `{selected_conditions}` - these are already selected.**
+
+### Step Renumbering
+
+Steps 02-05 load conditionally. Renumber based on selected conditions:
+
+| Condition | Original Step | Your New # |
+|-----------|---------------|------------|
+| `workflow-definition` | Step 02 | Step \{next_available\} |
+| `agents` | Step 03 | Step \{next_available\} |
+| `prompts` | Step 04 | Step \{next_available\} |
+| `workflow-generation` | Step 05 | Step \{next_available\} |
+
+**Example:** If only `agents` + `prompts` selected:
+- Step 01 = Brainstorming (this step - always)
+- Step 02 = Agents
+- Step 03 = Prompts
+- Done (3 steps total)
+
+### Confirm Journey to User
+
+"Based on your selections:
+
+**Track:** `{selected_track}`
+**Focus Areas:** `{selected_conditions}`
+
+**Your journey (\{total_steps\} steps):**
+
+| Step | Focus |
+|------|-------|
+| 01 | Brainstorming (this step) |
+| \{n\} | \{condition_label\} |
+| ... | ... |
+
+Is this correct? **[y/n]**"
+
+Wait for confirmation. If no, tell user to restart and reselect tracks/conditions.
+
+### Track-Specific Behavior
+
+**`create-workflow`:** Full creation flow for selected areas.
+
+**`modify-workflow`:** Ask for existing workflow name, load plan file, then modify selected areas.
+
+**`have-questions`:** Ask for specific question, confirm, then route to relevant step for Q&A only.
+
+### Before Proceeding
+
+After confirming journey, tell user:
+
+"Press **Enter** to inject the next step's knowledge.
+
+Or if you want guidance or brainstorming about your needs first, ask me directly - I'm happy to help clarify before we dive in."
+
+---
 
 ## Sequence of Instructions
 
@@ -29,22 +89,28 @@ A complete, production-ready workflow that you can run repeatedly. By the end, y
 - Everything validated and ready to test
 
 **Where it lives:**
-Your workflow will be at `~/.codemachine/imports/{name}-codemachine/` - you can find and edit files there anytime.
+Your workflow will be at `~/.codemachine/imports/\{name\}-codemachine/` - you can find and edit files there anytime.
 
-**The journey - 8 steps:**
+**The journey - 5 steps:**
 
 | Step | What We Do |
 |------|------------|
-| 01 | Mode & Brainstorming (this step) |
+| 01 | Brainstorming (this step) |
 | 02 | Workflow Definition - name, tracks, conditions |
-| 03 | Main Agents - define who does what |
-| 04 | Prompts & Placeholders - write the instructions |
-| 05 | Controller Agent (optional) |
-| 06 | Sub-Agents (optional) |
-| 07 | Modules (optional) |
-| 08 | Assembly & Validation - put it together, test it |
+| 03 | Agents - define all agents (main, sub-agents, modules, controller) |
+| 04 | Prompts - write the instructions |
+| 05 | Workflow Generation - put it together, validate, done! |
 
-Now let's set up your experience."
+Now let's set up your experience.
+
+**Before we start, one important thing:**
+At any point during our session, if you need to:
+- Reset me (Ali) to clear context
+- Reselect tracks and conditions
+- Jump to a specific step
+- Continue from where you left off after a break
+
+Just delete `./.codemachine/template.json`. This clears my current context and restarts the Ali workflow. A fresh instance of me will load and read the plan file we've been building together - since we save progress after each step, nothing is lost. You can then choose exactly where to pick up."
 
 ### 2. Ask Mode Selection
 
@@ -120,6 +186,8 @@ Based on the user's answers, analyze the use case:
 1. **[Technique Name]** - [1 sentence why it fits this use case]
 2. **[Technique Name]** - [1 sentence why it fits this use case]
 3. **[Technique Name]** - [1 sentence why it fits this use case]
+
+*These brainstorming techniques are inspired by the [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD), created by Brian.*
 
 Let's begin!"
 
@@ -221,14 +289,11 @@ Briefly outline what's coming:
 
 "Here's what we'll build together:
 
-1. ✓ Mode & Brainstorming (this step)
+1. ✓ Brainstorming (this step)
 2. Workflow Definition - name, tracks, conditions
-3. Main Agents - your workflow's core agents
-4. Prompts & Placeholders - the actual prompt files
-5. Controller Agent - optional, for autonomous mode
-6. Sub-Agents - optional helper agents
-7. Modules - optional loop behavior
-8. Assembly & Validation - put it all together
+3. Agents - all agents (main, sub-agents, modules, controller)
+4. Prompts - the actual prompt files
+5. Workflow Generation - put it all together, validate, done!
 
 Ready to start building!"
 
@@ -239,24 +304,24 @@ Ready to start building!"
 **XML Template for Step 1:**
 
 ```xml
-<step-01 completed="true" timestamp="{ISO timestamp}">
-  <mode>{quick|expert}</mode>
-  <brainstorming enabled="{true|false}">
+<step-01 completed="true" timestamp="\{ISO timestamp\}">
+  <mode>\{quick|expert\}</mode>
+  <brainstorming enabled="\{true|false\}">
     <basic-discovery>
-      <about>{workflow about - one sentence}</about>
-      <goal>{main goal}</goal>
-      <users>{who will use it}</users>
+      <about>\{workflow about - one sentence\}</about>
+      <goal>\{main goal\}</goal>
+      <users>\{who will use it\}</users>
     </basic-discovery>
     <techniques-used>
-      <technique name="{technique 1}" category="{category}" />
-      <technique name="{technique 2}" category="{category}" />
-      <technique name="{technique 3}" category="{category}" />
+      <technique name="\{technique 1\}" category="\{category\}" />
+      <technique name="\{technique 2\}" category="\{category\}" />
+      <technique name="\{technique 3\}" category="\{category\}" />
     </techniques-used>
     <synthesis>
-      <problem>{synthesized root problem}</problem>
-      <agent-ideas>{synthesized agent concepts}</agent-ideas>
-      <flow-concept>{synthesized flow}</flow-concept>
-      <key-insight>{most important discovery}</key-insight>
+      <problem>\{synthesized root problem\}</problem>
+      <agent-ideas>\{synthesized agent concepts\}</agent-ideas>
+      <flow-concept>\{synthesized flow\}</flow-concept>
+      <key-insight>\{most important discovery\}</key-insight>
     </synthesis>
   </brainstorming>
 </step-01>
@@ -269,14 +334,11 @@ Ready to start building!"
 
 ```javascript
 TodoWrite([
-  { content: "Step 01: Mode Selection", status: "completed", activeForm: "Mode selection completed" },
+  { content: "Step 01: Brainstorming", status: "completed", activeForm: "Brainstorming completed" },
   { content: "Step 02: Workflow Definition", status: "in_progress", activeForm: "Defining workflow" },
-  { content: "Step 03: Main Agents", status: "pending", activeForm: "Defining main agents" },
-  { content: "Step 04: Prompts & Placeholders", status: "pending", activeForm: "Creating prompts" },
-  { content: "Step 05: Controller Agent", status: "pending", activeForm: "Creating controller" },
-  { content: "Step 06: Sub-Agents", status: "pending", activeForm: "Configuring sub-agents" },
-  { content: "Step 07: Modules", status: "pending", activeForm: "Configuring modules" },
-  { content: "Step 08: Assembly & Validation", status: "pending", activeForm: "Assembling workflow" }
+  { content: "Step 03: Agents", status: "pending", activeForm: "Defining agents" },
+  { content: "Step 04: Prompts", status: "pending", activeForm: "Creating prompts" },
+  { content: "Step 05: Workflow Generation", status: "pending", activeForm: "Generating workflow" }
 ])
 ```
 
@@ -295,7 +357,7 @@ TodoWrite([
   - Phase 4: Synthesis completed with problem, agent ideas, flow concept, key insight
 - Mode and brainstorming choice stored in XML
 - TodoWrite updated with step progress
-- User understands the 8-step journey ahead
+- User understands the 5-step journey ahead
 
 ## FAILURE METRICS
 

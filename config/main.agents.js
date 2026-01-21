@@ -13,16 +13,25 @@ module.exports = [
     promptPath: [
       path.join(promptsDir, 'ali', 'ali.md'),
       path.join(promptsDir, 'ali', 'workflow.md'),
-      path.join(promptsDir, 'ali', 'chained', 'step-01-mode-selection.md'),
+      path.join(promptsDir, 'ali', 'chained', 'step-01-brainstorming.md'),
     ],
     chainedPromptsPath: [
-      path.join(promptsDir, 'ali', 'chained', 'step-02-workflow-definition.md'),
-      path.join(promptsDir, 'ali', 'chained', 'step-03-main-agents.md'),
-      path.join(promptsDir, 'ali', 'chained', 'step-04-prompts-placeholders.md'),
-      path.join(promptsDir, 'ali', 'chained', 'step-05-controller.md'),
-      path.join(promptsDir, 'ali', 'chained', 'step-06-sub-agents.md'),
-      path.join(promptsDir, 'ali', 'chained', 'step-07-modules.md'),
-      path.join(promptsDir, 'ali', 'chained', 'step-08-assembly-validation.md'),
+      {
+        path: path.join(promptsDir, 'ali', 'chained', 'step-02-workflow-definition.md'),
+        conditions: ['workflow-definition'],
+      },
+      {
+        path: path.join(promptsDir, 'ali', 'chained', 'step-03-agents.md'),
+        conditions: ['agents'],
+      },
+      {
+        path: path.join(promptsDir, 'ali', 'chained', 'step-04-prompts.md'),
+        conditions: ['prompts'],
+      },
+      {
+        path: path.join(promptsDir, 'ali', 'chained', 'step-05-workflow-generation.md'),
+        conditions: ['workflow-generation'],
+      },
     ],
   },
 

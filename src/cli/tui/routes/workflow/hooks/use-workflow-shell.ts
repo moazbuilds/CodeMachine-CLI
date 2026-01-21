@@ -184,6 +184,7 @@ export function useWorkflowShell(options: UseWorkflowShellOptions) {
       modals.isLogViewerActive() ||
       modals.isHistoryActive() ||
       modals.isHistoryLogViewerActive() ||
+      modals.isChainConfirmActive() ||
       handlers.showStopModal() ||
       events.isErrorModalActive() ||
       handlers.showControllerContinueModal(),

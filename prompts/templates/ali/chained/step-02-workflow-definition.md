@@ -1,96 +1,388 @@
 ---
 name: "Step 02 - Workflow Definition"
-description: "Sanity checks, workflow name, tracks, and condition groups"
+description: "Setup check, workflow name, tracks, and condition groups"
 ---
 
 # Step 02: Workflow Definition
 
 ## STEP GOAL
 
-1. Run sanity checks to verify config files exist and collect existing IDs
-2. Define workflow name
-3. Configure tracks (optional - project type selection)
-4. Configure conditionGroups (optional - feature selection)
-5. Set workflow flags (controller, specification)
+1. Run setup check to verify imports folder and registry exist
+2. Gather workflow concept (from Step 1 brainstorming or ask user)
+3. Suggest workflow names with descriptions, let user pick or provide own
+4. Confirm name and description
+5. Configure tracks (optional - project type selection)
+6. Configure conditionGroups (optional - feature selection)
+7. Set workflow flags (controller, specification, engine, model)
 
-## EXCEPTION: Sanity Checks Require File Access
+## Track-Based Behavior
 
-This is the ONLY step where reading files at the start is permitted. You must verify the CodeMachine config files exist and collect existing agent IDs to prevent duplicates.
+**Check `{selected_track}` and adapt accordingly:**
 
-## Sequence of Instructions
+---
 
-### 1. Run Sanity Checks
+**`create-workflow`:** Execute full sequence below - create new workflow definition from scratch.
 
-Read these config files to verify they exist and collect existing IDs:
+---
 
-**Files to check:**
-- `config/main.agents.js` - Main agent configurations
-- `config/sub.agents.js` - Sub-agent configurations
-- `config/modules.js` - Module configurations
-- `config/placeholders.js` - Placeholder registrations
+**`modify-workflow`:**
+- Plan file already loaded from Step 01
+- Show current workflow definition from plan
+- Ask: "What do you want to modify?" (name, description, tracks, conditions, workflow mode)
+- Only update the requested sections
+- Re-validate and update plan file
 
-**For each file:**
-1. Verify file exists
-2. Extract all existing `id` values
-3. Store in `existing_ids` array
+---
 
-**Report to user:**
-"**Sanity Check Results:**
+**`have-questions`:**
+- Q&A mode only - answer questions about workflow definition concepts
+- Topics: workflow naming, tracks, conditions, workflow modes (manual/continuous/autonomous)
+- Do NOT create or modify anything
+- After answering, tell user: "Press **Enter** to proceed to the next step, or ask more questions."
 
-✓ config/main.agents.js - Found [X] agents
-✓ config/sub.agents.js - Found [X] sub-agents
-✓ config/modules.js - Found [X] modules
-✓ config/placeholders.js - Valid
+---
 
-I've collected all existing IDs to ensure we don't create duplicates."
+## Sequence of Instructions (create-workflow / modify-workflow)
 
-**If any file is missing:**
-"⚠️ Warning: [filename] not found. This may indicate an incomplete CodeMachine installation. Do you want to proceed anyway? [y/n]"
+### 1. Setup Check
 
-### 2. Ask Workflow Name
+Check the CodeMachine imports folder and registry file.
 
-"**What would you like to name your workflow?**
+**Location:** `~/.codemachine/imports/`
 
-This name will be used for:
-- Workflow file: `templates/workflows/{name}.workflow.js`
-- Prompts folder: `prompts/templates/{name}/`
+**Registry file:** `~/.codemachine/imports/registry.json`
 
-Tips:
-- Use lowercase with hyphens (e.g., `code-review`, `project-setup`)
-- Keep it short and descriptive
-- Avoid spaces and special characters
+**Registry structure:**
+```json
+{
+  "schemaVersion": 1,
+  "imports": {
+    "workflow-name": {
+      "name": "workflow-name",
+      "version": "1.0.0",
+      "source": "workflow-name-codemachine",
+      "path": "/home/user/.codemachine/imports/workflow-name-codemachine",
+      "installedAt": "ISO-timestamp",
+      "resolvedPaths": { ... }
+    }
+  }
+}
+```
 
-Enter workflow name:"
+---
 
-Wait for response. Validate:
-- Lowercase letters, numbers, hyphens only
-- No spaces or special characters
-- Confirm name with user
+**Scenario A: Imports folder doesn't exist**
 
-Store as `workflow_name`.
+Actions:
+1. Create `~/.codemachine/imports/` directory
+2. Create `registry.json` with: `{ "schemaVersion": 1, "imports": {} }`
 
-### 3. Ask About Tracks (Optional)
+Display:
+"Setting up your CodeMachine imports folder...
 
-**In Expert mode, explain first:**
-"**Tracks** let users choose their project type at the start of a workflow. Each track can enable different agents or steps.
+✓ Created ~/.codemachine/imports/
+✓ Created registry.json
 
-Example: A code workflow might have tracks for `frontend`, `backend`, `fullstack` - and show different agents based on selection."
+You're all set! Let's create your first workflow."
 
-**Then ask (both modes):**
-"**Do you want to add tracks to your workflow?**
+Store `existing_workflows: []` and proceed to Section 2.
 
-Tracks are useful when:
-- Different project types need different steps
-- You want to filter agents by user selection
-- Your workflow supports multiple use cases
+---
 
-Would you like to add tracks? **[y/n]**"
+**Scenario B: Imports folder exists, registry has workflows**
 
-**If YES:**
-"Let's define your tracks.
+Actions:
+1. Read `~/.codemachine/imports/registry.json`
+2. Parse and extract workflow names from the `imports` object keys
+3. Store in `existing_workflows` array
 
-**Track question:** What question should users answer to select a track?
-(Example: 'What type of project are you building?')
+Display:
+"**Existing Imported Workflows:**
+
+| Name | Installed |
+|------|-----------|
+| \{name\} | \{formatted date from installedAt\} |
+| ... | ... |
+
+Awesome! You already have \{count\} workflow(s). Let's add a new one."
+
+Proceed to Section 2.
+
+---
+
+**Scenario C: Imports folder exists but registry.json is missing or empty/invalid**
+
+Actions:
+1. Create/fix `registry.json` with: `{ "schemaVersion": 1, "imports": {} }`
+
+Display:
+"✓ Registry file initialized.
+
+Let's create your first workflow!"
+
+Store `existing_workflows: []` and proceed to Section 2.
+
+### 2. Gather Workflow Concept
+
+**Check if brainstorming was completed in Step 1:**
+
+**If brainstorming WAS done (step-01 has synthesis data):**
+
+Use the stored data from Step 1:
+- `<about>` - what the workflow is about
+- `<goal>` - main goal
+- `<problem>` - synthesized problem
+- `<flow-concept>` - synthesized flow
+
+Skip to "Generate Name Suggestions" below.
+
+---
+
+**If brainstorming was NOT done:**
+
+Ask the user to briefly describe their workflow:
+
+"**Before we name your workflow, tell me briefly:**
+
+1. What will this workflow do? (one sentence)
+2. What's the end goal?
+
+This helps me suggest good names and descriptions."
+
+Wait for response. Store as `workflow_concept`.
+
+---
+
+### 3. Generate Name Suggestions
+
+Based on the workflow concept (from brainstorming or user's brief description), generate **3-4 workflow name suggestions** with descriptions.
+
+**Name generation rules:**
+- Lowercase with hyphens only
+- 2-4 words maximum
+- Action-oriented or domain-specific
+- NOT in `existing_workflows` array
+
+**Present suggestions:**
+
+"**Suggested Workflow Names:**
+
+Based on your concept, here are some options:
+
+| # | Name | Description |
+|---|------|-------------|
+| 1 | `\{suggested-name-1\}` | \{one-line description of what it does\} |
+| 2 | `\{suggested-name-2\}` | \{one-line description of what it does\} |
+| 3 | `\{suggested-name-3\}` | \{one-line description of what it does\} |
+| 4 | `\{suggested-name-4\}` | \{one-line description of what it does\} |
+
+**Your workflow will be created at:**
+`~/.codemachine/imports/\{name\}-codemachine/`
+
+Enter **1-4** to select, or type your own name:"
+
+Wait for response.
+
+**If user selects a number (1-4):**
+- Store the selected name as `workflow_name`
+- Store the corresponding description as `workflow_description`
+- Proceed to "Confirm Name & Description"
+
+**If user types their own name:**
+- Validate: lowercase letters, numbers, hyphens only
+- Validate: **NOT in `existing_workflows` array**
+- If invalid format: "⚠️ Please use lowercase letters, numbers, and hyphens only (e.g., `my-workflow`)."
+- If already exists: "⚠️ A workflow named **\{name\}** already exists. Please choose a different name."
+- Store as `workflow_name`
+- Proceed to "Ask for Description"
+
+---
+
+### 4. Confirm Name & Description
+
+**If user selected a suggested option:**
+
+"You selected: **\{workflow_name\}**
+
+Description: *\{workflow_description\}*
+
+Is this correct? **[y/n]** (or type a new description to customize)"
+
+Wait for response:
+- If "y" or "yes": Proceed to Section 5 (Tracks)
+- If "n" or "no": Go back to name suggestions
+- If user types text: Store as custom `workflow_description`, then proceed
+
+---
+
+**If user provided their own name (Ask for Description):**
+
+"Great! Your workflow will be called **\{workflow_name\}**.
+
+**Now describe it in one sentence:**
+
+Example: *'Guides developers through setting up a new microservice with tests and documentation'*
+
+Enter description:"
+
+Wait for response. Store as `workflow_description`.
+
+---
+
+**Final confirmation:**
+
+"**Confirmed:**
+- **Name:** `\{workflow_name\}`
+- **Description:** \{workflow_description\}
+- **Location:** `~/.codemachine/imports/\{workflow_name\}-codemachine/`
+
+Let's continue!"
+
+### 5. Ask About Tracks (Optional)
+
+**Quick Mode:**
+"Most workflows don't need tracks. Skipping for now - you can add them later if needed."
+Store `tracks: null` and proceed to Section 7 (Workflow Mode).
+
+---
+
+**Expert Mode - Start with intent question:**
+
+"**Quick question:** Will your workflow need different paths for different situations?
+
+For example:
+- Same workflow but for **JavaScript vs Python** projects
+- Same workflow but for **creating new** vs **modifying existing**
+
+If your workflow is straightforward with one path, you probably don't need this.
+
+**Does your workflow need different paths?**
+1. **No** - One path, keep it simple
+2. **Maybe** - Tell me more about tracks first
+3. **Yes** - I know what I need
+
+Enter **1**, **2**, or **3**:"
+
+Wait for response.
+
+---
+
+**If user chose 1 (No):**
+"Perfect! Keeping it simple. We'll skip tracks.
+
+Since your workflow has one straightforward path, I'll assume you don't need optional features (conditions) either - skipping those too."
+
+Store `tracks: null` and `conditionGroups: []`.
+Proceed directly to **Section 7 (Workflow Mode)** - skip Section 6 entirely.
+
+---
+
+**If user chose 2 (Maybe - explain tracks):**
+
+"Let me explain **Tracks** with real examples:
+
+---
+
+**What are Tracks?**
+
+Tracks let you create **different paths through the same workflow**. Before the workflow starts, a modal appears asking the user to choose a track - they MUST select one to proceed.
+
+---
+
+**Real Example 1: Code Generator Workflow**
+
+Imagine a workflow that generates boilerplate code. You want it to work for both JavaScript and Python:
+
+| Track | What's Different |
+|-------|------------------|
+| `javascript` | Uses JS-specific agents, npm commands, JS templates |
+| `python` | Uses Python-specific agents, pip commands, Python templates |
+
+**Shared steps:** Planning, brainstorming, architecture design
+**Different steps:** Code generation, testing, deployment
+
+The workflow has 5 agents:
+```
+1. Planner Agent      → runs for BOTH tracks (shared)
+2. Architect Agent    → runs for BOTH tracks (shared)
+3. JS Dev Agent       → runs ONLY for javascript track
+4. Python Dev Agent   → runs ONLY for python track
+5. Reviewer Agent     → runs for BOTH tracks (shared)
+```
+
+---
+
+**Real Example 2: This Workflow (Ali)**
+
+Ali currently helps **create** new workflows. But what if we added a track for **modifying** existing workflows?
+
+| Track | Path |
+|-------|------|
+| `create` | Full 8-step creation process |
+| `modify` | Load existing → Show what can be changed → Apply edits |
+
+Same Ali persona, but completely different steps based on track selection.
+
+---
+
+**Real Example 3: Partial vs Full Differences**
+
+Tracks can be:
+- **Partially different** - Share most steps, swap a few agents
+- **Fully different** - Completely separate paths under one workflow
+
+You control which agents run for which tracks.
+
+---
+
+**Nested Questions with Conditions**
+
+Tracks can have **conditions** nested under them for follow-up questions:
+
+```
+Track: modify (Modify Existing Workflow)
+  └── Condition Group: "What do you want to modify?"
+        ├── main-agents
+        ├── sub-agents
+        ├── modules
+        └── prompts
+```
+
+The user selects the `modify` track, then gets asked which parts to modify.
+
+---
+
+**Now that you understand tracks, do you need them?**
+1. **No** - My workflow has one path
+2. **Yes** - I want to set up tracks
+
+Enter **1** or **2**:"
+
+Wait for response.
+
+**If 1:**
+"Got it! Keeping it simple.
+
+Since your workflow has one path, I'll assume you don't need optional features (conditions) either - skipping those too."
+
+Store `tracks: null` and `conditionGroups: []`.
+Proceed directly to **Section 7 (Workflow Mode)** - skip Section 6 entirely.
+
+**If 2:** Continue to "Define Tracks" below.
+
+---
+
+**If user chose 3 (Yes - knows what they need) OR chose Yes after explanation:**
+
+"Great! Let's define your tracks.
+
+**Track Selection Question**
+What question should appear in the modal when users start the workflow?
+
+Examples:
+- 'Which language are you using?'
+- 'What do you want to do?'
+- 'Select your project type:'
 
 Enter the question:"
 
@@ -99,197 +391,534 @@ Wait for response. Store as `tracks.question`.
 "**Now define each track option.**
 
 For each track, provide:
-- **ID** (lowercase, no spaces): e.g., `frontend`
-- **Label**: e.g., `Frontend Application`
-- **Description**: e.g., `React, Vue, or Angular projects`
+- **ID** (lowercase, hyphens ok): e.g., `javascript`, `create-new`
+- **Label**: e.g., `JavaScript Project`, `Create New Workflow`
+- **Description**: e.g., `For Node.js, React, or vanilla JS projects`
 
 Enter first track (format: `id | label | description`):"
 
-Collect tracks until user says done. Store in `tracks.options`.
+Collect tracks. After each: "Add another track? [y/n]"
 
-**If NO:** Store `tracks: null`.
+Store in `tracks.options`.
 
-### 4. Ask About Condition Groups (Optional)
+"**Tracks defined:**
+\{list tracks\}
 
-**In Expert mode, explain first:**
-"**Condition Groups** let users select features or options that affect which agents run. They can be:
-- Multi-select (choose many features)
-- Single-select (choose one option)
-- Track-specific (only appear for certain tracks)
-- Nested (have children conditions)
+You'll assign agents to tracks in Step 3 (Main Agents).
 
-Example: 'Which features do you need?' with options like `authentication`, `database`, `api` - and `authentication` might have children for `oauth`, `jwt`, `basic`."
-
-**Then ask (both modes):**
-"**Do you want to add condition groups to your workflow?**
-
-Condition groups are useful when:
-- Agents should only run for certain features
-- Users need to configure options upfront
-- You want dynamic workflow behavior
-
-Would you like to add condition groups? **[y/n]**"
-
-**If YES:**
-
-For each condition group, collect:
-
-1. **Group ID:** "Enter group ID (lowercase, no spaces):"
-2. **Question:** "What question should this group ask?"
-3. **Multi-select?:** "Can users select multiple options? [y/n]"
-4. **Track-specific?:** "Should this only appear for specific tracks? [y/n]"
-   - If yes: "Which tracks? (comma-separated IDs):"
-
-5. **Conditions:** "Now define the condition options for this group.
-
-For each condition:
-- **ID** (lowercase): e.g., `auth`
-- **Label**: e.g., `Authentication`
-- **Description**: e.g., `Add user login and registration`
-
-Enter condition (format: `id | label | description`):"
-
-Collect conditions until user says done.
-
-6. **Children?:** "Does any condition need follow-up options (children)? [y/n]"
-   - If yes: "Which condition ID needs children?:"
-   - Then collect children conditions same format
-
-7. **More groups?:** "Add another condition group? [y/n]"
-
-Store all in `conditionGroups` array.
-
-**If NO:** Store `conditionGroups: []`.
-
-### 5. Ask About Workflow Mode
-
-"**Workflow Execution Mode**
-
-How should your workflow run? This is an important choice that affects how agents interact with users.
+**Quick tip:** Your agents can know which track was selected at runtime using the `\{selected_track\}` placeholder in their prompts. I'll remind you about this when we create prompts in Step 4."
 
 ---
 
-**Option 1: Continuous Mode (Recommended - Default)**
+### 6. Ask About Condition Groups (Optional)
 
-The workflow runs automatically from start to finish. Each agent completes its task and the system advances to the next agent **without waiting for user input**.
+**IMPORTANT - Built-in Placeholders for Agent Awareness:**
 
+When tracks and/or conditions are configured, Ali must remember these built-in placeholders for Step 4 (Prompts):
+
+| Placeholder | What It Contains | Example Value |
+|-------------|------------------|---------------|
+| `\{selected_track\}` | The track ID selected by user at workflow start | `javascript`, `python`, `create` |
+| `\{selected_conditions\}` | Comma-separated list of selected condition IDs | `auth, database`, `oauth` |
+| `\{project_name\}` | The project name from CodeMachine | `my-app` |
+
+**Why this matters:**
+1. **Controller agents** need to know what track/conditions were selected to respond appropriately
+2. **Regular agents** can adapt their behavior based on the selected track
+3. **Prompts can include** these placeholders for runtime injection
+
+**Example prompt usage:**
+```markdown
+You are working on a \{selected_track\} project.
+The user has enabled these features: \{selected_conditions\}
+
+Adapt your code generation accordingly.
 ```
-Agent 1 (Planner) → completes → auto-advance →
-Agent 2 (Builder) → completes → auto-advance →
-Agent 3 (Reviewer) → completes → done!
-```
 
-✅ **Best for:**
-- Simple, straightforward workflows
-- When agents have all the information they need
-- Predictable tasks with clear outputs
-- Batch processing or automated pipelines
-
-✅ **Benefits:**
-- Fastest execution - no waiting
-- Easy to build and maintain
-- Lower token consumption
+Ali will inform users about these placeholders when creating prompts in Step 4.
 
 ---
 
-**Option 2: Manual Mode (Interactive)**
-
-The workflow **stops after each agent** and waits for your input. You can review the agent's output, provide feedback, answer questions, or guide the next step.
-
-```
-Agent 1 (Planner) → completes → ⏸️ WAITING FOR YOU →
-  You: "Looks good, continue"
-Agent 2 (Builder) → completes → ⏸️ WAITING FOR YOU →
-  You: "Add error handling to the login function"
-Agent 3 (Reviewer) → completes → done!
-```
-
-If an agent has **chained prompts** (multiple steps), it will also wait after each step:
-
-```
-Agent 1 - Step 1 → ⏸️ WAITING → You respond →
-Agent 1 - Step 2 → ⏸️ WAITING → You respond →
-Agent 1 - Step 3 → completes → next agent...
-```
-
-💡 **Real Example - This workflow (Ali) is Manual Mode!**
-
-I'm Ali, and I'm running in manual mode right now:
-- No controller - I talk directly to YOU
-- No autonomous mode - you can't press Shift+Tab to auto-pilot
-- After each step, I wait for you to respond and press Enter
-
-That's why you've been talking to me step by step. If this was Continuous mode, all 8 steps would run automatically without waiting for your input!
-
-✅ **Best for:**
-- Workflows where you want to guide each step
-- When agents ask questions that need YOUR answers
-- Learning/exploring - see what each agent does
-- Quality control - review before proceeding
-
-✅ **Benefits:**
-- Full control over the workflow
-- Can correct course at any point
-- See intermediate outputs
+**Quick Mode:**
+"Skipping condition groups - you can add them later if needed."
+Store `conditionGroups: []` and proceed to Section 7.
 
 ---
 
-**Option 3: Autonomous Mode with Controller (Beta)**
+**Expert Mode - Start with intent question:**
 
-A special **Controller Agent** responds on your behalf when agents ask questions. You brief the controller before the workflow starts, and it handles all agent interactions automatically.
+"**Quick question:** Will some parts of your workflow be optional based on user choices?
 
-```
-Agent (John - PM): What is our project type?
-Controller: Our project is a React dashboard for analytics...
+For example:
+- 'Do you want authentication?' → Only run auth agents if yes
+- 'Which features?' → Run different agents based on selection
 
-Agent (Sarah - Architect): Should we use REST or GraphQL?
-Controller: Use GraphQL for the flexible queries we need...
-```
-
-**How it works:**
-1. Before workflow starts, you brief the controller about the project
-2. Controller knows each agent by name and their expected output
-3. When an agent asks a question, controller responds instead of you
-4. You can toggle autonomous mode ON/OFF with **Shift+Tab** during execution
-
-⚠️ **Trade-offs:**
-- **Higher token consumption** - Controller receives and responds to every agent
-- **Harder to engineer** - You must define controller persona, calibration, and agent interactions
-- **Beta feature** - Still being refined
-
-✅ **Best for:**
-- Complex workflows with many agent interactions
-- When you want a PO/PM-like agent making decisions
-- Hands-off execution with smart responses
-
----
-
-**Which mode do you want?**
-
-1. **Continuous Mode** (Recommended) - Auto-advances, no waiting
-2. **Manual Mode** - Stops after each agent/step, waits for your input
-3. **Autonomous Mode with Controller** (Beta) - Controller responds to agents
+**Do you need optional features or choices?**
+1. **No** - All steps run every time
+2. **Maybe** - Tell me more first
+3. **Yes** - I want to set up conditions
 
 Enter **1**, **2**, or **3**:"
 
 Wait for response.
 
-**If user chose 1 (Continuous Mode):**
-Store `controller: false`, `interactive: false`. Do NOT include `autonomousMode` in workflow file.
+---
 
-"Great choice! Continuous mode is the simplest and works well for most workflows."
+**If user chose 1 (No):**
+"Got it! All agents will run every time."
+Store `conditionGroups: []` and proceed to Section 7.
 
-**If user chose 2 (Manual Mode):**
-Store `controller: false`, `interactive: true`. Do NOT include `autonomousMode` in workflow file.
+---
 
-"Got it! Manual mode gives you full control. The workflow will wait for your input after each agent completes (and after each chained step if applicable)."
+**If user chose 2 (Maybe - explain conditions):**
+
+"Let me explain **Condition Groups**:
+
+---
+
+**What are Condition Groups?**
+
+Conditions let users toggle features ON/OFF before the workflow runs. Based on their choices, certain agents are included or skipped.
+
+---
+
+**Real Example: Project Setup Workflow**
+
+A workflow that sets up new projects might ask:
+
+**Condition Group 1:** 'Which features do you need?' (multi-select)
+- `auth` - Authentication (login, signup)
+- `database` - Database setup
+- `api` - REST API endpoints
+- `testing` - Test framework
+
+User selects: auth + database
+
+Result: Auth Agent and Database Agent run. API Agent and Testing Agent are skipped.
+
+---
+
+**Nested Conditions (Children)**
+
+Conditions can have follow-up questions:
+
+```
+'Which features?' (multi-select)
+  ├── auth ──→ 'What type of auth?' (single-select)
+  │              ├── oauth
+  │              ├── jwt
+  │              └── basic
+  ├── database
+  └── api
+```
+
+If user selects `auth`, they get a follow-up asking which auth type.
+
+---
+
+**Track-Specific Conditions**
+
+Conditions can appear only for certain tracks:
+
+```
+Track: javascript
+  └── 'Which JS framework?' → react | vue | vanilla
+
+Track: python
+  └── 'Which Python framework?' → django | flask | fastapi
+```
+
+---
+
+**Now do you need conditions?**
+1. **No** - All agents run every time
+2. **Yes** - I want optional features
+
+Enter **1** or **2**:"
+
+Wait for response.
+
+**If 1:** Store `conditionGroups: []` and proceed to Section 7.
+**If 2:** Continue to "Define Condition Groups" below.
+
+---
+
+**If user chose 3 (Yes) OR chose Yes after explanation:**
+
+"Let's define your condition groups.
+
+**For each group, I'll ask:**
+1. Group ID (lowercase)
+2. Question to display
+3. Multi-select or single-select?
+4. Track-specific? (only for certain tracks)
+5. The condition options
+6. Any nested children?
+
+---
+
+**Group 1:**
+
+**Group ID** (lowercase, no spaces):"
+
+Wait for response. Store as group `id`.
+
+"**Question to display:**"
+
+Wait for response. Store as `question`.
+
+"**Can users select multiple options?** [y/n]"
+
+Wait for response. Store as `multiSelect: true/false`.
+
+"**Should this only appear for specific tracks?** [y/n]"
+
+If yes: "Which tracks? (comma-separated IDs):"
+Store as `tracks` array or null.
+
+"**Now define the options.**
+
+Format: `id | label | description`
+
+Enter first option:"
+
+Collect options. After each: "Add another option? [y/n]"
+
+"**Do any options need follow-up questions (children)?** [y/n]"
+
+If yes:
+"Which option ID needs children?:"
+Then collect children using same format.
+
+"**Add another condition group?** [y/n]"
+
+Repeat if yes. Store all in `conditionGroups` array.
+
+"**Conditions defined!**
+
+**Quick tip:** Your agents can know which conditions were selected at runtime using the `\{selected_conditions\}` placeholder. Combined with `\{selected_track\}`, your agents will have full context of user choices. I'll remind you about this in Step 4."
+
+---
+
+### 7. Ask About Workflow Mode
+
+**Quick Mode:**
+
+"**How should your workflow run?**
+
+1. **Manual** - You control the flow, agents wait for your input
+2. **Continuous** - Runs start to finish automatically
+3. **Autonomous with Controller** (Beta) - A controller agent responds on your behalf
+
+Enter **1**, **2**, or **3**:"
+
+Wait for response. Handle same as Expert mode responses below.
+
+---
+
+**Expert Mode:**
+
+"**Workflow Execution Mode**
+
+How should your workflow run?
+
+| Mode | Description |
+|------|-------------|
+| **Manual** | You control the flow - agents wait for your input after each step |
+| **Continuous** | Runs automatically from start to finish, no waiting |
+| **Autonomous** (Beta) | A controller agent responds to other agents on your behalf |
+
+**Do you want me to explain these in depth with real examples?**
+1. **No** - I understand, let me choose
+2. **Yes** - Explain each mode first
+
+Enter **1** or **2**:"
+
+Wait for response.
+
+---
+
+**If user chose 1 (No - let me choose):**
+
+"Which mode do you want?
+
+1. **Manual** - You control the flow, agents wait for your input
+2. **Continuous** - Runs start to finish automatically
+3. **Autonomous with Controller** (Beta) - Controller responds to agents
+
+Enter **1**, **2**, or **3**:"
+
+Skip to "Handle Mode Selection" below.
+
+---
+
+**If user chose 2 (Yes - explain modes):**
+
+"Let me explain each **Workflow Execution Mode** with real examples:
+
+---
+
+## Option 1: Manual Mode (Human as Orchestrator)
+
+**What is it?**
+
+In Manual Mode, **YOU are the orchestrator**. The agent talks, then waits for your response. You press Enter to proceed to the next step or next agent. This gives you full control over the workflow.
+
+```
+Agent talks → ⏸️ WAITING FOR YOU → You respond → Press Enter →
+Agent continues or next agent starts → ⏸️ WAITING → You respond → ...
+```
+
+---
+
+**Why use Manual Mode?**
+
+Manual mode is perfect for **repetitive workflows** - tasks you do regularly that follow a similar pattern each time. Instead of starting from scratch with a general-purpose AI, you have a specialized workflow that:
+
+- Asks the right questions every time
+- Guides you through a proven process
+- Gathers your insights step by step
+- Produces consistent, quality output
+
+It's **more effective than general-purpose agents** for specific objectives because the workflow is designed for that exact task. It also saves a huge amount of time.
+
+---
+
+**💡 Real Example: This Workflow (Ali)**
+
+I'm Ali, and I'm running in **Manual Mode** right now!
+
+- **1 agent** (me) with **8 chained steps**
+- No controller - I talk directly to YOU
+- After each step, I wait for your response
+- You press Enter to proceed to the next step
+- The workflow pipeline sidebar is hidden (because it's just one agent)
+
+This workflow is used by all CodeMachine users to create workflows. It might be used once or many times, but it handles the same task in a repeatable, guided way.
+
+**The flow:**
+```
+Ali Step 1 (Mode Selection) → ⏸️ You respond → Enter →
+Ali Step 2 (Workflow Definition) → ⏸️ You respond → Enter →
+Ali Step 3 (Main Agents) → ⏸️ You respond → Enter →
+... through all 8 steps → Workflow Complete!
+```
+
+---
+
+**When to use Manual Mode:**
+
+✅ Workflows you'll use repeatedly (like Ali for creating workflows)
+✅ When you want to brainstorm or explore with guidance
+✅ When agents need YOUR specific insights and decisions
+✅ When you want full control over every step
+✅ Training/learning workflows where you guide the process
+✅ Quality-critical workflows where you review each output
+
+---
+
+**Technical details:**
+
+- Uses flag: `autonomousMode: 'never'`
+- Usually **no specification file needed** - you provide insights through conversation
+- Can be **1 agent with chained steps** or **multiple agents**
+- Agents connect through **prompt placeholders** (data flows between steps)
+
+---
+
+## Option 2: Continuous Mode (Fully Automated)
+
+**What is it?**
+
+In Continuous Mode, the workflow runs **automatically from start to finish**. Agents don't wait for your input - they complete their task and the system advances to the next agent automatically.
+
+```
+Agent 1 → completes → auto-advance →
+Agent 2 → completes → auto-advance →
+Agent 3 → completes → Workflow Done!
+```
+
+If an agent has **chained prompts**, those also auto-advance:
+```
+Agent 1 - Step 1 → auto-advance →
+Agent 1 - Step 2 → auto-advance →
+Agent 1 - Step 3 → completes → Next Agent...
+```
+
+---
+
+**Why use Continuous Mode?**
+
+Continuous mode is perfect for **tasks that don't need human input** - you already know exactly what needs to happen, and the workflow just executes it.
+
+Use cases:
+- Collecting context and generating reports
+- Repetitive tasks that run the same way every time
+- Batch processing or automated pipelines
+- Tasks where all information is provided upfront (via specification file)
+
+---
+
+**How does it work technically?**
+
+- All agents have `interactive: false` (normally defaults to true)
+- `autonomousMode: 'always'` - the workflow never pauses
+- Or `autonomousMode: true` - starts in auto mode, but user can press **Shift+Tab** to pause and take manual control
+
+**Shift+Tab behavior:** When you toggle off autonomous mode, the workflow will pause after each agent (and between chained prompts) to wait for your input. This gives you emergency control if needed.
+
+---
+
+**Important: Specification File**
+
+Since there's no human in the loop, how do agents know what to do?
+
+You provide a **specification file** - a document (PRD, brief, requirements) that agents read at the start. This is typically the only way to give agents context in continuous mode.
+
+We'll configure the spec flag next if you choose this mode.
+
+---
+
+**When to use Continuous Mode:**
+
+✅ Tasks you've done before and know exactly what's needed
+✅ Generating reports, documentation, or structured output
+✅ When all information can be provided in a spec file
+✅ Batch operations (e.g., process 10 files the same way)
+✅ When you want hands-off execution
+
+---
+
+**Technical details:**
+
+- All agents: `interactive: false`
+- Workflow: `autonomousMode: 'always'` (or `true` for toggle control)
+- Usually **requires a specification file** (agents need input somehow)
+- Use **chained prompts** to break complex tasks into steps without overwhelming the agent
+
+---
+
+## Option 3: Autonomous Mode with Controller (Beta)
+
+**What is it?**
+
+A **Controller Agent** acts on your behalf. Instead of you responding to agents, the controller responds for you. You brief the controller once at the start, and it handles all agent interactions automatically.
+
+```
+You → Brief the Controller about the project →
+
+Agent (PM): What's our project scope?
+Controller: We're building a dashboard for analytics...
+
+Agent (Architect): REST or GraphQL?
+Controller: Use GraphQL for our flexible query needs...
+
+Agent (Dev): Which testing framework?
+Controller: Jest with React Testing Library...
+```
+
+---
+
+**How does it work?**
+
+1. **Before workflow starts:** You talk to the controller, explain the project, goals, constraints
+2. **Controller knows each agent:** You tell it who will talk to it and what they expect
+3. **During workflow:** Controller responds to agents automatically
+4. **R shortcut:** Press R anytime to talk to the controller directly
+5. **Shift+Tab:** Toggle between autonomous (controller responds) and manual (you respond)
+
+---
+
+**How does the controller know who's talking?**
+
+The controller sees pre-injected names:
+- When YOU talk: `USER (YourName): message`
+- When an AGENT talks: `AGENT_NAME: message`
+
+So the controller prompt MUST explain:
+- It will receive messages from both USER and AGENTs
+- How to distinguish between them
+- How to respond appropriately to each
+
+We'll configure all of this in **Step 5 (Controller Agent)**.
+
+---
+
+**When to use Autonomous Mode:**
+
+✅ Complex workflows with many agent interactions
+✅ When you want a PO/PM-like agent making consistent decisions
+✅ When agents need answers but you don't want to babysit
+✅ Reproducible execution with documented decision-making
+
+---
+
+**Technical details:**
+
+- Requires a **Controller Agent** (created in Step 5)
+- `controller: true` in workflow file
+- `autonomousMode: true | false | 'always' | 'never'` - controls toggle behavior
+- Higher token consumption (controller sees all agent messages)
+- More complex to engineer (controller prompt is critical)
+
+⚠️ **Beta feature** - still being refined
+
+---
+
+**Which mode do you want?**
+
+1. **Manual Mode** - You control the flow, agents wait for your input
+2. **Continuous Mode** - Runs start to finish automatically
+3. **Autonomous Mode with Controller** (Beta) - Controller responds to agents
+
+Enter **1**, **2**, or **3**:"
+
+---
+
+### Handle Mode Selection
+
+Wait for response.
+
+**If user chose 1 (Manual Mode):**
+Store `controller: false`, `interactive: true`, `autonomousMode: 'never'`.
+
+"**Manual Mode selected!**
+
+You'll be the orchestrator. Each agent will wait for your input before proceeding.
+
+Since you're in full manual mode, you probably don't need a specification file - you'll provide insights through conversation. We'll skip that question."
+
+Store `specification: false` and proceed to Section 9 (Engine & Model).
+
+**If user chose 2 (Continuous Mode):**
+
+"**Continuous Mode selected!**
+
+Your workflow will run automatically from start to finish. All agents will have `interactive: false`.
+
+**One more question:** Do you want users to be able to pause the workflow with Shift+Tab?
+
+1. **No** - Fully automatic, no pausing (`autonomousMode: 'always'`)
+2. **Yes** - Starts automatic, but user can pause if needed (`autonomousMode: true`)
+
+Enter **1** or **2**:"
+
+Wait for response.
+- If 1: Store `autonomousMode: 'always'`
+- If 2: Store `autonomousMode: true`
+
+Store `controller: false`, `interactive: false` (will set all agents to `interactive: false` in Step 3).
+
+"**Important:** Since this is a hands-off workflow, you'll likely need a **specification file** so agents know what to do. Let's configure that next."
+
+Proceed to Section 8 (Specification Flag).
 
 **If user chose 3 (Autonomous Mode with Controller):**
 Store `controller: true`, `interactive: true`.
 
-"Got it! We'll create a Controller Agent in step 5. Now let's configure autonomous mode behavior."
+"Got it! We'll create a Controller Agent in Step 5. Now let's configure autonomous mode behavior.
 
-"**Autonomous Mode Toggle (Shift+Tab)**
+**Autonomous Mode Toggle (Shift+Tab)**
 
 When running the workflow, you can press **Shift+Tab** to toggle between:
 - **Manual** - You respond to agents
@@ -319,45 +948,97 @@ Wait for response. Store as:
 - 3 → `autonomousMode: false`
 - 4 → `autonomousMode: true`
 
-### 6. Ask About Specification Flag
+Proceed to Section 8 (Specification Flag).
+
+### 8. Ask About Specification Flag
+
+**Quick Mode:**
+"Skipping specification file configuration. You can add it later if needed."
+Store `specification: false` and proceed to Section 9.
+
+---
+
+**Expert Mode - Smart Inference:**
+
+**Determine likely need based on workflow mode:**
+
+- If `autonomousMode: 'never'` (Manual Mode) OR `interactive: true` without controller → User will provide input through conversation. Specs likely NOT needed.
+- If `autonomousMode: 'always'` or `autonomousMode: true` (Continuous/Autonomous) → Agents need upfront context. Specs likely needed.
+
+---
+
+**If specs likely NOT needed (interactive/manual):**
 
 "**Specification File**
 
-Does this workflow use a specification file as input?
-(Common for workflows that read from a requirements doc, PRD, or brief)
+Since your workflow is interactive, I assume you don't need a specification file - you'll provide context through conversation.
 
-Use specification file? **[y/n]**"
+However, you CAN use a spec file to give agents context BEFORE you start. This is useful if you want to:
+- Pre-load a PRD, requirements doc, or project brief
+- Avoid repeating the same context every time you run the workflow
 
-Wait for response. Store as `specification: true/false`.
+**Skip specification file?** [y/n]"
 
-### 7. Ask About Engine & Model
+Wait for response.
+- If y: Store `specification: false`, proceed to Section 9
+- If n: Continue to "Explain Specification" below
 
-"**Engine Configuration**
+---
 
-CodeMachine supports multiple AI engines. Which engine should your workflow use by default?
+**If specs likely needed (continuous/autonomous):**
 
-**Available Engines** (case-sensitive IDs):
+"**Specification File**
 
-| ID | Name | Default Model | Status |
-|----|------|---------------|--------|
-| `opencode` | OpenCode | opencode/glm-4.7-free | Stable |
-| `claude` | Claude Code | opus | Experimental |
-| `codex` | Codex | gpt-5.1-codex-max | Stable |
-| `cursor` | Cursor | auto | Experimental |
-| `mistral` | Mistral Vibe | devstral-2 | Experimental |
-| `auggie` | Auggie CLI | (provider default) | Stable |
-| `ccr` | Claude Code Router | sonnet | Stable |
+Since your workflow runs without human input, I assume you'll need a specification file so agents know what to do.
 
-Enter engine ID (or press Enter to skip - agents will use system default):"
+**Enable specification file?** [y/n]"
 
-Wait for response. If provided, validate against list. Store as `defaultEngine`.
+Wait for response.
+- If y: Continue to "Explain Specification" below
+- If n: Store `specification: false`, proceed to Section 9
 
-**If engine provided:**
-"**Model** - Do you want to specify a model? (Leave blank for engine's default)
+---
 
-Enter model name (case-sensitive, e.g., `opus`, `sonnet`, `gpt-5.1-codex-max`):"
+**Explain Specification (when user wants specs):**
 
-Wait for response. Store as `defaultModel` (or null if blank).
+"**How Specification Files Work:**
+
+1. **Before workflow starts:** User MUST fill the spec file - workflow won't start without it
+2. **Default location:** `./.codemachine/inputs/specification.md` (created when workflow runs)
+3. **CLI override:** You can specify a different file when running:
+   ```
+   codemachine --spec ./docs/my-requirements.md
+   ```
+
+**To use the spec content in your agents:**
+
+1. Register a placeholder in `config/placeholders.js`:
+   ```javascript
+   specification: path.join('.codemachine', 'inputs', 'specification.md'),
+   ```
+
+2. Use `\{specification\}` anywhere in your agent prompts to inject the file content
+
+**Example prompt usage:**
+```markdown
+## Project Context
+
+\{specification\}
+
+## Your Task
+
+Based on the above requirements, ...
+```
+
+The entire spec file content gets injected where you place `\{specification\}`.
+
+---
+
+✓ Specification file enabled. We'll set up the placeholder in Step 4."
+
+Store `specification: true` and proceed to Section 9.
+
+---
 
 ### 9. Summary
 
@@ -365,24 +1046,24 @@ Present summary of everything collected:
 
 "**Workflow Definition Summary:**
 
-**Name:** {workflow_name}
+**Name:** \{workflow_name\}
+**Description:** \{workflow_description\}
+**Location:** `~/.codemachine/imports/\{workflow_name\}-codemachine/`
+
 **Files will be created:**
-- `templates/workflows/{workflow_name}.workflow.js`
-- `prompts/templates/{workflow_name}/`
+- `templates/workflows/\{workflow_name\}.workflow.js`
+- `prompts/templates/\{workflow_name\}/`
 
-**Workflow Mode:** {Continuous | Manual | Autonomous with Controller (Beta)}
-**Interactive:** {true/false}
-**Controller:** {yes/no - if yes, will be created in step 5}
-**Autonomous Mode:** {only shown if controller enabled: never|always|true|false}
+**Workflow Mode:** \{Continuous | Manual | Autonomous with Controller (Beta)\}
+**Interactive:** \{true/false\}
+**Controller:** \{yes/no - if yes, will be created in step 5\}
+**Autonomous Mode:** \{only shown if controller enabled: never|always|true|false\}
 
-**Tracks:** {show tracks or 'None'}
-**Condition Groups:** {show groups or 'None'}
-**Specification:** {yes/no}
+**Tracks:** \{show tracks or 'None'\}
+**Condition Groups:** \{show groups or 'None'\}
+**Specification:** \{yes/no\}
 
-**Engine:** {defaultEngine or 'System default'}
-**Model:** {defaultModel or 'Engine default'}
-
-**Existing IDs collected:** {count} (will prevent duplicates)"
+**Engine/Model:** Configured per-agent in Step 3"
 
 ## Step 2: CREATE Plan File
 
@@ -392,53 +1073,53 @@ Present summary of everything collected:
 
 1. **Create directory** (if needed): `.codemachine/workflow-plans/`
 
-2. **Create the plan file** at `.codemachine/workflow-plans/{workflow_name}-plan.md`:
+2. **Create the plan file** at `.codemachine/workflow-plans/\{workflow_name\}-plan.md`:
 
 ```markdown
-# Workflow Plan: {workflow_name}
+# Workflow Plan: \{workflow_name\}
 
-Created: {ISO timestamp}
-Last Updated: {ISO timestamp}
+Created: \{ISO timestamp\}
+Last Updated: \{ISO timestamp\}
 
 <workflow-plan>
   <!-- Step 1 data from memory -->
-  <step-01 completed="true" timestamp="{timestamp}">
-    <mode>{mode}</mode>
-    <brainstorming enabled="{true|false}">
-      <problem>{problem}</problem>
-      <agent-ideas>{agent_ideas}</agent-ideas>
-      <flow-concept>{flow_concept}</flow-concept>
+  <step-01 completed="true" timestamp="\{timestamp\}">
+    <mode>\{mode\}</mode>
+    <brainstorming enabled="\{true|false\}">
+      <problem>\{problem\}</problem>
+      <agent-ideas>\{agent_ideas\}</agent-ideas>
+      <flow-concept>\{flow_concept\}</flow-concept>
     </brainstorming>
   </step-01>
 
   <!-- Step 2 data -->
-  <step-02 completed="true" timestamp="{ISO timestamp}">
-    <workflow-name>{workflow_name}</workflow-name>
-    <existing-ids count="{count}">{comma-separated list}</existing-ids>
+  <step-02 completed="true" timestamp="\{ISO timestamp\}">
+    <workflow-name>\{workflow_name\}</workflow-name>
+    <workflow-description>\{workflow_description\}</workflow-description>
+    <workflow-location>~/.codemachine/imports/\{workflow_name\}-codemachine/</workflow-location>
+    <existing-workflows count="\{count\}">\{comma-separated list from registry\}</existing-workflows>
     <workflow-mode>
-      <type>{continuous|manual|autonomous}</type>
-      <interactive>{true|false}</interactive>
-      <controller enabled="{true|false}" beta="true">{only if autonomous}</controller>
+      <type>\{continuous|manual|autonomous\}</type>
+      <interactive>\{true|false\}</interactive>
+      <controller enabled="\{true|false\}" beta="true">\{only if autonomous\}</controller>
       <!-- autonomous-mode ONLY included if controller enabled -->
-      <autonomous-mode>{never|always|true|false}</autonomous-mode>
+      <autonomous-mode>\{never|always|true|false\}</autonomous-mode>
     </workflow-mode>
-    <tracks enabled="{true|false}">
-      <question>{tracks.question or empty}</question>
+    <tracks enabled="\{true|false\}">
+      <question>\{tracks.question or empty\}</question>
       <options>
         <!-- For each track -->
-        <track id="{id}" label="{label}" description="{description}" />
+        <track id="\{id\}" label="\{label\}" description="\{description\}" />
       </options>
     </tracks>
     <condition-groups>
       <!-- For each group -->
-      <group id="{id}" question="{question}" multi-select="{true|false}" tracks="{track-ids or empty}">
-        <condition id="{id}" label="{label}" description="{description}" />
+      <group id="\{id\}" question="\{question\}" multi-select="\{true|false\}" tracks="\{track-ids or empty\}">
+        <condition id="\{id\}" label="\{label\}" description="\{description\}" />
         <!-- children if any -->
       </group>
     </condition-groups>
-    <specification>{true|false}</specification>
-    <engine>{engine or null}</engine>
-    <model>{model or null}</model>
+    <specification>\{true|false\}</specification>
   </step-02>
 
 </workflow-plan>
@@ -448,19 +1129,16 @@ Last Updated: {ISO timestamp}
 
 ```javascript
 TodoWrite([
-  { content: "Step 01: Mode Selection", status: "completed", activeForm: "Mode selection completed" },
+  { content: "Step 01: Brainstorming", status: "completed", activeForm: "Brainstorming completed" },
   { content: "Step 02: Workflow Definition", status: "completed", activeForm: "Workflow definition completed" },
-  { content: "Step 03: Main Agents", status: "in_progress", activeForm: "Defining main agents" },
-  { content: "Step 04: Prompts & Placeholders", status: "pending", activeForm: "Creating prompts" },
-  { content: "Step 05: Controller Agent", status: "pending", activeForm: "Creating controller" },
-  { content: "Step 06: Sub-Agents", status: "pending", activeForm: "Configuring sub-agents" },
-  { content: "Step 07: Modules", status: "pending", activeForm: "Configuring modules" },
-  { content: "Step 08: Assembly & Validation", status: "pending", activeForm: "Assembling workflow" }
+  { content: "Step 03: Agents", status: "in_progress", activeForm: "Defining agents" },
+  { content: "Step 04: Prompts", status: "pending", activeForm: "Creating prompts" },
+  { content: "Step 05: Workflow Generation", status: "pending", activeForm: "Generating workflow" }
 ])
 ```
 
 4. **Confirm to user:**
-"✓ Workflow plan created at `.codemachine/workflow-plans/{workflow_name}-plan.md`
+"✓ Workflow plan created at `.codemachine/workflow-plans/\{workflow_name\}-plan.md`
 
 Press **Enter** to proceed to the next step."
 
@@ -468,9 +1146,13 @@ Press **Enter** to proceed to the next step."
 
 ## SUCCESS METRICS
 
-- All config files verified or warnings acknowledged
-- Existing IDs collected for duplicate prevention
-- Valid workflow name chosen
+- Setup check completed (imports folder + registry verified/created)
+- Existing workflows listed from registry (if any)
+- Workflow concept gathered (from Step 1 brainstorming OR asked user directly)
+- **3-4 workflow name suggestions generated with descriptions**
+- **User selected a suggestion OR provided their own name**
+- Valid workflow name chosen (not conflicting with existing)
+- **Workflow description confirmed**
 - Tracks configured or explicitly skipped
 - Condition groups configured or explicitly skipped
 - **All 3 workflow modes explained clearly with examples**
@@ -478,17 +1160,19 @@ Press **Enter** to proceed to the next step."
 - **OR Manual mode: controller=false, interactive=true, NO autonomousMode**
 - **OR Autonomous mode: controller=true, interactive=true, autonomousMode=true|false|'never'|'always'**
 - Specification flag set
-- Engine and model configured or skipped
-- Summary shown and confirmed
-- **Plan file CREATED with step-01 and step-02 data**
+- Summary shown and confirmed (includes name AND description)
+- **Plan file CREATED with step-01 and step-02 data (including description)**
 - **TodoWrite updated**
 
 ## FAILURE METRICS
 
-- Skipping sanity checks
-- Creating a workflow name that conflicts with existing
-- Not collecting existing IDs
+- Skipping setup check
+- **Not generating name suggestions (just asking user to type a name)**
+- **Not providing descriptions with name suggestions**
+- Creating a workflow name that conflicts with existing workflows in registry
+- Not checking registry for existing workflow names
 - Proceeding without user confirmation on name
+- **Not capturing workflow description**
 - Not explaining tracks/conditions in Expert mode
 - **Not explaining the difference between Continuous and Autonomous modes**
 - **Not marking Controller as Beta**

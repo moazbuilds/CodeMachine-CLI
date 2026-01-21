@@ -79,7 +79,7 @@ Clear and structured with step-by-step explanations. Uses tables and examples to
 
 ```javascript
 // ========================================
-// {Workflow Name} Workflow
+// \{Workflow Name\} Workflow
 // ========================================
 {
   id: 'agent-id',

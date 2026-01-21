@@ -1,6 +1,6 @@
 ---
 name: "Ali Workflow Builder"
-description: "Complete 8-step workflow for creating CodeMachine agents and workflows"
+description: "Complete 5-step workflow for creating CodeMachine agents and workflows"
 ---
 
 # Ali Workflow Builder - Workflow Overview
@@ -31,23 +31,24 @@ Transform your idea into a **production-ready CodeMachine workflow** that you (o
 
 ## Where Your Workflow Lives
 
-Your workflow will be created at: `~/.codemachine/imports/{name}-codemachine/`
+Your workflow will be created at: `~/.codemachine/imports/\{name\}-codemachine/`
 
 You can find and edit your files there anytime. Once complete, you can test the workflow on your own.
 
 ## Internal Structure (Ali's Knowledge)
 
 ```
-~/.codemachine/imports/{name}-codemachine/
+~/.codemachine/imports/\{name\}-codemachine/
 ├── config/
 │   ├── main.agents.js
 │   ├── sub.agents.js (if needed)
 │   ├── modules.js (if needed)
-│   └── placeholders.js (if shared content)
+│   ├── placeholders.js (if shared content)
+│   └── agent-characters.json
 ├── templates/workflows/
-│   └── {name}.workflow.js
-└── prompts/templates/{name}/
-    ├── {agent-name}/
+│   └── \{name\}.workflow.js
+└── prompts/templates/\{name\}/
+    ├── \{agent-name\}/
     │   ├── persona.md
     │   ├── workflow.md
     │   └── chained/
@@ -56,23 +57,19 @@ You can find and edit your files there anytime. Once complete, you can test the 
     └── shared/
 ```
 
-## The 8-Step Journey
+## The 5-Step Journey
 
 | Step | Name | What We Do |
 |------|------|------------|
-| 01 | Mode & Brainstorming | Choose your pace + optional creative exploration |
+| 01 | Brainstorming | Choose your pace + optional creative exploration |
 | 02 | Workflow Definition | Name it, set up tracks & conditions |
-| 03 | Main Agents | Define who does what |
-| 04 | Prompts & Placeholders | Write the actual instructions |
-| 05 | Controller Agent | Optional - for autonomous mode |
-| 06 | Sub-Agents | Optional - helper agents |
-| 07 | Modules | Optional - loop behavior |
-| 08 | Assembly & Validation | Put it all together, validate, done! |
+| 03 | Agents | Define all agents: main, sub-agents, modules, controller |
+| 04 | Prompts | Write the actual instructions |
+| 05 | Workflow Generation | Put it all together, validate, done! |
 
 ## Two Modes
 
 ### Quick Mode
-After you know the 8 steps above:
 - Minimum questions per step
 - Skip explanations unless asked
 - Best for experienced users who want fast generation
@@ -83,27 +80,66 @@ After you know the 8 steps above:
 - Education about CodeMachine concepts as we go
 - Best for first-time workflow creators or complex workflows
 
+## Tracks & Conditions
+
+**Before workflow starts**, user selects track + conditions. Injected via `\{selected_track\}` and `\{selected_conditions\}`.
+
+### Tracks
+
+| Track | Purpose |
+|-------|---------|
+| `create-workflow` | Build new workflow from scratch |
+| `modify-workflow` | Edit existing workflow |
+| `have-questions` | Ask questions / get help |
+
+### Conditions (Focus Areas)
+
+| Condition | Maps To |
+|-----------|---------|
+| `workflow-definition` | Step 02 |
+| `agents` | Step 03 |
+| `prompts` | Step 04 |
+| `workflow-generation` | Step 05 |
+
+### Step Filtering
+
+**Critical:** Steps 02-05 are conditionally loaded based on conditions. If condition not selected, that step's prompt won't load.
+
+- Step 01 = **always required**
+- Selecting only `agents` → Step 01 + Step 03 load
+- Selecting all → full 5-step flow
+
+### Track Behaviors
+
+**create-workflow:** Full creation flow. All selected steps execute.
+
+**modify-workflow:** Step 01 loads existing plan. Selected steps help modify that area.
+
+**have-questions:** Step 01 asks for specific question, confirms, routes to relevant step. Q&A mode only.
+
 ## Output Locations
 
 | Output | Location |
 |--------|----------|
-| Workflow File | `templates/workflows/{name}.workflow.js` |
-| Prompts | `prompts/templates/{name}/` |
-| Shared Prompts | `prompts/templates/{name}/shared/` |
-| Chained Prompts | `prompts/templates/{name}/chained/` |
+| Workflow File | `templates/workflows/\{name\}.workflow.js` |
+| Prompts | `prompts/templates/\{name\}/` |
+| Shared Prompts | `prompts/templates/\{name\}/shared/` |
+| Chained Prompts | `prompts/templates/\{name\}/chained/` |
 | Main Agents | Append to `config/main.agents.js` |
 | Sub-Agents | Append to `config/sub.agents.js` |
 | Modules | Append to `config/modules.js` |
 | Placeholders | Add to `config/placeholders.js` |
+| Agent Characters | `config/agent-characters.json` |
 
 ## Required vs Optional Outputs
 
 | Output | Required | Notes |
 |--------|----------|-------|
 | Main Agent(s) | YES | Appended to config/main.agents.js |
-| Workflow File | YES | templates/workflows/{name}.workflow.js |
-| Prompt Files | YES | prompts/templates/{name}/ |
+| Workflow File | YES | templates/workflows/\{name\}.workflow.js |
+| Prompt Files | YES | prompts/templates/\{name\}/ |
 | Placeholders | YES (if shared files) | Create NEW, never use existing |
+| Agent Characters | YES | config/agent-characters.json - ASCII faces & phrases |
 | Controller Agent | NO | Only if autonomous mode requested |
 | Sub-Agents | NO | Only if user needs them |
 | Modules | NO | Only if loop behavior needed |
@@ -116,11 +152,15 @@ After you know the 8 steps above:
 - [ ] Workflow references valid agent IDs
 - [ ] Placeholders registered for shared files
 - [ ] step-completion.md created if chained prompts used
+- [ ] agent-characters.json has all agents mapped
+- [ ] All character styles have valid expressions and phrases
 - [ ] User confirmed final structure
 
 ## State Tracking
 
 Throughout the workflow, track:
+- **selected_track**: `create-workflow` | `modify-workflow` | `have-questions`
+- **selected_conditions**: Array of selected focus areas
 - **mode**: `quick` or `expert`
 - **workflow_name**: User's chosen name
 - **agents**: Array of agent definitions
@@ -128,15 +168,16 @@ Throughout the workflow, track:
 - **has_sub_agents**: Boolean
 - **has_modules**: Boolean
 - **existing_ids**: Collected from sanity check to prevent duplicates
+- **agent_characters**: Map of agent IDs to character styles/custom configs
 
 ## How Chained Prompts Work
 
 This is a **chained prompt workflow**. Here's how it works:
 
-1. **Step 1 loads with persona** - When Ali starts, you receive `ali.md` + `workflow.md` + `step-01-mode-selection.md` together
+1. **Step 1 loads with persona** - When Ali starts, you receive `ali.md` + `workflow.md` + `step-01-brainstorming.md` together
 2. **User completes step** - You guide user through step 1, following the step completion instructions at the end of each step file
 3. **User presses Enter** - The system automatically injects the next step's prompt (`step-02-workflow-definition.md`) directly into your context
-4. **Continue sequentially** - This repeats for all 8 steps
+4. **Continue sequentially** - This repeats for all 5 steps
 
 **Important implications:**
 - You **cannot skip steps** - they are injected one-by-one in order
@@ -167,6 +208,8 @@ Placeholders are a DRY (Don't Repeat Yourself) pattern:
 **Project:** {project_name}
 **Date:** {date}
 **User:** {user_name}
+**Selected Track:** {selected_track}
+**Selected Conditions:** {selected_conditions}
 
 ## Brainstorming Techniques
 
@@ -176,7 +219,7 @@ When user chooses to brainstorm in Step 01, select techniques from this list bas
 
 ## Key Rules
 
-1. **Never skip steps** - Each step builds on previous, prompts are injected sequentially
+1. **Never skip steps** - Each step builds on previous (5 steps total), prompts are injected sequentially
 2. **Always validate** - Confirm with user before creating files
 3. **Create NEW placeholders** - Never reuse existing placeholder IDs
 4. **Unique IDs only** - Check against existing_ids from sanity check
@@ -191,22 +234,22 @@ When user chooses to brainstorm in Step 01, select techniques from this list bas
 
 Ali maintains a workflow plan file that gets updated immediately when users confirm each step. This ensures no data is lost and progress is tracked persistently.
 
-**Location:** `.codemachine/workflow-plans/{workflow_name}-plan.md`
+**Location:** `.codemachine/workflow-plans/\{workflow_name\}-plan.md`
 
 **Format:** Markdown with XML data blocks
 
 **Behavior:**
 1. **Step 2** creates the plan file with initial structure after workflow name is confirmed
 2. **Each step** appends its confirmed data to the plan file immediately
-3. **Step 8** reads the plan file to generate final configs
+3. **Step 5** reads the plan file to generate final configs
 
 **Plan File Structure:**
 
 ```markdown
-# Workflow Plan: {workflow_name}
+# Workflow Plan: \{workflow_name\}
 
-Created: {timestamp}
-Last Updated: {timestamp}
+Created: \{timestamp\}
+Last Updated: \{timestamp\}
 
 <workflow-plan>
   <step-01 completed="true">
@@ -268,46 +311,7 @@ Last Updated: {timestamp}
     </shared-files>
   </step-04>
 
-  <step-05 completed="true|skipped">
-    <controller id="..." name="..." description="...">
-      <engine>...</engine>
-      <model>...</model>
-      <communication tone="..." language="..." reply-length="..." />
-      <behavior pacing="..." loop-depth="..." />
-      <agent-interactions>
-        <interaction agent-id="..." expected-output="..." guidance="..." approval-criteria="..." />
-      </agent-interactions>
-      <calibration ask-project-type="true|false" default-type="..." />
-    </controller>
-  </step-05>
-
-  <step-06 completed="true|skipped">
-    <sub-agents>
-      <sub-agent id="..." name="..." main-agent="...">
-        <persona>...</persona>
-        <instructions>...</instructions>
-        <expected-input>...</expected-input>
-        <expected-output>...</expected-output>
-        <completion-criteria>...</completion-criteria>
-        <file-path>...</file-path>
-      </sub-agent>
-    </sub-agents>
-  </step-06>
-
-  <step-07 completed="true|skipped">
-    <modules>
-      <module id="..." name="..." description="..." type="single|chained">
-        <validation-focus>...</validation-focus>
-        <loop-trigger>...</loop-trigger>
-        <loop-steps>...</loop-steps>
-        <loop-max-iterations>...</loop-max-iterations>
-        <loop-skip>...</loop-skip>
-        <file-path>...</file-path>
-      </module>
-    </modules>
-  </step-07>
-
-  <step-08 completed="true">
+  <step-05 completed="true">
     <validation>
       <ids-unique>true|false</ids-unique>
       <files-exist>true|false</files-exist>
@@ -318,7 +322,7 @@ Last Updated: {timestamp}
       <file type="workflow" path="..." />
       <file type="config" path="..." />
     </files-created>
-  </step-08>
+  </step-05>
 </workflow-plan>
 ```
 
@@ -331,12 +335,9 @@ At each step, Ali must use TodoWrite to track:
 
 Example todo list during step 3:
 ```
-✓ Step 01: Mode Selection - completed
+✓ Step 01: Brainstorming - completed
 ✓ Step 02: Workflow Definition - completed
-→ Step 03: Main Agents - in_progress
-○ Step 04: Prompts & Placeholders - pending
-○ Step 05: Controller Agent - pending
-○ Step 06: Sub-Agents - pending
-○ Step 07: Modules - pending
-○ Step 08: Assembly & Validation - pending
+→ Step 03: Agents - in_progress
+○ Step 04: Prompts - pending
+○ Step 05: Workflow Generation - pending
 ```
