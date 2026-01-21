@@ -58,6 +58,12 @@ export { adapterRegistry } from './registry.js';
 export { configureMCP, cleanupMCP, isMCPConfigured } from './setup.js';
 
 // ============================================================================
+// WRITER (Lightweight pre-execution check)
+// ============================================================================
+
+export { ensureMCPConfig, removeMCPConfig, type MCPWriteResult } from './writer.js';
+
+// ============================================================================
 // WORKFLOW SIGNALS SERVER - Schemas
 // ============================================================================
 

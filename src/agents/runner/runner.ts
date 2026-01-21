@@ -281,6 +281,10 @@ export async function executeAgent(
   // Ensure authentication
   await ensureEngineAuth(engineType);
 
+  // Ensure MCP config exists (lazy init - fast check, write only if missing)
+  const { ensureMCPConfig } = await import('../../infra/mcp/writer.js');
+  await ensureMCPConfig(engineType, workingDir);
+
   // Get engine module for defaults
   const engineModule = registry.get(engineType);
   if (!engineModule) {

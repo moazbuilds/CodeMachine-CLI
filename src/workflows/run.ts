@@ -28,7 +28,6 @@ import { WorkflowEventBus, WorkflowEventEmitter } from './events/index.js';
 import { ensureWorkspaceStructure, mirrorSubAgents } from '../runtime/services/workspace/index.js';
 import { WorkflowRunner } from './runner/index.js';
 import { getUniqueAgentId } from './context/index.js';
-import { setupWorkflowMCP, cleanupWorkflowMCP } from './mcp.js';
 import { runControllerView } from './controller/view.js';
 import { getAllInstalledImports } from '../shared/imports/index.js';
 import { registerImportedAgents, clearImportedAgents } from './utils/config.js';
@@ -130,15 +129,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   if (template.subAgentIds && template.subAgentIds.length > 0) {
     debug('[Workflow] Mirroring %d sub-agents', template.subAgentIds.length);
     await mirrorSubAgents({ cwd, subAgentIds: template.subAgentIds });
-  }
-
-  // Setup MCP servers for workflow signal tools (use cwd for project root settings)
-  const mcpResult = await setupWorkflowMCP(template, cwd);
-  if (mcpResult.configured.length > 0) {
-    debug('[Workflow] MCP configured for engines: %s', mcpResult.configured.join(', '));
-  }
-  if (mcpResult.failed.length > 0) {
-    debug('[Workflow] MCP setup failed for engines: %s', mcpResult.failed.join(', '));
   }
 
   // Sync agent configurations
@@ -348,20 +338,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
     status,
   });
 
-  // Cleanup function for MCP
-  const doMCPCleanup = async () => {
-    debug('[Workflow] Cleaning up MCP...');
-    await cleanupWorkflowMCP(template, cwd).catch(() => { });
-  };
-
-  // Handle SIGINT (Ctrl+C) for cleanup
-  const sigintHandler = async () => {
-    await doMCPCleanup();
-    process.exit(0);
-  };
-  process.once('SIGINT', sigintHandler);
-  process.once('SIGTERM', sigintHandler);
-
   try {
     await runner.run();
   } catch (error) {
@@ -374,9 +350,6 @@ export async function runWorkflow(options: RunWorkflowOptions = {}): Promise<voi
   } finally {
     // Always cleanup when workflow ends (success, error, or stop)
     runner.signalManager.cleanup();
-    process.off('SIGINT', sigintHandler);
-    process.off('SIGTERM', sigintHandler);
-    await doMCPCleanup();
   }
 
   // Keep process alive for TUI
