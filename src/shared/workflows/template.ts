@@ -100,14 +100,23 @@ export async function setActiveTemplate(cmRoot: string, templateName: string, au
           lastUpdated: new Date().toISOString(),
         };
       } else {
-        // Different template - full reset (don't preserve old tracks/conditions as they may not be compatible)
+        // Check if this is a fresh file from onboarding (no activeTemplate set yet)
+        // vs an actual template switch (activeTemplate was set to something else)
+        // Note: onboarding set functions initialize with activeTemplate: '' (empty string)
+        const isFreshFromOnboarding = !existing.activeTemplate;
+
         data = {
           activeTemplate: templateName,
           lastUpdated: new Date().toISOString(),
           completedSteps: {},
           notCompletedSteps: [],
           resumeFromLastStep: true,
-          autonomousMode: autonomousModeOverride ?? 'true', // Use template override or default to 'true'
+          autonomousMode: autonomousModeOverride ?? 'true',
+          // Preserve tracks/conditions only if this is a fresh file from onboarding
+          // (onboarding sets these before workflow:start sets activeTemplate)
+          // Otherwise reset them since they may not be compatible with the new template
+          selectedTrack: isFreshFromOnboarding ? existing.selectedTrack : undefined,
+          selectedConditions: isFreshFromOnboarding ? existing.selectedConditions : undefined,
         };
       }
     } catch {
