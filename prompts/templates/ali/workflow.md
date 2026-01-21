@@ -57,11 +57,11 @@ You can find and edit your files there anytime. Once complete, you can test the 
     └── shared/
 ```
 
-## The 6-Step Journey (Step 0 + 5 Chained Steps)
+## The 5-Step Journey (Step 0 + Steps 1-5)
 
 | Step | Name | What We Do |
 |------|------|------------|
-| 00 | Mode Selection | Choose Quick or Expert mode (in ali.md intro) |
+| 00 | Setup | Mode selection, workflow concept, journey preview (`step-00-setup.md`) |
 | 01 | Brainstorming | Optional creative exploration |
 | 02 | Workflow Definition | Name it, set up tracks & conditions |
 | 03 | Agents | Define all agents: main, sub-agents, modules, controller |
@@ -70,7 +70,7 @@ You can find and edit your files there anytime. Once complete, you can test the 
 
 ## Two Modes (Selected in Step 0)
 
-Mode selection happens immediately when Ali spawns (Step 0 in `ali.md` intro), before any chained steps load.
+Mode selection happens in Step 0 (`step-00-setup.md`), along with gathering the workflow concept.
 
 ### Quick Mode
 - Minimum questions per step
@@ -165,7 +165,8 @@ Throughout the workflow, track:
 - **selected_track**: `create-workflow` | `modify-workflow` | `have-questions`
 - **selected_conditions**: Array of selected focus areas
 - **mode**: `quick` or `expert`
-- **workflow_name**: User's chosen name
+- **workflow_concept**: User's brief description (from Step 0)
+- **workflow_name**: User's chosen name (from Step 2)
 - **agents**: Array of agent definitions
 - **has_controller**: Boolean
 - **has_sub_agents**: Boolean
@@ -177,8 +178,8 @@ Throughout the workflow, track:
 
 This is a **chained prompt workflow**. Here's how it works:
 
-1. **Step 0 executes in persona** - When Ali starts, the `ali.md` intro executes Step 0 (mode selection) immediately
-2. **Step 1 loads after Step 0** - After mode is selected and user proceeds, `step-01-brainstorming.md` loads
+1. **Step 0 executes first** - `step-00-setup.md` handles mode selection, workflow concept, and journey preview
+2. **Step 1 loads after Step 0** - After setup is complete and user proceeds, `step-01-brainstorming.md` loads
 3. **User completes step** - You guide user through step 1, following the step completion instructions at the end of each step file
 4. **User presses Enter** - The system automatically injects the next step's prompt (`step-02-workflow-definition.md`) directly into your context
 5. **Continue sequentially** - This repeats for all 5 chained steps

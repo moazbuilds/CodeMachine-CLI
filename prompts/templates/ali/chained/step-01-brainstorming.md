@@ -8,10 +8,9 @@ description: "Choose mode (Quick/Expert) and optionally brainstorm workflow idea
 ## STEP GOAL
 
 1. Route based on selected track and conditions
-2. Confirm the journey with renumbered steps
-3. Offer guidance/brainstorming before proceeding
+2. Offer guidance/brainstorming before proceeding
 
-**Note:** Mode selection (Quick/Expert) is handled in Step 0 (ali.md intro) before this step loads.
+**Note:** Mode selection, workflow concept, and journey preview are handled in Step 0 (`step-00-setup.md`) before this step loads.
 
 ## Track & Condition Routing (EXECUTE FIRST)
 
@@ -34,25 +33,6 @@ Steps 02-05 load conditionally. Renumber based on selected conditions:
 - Step 03 = Prompts
 - Done (3 steps total)
 
-### Confirm Journey to User
-
-"Based on your selections:
-
-**Track:** `{selected_track}`
-**Focus Areas:** `{selected_conditions}`
-
-**Your journey (\{total_steps\} steps):**
-
-| Step | Focus |
-|------|-------|
-| 01 | Brainstorming (this step) |
-| \{n\} | \{condition_label\} |
-| ... | ... |
-
-Is this correct? **[y/n]**"
-
-Wait for confirmation. If no, tell user to restart and reselect tracks/conditions.
-
 ### Track-Specific Behavior
 
 **`create-workflow`:** Full creation flow for selected areas.
@@ -60,14 +40,6 @@ Wait for confirmation. If no, tell user to restart and reselect tracks/condition
 **`modify-workflow`:** Ask for existing workflow name, load plan file, then modify selected areas.
 
 **`have-questions`:** Ask for specific question, confirm, then route to relevant step for Q&A only.
-
-### Before Proceeding
-
-After confirming journey, tell user:
-
-"Press **Enter** to inject the next step's knowledge.
-
-Or if you want guidance or brainstorming about your needs first, ask me directly - I'm happy to help clarify before we dive in."
 
 ---
 

@@ -13,6 +13,7 @@ module.exports = [
     promptPath: [
       path.join(promptsDir, 'ali', 'ali.md'),
       path.join(promptsDir, 'ali', 'workflow.md'),
+      path.join(promptsDir, 'ali', 'chained', 'step-00-setup.md'),
     ],
     chainedPromptsPath: [
       {

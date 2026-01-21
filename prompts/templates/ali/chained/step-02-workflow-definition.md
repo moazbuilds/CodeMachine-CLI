@@ -608,9 +608,10 @@ Repeat if yes. Store all in `conditionGroups` array.
 
 1. **Manual** - You control the flow, agents wait for your input
 2. **Continuous** - Runs start to finish automatically
-3. **Autonomous with Controller** (Beta) - A controller agent responds on your behalf
+3. **Hybrid** - Mix of auto and interactive agents (you decide per-agent)
+4. **Autonomous with Controller** (Beta) - A controller agent responds on your behalf
 
-Enter **1**, **2**, or **3**:"
+Enter **1**, **2**, **3**, or **4**:"
 
 Wait for response. Handle same as Expert mode responses below.
 
@@ -626,7 +627,10 @@ How should your workflow run?
 |------|-------------|
 | **Manual** | You control the flow - agents wait for your input after each step |
 | **Continuous** | Runs automatically from start to finish, no waiting |
+| **Hybrid** | Mix auto and interactive agents - you decide per-agent which ones pause |
 | **Autonomous** (Beta) | A controller agent responds to other agents on your behalf |
+
+**Important:** The `interactive` setting is **per-agent**, not workflow-wide. This means you can mix approaches - some agents run automatically while others pause for your input.
 
 **Do you want me to explain these in depth with real examples?**
 1. **No** - I understand, let me choose
@@ -644,9 +648,10 @@ Wait for response.
 
 1. **Manual** - You control the flow, agents wait for your input
 2. **Continuous** - Runs start to finish automatically
-3. **Autonomous with Controller** (Beta) - Controller responds to agents
+3. **Hybrid** - Mix of auto and interactive agents (you decide per-agent)
+4. **Autonomous with Controller** (Beta) - Controller responds to agents
 
-Enter **1**, **2**, or **3**:"
+Enter **1**, **2**, **3**, or **4**:"
 
 Skip to "Handle Mode Selection" below.
 
@@ -798,7 +803,99 @@ We'll configure the spec flag next if you choose this mode.
 
 ---
 
-## Option 3: Autonomous Mode with Controller (Beta)
+## Option 3: Hybrid Mode (Mix Auto & Interactive)
+
+**What is it?**
+
+Hybrid Mode gives you **per-agent control** over interactivity. Some agents run automatically (no waiting), while others pause for your input. You design the workflow to stop exactly where human judgment matters.
+
+```
+Agent 1 (Analyzer) [interactive: false]
+  → Scans codebase automatically → auto-advance →
+
+Agent 2 (Planner) [interactive: true]
+  → Proposes plan → ⏸️ WAITS for your feedback →
+  → You refine the plan → Enter →
+
+Agent 3 (Generator) [interactive: false]
+  → Generates output automatically → auto-advance →
+
+Agent 4 (Reviewer) [interactive: true]
+  → Shows results → ⏸️ WAITS for approval →
+  → You approve or request changes → Done!
+```
+
+---
+
+**Why use Hybrid Mode?**
+
+Hybrid mode is the **best of both worlds**. You get:
+
+- **Efficiency:** Let agents that gather context, analyze, or generate run without interruption
+- **Control:** Pause at key decision points where you want to review, redirect, or provide input
+- **Flexibility:** Design your workflow to match how YOU want to work
+
+It's ideal when some steps need human judgment but others are pure automation.
+
+---
+
+**💡 Real Example: Documentation Generator**
+
+Imagine a workflow that documents your codebase:
+
+| Agent | interactive | Why |
+|-------|-------------|-----|
+| Codebase Scanner | `false` | Just reads files - no input needed |
+| Structure Analyzer | `false` | Determines architecture - automatic |
+| Doc Planner | `true` | **Proposes outline - you review/adjust** |
+| Doc Writer | `false` | Writes docs based on approved plan |
+| Final Reviewer | `true` | **Shows final docs - you approve** |
+
+**The flow:**
+```
+Scanner → auto → Analyzer → auto →
+Planner → ⏸️ You approve outline → Enter →
+Writer → auto →
+Reviewer → ⏸️ You approve final docs → Done!
+```
+
+You only interact twice, but at the most important decision points.
+
+---
+
+**💡 Real Example: Code Review Workflow**
+
+| Agent | interactive | Why |
+|-------|-------------|-----|
+| Diff Collector | `false` | Gathers code changes automatically |
+| Issue Detector | `false` | Finds potential problems |
+| Reviewer | `true` | **Shows issues - you decide severity** |
+| Fix Suggester | `false` | Generates fix suggestions |
+| Approver | `true` | **Final review - you approve/reject** |
+
+---
+
+**When to use Hybrid Mode:**
+
+✅ Workflows with clear "review points" where human judgment matters
+✅ When some agents just gather/process data (no input needed)
+✅ When you want efficiency BUT also control at key moments
+✅ Documentation, code review, analysis workflows
+✅ Any workflow where you'd otherwise be clicking "Enter" through steps that don't need you
+
+---
+
+**Technical details:**
+
+- Set `interactive: true` or `interactive: false` **per agent** in Step 3
+- No workflow-level `autonomousMode` needed (defaults to `'never'`)
+- Agents with `interactive: false` auto-advance to next step
+- Agents with `interactive: true` pause and wait for user input
+- You can still use **Shift+Tab** to toggle autonomous mode at runtime
+
+---
+
+## Option 4: Autonomous Mode with Controller (Beta)
 
 **What is it?**
 
@@ -869,9 +966,10 @@ We'll configure all of this in **Step 5 (Controller Agent)**.
 
 1. **Manual Mode** - You control the flow, agents wait for your input
 2. **Continuous Mode** - Runs start to finish automatically
-3. **Autonomous Mode with Controller** (Beta) - Controller responds to agents
+3. **Hybrid Mode** - Mix of auto and interactive agents (you decide per-agent)
+4. **Autonomous Mode with Controller** (Beta) - Controller responds to agents
 
-Enter **1**, **2**, or **3**:"
+Enter **1**, **2**, **3**, or **4**:"
 
 ---
 
@@ -913,7 +1011,31 @@ Store `controller: false`, `interactive: false` (will set all agents to `interac
 
 Proceed to Section 8 (Specification Flag).
 
-**If user chose 3 (Autonomous Mode with Controller):**
+**If user chose 3 (Hybrid Mode):**
+Store `controller: false`, `interactiveMode: 'hybrid'`.
+
+"**Hybrid Mode selected!**
+
+You'll decide which agents are interactive and which run automatically. In Step 3 (Agents), I'll ask you for each agent:
+- `interactive: true` → Agent pauses and waits for your input
+- `interactive: false` → Agent runs automatically and advances to next step
+
+**Quick tip:** Think about where you want **decision points** vs **automation**:
+- Agents that gather/analyze data → usually `interactive: false`
+- Agents that propose plans or show results for approval → usually `interactive: true`
+
+Do you want a specification file for initial context?
+
+1. **No** - I'll provide context through conversation at interactive steps
+2. **Yes** - I want to provide a spec file upfront
+
+Enter **1** or **2**:"
+
+Wait for response.
+- If 1: Store `specification: false`, proceed to Section 9
+- If 2: Store `specification: true`, proceed to Section 8 (Specification Flag)
+
+**If user chose 4 (Autonomous Mode with Controller):**
 Store `controller: true`, `interactive: true`.
 
 "Got it! We'll create a Controller Agent in Step 5. Now let's configure autonomous mode behavior.
@@ -1054,8 +1176,8 @@ Present summary of everything collected:
 - `templates/workflows/\{workflow_name\}.workflow.js`
 - `prompts/templates/\{workflow_name\}/`
 
-**Workflow Mode:** \{Continuous | Manual | Autonomous with Controller (Beta)\}
-**Interactive:** \{true/false\}
+**Workflow Mode:** \{Manual | Continuous | Hybrid | Autonomous with Controller (Beta)\}
+**Interactive:** \{true/false/per-agent (hybrid)\}
 **Controller:** \{yes/no - if yes, will be created in step 5\}
 **Autonomous Mode:** \{only shown if controller enabled: never|always|true|false\}
 
@@ -1099,8 +1221,8 @@ Last Updated: \{ISO timestamp\}
     <workflow-location>~/.codemachine/imports/\{workflow_name\}-codemachine/</workflow-location>
     <existing-workflows count="\{count\}">\{comma-separated list from registry\}</existing-workflows>
     <workflow-mode>
-      <type>\{continuous|manual|autonomous\}</type>
-      <interactive>\{true|false\}</interactive>
+      <type>\{manual|continuous|hybrid|autonomous\}</type>
+      <interactive>\{true|false|per-agent\}</interactive>
       <controller enabled="\{true|false\}" beta="true">\{only if autonomous\}</controller>
       <!-- autonomous-mode ONLY included if controller enabled -->
       <autonomous-mode>\{never|always|true|false\}</autonomous-mode>
@@ -1155,9 +1277,10 @@ Press **Enter** to proceed to the next step."
 - **Workflow description confirmed**
 - Tracks configured or explicitly skipped
 - Condition groups configured or explicitly skipped
-- **All 3 workflow modes explained clearly with examples**
-- **Continuous mode: controller=false, interactive=false, NO autonomousMode**
-- **OR Manual mode: controller=false, interactive=true, NO autonomousMode**
+- **All 4 workflow modes explained clearly with examples**
+- **Manual mode: controller=false, interactive=true, NO autonomousMode**
+- **OR Continuous mode: controller=false, interactive=false, autonomousMode='always'|true**
+- **OR Hybrid mode: controller=false, interactiveMode='hybrid' (per-agent interactive setting)**
 - **OR Autonomous mode: controller=true, interactive=true, autonomousMode=true|false|'never'|'always'**
 - Specification flag set
 - Summary shown and confirmed (includes name AND description)
@@ -1174,7 +1297,8 @@ Press **Enter** to proceed to the next step."
 - Proceeding without user confirmation on name
 - **Not capturing workflow description**
 - Not explaining tracks/conditions in Expert mode
-- **Not explaining the difference between Continuous and Autonomous modes**
+- **Not explaining all 4 modes (Manual, Continuous, Hybrid, Autonomous) upfront**
+- **Not presenting Hybrid mode as a first-class option**
 - **Not marking Controller as Beta**
 - **Not explaining trade-offs (token consumption, engineering complexity)**
 - **Not creating the plan file**
