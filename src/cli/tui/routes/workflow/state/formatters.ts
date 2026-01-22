@@ -9,8 +9,10 @@ export function formatNumber(num: number): string {
   return num.toLocaleString()
 }
 
-export function formatTokens(tokensIn: number, tokensOut: number): string {
-  return `${formatNumber(tokensIn)}in/${formatNumber(tokensOut)}out`
+export function formatTokens(total: number): string {
+  if (total >= 1000000) return `${(total / 1000000).toFixed(1)}M`
+  if (total >= 1000) return `${(total / 1000).toFixed(1)}K`
+  return `${total}`
 }
 
 export function formatCost(cost: number): string {

@@ -128,7 +128,7 @@ export function HistoryView(props: HistoryViewProps) {
             <box width={28}><text fg={themeCtx.theme.textMuted} attributes={1}>Engine/Model</text></box>
             <box width={12}><text fg={themeCtx.theme.textMuted} attributes={1}>Status</text></box>
             <box width={12}><text fg={themeCtx.theme.textMuted} attributes={1}>Duration</text></box>
-            <box width={22}><text fg={themeCtx.theme.textMuted} attributes={1}>Tokens</text></box>
+            <box width={22}><text fg={themeCtx.theme.textMuted} attributes={1}>Context</text></box>
           </box>
 
           {/* Agent Rows - using scrollbox for native scrolling */}

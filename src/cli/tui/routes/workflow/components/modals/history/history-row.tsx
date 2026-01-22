@@ -68,7 +68,8 @@ export function HistoryRow(props: HistoryRowProps) {
 
   const tokens = () => {
     if (agent.telemetry) {
-      return formatTokens(agent.telemetry.tokensIn, agent.telemetry.tokensOut)
+      const total = agent.telemetry.tokensIn + agent.telemetry.tokensOut
+      return formatTokens(total)
     }
     return "-"
   }

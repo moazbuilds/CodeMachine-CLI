@@ -199,15 +199,17 @@ export async function runOpenCode(options: RunOpenCodeOptions): Promise<RunOpenC
 
     // Only emit when NEW telemetry is captured (not on every line)
     if (onTelemetry && newCaptured?.tokens && newCaptured !== prevCaptured) {
+      // Context window = input + cached (cache.read + cache.write)
+      const totalContextIn = (newCaptured.tokens.input ?? 0) + (newCaptured.tokens.cached ?? 0);
       const telemetryPayload = {
-        tokensIn: newCaptured.tokens.input ?? 0,
+        tokensIn: totalContextIn,
         tokensOut: newCaptured.tokens.output ?? 0,
         cached: newCaptured.tokens.cached,
         cost: newCaptured.cost,
         duration: newCaptured.duration,
       };
-      logger.debug('[TELEMETRY:2-RUNNER] Emitting onTelemetry → tokensIn=%d, tokensOut=%d, cached=%s',
-        telemetryPayload.tokensIn, telemetryPayload.tokensOut, telemetryPayload.cached ?? 'undefined');
+      logger.debug('[TELEMETRY:2-RUNNER] Emitting onTelemetry → tokensIn=%d (input=%d + cached=%d), tokensOut=%d',
+        totalContextIn, newCaptured.tokens.input ?? 0, newCaptured.tokens.cached ?? 0, telemetryPayload.tokensOut);
       onTelemetry(telemetryPayload);
     }
 

@@ -24,8 +24,10 @@ export function flattenTree(tree: AgentTreeNode[]): FlattenedAgent[] {
   const result: FlattenedAgent[] = []
 
   function traverse(nodes: AgentTreeNode[], depth: number, parentIsLast: boolean[]) {
-    nodes.forEach((node, index) => {
-      const isLast = index === nodes.length - 1
+    // Reverse nodes so latest appears first
+    const reversedNodes = [...nodes].reverse()
+    reversedNodes.forEach((node, index) => {
+      const isLast = index === reversedNodes.length - 1
 
       result.push({
         agent: node.agent,
