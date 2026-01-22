@@ -3,6 +3,7 @@ import * as path from 'node:path';
 
 import { loadWorkflowModule, isWorkflowTemplate } from '../../../workflows/index.js';
 import { getAllWorkflowDirectories } from '../../imports/index.js';
+import { appDebug } from '../../logging/logger.js';
 
 export type WorkflowAgentDefinition = {
   id: string;
@@ -79,9 +80,13 @@ export async function collectAgentsFromWorkflows(
   roots: string[],
   importPathToPackage?: Map<string, string>
 ): Promise<WorkflowAgentDefinition[]> {
+  appDebug('[collectAgentsFromWorkflows] Called with roots=%O', roots);
+
   const seenFiles = new Set<string>();
   const byId = new Map<string, WorkflowAgentDefinition>();
   const pathToPackage = importPathToPackage ?? new Map<string, string>();
+
+  appDebug('[collectAgentsFromWorkflows] pathToPackage size=%d', pathToPackage.size);
 
   // Collect workflow files from all roots with source tracking
   const allWorkflowFiles: WorkflowFileWithSource[] = [];
@@ -92,29 +97,44 @@ export async function collectAgentsFromWorkflows(
 
     // Determine package name for this root
     const packageName = pathToPackage.get(resolvedRoot) ?? null;
+    appDebug('[collectAgentsFromWorkflows] Scanning root=%s, packageName=%s', resolvedRoot, packageName);
 
     // Use traditional discovery for this root
-    for (const filePath of discoverWorkflowFiles(resolvedRoot)) {
+    const discoveredFiles = discoverWorkflowFiles(resolvedRoot);
+    appDebug('[collectAgentsFromWorkflows] Discovered %d workflow files from %s', discoveredFiles.length, resolvedRoot);
+
+    for (const filePath of discoveredFiles) {
       allWorkflowFiles.push({ filePath, packageName });
     }
   }
 
   // Also discover from all import directories with source tracking
   if (roots.length > 0) {
+    appDebug('[collectAgentsFromWorkflows] Discovering from import directories...');
     const importFiles = discoverAllWorkflowFilesWithSource(roots[0], pathToPackage);
+    appDebug('[collectAgentsFromWorkflows] Found %d import workflow files', importFiles.length);
     allWorkflowFiles.push(...importFiles);
   }
 
+  appDebug('[collectAgentsFromWorkflows] Total workflow files to process: %d', allWorkflowFiles.length);
+
   // Process all discovered workflow files
   for (const { filePath, packageName } of allWorkflowFiles) {
-    if (seenFiles.has(filePath)) continue;
+    if (seenFiles.has(filePath)) {
+      appDebug('[collectAgentsFromWorkflows] Skipping already seen file: %s', filePath);
+      continue;
+    }
     seenFiles.add(filePath);
 
     try {
+      appDebug('[collectAgentsFromWorkflows] Loading workflow: %s', filePath);
       const template = await loadWorkflowModule(filePath);
       if (!isWorkflowTemplate(template)) {
+        appDebug('[collectAgentsFromWorkflows] Not a valid workflow template: %s', filePath);
         continue;
       }
+
+      appDebug('[collectAgentsFromWorkflows] Processing template %s with %d steps', template.name, template.steps?.length ?? 0);
 
       for (const step of template.steps ?? []) {
         if (!step || step.type !== 'module') {
@@ -128,6 +148,7 @@ export async function collectAgentsFromWorkflows(
 
         // Namespace the ID if from an imported package
         const id = packageName ? `${packageName}:${rawId}` : rawId;
+        appDebug('[collectAgentsFromWorkflows] Found agent in workflow: rawId=%s, id=%s, packageName=%s', rawId, id, packageName);
 
         const existing = byId.get(id) ?? { id };
         byId.set(id, {
@@ -139,10 +160,12 @@ export async function collectAgentsFromWorkflows(
           modelReasoningEffort: step.modelReasoningEffort ?? existing.modelReasoningEffort,
         });
       }
-    } catch {
+    } catch (err) {
+      appDebug('[collectAgentsFromWorkflows] Error loading workflow %s: %s', filePath, err);
       // Ignore templates that fail to load; other files might still provide definitions.
     }
   }
 
+  appDebug('[collectAgentsFromWorkflows] Returning %d agents: %O', byId.size, Array.from(byId.keys()));
   return Array.from(byId.values());
 }

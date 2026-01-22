@@ -28,7 +28,7 @@ export interface TemplateChoice extends SelectionChoice<string> {
 }
 
 
-async function handleTemplateSelectionSuccess(template: WorkflowTemplate, templateFilePath: string): Promise<void> {
+async function handleTemplateSelectionSuccess(template: WorkflowTemplate, templateFilePath: string, sourcePackage?: string): Promise<void> {
   const templateFileName = path.basename(templateFilePath);
   const cwd = process.env.CODEMACHINE_CWD || process.cwd();
   const cmRoot = path.join(cwd, '.codemachine');
@@ -65,7 +65,7 @@ async function handleTemplateSelectionSuccess(template: WorkflowTemplate, templa
 
     // Mirror sub-agents if template has subAgentIds
     if (template.subAgentIds && template.subAgentIds.length > 0) {
-      await mirrorSubAgents({ cwd, subAgentIds: template.subAgentIds });
+      await mirrorSubAgents({ cwd, subAgentIds: template.subAgentIds, sourcePackage });
       console.log('✅ Agents regenerated successfully');
     } else {
       console.log('✓ Template has no sub-agents to mirror');
@@ -169,7 +169,7 @@ export async function selectTemplateByNumber(templateNumber: number): Promise<vo
     const template = await loadWorkflowModule(selectedTemplate.value);
 
     if (isWorkflowTemplate(template)) {
-      await handleTemplateSelectionSuccess(template, selectedTemplate.value);
+      await handleTemplateSelectionSuccess(template, selectedTemplate.value, selectedTemplate.source);
     }
   } catch (error) {
     console.error('Error selecting template:', error instanceof Error ? error.message : String(error));
@@ -206,9 +206,10 @@ export async function runTemplatesCommand(inSession: boolean = false): Promise<v
     }
 
     const selectedPath = result as string;
+    const selectedTemplate = templates.find(t => t.value === selectedPath);
     const template = await loadWorkflowModule(selectedPath);
     if (isWorkflowTemplate(template)) {
-      await handleTemplateSelectionSuccess(template, selectedPath);
+      await handleTemplateSelectionSuccess(template, selectedPath, selectedTemplate?.source);
     }
   } catch (error) {
     console.error('Error loading templates:', error);
