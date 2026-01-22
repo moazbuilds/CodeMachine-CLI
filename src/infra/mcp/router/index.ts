@@ -108,8 +108,19 @@ class MCPRouter {
         };
       }
 
+      // Get targets filter for this tool's backend and inject into args
+      const backendId = this.backendManager.getBackendForTool(name);
+      const serverConfig = activeServers.find((s) => s.server === backendId);
+      const allowedTargets = serverConfig?.targets ?? null;
+
+      // Inject _allowed_targets into args for MCP server to use
+      const enrichedArgs: Record<string, unknown> = {
+        ...(args || {}),
+        _allowed_targets: allowedTargets,
+      };
+
       try {
-        const result = await this.backendManager.callTool(name, args || {});
+        const result = await this.backendManager.callTool(name, enrichedArgs);
         return result;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

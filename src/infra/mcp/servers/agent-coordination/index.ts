@@ -25,6 +25,35 @@ import type { ExecutionResult } from './schemas.js';
 import { executeAgents, queryAgentStatus, getActiveAgents, listAvailableAgents } from './executor.js';
 import type { AvailableAgent } from './executor.js';
 import type { AgentRecord } from '../../../../agents/monitoring/types.js';
+import { validateScriptTargets, filterAgentsByTargets } from './validator.js';
+
+// ============================================================================
+// TARGET FILTERING HELPERS
+// ============================================================================
+
+/**
+ * Extract and remove _allowed_targets from args
+ *
+ * The router injects this field to communicate target restrictions.
+ * We extract it and remove it before passing args to tool handlers.
+ */
+function extractAllowedTargets(args: Record<string, unknown> | undefined): {
+  allowedTargets: string[] | null;
+  cleanArgs: Record<string, unknown>;
+} {
+  if (!args) {
+    return { allowedTargets: null, cleanArgs: {} };
+  }
+
+  const { _allowed_targets, ...cleanArgs } = args;
+
+  // _allowed_targets can be null (no restrictions) or string[]
+  const allowedTargets = Array.isArray(_allowed_targets)
+    ? (_allowed_targets as string[])
+    : null;
+
+  return { allowedTargets, cleanArgs };
+}
 
 // ============================================================================
 // MCP SERVER
@@ -59,12 +88,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
+  // Extract target filtering from router-injected args
+  const { allowedTargets, cleanArgs } = extractAllowedTargets(args);
+
   try {
     // ========================================================================
     // RUN_AGENTS
     // ========================================================================
     if (name === 'run_agents') {
-      const validated = RunAgentsSchema.parse(args);
+      const validated = RunAgentsSchema.parse(cleanArgs);
+
+      // Validate script targets before execution
+      validateScriptTargets(validated.script, allowedTargets);
+
       const result = await executeAgents(validated);
 
       return {
@@ -81,7 +117,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     // GET_AGENT_STATUS
     // ========================================================================
     if (name === 'get_agent_status') {
-      const validated = GetAgentStatusSchema.parse(args);
+      const validated = GetAgentStatusSchema.parse(cleanArgs);
       const agents = queryAgentStatus(validated);
 
       return {
@@ -117,8 +153,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     // LIST_AVAILABLE_AGENTS
     // ========================================================================
     if (name === 'list_available_agents') {
-      const validated = ListAvailableAgentsSchema.parse(args);
-      const agents = await listAvailableAgents(validated);
+      const validated = ListAvailableAgentsSchema.parse(cleanArgs);
+      const allAgents = await listAvailableAgents(validated);
+
+      // Filter agents by allowed targets
+      const agents = filterAgentsByTargets(allAgents, allowedTargets);
 
       return {
         content: [
@@ -126,7 +165,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             type: 'text',
             text:
               agents.length === 0
-                ? 'No agents found in catalog.'
+                ? allowedTargets
+                  ? 'No allowed agents found in catalog.'
+                  : 'No agents found in catalog.'
                 : formatAvailableAgents(agents),
           },
         ],

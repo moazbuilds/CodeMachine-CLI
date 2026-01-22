@@ -58,11 +58,12 @@ export interface MCPAdapter {
 // MCP FILTERING TYPES
 // ============================================================================
 
-/** Server config with optional tool filtering */
+/** Server config with optional tool and target filtering */
 export interface MCPServerFilterConfig {
   server: string;
   only?: string[];      // Allowlist - only these tools are available
   exclude?: string[];   // Blocklist - these tools are excluded
+  targets?: string[];   // Allowlist - only these targets can be called (e.g., agent names)
 }
 
 /** MCP config entry can be a simple server name or a filter config */
