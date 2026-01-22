@@ -66,6 +66,19 @@ export async function writeConfig(configPath: string, content: string): Promise<
 }
 
 // ============================================================================
+// TOML UTILITIES
+// ============================================================================
+
+/**
+ * Escape a string for use in a TOML double-quoted value.
+ * In TOML, backslashes are escape characters, so we must escape them as \\.
+ * This is critical for Windows paths (e.g., C:\Users\... -> C:\\Users\\...)
+ */
+function escapeTomlString(value: string): string {
+  return value.replace(/\\/g, '\\\\');
+}
+
+// ============================================================================
 // TOML SECTION MANAGEMENT
 // ============================================================================
 
@@ -81,12 +94,12 @@ export function generateWorkflowSignalsSection(workflowDir: string): string {
   const lines = [
     '[mcp_servers."workflow-signals"]',
     'command = "bun"',
-    `args = ["run", "${serverPath}"]`,
-    `cwd = "${mcpDir}"`,
+    `args = ["run", "${escapeTomlString(serverPath)}"]`,
+    `cwd = "${escapeTomlString(mcpDir)}"`,
     'startup_timeout_sec = 40',
     '',
     '[mcp_servers."workflow-signals".env]',
-    `WORKFLOW_DIR = "${workflowDir}"`,
+    `WORKFLOW_DIR = "${escapeTomlString(workflowDir)}"`,
   ];
 
   return lines.join('\n');
@@ -102,12 +115,12 @@ export function generateAgentCoordinationSection(workingDir: string): string {
   const lines = [
     '[mcp_servers."agent-coordination"]',
     'command = "bun"',
-    `args = ["run", "${serverPath}"]`,
-    `cwd = "${mcpDir}"`,
+    `args = ["run", "${escapeTomlString(serverPath)}"]`,
+    `cwd = "${escapeTomlString(mcpDir)}"`,
     'startup_timeout_sec = 60',
     '',
     '[mcp_servers."agent-coordination".env]',
-    `CODEMACHINE_WORKING_DIR = "${workingDir}"`,
+    `CODEMACHINE_WORKING_DIR = "${escapeTomlString(workingDir)}"`,
   ];
 
   return lines.join('\n');
