@@ -1,4 +1,4 @@
-import { stat } from 'node:fs/promises';
+import { stat, readFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { homedir } from 'node:os';
 
@@ -43,6 +43,36 @@ export function getCredentialsPath(configDir: string): string {
 }
 
 /**
+ * Gets the path to the settings file
+ */
+export function getSettingsPath(configDir: string): string {
+  return path.join(configDir, 'settings.json');
+}
+
+/**
+ * Check if settings file contains auth environment variables
+ */
+async function hasAuthInSettings(settingsPath: string): Promise<boolean> {
+  try {
+    const content = await readFile(settingsPath, 'utf-8');
+    const settings = JSON.parse(content);
+
+    // Check if settings has an env object with auth keys
+    if (settings.env && typeof settings.env === 'object') {
+      const authKeys = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN'];
+      for (const key of authKeys) {
+        if (settings.env[key]) {
+          return true;
+        }
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Gets paths to all Claude-related files that need to be cleaned up
  */
 export function getClaudeAuthPaths(configDir: string): string[] {
@@ -65,12 +95,21 @@ export async function isAuthenticated(options?: ClaudeAuthOptions): Promise<bool
   const configDir = resolveClaudeConfigDir(options);
   const credPath = getCredentialsPath(configDir);
 
+  // Check if credentials file exists
   try {
     await stat(credPath);
     return true;
   } catch {
-    return false;
+    // Credentials file doesn't exist, check settings.json for auth env vars
   }
+
+  // Check if settings.json has auth env vars
+  const settingsPath = getSettingsPath(configDir);
+  if (await hasAuthInSettings(settingsPath)) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -165,12 +204,18 @@ export async function ensureAuth(options?: ClaudeAuthOptions): Promise<boolean> 
   const configDir = resolveClaudeConfigDir(options);
   const credPath = getCredentialsPath(configDir);
 
-  // If already authenticated, nothing to do
+  // If already authenticated via credentials file, nothing to do
   try {
     await stat(credPath);
     return true;
   } catch {
     // Credentials file doesn't exist
+  }
+
+  // Check if settings.json has auth env vars
+  const settingsPath = getSettingsPath(configDir);
+  if (await hasAuthInSettings(settingsPath)) {
+    return true;
   }
 
   // Check if CLI is installed
