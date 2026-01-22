@@ -1,4 +1,5 @@
 import { logTelemetry } from './logger.js';
+import { debug } from '../logging/logger.js';
 import type { EngineType } from '../../infra/engines/index.js';
 import { parseTelemetry as parseClaudeTelemetry } from '../../infra/engines/providers/claude/telemetryParser.js';
 import { parseTelemetry as parseCodexTelemetry } from '../../infra/engines/providers/codex/telemetryParser.js';
@@ -66,6 +67,14 @@ export function createTelemetryCapture(
         const parser = telemetryParsers[engine];
         const result = parser(json);
         if (result) {
+          debug('[TELEMETRY:2-CAPTURE] [%s] Captured telemetry from stream', engine.toUpperCase());
+          if (result.tokens) {
+            debug('[TELEMETRY:2-CAPTURE] [%s]   STORING: input=%d, output=%d, cached=%s',
+              engine.toUpperCase(),
+              result.tokens.input,
+              result.tokens.output,
+              result.tokens.cached ?? 'none');
+          }
           captured = result;
         }
       } catch {
@@ -74,18 +83,39 @@ export function createTelemetryCapture(
     },
 
     getCaptured(): CapturedTelemetry | null {
+      if (captured) {
+        debug('[TELEMETRY:2-CAPTURE] [%s] getCaptured() → input=%d, output=%d, cached=%s',
+          engine.toUpperCase(),
+          captured.tokens?.input ?? 0,
+          captured.tokens?.output ?? 0,
+          captured.tokens?.cached ?? 'none');
+      }
       return captured;
     },
 
     logCapturedTelemetry(exitCode: number): void {
+      debug('[TELEMETRY:2-CAPTURE] [%s] logCapturedTelemetry called (exitCode=%d)', engine.toUpperCase(), exitCode);
+
       if (!captured || !captured.tokens) {
+        debug('[TELEMETRY:2-CAPTURE] [%s]   SKIP: No captured telemetry or tokens', engine.toUpperCase());
         return;
       }
 
       // Validate that token values are actual numbers
       if (typeof captured.tokens.input !== 'number' || typeof captured.tokens.output !== 'number') {
+        debug('[TELEMETRY:2-CAPTURE] [%s]   SKIP: Invalid token types (input=%s, output=%s)',
+          engine.toUpperCase(),
+          typeof captured.tokens.input,
+          typeof captured.tokens.output);
         return;
       }
+
+      debug('[TELEMETRY:2-CAPTURE] [%s]   LOGGING: input=%d, output=%d, cached=%s, cost=$%s',
+        engine.toUpperCase(),
+        captured.tokens.input,
+        captured.tokens.output,
+        captured.tokens.cached ?? 'none',
+        captured.cost?.toFixed(6) ?? 'N/A');
 
       logTelemetry({
         engine,

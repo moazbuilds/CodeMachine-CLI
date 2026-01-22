@@ -9,9 +9,9 @@ export function updateAgentTelemetryInList(
   return agents.map((agent) => {
     if (agent.id !== agentId) return agent
 
-    // Context = input tokens (total)
-    // Note: cached tokens are already INCLUDED in tokensIn, not separate
-    // cached is just metadata showing how many of those tokens were served from cache
+    // Per Anthropic docs: total_input = input_tokens + cache_read + cache_creation
+    // tokensIn is pre-calculated as this total by the runner
+    // cached is metadata showing how many tokens were served from/written to cache
     const currentContext = telemetry.tokensIn ?? 0
     const newTokensIn = currentContext > 0 ? currentContext : agent.telemetry.tokensIn
     const newTokensOut = telemetry.tokensOut ?? agent.telemetry.tokensOut
@@ -58,9 +58,9 @@ export function updateControllerTelemetry(
   controller: ControllerState,
   telemetry: Partial<AgentTelemetry>
 ): ControllerState {
-  // Context = input tokens (total)
-  // Note: cached tokens are already INCLUDED in tokensIn, not separate
-  // cached is just metadata showing how many of those tokens were served from cache
+  // Per Anthropic docs: total_input = input_tokens + cache_read + cache_creation
+  // tokensIn is pre-calculated as this total by the runner
+  // cached is metadata showing how many tokens were served from/written to cache
   const currentContext = telemetry.tokensIn ?? 0
   const newTokensIn = currentContext > 0 ? currentContext : controller.telemetry.tokensIn
   const newTokensOut = telemetry.tokensOut ?? controller.telemetry.tokensOut

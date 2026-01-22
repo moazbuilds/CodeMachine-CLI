@@ -7,6 +7,7 @@ import { metadata } from '../metadata.js';
 import { expandHomeDir } from '../../../../../shared/utils/index.js';
 import { ENV } from '../config.js';
 import { createTelemetryCapture } from '../../../../../shared/telemetry/index.js';
+import { debug } from '../../../../../shared/logging/logger.js';
 import type { ParsedTelemetry } from '../../../core/types.js';
 import {
   formatThinking,
@@ -104,7 +105,8 @@ function formatStreamJsonLine(line: string): string[] | null {
       // Show status message when session starts
       return [formatStatus('Claude is analyzing your request...')];
     } else if (json.type === 'result') {
-      // Calculate total input tokens (non-cached + cached)
+      // Per Anthropic docs: total_input = input_tokens + cache_read + cache_creation
+      // See: https://platform.claude.com/docs/en/build-with-claude/prompt-caching#tracking-cache-performance
       const cacheRead = json.usage.cache_read_input_tokens || 0;
       const cacheCreation = json.usage.cache_creation_input_tokens || 0;
       const totalCached = cacheRead + cacheCreation;
@@ -220,9 +222,19 @@ export async function runClaude(options: RunClaudeOptions): Promise<RunClaudeRes
     if (onTelemetry) {
       const captured = telemetryCapture.getCaptured();
       if (captured && captured.tokens) {
-        // tokensIn should be TOTAL input tokens (non-cached + cached)
-        // to match the log output format
+        // Per Anthropic docs: total_input = input_tokens + cache_read + cache_creation
+        // See: https://platform.claude.com/docs/en/build-with-claude/prompt-caching#tracking-cache-performance
         const totalIn = (captured.tokens.input ?? 0) + (captured.tokens.cached ?? 0);
+
+        debug('[TELEMETRY:2.5-RUNNER] [CLAUDE] Emitting telemetry via onTelemetry callback');
+        debug('[TELEMETRY:2.5-RUNNER] [CLAUDE]   CAPTURED: input=%d, output=%d, cached=%s',
+          captured.tokens.input ?? 0,
+          captured.tokens.output ?? 0,
+          captured.tokens.cached ?? 'none');
+        debug('[TELEMETRY:2.5-RUNNER] [CLAUDE]   TOTAL CONTEXT: %d (input + cached), output=%d',
+          totalIn,
+          captured.tokens.output ?? 0);
+
         onTelemetry({
           tokensIn: totalIn,
           tokensOut: captured.tokens.output ?? 0,
