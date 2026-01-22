@@ -6,7 +6,7 @@
  * - Colors: gray, green, red, orange, cyan, magenta, blue, yellow
  * - Attributes: bold, dim, italic, underline, inverse, strikethrough
  * - Combined markers: [GREEN:BOLD], [RED:UNDERLINE,BOLD], etc.
- * - Line prefix formatting: * for bold highlight, - for bullet points
+ * - Line prefix formatting: * for bold highlight, - for bullet points, 1. 2. for numbered lists
  * - Markdown headings: # (cyan+bold), ## (bold), ### (bold+dim)
  *
  * Uses the enhanced parseMarker system for professional CLI output.
@@ -21,9 +21,9 @@ import { parseMarker, type ParsedMarker } from "../../../../../../shared/formatt
 
 /**
  * Detect line prefix type for special formatting
- * Returns: 'star' for * prefix, 'bullet' for - prefix, null otherwise
+ * Returns: 'star' for * prefix, 'bullet' for - prefix, 'numbered' for 1. 2. etc, null otherwise
  */
-function detectLinePrefix(text: string): { type: 'star' | 'bullet' | null; content: string } {
+function detectLinePrefix(text: string): { type: 'star' | 'bullet' | 'numbered' | null; content: string; number?: string } {
   const trimmed = text.trimStart()
   const indent = text.length - trimmed.length
   const indentStr = text.slice(0, indent)
@@ -35,6 +35,11 @@ function detectLinePrefix(text: string): { type: 'star' | 'bullet' | null; conte
   // Check for "- " prefix (bullet point)
   if (trimmed.startsWith('- ')) {
     return { type: 'bullet', content: indentStr + trimmed.slice(2) }
+  }
+  // Check for numbered list prefix (e.g., "1. ", "12. ")
+  const numberedMatch = trimmed.match(/^(\d+)\.\s+(.*)$/)
+  if (numberedMatch) {
+    return { type: 'numbered', content: indentStr + numberedMatch[2], number: numberedMatch[1] }
   }
   return { type: null, content: text }
 }
@@ -238,9 +243,13 @@ export function LogLine(props: LogLineProps) {
   const bulletSymbol = () => prefixInfo().type === 'bullet' ? '• ' : ''
   const bulletWidth = () => prefixInfo().type === 'bullet' ? 2 : 0
 
+  // Get prefix for numbered lists (e.g., "1. ", "12. ")
+  const numberedSymbol = () => prefixInfo().type === 'numbered' ? `${prefixInfo().number}. ` : ''
+  const numberedWidth = () => prefixInfo().type === 'numbered' ? numberedSymbol().length : 0
+
   // Word-wrapped lines (wrap the raw text, then parse segments per line)
   const wrappedLines = createMemo(() => {
-    const width = maxWidth() - bulletWidth()
+    const width = maxWidth() - bulletWidth() - numberedWidth()
     return wordWrap(displayText(), width)
   })
 
@@ -263,6 +272,12 @@ export function LogLine(props: LogLineProps) {
               </Show>
               <Show when={prefixInfo().type === 'bullet' && index() > 0}>
                 <text>  </text>
+              </Show>
+              <Show when={prefixInfo().type === 'numbered' && index() === 0}>
+                <text fg={themeCtx.theme.textMuted}>{numberedSymbol()}</text>
+              </Show>
+              <Show when={prefixInfo().type === 'numbered' && index() > 0}>
+                <text>{' '.repeat(numberedWidth())}</text>
               </Show>
               <For each={lineSegments}>
                 {(segment) => (
@@ -347,10 +362,16 @@ export function LogLineInline(props: { line: string }) {
   // Get prefix symbol for bullet points
   const bulletSymbol = () => prefixInfo().type === 'bullet' ? '• ' : ''
 
+  // Get prefix for numbered lists
+  const numberedSymbol = () => prefixInfo().type === 'numbered' ? `${prefixInfo().number}. ` : ''
+
   return (
     <box flexDirection="row">
       <Show when={prefixInfo().type === 'bullet'}>
         <text fg={themeCtx.theme.textMuted}>{bulletSymbol()}</text>
+      </Show>
+      <Show when={prefixInfo().type === 'numbered'}>
+        <text fg={themeCtx.theme.textMuted}>{numberedSymbol()}</text>
       </Show>
       <For each={segments()}>
         {(segment) => (

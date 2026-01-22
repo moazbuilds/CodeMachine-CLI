@@ -115,7 +115,7 @@ function formatCodexStreamJsonLine(line: string): string | null {
 
     // Handle reasoning items (thinking)
     if (json.type === 'item.completed' && json.item?.type === 'reasoning') {
-      return formatThinking(json.item.text);
+      return formatThinking(json.item.text) + '\n';
     }
 
     // Handle command execution
