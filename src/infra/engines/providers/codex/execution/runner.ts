@@ -1,15 +1,89 @@
 import * as path from 'node:path';
 import { homedir } from 'node:os';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 
 import { spawnProcess } from '../../../../process/spawn.js';
 import { buildCodexCommand } from './commands.js';
 import { metadata } from '../metadata.js';
 import { expandHomeDir } from '../../../../../shared/utils/index.js';
 import { ENV } from '../config.js';
-import { createTelemetryCapture } from '../../../../../shared/telemetry/index.js';
 import type { ParsedTelemetry } from '../../../core/types.js';
 import { formatThinking, formatCommand, formatResult, formatMessage, formatStatus, formatMcpCall, formatMcpResult } from '../../../../../shared/formatters/outputMarkers.js';
 import { debug } from '../../../../../shared/logging/logger.js';
+
+/**
+ * Get Codex session file path
+ * Session files are stored at: $CODEX_HOME/sessions/YYYY/MM/DD/rollout-...-<session_id>.jsonl
+ */
+function getSessionPath(sessionId: string, codexHome: string): string | null {
+  const now = new Date();
+  const year = now.getFullYear().toString();
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  const day = now.getDate().toString().padStart(2, '0');
+
+  const sessionsDir = path.join(codexHome, 'sessions', year, month, day);
+
+  if (!existsSync(sessionsDir)) {
+    debug('[SESSION-READER] Sessions directory not found: %s', sessionsDir);
+    return null;
+  }
+
+  // Find the session file matching this session ID
+  try {
+    const files = readdirSync(sessionsDir);
+    const sessionFile = files.find(f => f.includes(sessionId) && f.endsWith('.jsonl'));
+    if (sessionFile) {
+      return path.join(sessionsDir, sessionFile);
+    }
+  } catch (err) {
+    debug('[SESSION-READER] Error reading sessions directory: %s', err);
+  }
+
+  return null;
+}
+
+/**
+ * Read telemetry from Codex session file (last token_count event with total_token_usage)
+ */
+function readSessionTelemetry(sessionPath: string): ParsedTelemetry | null {
+  if (!existsSync(sessionPath)) {
+    debug('[SESSION-READER] File not found: %s', sessionPath);
+    return null;
+  }
+
+  try {
+    const content = readFileSync(sessionPath, 'utf-8');
+    const lines = content.trim().split('\n').filter(Boolean);
+
+    // Read from end to find most recent token_count event
+    for (let i = lines.length - 1; i >= 0; i--) {
+      try {
+        const entry = JSON.parse(lines[i]);
+        if (
+          entry.type === 'event_msg' &&
+          entry.payload?.type === 'token_count' &&
+          entry.payload?.info?.total_token_usage
+        ) {
+          const usage = entry.payload.info.total_token_usage;
+
+          debug('[SESSION-READER] total_token_usage: input=%d, output=%d, cached=%d',
+            usage.input_tokens, usage.output_tokens, usage.cached_input_tokens);
+
+          // Pass through raw values from total_token_usage
+          return {
+            tokensIn: usage.input_tokens || 0,
+            tokensOut: usage.output_tokens || 0,
+            cached: usage.cached_input_tokens || 0,
+          };
+        }
+      } catch { /* skip malformed */ }
+    }
+    return null;
+  } catch (err) {
+    debug('[SESSION-READER] Error: %s', err);
+    return null;
+  }
+}
 
 export interface RunCodexOptions {
   prompt: string;
@@ -179,23 +253,22 @@ export async function runCodex(options: RunCodexOptions): Promise<RunCodexResult
     `Codex runner - CLI: ${command} ${args.map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg)).join(' ')} | stdin preview: ${prompt.slice(0, 120)}`
   );
 
-  // Create telemetry capture instance
-  const telemetryCapture = createTelemetryCapture('codex', model, prompt, workingDir);
-
   // Track JSON error events (Codex may exit 0 even on errors)
   let capturedError: string | null = null;
+  let capturedSessionId: string | null = null;
   let stdoutBuffer = '';
+
+  // Accumulate output tokens across turns
+  let accumulatedTokensOut = 0;
 
   const handleStreamLine = (line: string): void => {
     if (!line.trim()) return;
-
-    // Capture telemetry data
-    telemetryCapture.captureFromStreamJson(line);
 
     // Capture session_id from thread.started event and check for errors
     try {
       const json = JSON.parse(line);
       if (json.type === 'thread.started' && json.thread_id) {
+        capturedSessionId = json.thread_id;
         debug(`[SESSION_ID CAPTURED] ${json.thread_id}`);
         if (onSessionId) {
           onSessionId(json.thread_id);
@@ -208,25 +281,29 @@ export async function runCodex(options: RunCodexOptions): Promise<RunCodexResult
       if (json.type === 'turn.failed' && json.error?.message && !capturedError) {
         capturedError = json.error.message;
       }
+
+      // Read telemetry from session file when turn completes
+      if (json.type === 'turn.completed' && onTelemetry && capturedSessionId) {
+        const sessionPath = getSessionPath(capturedSessionId, codexHome);
+        if (sessionPath) {
+          debug('[SESSION-READER] Reading telemetry from: %s', sessionPath);
+          const telemetry = readSessionTelemetry(sessionPath);
+          if (telemetry) {
+            // Accumulate output tokens across turns
+            accumulatedTokensOut += telemetry.tokensOut;
+            debug('[SESSION-READER] Accumulated tokensOut: %d (this turn: %d)',
+              accumulatedTokensOut, telemetry.tokensOut);
+
+            onTelemetry({
+              tokensIn: telemetry.tokensIn,
+              tokensOut: accumulatedTokensOut,
+              cached: telemetry.cached,
+            });
+          }
+        }
+      }
     } catch {
       // Ignore parse errors
-    }
-
-    // Emit telemetry event if captured and callback provided
-    if (onTelemetry) {
-      const captured = telemetryCapture.getCaptured();
-      if (captured && captured.tokens) {
-        // tokensIn should be TOTAL input tokens (non-cached + cached)
-        // to match the log output format: "13391in/406out (5888 cached)"
-        const totalIn = (captured.tokens.input ?? 0) + (captured.tokens.cached ?? 0);
-        onTelemetry({
-          tokensIn: totalIn,
-          tokensOut: captured.tokens.output ?? 0,
-          cached: captured.tokens.cached,
-          cost: captured.cost,
-          duration: captured.duration,
-        });
-      }
     }
 
     const formatted = formatCodexStreamJsonLine(line);
@@ -288,9 +365,6 @@ export async function runCodex(options: RunCodexOptions): Promise<RunCodexResult
     const preview = lines.join('\n');
     throw new Error(preview);
   }
-
-  // Log captured telemetry
-  telemetryCapture.logCapturedTelemetry(result.exitCode);
 
   return {
     stdout: result.stdout,
