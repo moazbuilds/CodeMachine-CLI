@@ -1,12 +1,12 @@
 import * as path from 'node:path';
 import { homedir } from 'node:os';
+import { readFileSync, existsSync } from 'node:fs';
 
 import { spawnProcess } from '../../../../process/spawn.js';
 import { buildClaudeExecCommand } from './commands.js';
 import { metadata } from '../metadata.js';
 import { expandHomeDir } from '../../../../../shared/utils/index.js';
 import { ENV } from '../config.js';
-import { createTelemetryCapture } from '../../../../../shared/telemetry/index.js';
 import { debug } from '../../../../../shared/logging/logger.js';
 import type { ParsedTelemetry } from '../../../core/types.js';
 import {
@@ -14,12 +14,60 @@ import {
   formatCommand,
   formatResult,
   formatStatus,
-  formatDuration,
-  formatCost,
-  formatTokens,
-  addMarker,
-  SYMBOL_BULLET,
 } from '../../../../../shared/formatters/outputMarkers.js';
+
+/**
+ * Get Claude session file path using claudeConfigDir
+ */
+function getSessionPath(sessionId: string, workingDir: string, claudeConfigDir: string): string {
+  const slug = workingDir.replace(/\//g, '-');
+  return path.join(claudeConfigDir, 'projects', slug, `${sessionId}.jsonl`);
+}
+
+/**
+ * Read telemetry from Claude session file (last assistant message with usage)
+ */
+function readSessionTelemetry(sessionPath: string): ParsedTelemetry | null {
+  if (!existsSync(sessionPath)) {
+    debug('[SESSION-READER] File not found: %s', sessionPath);
+    return null;
+  }
+
+  try {
+    const content = readFileSync(sessionPath, 'utf-8');
+    const lines = content.trim().split('\n').filter(Boolean);
+
+    for (let i = lines.length - 1; i >= 0; i--) {
+      try {
+        const entry = JSON.parse(lines[i]);
+        if (entry.type === 'assistant' && entry.message?.usage) {
+          const u = entry.message.usage;
+          const input = u.input_tokens || 0;
+          const output = u.output_tokens || 0;
+          const cacheCreation = u.cache_creation_input_tokens || 0;
+          const cacheRead = u.cache_read_input_tokens || 0;
+
+          const totalContext = input + cacheCreation + cacheRead;
+
+          debug('[SESSION-READER] input=%d, output=%d, cache_creation=%d, cache_read=%d, TOTAL=%d',
+            input, output, cacheCreation, cacheRead, totalContext);
+
+          return {
+            tokensIn: totalContext,
+            tokensOut: output,
+            cached: cacheCreation + cacheRead,
+            cacheCreationTokens: cacheCreation,
+            cacheReadTokens: cacheRead,
+          };
+        }
+      } catch { /* skip malformed */ }
+    }
+    return null;
+  } catch (err) {
+    debug('[SESSION-READER] Error: %s', err);
+    return null;
+  }
+}
 
 export interface RunClaudeOptions {
   prompt: string;
@@ -181,68 +229,42 @@ export async function runClaude(options: RunClaudeOptions): Promise<RunClaudeRes
 
   const { command, args } = buildClaudeExecCommand({ workingDir, resumeSessionId, model });
 
-  // Create telemetry capture instance
-  const telemetryCapture = createTelemetryCapture('claude', model, prompt, workingDir);
-
-  // Track JSON error events (Claude may exit 0 even on errors)
+  // Track state
   let capturedError: string | null = null;
-  let sessionIdCaptured = false;
+  let capturedSessionId: string | null = null;
   let stdoutBuffer = '';
 
   const handleStreamLine = (line: string): void => {
     if (!line.trim()) return;
 
-    // Capture telemetry data
-    telemetryCapture.captureFromStreamJson(line);
-
-    // Check for error events (Claude may exit 0 even on errors like invalid model)
     try {
       const json = JSON.parse(line);
 
-      // Capture session ID from first event that contains it
-      if (!sessionIdCaptured && json.session_id && onSessionId) {
-        sessionIdCaptured = true;
-        onSessionId(json.session_id);
+      // Capture session ID from first event
+      if (!capturedSessionId && json.session_id) {
+        capturedSessionId = json.session_id;
+        onSessionId?.(json.session_id);
       }
 
-      // Check for error in result type
+      // Check for errors
       if (json.type === 'result' && json.is_error && json.result && !capturedError) {
         capturedError = json.result;
       }
-      // Check for error in assistant message
       if (json.type === 'assistant' && json.error && !capturedError) {
-        const messageText = json.message?.content?.[0]?.text;
-        capturedError = messageText || json.error;
+        capturedError = json.message?.content?.[0]?.text || json.error;
+      }
+
+      // Result event = trigger to read telemetry from session file
+      if (json.type === 'result' && onTelemetry && capturedSessionId) {
+        const sessionPath = getSessionPath(capturedSessionId, workingDir, claudeConfigDir);
+        debug('[SESSION-READER] Reading telemetry from: %s', sessionPath);
+        const telemetry = readSessionTelemetry(sessionPath);
+        if (telemetry) {
+          onTelemetry(telemetry);
+        }
       }
     } catch {
       // Ignore parse errors
-    }
-
-    // Emit telemetry event if captured and callback provided
-    if (onTelemetry) {
-      const captured = telemetryCapture.getCaptured();
-      if (captured && captured.tokens) {
-        // Per Anthropic docs: total_input = input_tokens + cache_read + cache_creation
-        // See: https://platform.claude.com/docs/en/build-with-claude/prompt-caching#tracking-cache-performance
-        const totalIn = (captured.tokens.input ?? 0) + (captured.tokens.cached ?? 0);
-
-        debug('[TELEMETRY:2.5-RUNNER] [CLAUDE] Emitting telemetry via onTelemetry callback');
-        debug('[TELEMETRY:2.5-RUNNER] [CLAUDE]   CAPTURED: input=%d, output=%d, cached=%s',
-          captured.tokens.input ?? 0,
-          captured.tokens.output ?? 0,
-          captured.tokens.cached ?? 'none');
-        debug('[TELEMETRY:2.5-RUNNER] [CLAUDE]   TOTAL CONTEXT: %d (input + cached), output=%d',
-          totalIn,
-          captured.tokens.output ?? 0);
-
-        onTelemetry({
-          tokensIn: totalIn,
-          tokensOut: captured.tokens.output ?? 0,
-          cached: captured.tokens.cached,
-          cost: captured.cost,
-          duration: captured.duration,
-        });
-      }
     }
 
     const formatted = formatStreamJsonLine(line);
@@ -350,9 +372,6 @@ export async function runClaude(options: RunClaudeOptions): Promise<RunClaudeRes
 
     throw new Error(errorMessage);
   }
-
-  // Log captured telemetry
-  telemetryCapture.logCapturedTelemetry(result.exitCode);
 
   return {
     stdout: result.stdout,

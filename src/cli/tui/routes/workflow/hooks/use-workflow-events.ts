@@ -84,12 +84,23 @@ export function useWorkflowEvents(options: UseWorkflowEventsOptions): UseWorkflo
       const monitor = AgentMonitorService.getInstance()
       const monitoringId = Number(controllerState.controllerConfig.monitoringId) || undefined
       const controllerAgent = monitoringId ? monitor.getAgent(monitoringId) : undefined
+
+      // Load persisted telemetry from DB, fall back to zeros if not available
+      const persistedTelemetry = controllerAgent?.telemetry
+
       actions.setControllerState({
         id: controllerState.controllerConfig.agentId,
         name: controllerState.controllerConfig.agentId, // Name may not be persisted, use agentId as fallback
         engine: controllerAgent?.engine ?? 'unknown',
         model: controllerAgent?.modelName,
-        telemetry: { tokensIn: 0, tokensOut: 0 }, // Default telemetry, will be updated if controller runs
+        telemetry: persistedTelemetry
+          ? {
+              tokensIn: persistedTelemetry.tokensIn,
+              tokensOut: persistedTelemetry.tokensOut,
+              cached: persistedTelemetry.cached,
+              cost: persistedTelemetry.cost,
+            }
+          : { tokensIn: 0, tokensOut: 0 },
         monitoringId,
       })
     }

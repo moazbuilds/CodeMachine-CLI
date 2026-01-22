@@ -37,6 +37,8 @@ export interface InitControllerOptions {
   engineOverride?: string
   /** Model override (from workflow definition.options) - passed to executeAgent */
   modelOverride?: string
+  /** Telemetry callback for first turn (so UI shows telemetry immediately) */
+  onTelemetry?: (telemetry: import('../../agents/execution/types.js').ParsedTelemetry) => void
 }
 
 /**

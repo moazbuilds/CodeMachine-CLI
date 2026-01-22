@@ -300,6 +300,11 @@ export async function runControllerView(
         },
         engineOverride: resolvedEngine,
         modelOverride: resolvedModel,
+        onTelemetry: createTelemetryCallback({
+          uniqueAgentId: '',
+          emitter,
+          isController: true,
+        }),
       }
     );
 

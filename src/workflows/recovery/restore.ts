@@ -13,7 +13,7 @@ import { getNextChainIndex } from '../indexing/lifecycle.js';
 import { loadAgentConfig } from '../../agents/runner/index.js';
 import { loadChainedPrompts } from '../../agents/runner/chained.js';
 import { getSelectedConditions, getSelectedTrack } from '../../shared/workflows/template.js';
-import { StatusService } from '../../agents/monitoring/index.js';
+import { StatusService, AgentMonitorService } from '../../agents/monitoring/index.js';
 import type { CrashRestoreContext, CrashRestoreResult } from './types.js';
 
 /**
@@ -47,6 +47,20 @@ export async function restoreFromCrash(ctx: CrashRestoreContext): Promise<CrashR
   // 1. Register monitoring ID with emitter (for log panel connection)
   if (stepData.monitoringId !== undefined) {
     emitter.registerMonitoringId(uniqueAgentId, stepData.monitoringId);
+
+    // 1b. Load persisted telemetry from DB and emit it
+    const monitor = AgentMonitorService.getInstance();
+    const agentData = monitor.getAgent(stepData.monitoringId);
+    if (agentData?.telemetry) {
+      debug('[recovery/restore] Emitting persisted telemetry for step %d: tokensIn=%d, tokensOut=%d, cached=%d',
+        stepIndex, agentData.telemetry.tokensIn, agentData.telemetry.tokensOut, agentData.telemetry.cached);
+      emitter.updateAgentTelemetry(uniqueAgentId, {
+        tokensIn: agentData.telemetry.tokensIn,
+        tokensOut: agentData.telemetry.tokensOut,
+        cached: agentData.telemetry.cached,
+        cost: agentData.telemetry.cost,
+      });
+    }
   }
 
   // 2. Update agent status to awaiting

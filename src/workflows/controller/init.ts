@@ -85,6 +85,7 @@ export async function initControllerAgent(
     uniqueAgentId: agentId, // Required for ui callback to work
     engine: options?.engineOverride,
     model: options?.modelOverride,
+    onTelemetry: options?.onTelemetry,
   });
   debug('[Controller] executeAgent returned: agentId=%s', result.agentId);
 
