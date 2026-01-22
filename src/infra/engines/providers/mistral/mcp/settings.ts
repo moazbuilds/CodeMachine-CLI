@@ -12,7 +12,7 @@ import { debug } from '../../../../../shared/logging/logger.js';
 import type { ConfigScope } from '../../../../mcp/types.js';
 import { expandHomeDir } from '../../../../../shared/utils/index.js';
 import { ENV } from '../config.js';
-import { getRouterPath, ROUTER_ID } from '../../../../mcp/router/config.js';
+import { getRouterConfig, ROUTER_ID } from '../../../../mcp/router/config.js';
 
 // Re-export router ID
 export { ROUTER_ID };
@@ -84,21 +84,28 @@ export async function writeConfig(configPath: string, content: string): Promise<
 /**
  * Generate TOML section for MCP router
  *
+ * Uses getRouterConfig() as single source of truth, converts to Vibe TOML format.
  * Vibe uses [[mcp_servers]] array format with: name, transport, command, args
  */
 export function generateRouterSection(workingDir: string): string {
-  const routerPath = getRouterPath();
+  const config = getRouterConfig(workingDir);
 
   const lines = [
     '[[mcp_servers]]',
     `name = "${ROUTER_ID}"`,
     'transport = "stdio"',
-    'command = "bun"',
-    `args = ["run", "${routerPath}"]`,
-    '',
-    '[mcp_servers.env]',
-    `CODEMACHINE_WORKING_DIR = "${workingDir}"`,
+    `command = "${config.command}"`,
+    `args = ${JSON.stringify(config.args)}`,
   ];
+
+  // Add env section if present
+  if (config.env && Object.keys(config.env).length > 0) {
+    lines.push('');
+    lines.push('[mcp_servers.env]');
+    for (const [key, value] of Object.entries(config.env)) {
+      lines.push(`${key} = "${value}"`);
+    }
+  }
 
   return lines.join('\n');
 }

@@ -9,7 +9,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { debug } from '../../../../../shared/logging/logger.js';
 import type { ConfigScope } from '../../../../mcp/types.js';
-import { getRouterPath, ROUTER_ID } from '../../../../mcp/router/config.js';
+import { getRouterConfig, ROUTER_ID } from '../../../../mcp/router/config.js';
 import { resolveOpenCodeHome } from '../auth.js';
 
 // Re-export router ID
@@ -98,12 +98,15 @@ export async function writeSettings(
 /**
  * Get MCP router configuration for OpenCode format
  *
- * OpenCode uses: { type, command[], enabled }
+ * Uses getRouterConfig() as single source of truth, converts to OpenCode format.
+ * OpenCode uses: { type, command[], environment, enabled }
  */
-export function getMCPRouterConfig(): OpenCodeMCPServer {
+export function getMCPRouterConfig(workingDir: string): OpenCodeMCPServer {
+  const config = getRouterConfig(workingDir);
   return {
     type: 'local',
-    command: ['bun', 'run', getRouterPath()],
+    command: [config.command, ...config.args],
+    environment: config.env,
     enabled: true,
   };
 }

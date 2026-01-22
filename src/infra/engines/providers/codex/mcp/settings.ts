@@ -10,7 +10,7 @@ import * as path from 'path';
 import { homedir } from 'os';
 import { debug } from '../../../../../shared/logging/logger.js';
 import type { ConfigScope } from '../../../../mcp/types.js';
-import { getRouterPath, ROUTER_ID } from '../../../../mcp/router/config.js';
+import { getRouterConfig, ROUTER_ID } from '../../../../mcp/router/config.js';
 
 // Re-export router ID
 export { ROUTER_ID };
@@ -71,20 +71,27 @@ export async function writeConfig(configPath: string, content: string): Promise<
 /**
  * Generate TOML section for MCP router
  *
- * Codex uses TOML format with: command, args, cwd, startup_timeout_sec, env
+ * Uses getRouterConfig() as single source of truth, converts to TOML format.
+ * Codex uses TOML format with: command, args, startup_timeout_sec, env
  */
 export function generateRouterSection(workingDir: string): string {
-  const routerPath = getRouterPath();
+  const config = getRouterConfig(workingDir);
 
   const lines = [
     `[mcp_servers."${ROUTER_ID}"]`,
-    'command = "bun"',
-    `args = ["run", "${routerPath}"]`,
+    `command = "${config.command}"`,
+    `args = ${JSON.stringify(config.args)}`,
     'startup_timeout_sec = 60',
-    '',
-    `[mcp_servers."${ROUTER_ID}".env]`,
-    `CODEMACHINE_WORKING_DIR = "${workingDir}"`,
   ];
+
+  // Add env section if present
+  if (config.env && Object.keys(config.env).length > 0) {
+    lines.push('');
+    lines.push(`[mcp_servers."${ROUTER_ID}".env]`);
+    for (const [key, value] of Object.entries(config.env)) {
+      lines.push(`${key} = "${value}"`);
+    }
+  }
 
   return lines.join('\n');
 }
