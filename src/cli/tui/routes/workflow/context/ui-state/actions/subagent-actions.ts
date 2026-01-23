@@ -12,11 +12,22 @@ export type SubAgentActionsContext = {
   notify(): void
 }
 
+/** Check if a sub-agent status means it's still active (not done) */
+function isActiveStatus(status: AgentStatus): boolean {
+  return status === "running" || status === "delegated" || status === "awaiting" || status === "pending" || status === "retrying"
+}
+
+/** Check if all sub-agents for a parent are done (no active ones) */
+function allSubAgentsDone(subAgents: SubAgentState[]): boolean {
+  return subAgents.length > 0 && subAgents.every(sa => !isActiveStatus(sa.status))
+}
+
 export function createSubAgentActions(ctx: SubAgentActionsContext) {
   function addSubAgent(parentId: string, subAgent: SubAgentState): void {
     const state = ctx.getState()
     const newSubAgents = new Map(state.subAgents)
     const parentSubAgents = newSubAgents.get(parentId) || []
+    const isFirstSubAgent = parentSubAgents.length === 0
     const existingIndex = parentSubAgents.findIndex((sa) => sa.id === subAgent.id)
     if (existingIndex >= 0) {
       parentSubAgents[existingIndex] = subAgent
@@ -24,7 +35,15 @@ export function createSubAgentActions(ctx: SubAgentActionsContext) {
       parentSubAgents.push(subAgent)
     }
     newSubAgents.set(parentId, parentSubAgents)
-    ctx.setState({ ...state, subAgents: newSubAgents })
+
+    // Auto-expand when first sub-agent is added
+    let expandedNodes = state.expandedNodes
+    if (isFirstSubAgent && !expandedNodes.has(parentId)) {
+      expandedNodes = new Set(expandedNodes)
+      expandedNodes.add(parentId)
+    }
+
+    ctx.setState({ ...state, subAgents: newSubAgents, expandedNodes })
     ctx.notify()
   }
 
@@ -33,6 +52,7 @@ export function createSubAgentActions(ctx: SubAgentActionsContext) {
     const state = ctx.getState()
     const newSubAgents = new Map(state.subAgents)
     const parentSubAgents = newSubAgents.get(parentId) || []
+    const isFirstSubAgent = parentSubAgents.length === 0
     for (const subAgent of subAgents) {
       const existingIndex = parentSubAgents.findIndex((sa) => sa.id === subAgent.id)
       if (existingIndex >= 0) {
@@ -42,7 +62,15 @@ export function createSubAgentActions(ctx: SubAgentActionsContext) {
       }
     }
     newSubAgents.set(parentId, parentSubAgents)
-    ctx.setState({ ...state, subAgents: newSubAgents })
+
+    // Auto-expand when first sub-agents are added
+    let expandedNodes = state.expandedNodes
+    if (isFirstSubAgent && !expandedNodes.has(parentId)) {
+      expandedNodes = new Set(expandedNodes)
+      expandedNodes.add(parentId)
+    }
+
+    ctx.setState({ ...state, subAgents: newSubAgents, expandedNodes })
     ctx.notify()
   }
 
@@ -55,7 +83,15 @@ export function createSubAgentActions(ctx: SubAgentActionsContext) {
         const updatedSubAgents = [...subAgents]
         updatedSubAgents[index] = { ...updatedSubAgents[index], status }
         newSubAgents.set(parentId, updatedSubAgents)
-        ctx.setState({ ...state, subAgents: newSubAgents })
+
+        // Auto-collapse when all sub-agents are done
+        let expandedNodes = state.expandedNodes
+        if (allSubAgentsDone(updatedSubAgents) && expandedNodes.has(parentId)) {
+          expandedNodes = new Set(expandedNodes)
+          expandedNodes.delete(parentId)
+        }
+
+        ctx.setState({ ...state, subAgents: newSubAgents, expandedNodes })
         ctx.notify()
         return
       }
