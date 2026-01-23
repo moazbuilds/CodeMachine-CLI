@@ -82,6 +82,7 @@ export function generateRouterSection(workingDir: string): string {
     `command = "${config.command}"`,
     `args = ${JSON.stringify(config.args)}`,
     'startup_timeout_sec = 60',
+    'tool_timeout_sec = 900', // 15 minutes for long-running agent coordination
   ];
 
   // Add env section if present

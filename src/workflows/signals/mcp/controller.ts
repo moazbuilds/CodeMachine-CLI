@@ -61,8 +61,8 @@ export class MCPWorkflowController {
   constructor(options: ControllerOptions) {
     this.signalQueue = new SignalQueue(options.workflowDir);
     this.options = {
-      proposalTimeout: 300000, // 5 minutes
-      approvalTimeout: 60000, // 1 minute
+      proposalTimeout: 900000, // 15 minutes
+      approvalTimeout: 900000, // 15 minutes
       onProposal: () => {},
       onApproval: () => {},
       onValidationIssues: () => {},
@@ -219,8 +219,8 @@ export async function runStepWithMCP(
     requirements,
     runAgentA,
     runAgentB,
-    proposalTimeout = 300000,
-    approvalTimeout = 60000,
+    proposalTimeout = 900000,
+    approvalTimeout = 900000,
   } = options;
 
   const controller = createMCPWorkflowController({

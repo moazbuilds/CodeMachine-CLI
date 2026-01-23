@@ -190,6 +190,9 @@ export async function runClaude(options: RunClaudeOptions): Promise<RunClaudeRes
     ...process.env,
     ...(env ?? {}),
     CLAUDE_CONFIG_DIR: claudeConfigDir,
+    // MCP tool timeout: 15 minutes for long-running agent coordination
+    MCP_TIMEOUT: '900000',
+    MCP_TOOL_TIMEOUT: '900000',
   };
 
   // Apply API override environment variables if set

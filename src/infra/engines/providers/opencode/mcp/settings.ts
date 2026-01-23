@@ -108,5 +108,6 @@ export function getMCPRouterConfig(workingDir: string): OpenCodeMCPServer {
     command: [config.command, ...config.args],
     environment: config.env,
     enabled: true,
+    timeout: 900000, // 15 minutes for long-running agent coordination
   };
 }

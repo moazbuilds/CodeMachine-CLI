@@ -96,6 +96,7 @@ export function generateRouterSection(workingDir: string): string {
     'transport = "stdio"',
     `command = "${config.command}"`,
     `args = ${JSON.stringify(config.args)}`,
+    'timeout = 900', // 15 minutes for long-running agent coordination
   ];
 
   // Add env section if present
