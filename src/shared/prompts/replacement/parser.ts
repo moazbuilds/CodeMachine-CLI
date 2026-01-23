@@ -1,4 +1,5 @@
 import type { PlaceholderMatch } from '../config/types.js';
+import { debug } from '../../logging/logger.js';
 
 /**
  * Regular expression to match placeholders in the format:
@@ -18,11 +19,14 @@ export function parsePlaceholder(match: RegExpMatchArray): PlaceholderMatch {
   const optionalPrefix = match[1]; // "!" if present, undefined otherwise
   const name = match[2]; // e.g., "plan_fallback" or "architecture"
 
-  return {
+  const result = {
     fullMatch,
     isOptional: optionalPrefix === '!',
     name,
   };
+
+  debug('[PLACEHOLDER-PARSER] Parsed placeholder: "%s" -> name=%s, optional=%s', fullMatch, name, result.isOptional);
+  return result;
 }
 
 /**
@@ -32,8 +36,16 @@ export function parsePlaceholder(match: RegExpMatchArray): PlaceholderMatch {
  * @returns Array of parsed placeholder matches
  */
 export function findPlaceholders(prompt: string): PlaceholderMatch[] {
+  debug('[PLACEHOLDER-PARSER] Finding placeholders in prompt (length: %d chars)', prompt.length);
+  debug('[PLACEHOLDER-PARSER] Prompt preview: "%s..."', prompt.substring(0, 200));
+
   const matches = Array.from(prompt.matchAll(PLACEHOLDER_PATTERN));
-  return matches.map(parsePlaceholder);
+  debug('[PLACEHOLDER-PARSER] Found %d raw regex matches', matches.length);
+
+  const parsed = matches.map(parsePlaceholder);
+  debug('[PLACEHOLDER-PARSER] Parsed %d placeholders: %s', parsed.length, parsed.map(p => p.name).join(', '));
+
+  return parsed;
 }
 
 /**
@@ -44,5 +56,7 @@ export function findPlaceholders(prompt: string): PlaceholderMatch[] {
  */
 export function getUniquePlaceholderNames(prompt: string): Set<string> {
   const placeholders = findPlaceholders(prompt);
-  return new Set(placeholders.map((p) => p.name));
+  const uniqueNames = new Set(placeholders.map((p) => p.name));
+  debug('[PLACEHOLDER-PARSER] Unique placeholder names (%d): %s', uniqueNames.size, Array.from(uniqueNames).join(', '));
+  return uniqueNames;
 }

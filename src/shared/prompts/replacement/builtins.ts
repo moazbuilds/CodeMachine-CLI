@@ -7,6 +7,7 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { debug } from '../../logging/logger.js';
 
 const CM_FOLDER = '.codemachine';
 const TEMPLATE_FILE = 'template.json';
@@ -31,25 +32,36 @@ export async function getBuiltInContent(
   name: string,
   cwd: string,
 ): Promise<string | null> {
+  debug('[PLACEHOLDER-BUILTIN] Checking built-in placeholder: "%s" (cwd: %s)', name, cwd);
+
   // Check static placeholders first
   const staticGenerator = STATIC_PLACEHOLDERS[name];
   if (staticGenerator) {
-    return staticGenerator();
+    const value = staticGenerator();
+    debug('[PLACEHOLDER-BUILTIN] "%s" -> STATIC placeholder, value: "%s"', name, value);
+    return value;
   }
 
   // Check context-dependent placeholders
   if (name === 'project_name') {
-    return loadProjectName(cwd);
+    const value = await loadProjectName(cwd);
+    debug('[PLACEHOLDER-BUILTIN] "%s" -> project_name, value: %s', name, value ?? 'null');
+    return value;
   }
 
   if (name === 'selected_track') {
-    return loadSelectedTrack(cwd);
+    const value = await loadSelectedTrack(cwd);
+    debug('[PLACEHOLDER-BUILTIN] "%s" -> selected_track, value: %s', name, value ?? 'null');
+    return value;
   }
 
   if (name === 'selected_conditions') {
-    return loadSelectedConditions(cwd);
+    const value = await loadSelectedConditions(cwd);
+    debug('[PLACEHOLDER-BUILTIN] "%s" -> selected_conditions, value: %s', name, value ?? 'null');
+    return value;
   }
 
+  debug('[PLACEHOLDER-BUILTIN] "%s" -> NOT a built-in placeholder', name);
   return null;
 }
 
@@ -65,15 +77,20 @@ export function isBuiltInPlaceholder(name: string): boolean {
  */
 async function loadTemplateData(cwd: string): Promise<Record<string, unknown> | null> {
   const templatePath = path.join(cwd, CM_FOLDER, TEMPLATE_FILE);
+  debug('[PLACEHOLDER-BUILTIN] Loading template data from: %s', templatePath);
 
   if (!existsSync(templatePath)) {
+    debug('[PLACEHOLDER-BUILTIN] Template file does not exist: %s', templatePath);
     return null;
   }
 
   try {
     const content = await readFile(templatePath, 'utf8');
-    return JSON.parse(content);
-  } catch {
+    const data = JSON.parse(content);
+    debug('[PLACEHOLDER-BUILTIN] Loaded template data with keys: %s', Object.keys(data).join(', '));
+    return data;
+  } catch (err) {
+    debug('[PLACEHOLDER-BUILTIN] Failed to load/parse template: %s', (err as Error).message);
     return null;
   }
 }

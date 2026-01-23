@@ -1,3 +1,5 @@
+import { debug } from '../../logging/logger.js';
+
 /**
  * Custom error class for placeholder processing
  */
@@ -61,12 +63,18 @@ export function handlePlaceholderLoadError(
   isOptional: boolean,
   _error: Error,
 ): string {
+  debug('[PLACEHOLDER-ERROR] handlePlaceholderLoadError: placeholder=%s, filePath=%s, isOptional=%s, error=%s',
+    placeholderName, filePath, isOptional, _error.message
+  );
+
   if (isOptional) {
     // For optional placeholders, log a warning and return empty string
+    debug('[PLACEHOLDER-ERROR] Optional placeholder "%s" failed to load, returning empty string', placeholderName);
     createOptionalFileWarning(placeholderName, filePath);
     return '';
   }
 
   // For required placeholders, throw a detailed error
+  debug('[PLACEHOLDER-ERROR] REQUIRED placeholder "%s" failed to load, throwing error', placeholderName);
   throw createRequiredFileError(placeholderName, filePath);
 }

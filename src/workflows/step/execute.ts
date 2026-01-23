@@ -14,7 +14,7 @@ import { processPromptString } from '../../shared/prompts/index.js';
 import { execute, type ChainedPrompt } from '../../agents/execution/index.js';
 import type { WorkflowEventEmitter } from '../events/emitter.js';
 import { debug } from '../../shared/logging/logger.js';
-import { resolvePromptPath } from '../../shared/imports/index.js';
+import { resolvePromptPathWithContext } from '../../shared/imports/index.js';
 import { resolvePackageRoot } from '../../shared/runtime/root.js';
 
 const packageRoot = resolvePackageRoot(import.meta.url, 'step executor');
@@ -97,17 +97,28 @@ export async function executeStep(
   }
 
   // Load and process the prompt template(s) - check imports first, then local
+  // Track which import the prompts come from for placeholder resolution
+  let importContext: string | null = null;
   const resolvedPromptPaths = promptSources.map(p => {
-    if (path.isAbsolute(p)) return p;
+    // Always try to resolve with context to capture import information
+    // This works for both relative and absolute paths
+    const resolved = resolvePromptPathWithContext(p, packageRoot);
+    if (resolved) {
+      // Track the import context (use first import found)
+      if (!importContext && resolved.importName) {
+        importContext = resolved.importName;
+      }
+      return resolved.path;
+    }
 
-    // Try to resolve from imports first, then fall back to cwd
-    const importResolved = resolvePromptPath(p, packageRoot);
-    if (importResolved) return importResolved;
+    // If not found via imports, handle directly
+    if (path.isAbsolute(p)) return p;
 
     // Fall back to cwd-relative resolution
     return path.resolve(cwd, p);
   });
   debug(`[step/execute] Resolved promptPath(s): ${resolvedPromptPaths.join(', ')}`);
+  debug(`[step/execute] Import context for placeholder resolution: ${importContext ?? 'none'}`);
 
   let rawPrompt: string;
   try {
@@ -125,7 +136,7 @@ export async function executeStep(
     throw fileError;
   }
 
-  const prompt = await processPromptString(rawPrompt, cwd);
+  const prompt = await processPromptString(rawPrompt, cwd, { importContext });
   debug(`[step/execute] Prompt processed, length=${prompt.length}`);
 
   // Use environment variable or default to 30 minutes (1800000ms)

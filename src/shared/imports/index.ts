@@ -58,9 +58,11 @@ export {
 // Import-aware path resolution
 export {
   resolvePromptPath,
+  resolvePromptPathWithContext,
   resolvePromptFolder,
   resolveWorkflowTemplate,
   resolvePathWithImports,
   getAllWorkflowDirectories,
   getAllPromptDirectories,
 } from './resolve.js';
+export type { ResolvedPromptPath } from './resolve.js';
