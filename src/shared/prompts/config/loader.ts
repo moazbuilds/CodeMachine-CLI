@@ -137,18 +137,39 @@ export function resolvePlaceholderPath(
 
   // 2. Check imported packages (they take precedence over main package)
   const imports = getAllInstalledImports();
+  debug('[PLACEHOLDER-CONFIG] Found %d installed imports: %s',
+    imports.length,
+    imports.map(i => `${i.name}@${i.path}`).join(', ') || '(none)'
+  );
   for (const imp of imports) {
     const importConfigPath = path.join(imp.path, 'config', 'placeholders.js');
+    debug('[PLACEHOLDER-CONFIG] Checking import "%s" config at: %s', imp.name, importConfigPath);
     const importConfig = loadPlaceholderConfigFromPath(importConfigPath);
+    debug('[PLACEHOLDER-CONFIG] Import "%s" config loaded: userDir=%d, packageDir=%d',
+      imp.name,
+      importConfig?.userDir ? Object.keys(importConfig.userDir).length : 0,
+      importConfig?.packageDir ? Object.keys(importConfig.packageDir).length : 0
+    );
 
     if (importConfig) {
+      // Check import's userDir (resolved relative to cwd, not import path)
+      if (importConfig.userDir && importConfig.userDir[placeholderName]) {
+        const result = {
+          filePath: importConfig.userDir[placeholderName],
+          baseDir: cwd,  // userDir resolves relative to working directory
+        };
+        debug('[PLACEHOLDER-CONFIG] "%s" -> FOUND in import "%s" userDir: %s (baseDir: %s)',
+          placeholderName, imp.name, result.filePath, result.baseDir);
+        return result;
+      }
+
       // Check import's packageDir
       if (importConfig.packageDir && importConfig.packageDir[placeholderName]) {
         const result = {
           filePath: importConfig.packageDir[placeholderName],
           baseDir: imp.path,
         };
-        debug('[PLACEHOLDER-CONFIG] "%s" -> FOUND in import "%s": %s (baseDir: %s)',
+        debug('[PLACEHOLDER-CONFIG] "%s" -> FOUND in import "%s" packageDir: %s (baseDir: %s)',
           placeholderName, imp.name, result.filePath, result.baseDir);
         return result;
       }
