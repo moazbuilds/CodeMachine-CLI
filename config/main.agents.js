@@ -38,25 +38,4 @@ module.exports = [
       },
     ],
   },
-
-  // Test agents
-  {
-    id: 'test-agent-1',
-    name: 'Test Agent 1',
-    description: 'First test agent for workflow testing',
-    promptPath: path.join(promptsDir, 'test-workflows', 'test-agent-1.md'),
-    chainedPromptsPath: path.join(promptsDir, 'test-workflows', 'test-agent-1-chained'),
-  },
-  {
-    id: 'test-agent-2',
-    name: 'Test Agent 2',
-    description: 'Second test agent for workflow testing',
-    promptPath: path.join(promptsDir, 'test-workflows', 'test-agent-2.md'),
-  },
-  {
-    id: 'test-agent-3',
-    name: 'Test Agent 3',
-    description: 'Third test agent for workflow testing',
-    promptPath: path.join(promptsDir, 'test-workflows', 'test-agent-3.md'),
-  },
 ];
