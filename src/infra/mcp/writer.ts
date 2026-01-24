@@ -40,9 +40,10 @@ export async function ensureMCPConfig(
     // Dynamic import of engine's MCP adapter (registers itself)
     try {
       await import(`../engines/providers/${engineId}/mcp/index.js`);
-    } catch {
-      // Engine might not have MCP support - that's ok
-      debug('[MCP:writer] No MCP adapter for engine: %s', engineId);
+    } catch (importError) {
+      // Log actual error to help diagnose issues
+      debug('[MCP:writer] Failed to import MCP adapter for engine %s: %s', engineId, (importError as Error).message);
+      debug('[MCP:writer] Import error stack: %s', (importError as Error).stack);
       return { success: true, engine: engineId, skipped: true };
     }
 

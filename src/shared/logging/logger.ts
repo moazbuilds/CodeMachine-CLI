@@ -81,6 +81,37 @@ export function setDebugLogFile(filePath: string | null): void {
   debugLogStream = fs.createWriteStream(filePath, { flags: 'a' });
 }
 
+/**
+ * Get the global debug log path
+ * Used when LOG_LEVEL=debug to ensure all processes (including MCP servers) write to the same file
+ */
+export function getGlobalDebugLogPath(): string {
+  const home = process.env.HOME || process.env.USERPROFILE || '/tmp';
+  return path.join(home, '.codemachine', 'logs', 'debug.log');
+}
+
+/**
+ * Auto-initialize debug logging if LOG_LEVEL=debug
+ *
+ * Call this at the start of child processes (e.g., MCP servers) to enable
+ * file-based debug logging. Uses a global well-known path so all processes
+ * write to the same file.
+ *
+ * @returns true if logging was initialized, false if debug not enabled
+ */
+export function initDebugLogging(): boolean {
+  // Only initialize if debug level is enabled and stream not already set
+  if (debugLogStream) {
+    return true;
+  }
+
+  if (shouldLog('debug')) {
+    setDebugLogFile(getGlobalDebugLogPath());
+    return true;
+  }
+  return false;
+}
+
 export function setAppLogFile(filePath: string | null): void {
   if (appLogStream) {
     appLogStream.end();

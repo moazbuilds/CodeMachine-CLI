@@ -19,7 +19,11 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
+import { initDebugLogging, debug } from '../../../../shared/logging/logger.js';
 import { agentCoordinationTools } from './tools.js';
+
+// Initialize debug logging if LOG_LEVEL=debug (writes to ~/.codemachine/logs/debug.log)
+initDebugLogging();
 import { RunAgentsSchema, GetAgentStatusSchema, ListAvailableAgentsSchema } from './schemas.js';
 import type { ExecutionResult } from './schemas.js';
 import { executeAgents, queryAgentStatus, getActiveAgents, listAvailableAgents } from './executor.js';
@@ -326,12 +330,14 @@ function formatAvailableAgents(agents: AvailableAgent[]): string {
 // ============================================================================
 
 async function main(): Promise<void> {
+  debug('[agent-coordination] Starting MCP server');
   const transport = new StdioServerTransport();
   await server.connect(transport);
-
+  debug('[agent-coordination] Server connected and ready');
 }
 
 main().catch((error) => {
+  debug('[agent-coordination] Fatal error: %s', error instanceof Error ? error.stack : error);
   console.error('[agent-coordination] Fatal error:', error);
   process.exit(1);
 });

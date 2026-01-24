@@ -191,10 +191,15 @@ export class MCPBackend {
     debug('[MCP:backend:%s] Calling tool: %s', this.id, name);
 
     try {
-      const result = await this.client.callTool({
-        name,
-        arguments: args,
-      });
+      // Use 10-minute timeout to match agent execution timeout (default: 600000ms)
+      const result = await this.client.callTool(
+        {
+          name,
+          arguments: args,
+        },
+        undefined,
+        { timeout: 600000 }
+      );
 
       return result as CallToolResult;
     } catch (error) {

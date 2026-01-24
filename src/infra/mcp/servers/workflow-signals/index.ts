@@ -23,7 +23,11 @@ import {
 import * as crypto from 'crypto';
 import * as fs from 'fs/promises';
 
+import { initDebugLogging, debug } from '../../../../shared/logging/logger.js';
 import { workflowSignalTools } from './tools.js';
+
+// Initialize debug logging if LOG_LEVEL=debug (writes to ~/.codemachine/logs/debug.log)
+initDebugLogging();
 import {
   ProposeStepCompletionSchema,
   ApproveStepTransitionSchema,
@@ -247,12 +251,14 @@ Review the artifact and call approve_step_transition with your decision.`,
 // ============================================================================
 
 async function main(): Promise<void> {
+  debug('[workflow-signals] Starting MCP server');
   const transport = new StdioServerTransport();
   await server.connect(transport);
-
+  debug('[workflow-signals] Server connected and ready');
 }
 
 main().catch((error) => {
+  debug('[workflow-signals] Fatal error: %s', error instanceof Error ? error.stack : error);
   console.error('[workflow-signals] Fatal error:', error);
   process.exit(1);
 });
