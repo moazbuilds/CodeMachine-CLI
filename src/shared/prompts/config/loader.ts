@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import type { PlaceholdersConfig } from './types.js';
 import { resolvePackageRoot } from '../../runtime/root.js';
 import { debug } from '../../logging/logger.js';
+import { getAllInstalledImports } from '../../imports/index.js';
 
 const require = createRequire(import.meta.url);
 
@@ -67,8 +68,44 @@ export function loadPlaceholdersConfig(): PlaceholdersConfig {
 }
 
 /**
+ * Loads a placeholder config from a specific directory
+ * Returns null if no config exists at that path
+ */
+function loadPlaceholderConfigFromPath(configPath: string): PlaceholdersConfig | null {
+  if (!existsSync(configPath)) {
+    return null;
+  }
+
+  try {
+    // Clear cache to allow dynamic reloading
+    try {
+      delete require.cache[require.resolve(configPath)];
+    } catch {
+      // Ignore if not in cache
+    }
+
+    const config = require(configPath);
+
+    // Support both old format (flat) and new format (userDir/packageDir)
+    if (config.userDir || config.packageDir) {
+      return config as PlaceholdersConfig;
+    } else {
+      // Backwards compatibility: treat flat config as packageDir for imports
+      return { packageDir: config };
+    }
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Resolves a placeholder name to its file path and base directory
  * Returns null if the placeholder is not defined in the config
+ *
+ * Resolution order:
+ * 1. userDir (local project overrides)
+ * 2. Imported packages' configs (imports take precedence)
+ * 3. Main package's packageDir
  */
 export function resolvePlaceholderPath(
   placeholderName: string,
@@ -87,7 +124,7 @@ export function resolvePlaceholderPath(
     loadedConfig.packageDir ? Object.keys(loadedConfig.packageDir).join(', ') : '(none)'
   );
 
-  // Check userDir first, then packageDir
+  // 1. Check userDir first (local project overrides)
   if (loadedConfig.userDir && loadedConfig.userDir[placeholderName]) {
     const result = {
       filePath: loadedConfig.userDir[placeholderName],
@@ -98,6 +135,28 @@ export function resolvePlaceholderPath(
   }
   debug('[PLACEHOLDER-CONFIG] "%s" -> NOT in userDir', placeholderName);
 
+  // 2. Check imported packages (they take precedence over main package)
+  const imports = getAllInstalledImports();
+  for (const imp of imports) {
+    const importConfigPath = path.join(imp.path, 'config', 'placeholders.js');
+    const importConfig = loadPlaceholderConfigFromPath(importConfigPath);
+
+    if (importConfig) {
+      // Check import's packageDir
+      if (importConfig.packageDir && importConfig.packageDir[placeholderName]) {
+        const result = {
+          filePath: importConfig.packageDir[placeholderName],
+          baseDir: imp.path,
+        };
+        debug('[PLACEHOLDER-CONFIG] "%s" -> FOUND in import "%s": %s (baseDir: %s)',
+          placeholderName, imp.name, result.filePath, result.baseDir);
+        return result;
+      }
+    }
+  }
+  debug('[PLACEHOLDER-CONFIG] "%s" -> NOT in any imports', placeholderName);
+
+  // 3. Check main package's packageDir
   if (loadedConfig.packageDir && loadedConfig.packageDir[placeholderName]) {
     const result = {
       filePath: loadedConfig.packageDir[placeholderName],

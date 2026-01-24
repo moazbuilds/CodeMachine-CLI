@@ -11,47 +11,15 @@ import { getAllInstalledImports } from './registry.js';
 import { debug } from '../logging/logger.js';
 
 /**
- * Result of resolving a prompt path with import context
- */
-export interface ResolvedPromptPath {
-  /** Absolute path to the file */
-  path: string;
-  /** Name of the import this came from, or null if local */
-  importName: string | null;
-}
-
-/**
  * Resolve a prompt path by checking imported packages first, then local
  * @param relativePath - Relative path like "prompts/templates/foo/bar.md"
  * @param localRoot - Local root directory to check (e.g., packageRoot or cwd)
  * @returns Absolute path to the file, or null if not found
  */
 export function resolvePromptPath(relativePath: string, localRoot: string): string | null {
-  const result = resolvePromptPathWithContext(relativePath, localRoot);
-  return result?.path ?? null;
-}
-
-/**
- * Resolve a prompt path with import context information
- * Returns both the path and which import it came from (for placeholder resolution)
- * @param relativePath - Relative path like "prompts/templates/foo/bar.md"
- * @param localRoot - Local root directory to check (e.g., packageRoot or cwd)
- * @returns Object with path and importName, or null if not found
- */
-export function resolvePromptPathWithContext(relativePath: string, localRoot: string): ResolvedPromptPath | null {
   // If already absolute, just return if exists
   if (isAbsolute(relativePath)) {
-    if (existsSync(relativePath)) {
-      // Check if this absolute path is within any import
-      const imports = getAllInstalledImports();
-      for (const imp of imports) {
-        if (relativePath.startsWith(imp.path)) {
-          return { path: relativePath, importName: imp.name };
-        }
-      }
-      return { path: relativePath, importName: null };
-    }
-    return null;
+    return existsSync(relativePath) ? relativePath : null;
   }
 
   // Check imported packages first (they take precedence)
@@ -64,7 +32,7 @@ export function resolvePromptPathWithContext(relativePath: string, localRoot: st
       const importPath = join(imp.resolvedPaths.prompts, subPath.replace(/^templates\//, ''));
       if (existsSync(importPath)) {
         debug('[resolve] Found prompt in import %s: %s', imp.name, importPath);
-        return { path: importPath, importName: imp.name };
+        return importPath;
       }
     }
 
@@ -72,14 +40,14 @@ export function resolvePromptPathWithContext(relativePath: string, localRoot: st
     const directPath = join(imp.path, relativePath);
     if (existsSync(directPath)) {
       debug('[resolve] Found prompt in import %s (direct): %s', imp.name, directPath);
-      return { path: directPath, importName: imp.name };
+      return directPath;
     }
   }
 
   // Check local root
   const localPath = resolve(localRoot, relativePath);
   if (existsSync(localPath)) {
-    return { path: localPath, importName: null };
+    return localPath;
   }
 
   return null;
