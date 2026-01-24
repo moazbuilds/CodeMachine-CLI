@@ -6,26 +6,25 @@
  *
  * Flow:
  *   1. Step execution merges agent + step MCP configs
- *   2. Context is written to ~/.codemachine/mcp/context.json (global)
+ *   2. Context is written to ./.codemachine/mcp/context.json (project-level)
  *   3. MCP router reads context to filter available tools
  *
- * Uses a global location (CODEMACHINE_HOME) so the router always finds
- * the context regardless of which project directory is active.
+ * Uses project-level location so multiple projects can run simultaneously.
  */
 
 import * as path from 'node:path';
 import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
 import { debug } from '../../shared/logging/logger.js';
-import { getCodemachineHomeDir } from '../../shared/imports/index.js';
 import type { MCPConfig, MCPServerFilterConfig, MCPContextFile } from './types.js';
 
 /**
- * Get the global MCP context file path.
- * Uses CODEMACHINE_HOME (~/.codemachine by default) so the router
- * always finds the context regardless of working directory.
+ * Get the project-level MCP context file path.
+ * Uses .codemachine/mcp/context.json relative to cwd so multiple
+ * projects can run simultaneously without conflicts.
  */
-function getContextPath(): string {
-  return path.join(getCodemachineHomeDir(), 'mcp', 'context.json');
+function getContextPath(cwd?: string): string {
+  const projectDir = cwd || process.cwd();
+  return path.join(projectDir, '.codemachine', 'mcp', 'context.json');
 }
 
 /**
@@ -97,7 +96,7 @@ export function mergeMCPConfigs(
  * Called by step execution before invoking the agent.
  * The MCP router reads this file to determine tool filtering.
  *
- * @param workingDir - Project working directory (stored for agent resolution)
+ * @param workingDir - Project working directory
  * @param activeServers - List of active servers with filter configs
  * @param uniqueAgentId - Optional agent identifier for debugging
  */
@@ -106,7 +105,7 @@ export async function writeMCPContext(
   activeServers: MCPServerFilterConfig[],
   uniqueAgentId?: string,
 ): Promise<void> {
-  const contextPath = getContextPath();
+  const contextPath = getContextPath(workingDir);
   const contextDir = path.dirname(contextPath);
 
   // Ensure directory exists
@@ -122,7 +121,7 @@ export async function writeMCPContext(
   const content = JSON.stringify(contextFile, null, 2);
   await writeFile(contextPath, content, 'utf8');
 
-  debug('[MCP:context] Wrote context: %d servers, agent=%s, workingDir=%s', activeServers.length, uniqueAgentId ?? 'N/A', workingDir);
+  debug('[MCP:context] Wrote context: %d servers, agent=%s, path=%s', activeServers.length, uniqueAgentId ?? 'N/A', contextPath);
 }
 
 /**
@@ -131,11 +130,11 @@ export async function writeMCPContext(
  * Called by MCP router to determine current filtering configuration.
  * Returns null if no context file exists (means no filtering).
  *
- * @param _cwd - Unused (kept for API compatibility)
+ * @param cwd - Project working directory (defaults to process.cwd())
  * @returns Context file contents or null
  */
-export async function readMCPContext(_cwd?: string): Promise<MCPContextFile | null> {
-  const contextPath = getContextPath();
+export async function readMCPContext(cwd?: string): Promise<MCPContextFile | null> {
+  const contextPath = getContextPath(cwd);
 
   try {
     const content = await readFile(contextPath, 'utf8');
@@ -163,10 +162,10 @@ export async function readMCPContext(_cwd?: string): Promise<MCPContextFile | nu
  * Removes the context file, effectively disabling filtering.
  * Called when step has no MCP config (all tools available).
  *
- * @param _cwd - Unused (kept for API compatibility)
+ * @param cwd - Project working directory (defaults to process.cwd())
  */
-export async function clearMCPContext(_cwd?: string): Promise<void> {
-  const contextPath = getContextPath();
+export async function clearMCPContext(cwd?: string): Promise<void> {
+  const contextPath = getContextPath(cwd);
 
   try {
     await unlink(contextPath);

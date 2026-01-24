@@ -11,6 +11,10 @@
  */
 
 import { debug } from '../../shared/logging/logger.js';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export interface MCPWriteResult {
   success: boolean;
@@ -37,14 +41,32 @@ export async function ensureMCPConfig(
     // Dynamic import - only load registry when needed
     const { adapterRegistry } = await import('./registry.js');
 
-    // Dynamic import of engine's MCP adapter (registers itself)
-    try {
-      await import(`../engines/providers/${engineId}/mcp/index.js`);
-    } catch (importError) {
-      // Log actual error to help diagnose issues
-      debug('[MCP:writer] Failed to import MCP adapter for engine %s: %s', engineId, (importError as Error).message);
-      debug('[MCP:writer] Import error stack: %s', (importError as Error).stack);
-      return { success: true, engine: engineId, skipped: true };
+    // Check if adapter is already registered (happens in bundled binaries where
+    // adapters are statically imported during build)
+    if (adapterRegistry.has(engineId)) {
+      debug('[MCP:writer] Adapter already registered for %s, skipping dynamic import', engineId);
+    } else {
+      // Dynamic import of engine's MCP adapter (registers itself)
+      // When running from compiled binary, __dirname is /$bunfs/... which doesn't exist on disk
+      // In compiled/bundled mode, adapters should already be registered via static imports
+      const isCompiledBinary = __dirname.startsWith('/$bunfs');
+      debug('[MCP:writer] Loading adapter for %s (compiled: %s)', engineId, isCompiledBinary);
+
+      try {
+        if (isCompiledBinary) {
+          // In compiled binary mode, adapters should be pre-bundled and registered
+          // Dynamic import of external TS files won't work in Bun bundles
+          debug('[MCP:writer] Compiled binary mode - adapter for %s not pre-registered, skipping', engineId);
+          return { success: true, engine: engineId, skipped: true };
+        } else {
+          await import(`../engines/providers/${engineId}/mcp/index.js`);
+        }
+      } catch (importError) {
+        // Log actual error to help diagnose issues
+        debug('[MCP:writer] Failed to import MCP adapter for engine %s: %s', engineId, (importError as Error).message);
+        debug('[MCP:writer] Import error stack: %s', (importError as Error).stack);
+        return { success: true, engine: engineId, skipped: true };
+      }
     }
 
     const adapter = adapterRegistry.get(engineId);
@@ -84,10 +106,21 @@ export async function removeMCPConfig(
   try {
     const { adapterRegistry } = await import('./registry.js');
 
-    try {
-      await import(`../engines/providers/${engineId}/mcp/index.js`);
-    } catch {
-      return { success: true, engine: engineId, skipped: true };
+    // Check if adapter is already registered (happens in bundled binaries)
+    if (!adapterRegistry.has(engineId)) {
+      // Same compiled binary handling as ensureMCPConfig
+      const isCompiledBinary = __dirname.startsWith('/$bunfs');
+      try {
+        if (isCompiledBinary) {
+          // In compiled binary mode, adapters should be pre-bundled and registered
+          // Dynamic import of external TS files won't work in Bun bundles
+          return { success: true, engine: engineId, skipped: true };
+        } else {
+          await import(`../engines/providers/${engineId}/mcp/index.js`);
+        }
+      } catch {
+        return { success: true, engine: engineId, skipped: true };
+      }
     }
 
     const adapter = adapterRegistry.get(engineId);
