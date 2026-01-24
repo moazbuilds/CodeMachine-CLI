@@ -28,7 +28,7 @@ export const auggieAdapter: MCPAdapter = {
       const existingSettings = await settings.readSettings(settingsPath);
 
       // Add MCP router to settings
-      const updatedSettings = settings.addMCPServers(existingSettings, workflowDir);
+      const updatedSettings = settings.addMCPServers(existingSettings);
 
       await settings.writeSettings(settingsPath, updatedSettings);
       debug('[MCP:auggie] Configuration complete (router: %s)', settings.ROUTER_ID);

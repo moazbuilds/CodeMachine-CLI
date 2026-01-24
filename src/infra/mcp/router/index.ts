@@ -3,19 +3,20 @@
  * MCP Router
  *
  * A Model Context Protocol (MCP) server that acts as a middle layer,
- * aggregating tools from multiple backend MCP servers.
+ * aggregating tools from multiple backend servers.
  *
  * Benefits:
  * - Single MCP entry in .claude.json (simpler configuration)
  * - Runtime control over which backend servers are active
  * - Tool aggregation from multiple backends with transparent routing
+ * - Built-in servers run in-process (no external dependencies)
  * - Support for user-defined servers via config files
  *
  * Usage:
- *   bun run src/infra/mcp/router/index.ts
+ *   codemachine mcp router
  *
- * Environment:
- *   CODEMACHINE_WORKING_DIR - Working directory for resolving configs
+ * The router runs as part of the codemachine binary, eliminating the need
+ * for bun or path resolution for built-in MCP servers.
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -61,14 +62,19 @@ class MCPRouter {
    */
   async initialize(): Promise<void> {
     // Load backend configurations
-    const configs = await loadBackendConfigs(this.workingDir);
+    const { inProcess, external } = await loadBackendConfigs(this.workingDir);
 
-    // Add all backends to manager
-    for (const [id, config] of configs) {
+    // Add in-process backends (built-in servers)
+    for (const config of inProcess) {
+      this.backendManager.addInProcessBackend(config);
+    }
+
+    // Add external backends (user-defined servers)
+    for (const [id, config] of external) {
       this.backendManager.addBackend(id, config);
     }
 
-    // Connect to all backends
+    // Connect to all backends (in-process are always connected)
     await this.backendManager.connectAll();
   }
 
@@ -154,13 +160,17 @@ class MCPRouter {
 }
 
 // ============================================================================
-// MAIN
+// EXPORTED ENTRY POINT
 // ============================================================================
 
-async function main(): Promise<void> {
-  // Get working directory from environment
-  const workingDir = process.env.CODEMACHINE_WORKING_DIR || process.cwd();
-
+/**
+ * Start the MCP router server
+ *
+ * Exported for CLI to call via `codemachine mcp router`.
+ * Uses process.cwd() as the working directory.
+ */
+export async function startRouter(): Promise<void> {
+  const workingDir = process.cwd();
   const router = new MCPRouter(workingDir);
 
   // Handle graceful shutdown
@@ -177,7 +187,14 @@ async function main(): Promise<void> {
   await router.start();
 }
 
-main().catch((error) => {
-  console.error('[mcp-router] Fatal error:', error);
-  process.exit(1);
-});
+// ============================================================================
+// MAIN (for direct execution with bun)
+// ============================================================================
+
+// Only auto-run if executed directly (not imported)
+if (import.meta.main) {
+  startRouter().catch((error) => {
+    console.error('[mcp-router] Fatal error:', error);
+    process.exit(1);
+  });
+}

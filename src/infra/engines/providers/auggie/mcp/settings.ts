@@ -92,9 +92,12 @@ export async function writeSettings(settingsPath: string, settings: AuggieSettin
 
 /**
  * Get MCP router configuration for Auggie format
+ *
+ * The router now runs as `codemachine mcp router` and uses process.cwd()
+ * for the working directory, eliminating the need for path parameters.
  */
-export function getMCPRouterConfig(workingDir: string): MCPServerConfig {
-  const config = getRouterConfig(workingDir);
+export function getMCPRouterConfig(): MCPServerConfig {
+  const config = getRouterConfig();
   return {
     command: config.command,
     args: config.args,
@@ -108,12 +111,12 @@ export { ROUTER_ID };
 /**
  * Add MCP router to settings
  */
-export function addMCPServers(settings: AuggieSettings, workflowDir: string): AuggieSettings {
+export function addMCPServers(settings: AuggieSettings): AuggieSettings {
   return {
     ...settings,
     mcpServers: {
       ...settings.mcpServers,
-      [ROUTER_ID]: getMCPRouterConfig(workflowDir),
+      [ROUTER_ID]: getMCPRouterConfig(),
     },
   };
 }

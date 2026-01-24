@@ -88,9 +88,12 @@ export async function writeSettings(
 
 /**
  * Get MCP router configuration for CCR format
+ *
+ * The router now runs as `codemachine mcp router` and uses process.cwd()
+ * for the working directory, eliminating the need for path parameters.
  */
-export function getMCPRouterConfig(workingDir: string): MCPServerConfig {
-  return getRouterConfig(workingDir);
+export function getMCPRouterConfig(): MCPServerConfig {
+  return getRouterConfig();
 }
 
 // Re-export router ID

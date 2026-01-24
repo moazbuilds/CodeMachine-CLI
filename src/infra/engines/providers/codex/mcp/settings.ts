@@ -73,9 +73,12 @@ export async function writeConfig(configPath: string, content: string): Promise<
  *
  * Uses getRouterConfig() as single source of truth, converts to TOML format.
  * Codex uses TOML format with: command, args, startup_timeout_sec, env
+ *
+ * The router now runs as `codemachine mcp router` and uses process.cwd()
+ * for the working directory, eliminating the need for path parameters.
  */
-export function generateRouterSection(workingDir: string): string {
-  const config = getRouterConfig(workingDir);
+export function generateRouterSection(): string {
+  const config = getRouterConfig();
 
   const lines = [
     `[mcp_servers."${ROUTER_ID}"]`,
@@ -100,8 +103,8 @@ export function generateRouterSection(workingDir: string): string {
 /**
  * Generate all MCP sections (just the router)
  */
-export function generateAllMCPSections(workflowDir: string): string {
-  return generateRouterSection(workflowDir);
+export function generateAllMCPSections(): string {
+  return generateRouterSection();
 }
 
 /**

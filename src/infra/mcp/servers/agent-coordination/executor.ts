@@ -50,6 +50,8 @@ export async function executeAgents(input: RunAgentsInput): Promise<ExecutionRes
     workingDir,
     // Suppress console output in MCP context - output goes to result
     logger: () => {},
+    // Silent mode prevents console.log from corrupting MCP stdio transport
+    silent: true,
   });
 
   const result = await Promise.race([executionPromise, timeoutPromise]);

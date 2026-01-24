@@ -3,21 +3,24 @@
  *
  * File-based IPC for communicating between MCP server and workflow engine.
  * Signals are written as JSON files that the workflow controller watches.
+ *
+ * Uses project-level storage (.codemachine/mcp/signals/) so multiple
+ * projects can run simultaneously without conflicts.
  */
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { watch, type FSWatcher } from 'fs';
-import { homedir } from 'os';
 
 import type { SignalMessage, ProposeStepCompletion, ApproveStepTransition } from './schemas.js';
 
 export class SignalQueue {
   private signalDir: string;
 
-  constructor(_workflowDir?: string) {
-    // Use a global signals directory in user home
-    this.signalDir = path.join(homedir(), '.codemachine', 'mcp', 'workflow-signals');
+  constructor(workflowDir?: string) {
+    // Use project-level signals directory
+    const projectDir = workflowDir || process.cwd();
+    this.signalDir = path.join(projectDir, '.codemachine', 'mcp', 'signals');
   }
 
   /**

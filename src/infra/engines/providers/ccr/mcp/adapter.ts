@@ -28,7 +28,7 @@ export const ccrAdapter: MCPAdapter = {
       const data = await settings.readSettings(settingsPath);
 
       data.mcpServers = data.mcpServers || {};
-      data.mcpServers[settings.ROUTER_ID] = settings.getMCPRouterConfig(workflowDir);
+      data.mcpServers[settings.ROUTER_ID] = settings.getMCPRouterConfig();
 
       await settings.writeSettings(settingsPath, data);
       debug('[MCP:ccr] Configuration complete (router: %s)', settings.ROUTER_ID);
