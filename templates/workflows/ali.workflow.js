@@ -2,7 +2,7 @@ export default {
   name: 'CodeMachine Workflow Builder',
   autonomousMode: 'never',
   projectName: true,
-  
+
   tracks: {
     question: 'What do you want to do?',
     options: {
@@ -69,6 +69,6 @@ export default {
   ],
 
   steps: [
-    resolveStep('cm-workflow-builder', {engine: 'claude'}),
+    resolveStep('cm-workflow-builder', {engine: 'codex'}),
   ],
 };

@@ -37,6 +37,23 @@ if (!embeddedRoot && !process.env.CODEMACHINE_INSTALL_DIR) {
   }
 }
 
+// TRACING INITIALIZATION - Initialize early to capture all spans
+// Must be done before any instrumented code runs
+appDebug('[Boot] Initializing tracing');
+const { initTracing, shutdownTracing } = await import('../shared/tracing/index.js');
+const tracingConfig = await initTracing();
+if (tracingConfig) {
+  appDebug('[Boot] Tracing enabled: level=%d, exporter=%s', tracingConfig.level, tracingConfig.exporter);
+
+  // Register shutdown handler to flush spans on exit
+  process.on('beforeExit', async () => {
+    appDebug('[Boot] Shutting down tracing');
+    await shutdownTracing();
+  });
+} else {
+  appDebug('[Boot] Tracing disabled');
+}
+
 // IMMEDIATE SPLASH - Only show for main TUI session
 // Skip splash for: subcommands, help flags, or version flags
 appDebug('[Boot] Checking splash screen conditions');
