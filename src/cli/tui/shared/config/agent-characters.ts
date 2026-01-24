@@ -156,15 +156,43 @@ function getDefaultConfig(): AgentCharactersConfig {
 }
 
 /**
+ * Resolve agent ID to find matching character config
+ * Handles workflow agent IDs with step suffixes (e.g., "bmad-analyst-step-0")
+ */
+function resolveAgentId(agentId: string, agents: Record<string, string>): string | null {
+  debug('[Characters] resolveAgentId: input=%s (%d agents available)', agentId, Object.keys(agents).length)
+
+  // 1. Try exact match first
+  if (agents[agentId]) {
+    debug('[Characters] resolveAgentId: exact match found for %s', agentId)
+    return agentId
+  }
+
+  // 2. Strip -step-N suffix and try again (workflow agent IDs)
+  const baseId = agentId.replace(/-step-\d+$/, '')
+  debug('[Characters] resolveAgentId: baseId (stripped suffix)=%s', baseId)
+
+  if (baseId !== agentId && agents[baseId]) {
+    debug('[Characters] resolveAgentId: match found for baseId %s', baseId)
+    return baseId
+  }
+
+  debug('[Characters] resolveAgentId: no match found for %s, will use default', agentId)
+  return null
+}
+
+/**
  * Gets the persona configuration for a specific agent
  * Looks up agent -> persona mapping, falls back to defaultPersona
+ * Handles workflow agent IDs with step suffixes
  */
 export function getCharacter(agentId: string): Persona {
   const config = loadAgentCharactersConfig()
-  const personaName = config.agents[agentId] ?? config.defaultPersona
+  const resolvedId = resolveAgentId(agentId, config.agents)
+  const personaName = resolvedId ? config.agents[resolvedId] : config.defaultPersona
   const persona = config.personas[personaName] ?? config.personas[config.defaultPersona] ?? getDefaultConfig().personas.default
-  debug('[Characters] getCharacter: agentId=%s → persona=%s → face=%s',
-    agentId, personaName, persona.baseFace)
+  debug('[Characters] getCharacter: agentId=%s → resolvedId=%s → persona=%s → face=%s',
+    agentId, resolvedId ?? 'null', personaName, persona.baseFace)
   return persona
 }
 

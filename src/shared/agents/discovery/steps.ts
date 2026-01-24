@@ -72,16 +72,25 @@ export async function collectAgentsFromWorkflows(roots: string[]): Promise<Workf
     allWorkflowFiles.push(...importFiles);
   }
 
+  appDebug('[collectAgentsFromWorkflows] Total workflow files to process: %d', allWorkflowFiles.length);
+
   // Process all discovered workflow files
   for (const filePath of allWorkflowFiles) {
-    if (seenFiles.has(filePath)) continue;
+    if (seenFiles.has(filePath)) {
+      appDebug('[collectAgentsFromWorkflows] Skipping already seen file: %s', filePath);
+      continue;
+    }
     seenFiles.add(filePath);
 
     try {
+      appDebug('[collectAgentsFromWorkflows] Loading workflow: %s', filePath);
       const template = await loadWorkflowModule(filePath);
       if (!isWorkflowTemplate(template)) {
+        appDebug('[collectAgentsFromWorkflows] Not a valid workflow template: %s', filePath);
         continue;
       }
+
+      appDebug('[collectAgentsFromWorkflows] Processing template %s with %d steps', template.name, template.steps?.length ?? 0);
 
       for (const step of template.steps ?? []) {
         if (!step || step.type !== 'module') {
@@ -93,6 +102,8 @@ export async function collectAgentsFromWorkflows(roots: string[]): Promise<Workf
           continue;
         }
 
+        appDebug('[collectAgentsFromWorkflows] Found agent in workflow: id=%s', id);
+
         const existing = byId.get(id) ?? { id };
         byId.set(id, {
           ...existing,
@@ -103,10 +114,12 @@ export async function collectAgentsFromWorkflows(roots: string[]): Promise<Workf
           modelReasoningEffort: step.modelReasoningEffort ?? existing.modelReasoningEffort,
         });
       }
-    } catch {
+    } catch (err) {
+      appDebug('[collectAgentsFromWorkflows] Error loading workflow %s: %s', filePath, err);
       // Ignore templates that fail to load; other files might still provide definitions.
     }
   }
 
+  appDebug('[collectAgentsFromWorkflows] Returning %d agents: %O', byId.size, Array.from(byId.keys()));
   return Array.from(byId.values());
 }
