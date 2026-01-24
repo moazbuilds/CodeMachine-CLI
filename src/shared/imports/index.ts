@@ -44,10 +44,7 @@ export {
   getAllInstalledImports,
   isImportRegistered,
   getImportRoots,
-  getImportRootsWithMetadata,
-  buildImportPathToNameMap,
 } from './registry.js';
-export type { ImportRootWithMetadata } from './registry.js';
 
 // Source resolution
 export {

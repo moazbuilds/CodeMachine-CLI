@@ -3,7 +3,7 @@ import * as path from 'node:path';
 
 import { collectAgentDefinitions, resolveProjectRoot } from '../../shared/agents/index.js';
 import type { AgentDefinition } from '../../shared/agents/config/types.js';
-import { resolvePromptPath, getAllInstalledImports } from '../../shared/imports/index.js';
+import { resolvePromptPath } from '../../shared/imports/index.js';
 import { resolvePackageRoot } from '../../shared/runtime/root.js';
 
 const packageRoot = resolvePackageRoot(import.meta.url, 'agent runner config');
@@ -34,7 +34,6 @@ function getDefaultPromptPath(agentId: string): string {
 
 /**
  * Loads the agent configuration by ID from all available agent files
- * Supports both raw IDs and namespaced IDs (e.g., 'bmad-pm' or 'bmad:bmad-pm')
  */
 export async function loadAgentConfig(agentId: string, projectRoot?: string): Promise<AgentConfig> {
   const lookupBase = projectRoot ?? process.env.CODEMACHINE_CWD ?? process.cwd();
@@ -43,23 +42,7 @@ export async function loadAgentConfig(agentId: string, projectRoot?: string): Pr
   // Collect all agent definitions from all config files
   const agents = await collectAgentDefinitions(resolvedRoot);
 
-  // Try direct lookup first
-  let config = agents.find((a) => a.id === agentId) as AgentConfig | undefined;
-
-  // If not found, try looking up with import namespaces prefixed
-  // This handles cases where workflow templates reference agents by raw ID
-  // but agents are registered with namespace (e.g., 'bmad-pm' -> 'bmad:bmad-pm')
-  if (!config) {
-    const imports = getAllInstalledImports();
-    for (const imp of imports) {
-      const namespacedId = `${imp.name}:${agentId}`;
-      config = agents.find((a) => a.id === namespacedId) as AgentConfig | undefined;
-      if (config) {
-        break;
-      }
-    }
-  }
-
+  const config = agents.find((a) => a.id === agentId) as AgentConfig | undefined;
   if (!config) {
     throw new Error(`Unknown agent id: ${agentId}. Available agents: ${agents.map(a => a.id).join(', ')}`);
   }

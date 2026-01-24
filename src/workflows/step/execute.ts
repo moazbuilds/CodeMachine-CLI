@@ -97,17 +97,10 @@ export async function executeStep(
   }
 
   // Load and process the prompt template(s) - check imports first, then local
-  // Track which import the prompts come from for placeholder resolution
-  let importContext: string | null = null;
   const resolvedPromptPaths = promptSources.map(p => {
-    // Always try to resolve with context to capture import information
-    // This works for both relative and absolute paths
+    // Try to resolve with context (handles imports)
     const resolved = resolvePromptPathWithContext(p, packageRoot);
     if (resolved) {
-      // Track the import context (use first import found)
-      if (!importContext && resolved.importName) {
-        importContext = resolved.importName;
-      }
       return resolved.path;
     }
 
@@ -118,7 +111,6 @@ export async function executeStep(
     return path.resolve(cwd, p);
   });
   debug(`[step/execute] Resolved promptPath(s): ${resolvedPromptPaths.join(', ')}`);
-  debug(`[step/execute] Import context for placeholder resolution: ${importContext ?? 'none'}`);
 
   let rawPrompt: string;
   try {
@@ -136,7 +128,7 @@ export async function executeStep(
     throw fileError;
   }
 
-  const prompt = await processPromptString(rawPrompt, cwd, { importContext });
+  const prompt = await processPromptString(rawPrompt, cwd);
   debug(`[step/execute] Prompt processed, length=${prompt.length}`);
 
   // Use environment variable or default to 30 minutes (1800000ms)

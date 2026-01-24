@@ -123,35 +123,3 @@ export function getImportRoots(): string[] {
   const imports = getAllInstalledImports();
   return imports.map((imp) => imp.path);
 }
-
-/**
- * Import root with metadata for namespacing
- */
-export interface ImportRootWithMetadata {
-  path: string;
-  packageName: string;
-}
-
-/**
- * Get all registered import roots with package name metadata
- * Used for namespacing agent/module/character IDs from imports
- */
-export function getImportRootsWithMetadata(): ImportRootWithMetadata[] {
-  const imports = getAllInstalledImports();
-  return imports.map((imp) => ({
-    path: imp.path,
-    packageName: imp.name,
-  }));
-}
-
-/**
- * Build a map from import path to package name for quick lookups
- */
-export function buildImportPathToNameMap(): Map<string, string> {
-  const imports = getAllInstalledImports();
-  const map = new Map<string, string>();
-  for (const imp of imports) {
-    map.set(imp.path, imp.name);
-  }
-  return map;
-}

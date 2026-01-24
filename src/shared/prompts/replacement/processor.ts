@@ -133,17 +133,15 @@ async function loadPlaceholderContentCached(
 async function replacePlaceholders(
   prompt: string,
   cwd: string,
-  importContext?: string | null,
 ): Promise<string> {
   debug('[PLACEHOLDER-PROCESSOR] === START replacePlaceholders ===');
   debug('[PLACEHOLDER-PROCESSOR] cwd: %s', cwd);
-  debug('[PLACEHOLDER-PROCESSOR] importContext: %s', importContext ?? 'none');
   debug('[PLACEHOLDER-PROCESSOR] Input prompt length: %d chars', prompt.length);
 
   const config = loadPlaceholdersConfig();
-  debug('[PLACEHOLDER-PROCESSOR] Loaded config with %d user placeholders, %d system placeholders',
-    Object.keys(config.user || {}).length,
-    Object.keys(config.system || {}).length
+  debug('[PLACEHOLDER-PROCESSOR] Loaded config with %d userDir placeholders, %d packageDir placeholders',
+    Object.keys(config.userDir || {}).length,
+    Object.keys(config.packageDir || {}).length
   );
 
   let processedPrompt = prompt;
@@ -182,15 +180,7 @@ async function replacePlaceholders(
     debug('[PLACEHOLDER-PROCESSOR] "%s" -> isOptional: %s', placeholderName, isOptional);
 
     // Resolve placeholder path from config
-    // If we have an import context and the placeholder doesn't already have a namespace,
-    // try the namespaced version first (e.g., "error_escalation" -> "codemachine-one:error_escalation")
-    let resolved = resolvePlaceholderPath(placeholderName, cwd, config);
-
-    if (!resolved && importContext && !placeholderName.includes(':')) {
-      const namespacedName = `${importContext}:${placeholderName}`;
-      debug('[PLACEHOLDER-PROCESSOR] "%s" -> Not found directly, trying namespaced: %s', placeholderName, namespacedName);
-      resolved = resolvePlaceholderPath(namespacedName, cwd, config);
-    }
+    const resolved = resolvePlaceholderPath(placeholderName, cwd, config);
 
     if (!resolved) {
       // Placeholder not defined in config - skip it entirely (leave as-is in prompt)
@@ -285,27 +275,17 @@ export async function processPrompt(
 }
 
 /**
- * Options for processing prompts
- */
-export interface ProcessPromptOptions {
-  /** Import context for resolving placeholders without namespace prefix */
-  importContext?: string | null;
-}
-
-/**
  * Processes a prompt string (already loaded) by replacing all placeholders
  *
  * @param prompt - The prompt string containing placeholders
  * @param cwd - Current working directory
- * @param options - Optional processing options (importContext for namespace-free resolution)
  * @returns The processed prompt with placeholders replaced
  */
 export async function processPromptString(
   prompt: string,
   cwd: string,
-  options?: ProcessPromptOptions,
 ): Promise<string> {
-  debug('[PLACEHOLDER-PROCESSOR] processPromptString called: prompt length=%d, cwd=%s, importContext=%s',
-    prompt.length, cwd, options?.importContext ?? 'none');
-  return replacePlaceholders(prompt, cwd, options?.importContext);
+  debug('[PLACEHOLDER-PROCESSOR] processPromptString called: prompt length=%d, cwd=%s',
+    prompt.length, cwd);
+  return replacePlaceholders(prompt, cwd);
 }

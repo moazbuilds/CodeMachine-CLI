@@ -1,5 +1,4 @@
 export { processPrompt, processPromptString } from './replacement/processor.js';
-export type { ProcessPromptOptions } from './replacement/processor.js';
 export {
   // Step agent
   STEP_CONTINUE,

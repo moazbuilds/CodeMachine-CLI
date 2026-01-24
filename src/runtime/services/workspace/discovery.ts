@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 
 import { collectAgentsFromWorkflows } from '../../../shared/agents/index.js';
 import { resolvePackageRoot } from '../../../shared/runtime/root.js';
-import { getImportRootsWithMetadata } from '../../../shared/imports/index.js';
 import { appDebug } from '../../../shared/logging/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -42,54 +41,32 @@ export function debugLog(...args: unknown[]): void {
 export type AgentDefinition = Record<string, unknown> & { mirrorPath?: string };
 export type LoadedAgent = AgentDefinition & { id: string; source?: 'main' | 'sub' | 'legacy' | 'workflow' };
 
-/**
- * Module candidate with metadata for namespacing
- */
-interface ModuleCandidate {
-  source: 'main' | 'sub' | 'legacy';
-  packageName: string | null;
-}
-
 export async function loadAgents(
   candidateRoots: string[],
-  filterIds?: string[],
-  sourcePackage?: string
+  filterIds?: string[]
 ): Promise<{ allAgents: AgentDefinition[]; subAgents: AgentDefinition[] }> {
-  appDebug('[loadAgents] Called with candidateRoots=%O, filterIds=%O, sourcePackage=%s', candidateRoots, filterIds, sourcePackage);
+  appDebug('[loadAgents] Called with candidateRoots=%O, filterIds=%O', candidateRoots, filterIds);
 
-  // Build a map from import path to package name for namespacing
-  const importedRootsWithMeta = getImportRootsWithMetadata();
-  appDebug('[loadAgents] importedRootsWithMeta=%O', importedRootsWithMeta);
-
-  const importPathToPackage = new Map<string, string>();
-  for (const imp of importedRootsWithMeta) {
-    importPathToPackage.set(path.resolve(imp.path), imp.packageName);
-  }
-  appDebug('[loadAgents] importPathToPackage map size=%d', importPathToPackage.size);
-
-  const candidateModules = new Map<string, ModuleCandidate>();
+  const candidateModules = new Map<string, 'main' | 'sub' | 'legacy'>();
 
   for (const root of candidateRoots) {
     if (!root) continue;
     const resolvedRoot = path.resolve(root);
-
-    // Determine if this root is from an import
-    const packageName = importPathToPackage.get(resolvedRoot) ?? null;
-    appDebug('[loadAgents] Scanning root=%s, packageName=%s', resolvedRoot, packageName);
+    appDebug('[loadAgents] Scanning root=%s', resolvedRoot);
 
     for (const filename of AGENT_MODULE_FILENAMES) {
       const moduleCandidate = path.join(resolvedRoot, 'config', filename);
       const distCandidate = path.join(resolvedRoot, 'dist', 'config', filename);
 
-      const source = filename === 'main.agents.js' ? 'main' : filename === 'sub.agents.js' ? 'sub' : 'legacy';
+      const tag = filename === 'main.agents.js' ? 'main' : filename === 'sub.agents.js' ? 'sub' : 'legacy';
 
       if (existsSync(moduleCandidate)) {
-        appDebug('[loadAgents] Found module: %s (source=%s, pkg=%s)', moduleCandidate, source, packageName);
-        candidateModules.set(moduleCandidate, { source, packageName });
+        appDebug('[loadAgents] Found module: %s (source=%s)', moduleCandidate, tag);
+        candidateModules.set(moduleCandidate, tag);
       }
       if (existsSync(distCandidate)) {
-        appDebug('[loadAgents] Found module: %s (source=%s, pkg=%s)', distCandidate, source, packageName);
-        candidateModules.set(distCandidate, { source, packageName });
+        appDebug('[loadAgents] Found module: %s (source=%s)', distCandidate, tag);
+        candidateModules.set(distCandidate, tag);
       }
     }
   }
@@ -98,7 +75,7 @@ export async function loadAgents(
 
   const byId = new Map<string, LoadedAgent>();
 
-  for (const [modulePath, { source, packageName }] of candidateModules.entries()) {
+  for (const [modulePath, source] of candidateModules.entries()) {
     try {
       delete require.cache[require.resolve(modulePath)];
     } catch {
@@ -113,14 +90,12 @@ export async function loadAgents(
       if (!agent || typeof agent.id !== 'string') {
         continue;
       }
-      const rawId = agent.id.trim();
-      if (!rawId) {
+      const id = agent.id.trim();
+      if (!id) {
         continue;
       }
 
-      // Namespace the ID if from an imported package
-      const id = packageName ? `${packageName}:${rawId}` : rawId;
-      appDebug('[loadAgents] Processing agent rawId=%s -> id=%s, source=%s, mirrorPath=%s', rawId, id, source, agent.mirrorPath);
+      appDebug('[loadAgents] Processing agent id=%s, source=%s, mirrorPath=%s', id, source, agent.mirrorPath);
 
       const existing = byId.get(id);
       const sourceTag = existing?.source ?? source;
@@ -134,9 +109,8 @@ export async function loadAgents(
     }
   }
 
-  // Pass import path map for workflow agent namespacing
   appDebug('[loadAgents] Collecting agents from workflows...');
-  const workflowAgents = await collectAgentsFromWorkflows(candidateRoots, importPathToPackage);
+  const workflowAgents = await collectAgentsFromWorkflows(candidateRoots);
   appDebug('[loadAgents] Got %d workflow agents', workflowAgents.length);
 
   for (const agent of workflowAgents) {
@@ -162,9 +136,6 @@ export async function loadAgents(
   const allAgents = Array.from(byId.values()).map(({ source: _source, ...agent }) => ({ ...agent }));
 
   // Filter sub-agents by IDs if filterIds is provided
-  // Note: filterIds may use raw IDs (without namespace) for agents from imported packages
-  // We check both the full namespaced ID and the raw ID (part after the colon)
-  // When sourcePackage is provided, we prefer agents from that package for raw ID matches
   const subAgents = Array.from(byId.values())
     .filter((agent) => {
       if (agent.source !== 'sub') {
@@ -172,39 +143,10 @@ export async function loadAgents(
         return false;
       }
       if (!filterIds) return true;
-
-      // Check if full ID matches (exact match always wins)
       if (filterIds.includes(agent.id)) {
-        appDebug('[loadAgents] Agent %s: source=sub, matched by full ID', agent.id);
+        appDebug('[loadAgents] Agent %s: source=sub, included in filterIds', agent.id);
         return true;
       }
-
-      // Check if raw ID (without namespace prefix) matches
-      // e.g., for 'codemachine-one:founder-architect', check if 'founder-architect' is in filterIds
-      const colonIndex = agent.id.indexOf(':');
-      if (colonIndex > 0) {
-        const agentPackage = agent.id.slice(0, colonIndex);
-        const rawId = agent.id.slice(colonIndex + 1);
-
-        if (filterIds.includes(rawId)) {
-          // If sourcePackage is provided, only match agents from that package
-          // This prevents conflicts when multiple packages have agents with the same raw ID
-          if (sourcePackage) {
-            if (agentPackage === sourcePackage) {
-              appDebug('[loadAgents] Agent %s: source=sub, matched by raw ID=%s (same package as workflow)', agent.id, rawId);
-              return true;
-            } else {
-              appDebug('[loadAgents] Agent %s: source=sub, raw ID=%s matches but different package (agent=%s, workflow=%s)', agent.id, rawId, agentPackage, sourcePackage);
-              return false;
-            }
-          } else {
-            // No sourcePackage specified, match any agent with the raw ID (backward compatible)
-            appDebug('[loadAgents] Agent %s: source=sub, matched by raw ID=%s (no sourcePackage filter)', agent.id, rawId);
-            return true;
-          }
-        }
-      }
-
       appDebug('[loadAgents] Agent %s: source=sub, not included in filterIds', agent.id);
       return false;
     })
