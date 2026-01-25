@@ -28,6 +28,7 @@ import { setSelectedTrack, setSelectedConditions, setProjectName } from "../../s
 import { checkOnboardingRequired, needsOnboarding } from "../../workflows/preflight.js"
 import type { TracksConfig, ConditionGroup } from "../../workflows/templates/types"
 import type { InitialToast } from "./app"
+import { exitTUI } from "./exit"
 
 // Module-level view state for post-processing effects
 export let currentView: "home" | "onboard" | "workflow" = "home"
@@ -332,7 +333,7 @@ export function App(props: { initialToast?: InitialToast }) {
         if (process.stdout.isTTY) {
           process.stdout.write('\x1b[2J\x1b[H\x1b[?25h')
         }
-        process.exit(0)
+        exitTUI(0)
       } else {
         setCtrlCPressed(true)
         toast.show({ variant: "warning", message: "Press Ctrl+C again to exit", duration: 3000 })

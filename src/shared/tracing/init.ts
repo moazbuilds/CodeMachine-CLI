@@ -16,7 +16,8 @@ import {
   ATTR_SERVICE_NAME,
   ATTR_SERVICE_VERSION,
 } from '@opentelemetry/semantic-conventions';
-import { diag, DiagConsoleLogger, DiagLogLevel } from '@opentelemetry/api';
+import { diag, DiagConsoleLogger, DiagLogLevel, trace } from '@opentelemetry/api';
+import type { BasicTracerProvider } from '@opentelemetry/sdk-trace-base';
 
 import { getConfig, type TracingConfig } from './config.js';
 import { createSampler } from './sampler.js';
@@ -144,6 +145,13 @@ export async function initTracing(): Promise<TracingConfig | null> {
 export async function shutdownTracing(): Promise<void> {
   if (sdk) {
     try {
+      // Force flush all pending spans before shutdown
+      // This ensures long-lived spans that just ended get exported
+      const provider = trace.getTracerProvider() as BasicTracerProvider;
+      if (provider.forceFlush) {
+        await provider.forceFlush();
+      }
+
       await sdk.shutdown();
     } catch (error) {
       if (process.env.DEBUG) {

@@ -45,14 +45,35 @@ const tracingConfig = await initTracing();
 if (tracingConfig) {
   appDebug('[Boot] Tracing enabled: level=%d, exporter=%s', tracingConfig.level, tracingConfig.exporter);
 
-  // Register shutdown handler to flush spans on exit
+  // Register shutdown handlers to flush spans on exit
+  // Handle normal exit
   process.on('beforeExit', async () => {
-    appDebug('[Boot] Shutting down tracing');
+    appDebug('[Boot] Shutting down tracing (beforeExit)');
     await shutdownTracing();
+  });
+
+  // Handle signals (SIGINT = Ctrl+C, SIGTERM = kill)
+  const handleSignal = (signal: string) => {
+    appDebug('[Boot] Received %s, shutting down tracing', signal);
+    shutdownTracing().finally(() => {
+      process.exit(0);
+    });
+  };
+  process.on('SIGINT', () => handleSignal('SIGINT'));
+  process.on('SIGTERM', () => handleSignal('SIGTERM'));
+
+  // Handle process.exit() calls
+  process.on('exit', () => {
+    appDebug('[Boot] Process exiting, tracing may not flush completely');
   });
 } else {
   appDebug('[Boot] Tracing disabled');
 }
+
+// Import CLI tracer after tracing is initialized
+appDebug('[Boot] Importing CLI tracer');
+const { getCliTracer, withSpan, withSpanSync } = await import('../shared/tracing/index.js');
+const cliTracer = getCliTracer();
 
 // IMMEDIATE SPLASH - Only show for main TUI session
 // Skip splash for: subcommands, help flags, or version flags
@@ -66,18 +87,22 @@ const hasHelpOrVersion = args.some(arg =>
 const shouldSkipSplash = hasSubcommand || hasHelpOrVersion;
 appDebug('[Boot] hasSubcommand=%s, hasHelpOrVersion=%s, shouldSkipSplash=%s', hasSubcommand, hasHelpOrVersion, shouldSkipSplash);
 
-if (process.stdout.isTTY && !shouldSkipSplash) {
-  appDebug('[Boot] Showing splash screen');
-  const { rows = 24, columns = 80 } = process.stdout;
-  const centerY = Math.floor(rows / 2);
-  const centerX = Math.floor(columns / 2);
-  process.stdout.write('\x1b[2J\x1b[H\x1b[?25l'); // Clear, home, hide cursor
-  process.stdout.write(`\x1b[${centerY};${centerX - 6}H`);
-  process.stdout.write('\x1b[38;2;224;230;240mCode\x1b[1mMachine\x1b[0m');
-  process.stdout.write(`\x1b[${centerY + 1};${centerX - 6}H`);
-  process.stdout.write('\x1b[38;2;0;217;255m━━━━━━━━━━━━\x1b[0m');
-  appDebug('[Boot] Splash screen displayed');
-}
+const splashShown = process.stdout.isTTY && !shouldSkipSplash;
+withSpanSync(cliTracer, 'cli.boot.splash', (span) => {
+  span.setAttribute('cli.splash.shown', splashShown);
+  if (splashShown) {
+    appDebug('[Boot] Showing splash screen');
+    const { rows = 24, columns = 80 } = process.stdout;
+    const centerY = Math.floor(rows / 2);
+    const centerX = Math.floor(columns / 2);
+    process.stdout.write('\x1b[2J\x1b[H\x1b[?25l'); // Clear, home, hide cursor
+    process.stdout.write(`\x1b[${centerY};${centerX - 6}H`);
+    process.stdout.write('\x1b[38;2;224;230;240mCode\x1b[1mMachine\x1b[0m');
+    process.stdout.write(`\x1b[${centerY + 1};${centerX - 6}H`);
+    process.stdout.write('\x1b[38;2;0;217;255m━━━━━━━━━━━━\x1b[0m');
+    appDebug('[Boot] Splash screen displayed');
+  }
+});
 
 appDebug('[Boot] Importing remaining modules');
 import { Command } from 'commander';
@@ -93,95 +118,140 @@ const DEFAULT_SPEC_PATH = '.codemachine/inputs/specifications.md';
  * Note: .codemachine folder initialization is handled by workflow run, not here
  */
 async function initializeInBackground(cwd: string): Promise<void> {
-  // Check for updates (writes to ~/.codemachine/resources/updates.json)
-  appDebug('[Init] Checking for updates');
-  const { check } = await import('../shared/updates/index.js');
-  check().catch(err => appDebug('[Init] Update check error: %s', err));
+  return withSpan(cliTracer, 'cli.init.background', async (span) => {
+    span.setAttribute('cli.workspace.path', cwd);
 
-  const cmRoot = path.join(cwd, '.codemachine');
+    // Check for updates (writes to ~/.codemachine/resources/updates.json)
+    await withSpan(cliTracer, 'cli.init.updates', async (updateSpan) => {
+      appDebug('[Init] Checking for updates');
+      const { check } = await import('../shared/updates/index.js');
+      check().catch(err => {
+        appDebug('[Init] Update check error: %s', err);
+        updateSpan.setAttribute('cli.init.updates.error', String(err));
+      });
+    });
 
-  // Only bootstrap if .codemachine doesn't exist
-  if (!existsSync(cmRoot)) {
-    appDebug('[Init] Bootstrapping workspace (first run)');
-    // Lazy load bootstrap utilities (only on first run)
-    const { ensureWorkspaceStructure } = await import('./services/workspace/index.js');
+    const cmRoot = path.join(cwd, '.codemachine');
 
-    await ensureWorkspaceStructure({ cwd });
-    appDebug('[Init] Workspace bootstrapped');
-  }
-
-  // Lazy load and initialize engine registry
-  appDebug('[Init] Loading engine registry');
-  const { registry } = await import('../infra/engines/index.js');
-  const engines = registry.getAll();
-
-  // Sync engine configs in background
-  appDebug('[Init] Syncing %d engine configs', engines.length);
-  for (const engine of engines) {
-    if (engine.syncConfig) {
-      await engine.syncConfig();
+    // Only bootstrap if .codemachine doesn't exist
+    if (!existsSync(cmRoot)) {
+      await withSpan(cliTracer, 'cli.init.workspace', async (wsSpan) => {
+        wsSpan.setAttribute('cli.init.workspace.first_run', true);
+        appDebug('[Init] Bootstrapping workspace (first run)');
+        // Lazy load bootstrap utilities (only on first run)
+        const { ensureWorkspaceStructure } = await import('./services/workspace/index.js');
+        await ensureWorkspaceStructure({ cwd });
+        appDebug('[Init] Workspace bootstrapped');
+      });
     }
-  }
-  appDebug('[Init] Background initialization complete');
+
+    // Lazy load and initialize engine registry
+    const engines = await withSpan(cliTracer, 'cli.init.engines', async (engSpan) => {
+      appDebug('[Init] Loading engine registry');
+      const { registry } = await import('../infra/engines/index.js');
+      const allEngines = registry.getAll();
+      engSpan.setAttribute('cli.init.engines.count', allEngines.length);
+      return allEngines;
+    });
+
+    // Sync engine configs in background
+    appDebug('[Init] Syncing %d engine configs', engines.length);
+    for (const engine of engines) {
+      if (engine.syncConfig) {
+        await withSpan(cliTracer,
+          'cli.init.engine_sync',
+          async (syncSpan) => {
+            syncSpan.setAttribute('cli.init.engine.name', engine.metadata.name);
+            await engine.syncConfig();
+          });
+      }
+    }
+    appDebug('[Init] Background initialization complete');
+  });
 }
 
 export async function runCodemachineCli(argv: string[] = process.argv): Promise<void> {
-  appDebug('[CLI] runCodemachineCli started');
+  appDebug('[Trace] Starting cli.boot span');
+  return withSpan(cliTracer, 'cli.boot', async (bootSpan) => {
+    bootSpan.setAttribute('cli.args', JSON.stringify(argv.slice(2)));
+    bootSpan.setAttribute('cli.cwd', process.cwd());
+    appDebug('[Trace] Inside cli.boot span');
 
-  // Import version from auto-generated version file (works in compiled binaries)
-  appDebug('[CLI] Importing version');
-  const { VERSION } = await import('./version.js');
-  appDebug('[CLI] VERSION=%s', VERSION);
+    appDebug('[CLI] runCodemachineCli started');
 
-  const program = new Command()
-    .name('codemachine')
-    .version(VERSION)
-    .description('Codemachine multi-agent CLI orchestrator')
-    .option('-d, --dir <path>', 'Target workspace directory', process.cwd())
-    .option('--spec <path>', 'Path to the planning specification file', DEFAULT_SPEC_PATH)
-    .action(async (options) => {
-      appDebug('[CLI] Action handler entered');
-      // Set CWD immediately (lightweight, no I/O)
-      const cwd = options.dir || process.cwd();
-      process.env.CODEMACHINE_CWD = cwd;
-      if (options.spec && options.spec !== DEFAULT_SPEC_PATH) {
-        process.env.CODEMACHINE_SPEC_PATH = path.resolve(cwd, options.spec);
-      }
-      appDebug('[CLI] CWD set to %s', cwd);
-
-      // Start background initialization (non-blocking, fire-and-forget)
-      // This runs while TUI is visible and user is reading/thinking
-      appDebug('[CLI] Starting background initialization');
-      initializeInBackground(cwd).catch(err => {
-        appDebug('[CLI] Background init error: %s', err);
-        console.error('[Background Init Error]', err);
-      });
-
-      // Launch TUI immediately - don't wait for background init
-      // Import via launcher to scope SolidJS transform to TUI only
-      appDebug('[CLI] Importing TUI launcher');
-      const { startTUI } = await import('../cli/tui/launcher.js');
-      appDebug('[CLI] TUI launcher imported, calling startTUI()');
-      try {
-        await startTUI();
-        appDebug('[CLI] TUI exited normally');
-      } catch (tuiError) {
-        appDebug('[CLI] TUI error: %s', tuiError);
-        throw tuiError;
-      }
+    // Import version from auto-generated version file (works in compiled binaries)
+    const VERSION = await withSpan(cliTracer, 'cli.boot.version', async (verSpan) => {
+      appDebug('[CLI] Importing version');
+      const { VERSION: ver } = await import('./version.js');
+      verSpan.setAttribute('cli.version', ver);
+      appDebug('[CLI] VERSION=%s', ver);
+      return ver;
     });
 
-  // Lazy load CLI commands only if user uses subcommands
-  if (argv.length > 2 && !argv[2].startsWith('-')) {
-    appDebug('[CLI] Loading subcommands');
-    const { registerCli } = await import('../cli/index.js');
-    await registerCli(program);
-    appDebug('[CLI] Subcommands registered');
-  }
+    const program = new Command()
+      .name('codemachine')
+      .version(VERSION)
+      .description('Codemachine multi-agent CLI orchestrator')
+      .option('-d, --dir <path>', 'Target workspace directory', process.cwd())
+      .option('--spec <path>', 'Path to the planning specification file', DEFAULT_SPEC_PATH)
+      .action(async (options) => {
+        appDebug('[CLI] Action handler entered');
+        // Set CWD immediately (lightweight, no I/O)
+        const cwd = options.dir || process.cwd();
+        process.env.CODEMACHINE_CWD = cwd;
+        if (options.spec && options.spec !== DEFAULT_SPEC_PATH) {
+          process.env.CODEMACHINE_SPEC_PATH = path.resolve(cwd, options.spec);
+        }
+        appDebug('[CLI] CWD set to %s', cwd);
 
-  appDebug('[CLI] Parsing command line');
-  await program.parseAsync(argv);
-  appDebug('[CLI] Command line parsed');
+        // Start background initialization (non-blocking, fire-and-forget)
+        // This runs while TUI is visible and user is reading/thinking
+        appDebug('[CLI] Starting background initialization');
+        initializeInBackground(cwd).catch(err => {
+          appDebug('[CLI] Background init error: %s', err);
+          console.error('[Background Init Error]', err);
+        });
+
+        // Launch TUI immediately - don't wait for background init
+        // Import via launcher to scope SolidJS transform to TUI only
+        appDebug('[Trace] Starting cli.tui.launch span');
+        await withSpan(cliTracer, 'cli.tui.launch', async () => {
+          appDebug('[CLI] Importing TUI launcher');
+          const { startTUI } = await import('../cli/tui/launcher.js');
+          appDebug('[CLI] TUI launcher imported, calling startTUI()');
+          try {
+            await startTUI();
+            appDebug('[CLI] TUI exited normally');
+            appDebug('[Trace] TUI exited normally');
+          } catch (tuiError) {
+            appDebug('[CLI] TUI error: %s', tuiError);
+            appDebug('[Trace] TUI error: %s', tuiError);
+            throw tuiError;
+          }
+        });
+        appDebug('[Trace] cli.tui.launch span ended');
+      });
+
+    // Lazy load CLI commands only if user uses subcommands
+    if (argv.length > 2 && !argv[2].startsWith('-')) {
+      await withSpan(cliTracer, 'cli.boot.subcommands', async (subSpan) => {
+        subSpan.setAttribute('cli.subcommand', argv[2]);
+        appDebug('[CLI] Loading subcommands');
+        const { registerCli } = await import('../cli/index.js');
+        await registerCli(program);
+        appDebug('[CLI] Subcommands registered');
+      });
+    }
+
+    appDebug('[CLI] Parsing command line');
+    appDebug('[Trace] Starting cli.command.parse span');
+    await withSpan(cliTracer, 'cli.command.parse', async () => {
+      await program.parseAsync(argv);
+    });
+    appDebug('[Trace] cli.command.parse span ended');
+    appDebug('[CLI] Command line parsed');
+    appDebug('[Trace] cli.boot span about to end');
+  });
 }
 
 appDebug('[Boot] Checking shouldRunCli');
@@ -230,11 +300,23 @@ appDebug('[Boot] shouldRunCli=%s', shouldRunCli);
 
 if (shouldRunCli) {
   appDebug('[Boot] Calling runCodemachineCli()');
-  runCodemachineCli().catch((error) => {
+  let exitCode = 0;
+  try {
+    await runCodemachineCli();
+    appDebug('[Trace] runCodemachineCli completed normally');
+  } catch (error) {
     appDebug('[Boot] runCodemachineCli error: %s', error);
+    appDebug('[Trace] runCodemachineCli error: %s', error);
     console.error(error);
-    process.exitCode = 1;
-  });
+    exitCode = 1;
+  } finally {
+    // Ensure tracing is flushed before exit
+    appDebug('[Trace] About to shutdown tracing...');
+    appDebug('[Boot] Shutting down tracing (explicit)');
+    await shutdownTracing();
+    appDebug('[Trace] Tracing shutdown complete');
+    process.exit(exitCode);
+  }
 } else {
   appDebug('[Boot] CLI not run (shouldRunCli=false)');
 }
