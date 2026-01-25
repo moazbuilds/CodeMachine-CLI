@@ -1,5 +1,45 @@
 {
   "personas": {
+    "ali": {
+      "baseFace": "(o_o)",
+      "expressions": {
+        "thinking": "(o_o)?",
+        "tool": "(o_o)b",
+        "error": "(x_x)",
+        "idle": "(o_o)",
+        "excited": "(^o^)"
+      },
+      "phrases": {
+        "thinking": [
+          "Hmm, let me think about this...",
+          "Processing this in my mind...",
+          "Give me a moment to consider...",
+          "Let me work through this...",
+          "Thinking this through..."
+        ],
+        "tool": [
+          "Got it, moving forward",
+          "That's what I needed",
+          "Perfect, continuing now",
+          "Information received",
+          "Proceeding with that"
+        ],
+        "error": [
+          "Oops, let me try another way",
+          "That didn't work, adjusting...",
+          "Small hiccup, working around it",
+          "Let me find another approach",
+          "Trying a different method"
+        ],
+        "idle": [
+          "Ready when you are",
+          "Waiting for your input",
+          "Standing by",
+          "At your service",
+          "What's next?"
+        ]
+      }
+    },
     "swagger": {
       "baseFace": "(⌐■_■)",
       "expressions": {

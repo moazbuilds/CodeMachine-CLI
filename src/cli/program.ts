@@ -9,6 +9,8 @@ import {
   registerImportCommand,
   registerExportCommand,
   registerMCPCommand,
+  registerSayCommand,
+  registerNarrateCommand,
 } from './commands/index.js';
 import { resolvePackageJson } from '../shared/runtime/root.js';
 
@@ -29,6 +31,8 @@ export async function registerCli(program: Command): Promise<void> {
   registerAgentsCommand(program);
   registerImportCommand(program);
   registerExportCommand(program);
+  registerSayCommand(program);
+  registerNarrateCommand(program);
   await registerRunCommand(program);
   await registerStepCommand(program);
 }
