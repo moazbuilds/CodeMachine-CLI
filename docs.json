@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "maple",
+  "theme": "mint",
   "name": "Documentation",
   "colors": {
     "primary": "#12a4b3",
@@ -18,6 +18,9 @@
     ]
   },
   "appearance": {
-    "default": "light"
+    "default": "system"
+  },
+  "fonts": {
+    "family": "Roboto Slab"
   }
 }
