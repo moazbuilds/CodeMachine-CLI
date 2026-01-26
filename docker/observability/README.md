@@ -351,3 +351,88 @@ curl -s "http://localhost:3100/loki/api/v1/labels"
 **Cannot correlate logs to traces:**
 - Logs must be emitted within an active span to have trace correlation
 - Early boot logs (before tracing init) won't have trace_id/span_id
+
+---
+
+## Importing Bug Reports
+
+Users can share their telemetry files for debugging. The import tool loads JSON files into the observability stack.
+
+### User: Collecting Telemetry for Bug Report
+
+Tell users to include these files from their project:
+```
+.codemachine/traces/
+├── latest.json          # Trace spans
+├── latest-logs.json     # Log entries
+└── YYYY-MM-DD/          # Historical sessions
+    ├── HH-MM-SS.json
+    └── HH-MM-SS-logs.json
+```
+
+They can zip the entire `.codemachine/traces/` directory.
+
+### Developer: Importing the Bug Report
+
+1. **Start the observability stack** (if not running):
+   ```bash
+   cd docker/observability && docker compose up -d
+   ```
+
+2. **Extract the user's trace files** to a directory (e.g., `~/bug-reports/issue-123/`)
+
+3. **Run the import script**:
+   ```bash
+   # From project root
+   bun run import-telemetry ~/bug-reports/issue-123/traces
+
+   # Or directly
+   bun scripts/import-telemetry.ts ~/bug-reports/issue-123/traces
+   ```
+
+4. **View in Grafana** at http://localhost:3000
+   - Imported logs have label `imported="true"`
+   - Query: `{service_name="codemachine", imported="true"}`
+
+### Import Script Options
+
+```bash
+bun scripts/import-telemetry.ts <path> [options]
+
+Options:
+  --loki-url <url>   Loki URL (default: http://localhost:3100)
+  --tempo-url <url>  Tempo OTLP URL (default: http://localhost:4318)
+  --logs-only        Only import logs
+  --traces-only      Only import traces
+
+Examples:
+  # Import from user's bug report
+  bun scripts/import-telemetry.ts ~/Downloads/bug-report-traces/
+
+  # Import only logs
+  bun scripts/import-telemetry.ts ./traces --logs-only
+
+  # Import to remote stack
+  bun scripts/import-telemetry.ts ./traces --loki-url http://192.168.1.100:3100
+```
+
+### Viewing Imported Data
+
+Imported data is tagged to distinguish it from live data:
+
+**Logs:**
+```logql
+# All imported logs
+{service_name="codemachine", imported="true"}
+
+# Imported errors only
+{service_name="codemachine", imported="true", severity_text="ERROR"}
+
+# Search imported logs
+{service_name="codemachine", imported="true"} |= "error message"
+```
+
+**Traces:**
+- Service name: `codemachine`
+- Look for `bug-report-operation` or user's operation names
+- Use the Tempo Search tab with Service Name filter

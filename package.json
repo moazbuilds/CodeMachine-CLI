@@ -61,6 +61,8 @@
     "test:coverage": "bun test --coverage",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
+    "_comment_telemetry": "Telemetry: Import and analyze traces/logs",
+    "import-telemetry": "bun scripts/import-telemetry.ts",
     "_comment_release": "Release: Publishing and validation",
     "prepare": "husky install",
     "release": "bun scripts/publish.ts --tag latest",
