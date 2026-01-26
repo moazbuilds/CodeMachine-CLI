@@ -39,3 +39,14 @@ datasources:
           matcherRegex: 'trace_id=([a-f0-9]+)'
           name: TraceID
           url: '$${__value.raw}'
+
+  # Prometheus for metrics
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    url: http://prometheus:9090
+    access: proxy
+    isDefault: false
+    jsonData:
+      httpMethod: POST
+      timeInterval: "15s"

@@ -1,6 +1,6 @@
-# Grafana + Tempo + Loki Observability Stack
+# Grafana + Tempo + Loki + Prometheus Observability Stack
 
-This setup provides a local observability stack for viewing OpenTelemetry traces and logs together with full correlation.
+This setup provides a local observability stack for viewing OpenTelemetry traces, logs, and metrics together with full correlation.
 
 ## Architecture
 
@@ -42,7 +42,7 @@ Wait ~30 seconds for services to initialize.
 docker compose ps
 ```
 
-All 4 services should show "running": grafana, loki, otel-collector, tempo.
+All 5 services should show "running": grafana, loki, otel-collector, prometheus, tempo.
 
 ### Step 3: Send test traces and logs
 
@@ -101,11 +101,19 @@ DEBUG=true CODEMACHINE_TRACE=2 CODEMACHINE_TRACE_EXPORTER=otlp \
 
 Open **http://localhost:3000** (login: `admin` / `admin`)
 
-A pre-built **CodeMachine Observability** dashboard is automatically loaded as the home dashboard. It includes:
+Pre-built dashboards are available:
+
+**CodeMachine Observability** (home dashboard):
 - **Error/Warning/Total log counts** - Quick status overview
 - **Log Volume by Severity** - Time series chart showing log distribution
 - **Recent Traces** - Table with clickable trace IDs
 - **Application Logs** - Live log stream with expandable entries
+
+**CodeMachine Process Metrics**:
+- **Memory Usage** - Heap used, heap total, RSS, external memory over time
+- **CPU Usage** - User and system CPU time over time
+- **Event Loop Lag** - Event loop latency with threshold markers
+- **Process Uptime** - Current uptime stat
 
 ### Viewing Traces in Tempo
 
@@ -154,6 +162,37 @@ A pre-built **CodeMachine Observability** dashboard is automatically loaded as t
    # Logs for a specific trace
    {service_name="codemachine", trace_id="YOUR_TRACE_ID"}
    ```
+
+### Viewing Process Metrics in Prometheus
+
+1. In **Explore**, select **Prometheus** from the datasource dropdown
+2. Enter a PromQL query:
+   ```
+   codemachine_process_memory_heap_used_bytes
+   ```
+3. Click **Run query**
+4. You'll see a time series graph of heap memory usage
+
+5. **Available process metrics:**
+   ```promql
+   # Memory metrics (bytes)
+   codemachine_process_memory_heap_used_bytes
+   codemachine_process_memory_heap_total_bytes
+   codemachine_process_memory_rss_bytes
+   codemachine_process_memory_external_bytes
+
+   # CPU metrics (microseconds)
+   codemachine_process_cpu_user_microseconds
+   codemachine_process_cpu_system_microseconds
+
+   # Event loop lag (milliseconds)
+   codemachine_process_eventloop_lag_milliseconds
+
+   # Process uptime (seconds)
+   codemachine_process_uptime_seconds
+   ```
+
+6. **Pre-built Dashboard**: Navigate to **Dashboards** and open **CodeMachine Process Metrics** for a comprehensive view of all process metrics with graphs and stat panels.
 
 ### Navigating Between Traces and Logs
 
@@ -266,14 +305,16 @@ The pre-built dashboard is a good starting point. Here's how to create your own 
 
 ## Ports Reference
 
-| Service        | Port  | Description              |
-|----------------|-------|--------------------------|
-| Grafana        | 3000  | Web UI                   |
-| OTel Collector | 4319  | OTLP HTTP endpoint       |
-| Tempo          | 3200  | Tempo query API          |
-| Tempo          | 4317  | OTLP gRPC (internal)     |
-| Tempo          | 4318  | OTLP HTTP (internal)     |
-| Loki           | 3100  | Loki API                 |
+| Service        | Port  | Description                    |
+|----------------|-------|--------------------------------|
+| Grafana        | 3000  | Web UI                         |
+| OTel Collector | 4319  | OTLP HTTP endpoint             |
+| OTel Collector | 8889  | Prometheus metrics endpoint    |
+| Prometheus     | 9090  | Prometheus Web UI & API        |
+| Tempo          | 3200  | Tempo query API                |
+| Tempo          | 4317  | OTLP gRPC (internal)           |
+| Tempo          | 4318  | OTLP HTTP (internal)           |
+| Loki           | 3100  | Loki API                       |
 
 **Note**: Send your OTLP data to port `4319` (OTel Collector), not directly to Tempo.
 
@@ -281,13 +322,15 @@ The pre-built dashboard is a good starting point. Here's how to create your own 
 
 ## Configuration for CodeMachine
 
-To send traces and logs to this stack:
+To send traces, logs, and metrics to this stack:
 
 ```bash
 export CODEMACHINE_TRACE=2
 export CODEMACHINE_TRACE_EXPORTER=otlp
 export CODEMACHINE_TRACE_OTLP_ENDPOINT=http://localhost:4319/v1/traces
 export DEBUG=true  # Enable debug-level logging
+# Optional: customize metrics export interval (default: 60000ms = 1 minute)
+export CODEMACHINE_METRICS_INTERVAL=30000
 ```
 
 Or in a single command:
@@ -296,6 +339,10 @@ DEBUG=true CODEMACHINE_TRACE=2 CODEMACHINE_TRACE_EXPORTER=otlp \
   CODEMACHINE_TRACE_OTLP_ENDPOINT=http://localhost:4319/v1/traces \
   bun run dev
 ```
+
+**Note**: Metrics are automatically derived from the trace configuration:
+- Metrics endpoint: `/v1/traces` → `/v1/metrics` (auto-derived)
+- Metrics are exported to the same backend as traces
 
 ---
 
@@ -318,6 +365,7 @@ docker compose down -v
 docker compose logs tempo
 docker compose logs loki
 docker compose logs otel-collector
+docker compose logs prometheus
 docker compose logs grafana
 ```
 
@@ -338,6 +386,12 @@ curl -s "http://localhost:3100/loki/api/v1/labels"
 # Should include "service_name" if logs were received
 ```
 
+### Verify Prometheus has metrics
+```bash
+curl -s "http://localhost:9090/api/v1/query?query=codemachine_process_uptime_seconds" | jq
+# Should return metric data if metrics were received
+```
+
 ### Common Issues
 
 **No traces appearing:**
@@ -351,6 +405,12 @@ curl -s "http://localhost:3100/loki/api/v1/labels"
 **Cannot correlate logs to traces:**
 - Logs must be emitted within an active span to have trace correlation
 - Early boot logs (before tracing init) won't have trace_id/span_id
+
+**No metrics appearing:**
+- Metrics are exported every 60 seconds by default (configurable via CODEMACHINE_METRICS_INTERVAL)
+- Let the application run for at least 1-2 minutes to collect metrics
+- Check Prometheus is scraping the OTel Collector: http://localhost:9090/targets
+- Verify metrics endpoint in OTel Collector: `curl http://localhost:8889/metrics`
 
 ---
 

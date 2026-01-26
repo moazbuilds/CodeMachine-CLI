@@ -24,6 +24,14 @@ exporters:
     tls:
       insecure: true
 
+  # Expose metrics for Prometheus scraping
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    namespace: codemachine
+    send_timestamps: true
+    resource_to_telemetry_conversion:
+      enabled: true
+
   # Debug output (optional - shows what's being received)
   debug:
     verbosity: detailed
@@ -38,3 +46,7 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [otlphttp/loki, debug]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus, debug]

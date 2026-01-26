@@ -48,21 +48,32 @@ if (!embeddedRoot && !process.env.CODEMACHINE_INSTALL_DIR) {
 appDebug('[Boot] Initializing tracing');
 const { initTracing, shutdownTracing } = await import('../shared/tracing/index.js');
 const tracingConfig = await initTracing();
+
+// METRICS INITIALIZATION - Initialize after tracing
+appDebug('[Boot] Initializing metrics');
+const { initMetrics, shutdownMetrics } = await import('../shared/metrics/index.js');
+const metricsEnabled = await initMetrics();
+if (metricsEnabled) {
+  appDebug('[Boot] Metrics enabled');
+}
+
 if (tracingConfig) {
   appDebug('[Boot] Tracing enabled: level=%d, exporter=%s', tracingConfig.level, tracingConfig.exporter);
 
-  // Register shutdown handlers to flush spans and logs on exit
+  // Register shutdown handlers to flush spans, logs, and metrics on exit
   // Handle normal exit
   process.on('beforeExit', async () => {
-    appDebug('[Boot] Shutting down OTel logging and tracing (beforeExit)');
+    appDebug('[Boot] Shutting down OTel logging, metrics, and tracing (beforeExit)');
     await shutdownOTelLogging();
+    await shutdownMetrics();
     await shutdownTracing();
   });
 
   // Handle signals (SIGINT = Ctrl+C, SIGTERM = kill)
   const handleSignal = (signal: string) => {
-    appDebug('[Boot] Received %s, shutting down OTel logging and tracing', signal);
+    appDebug('[Boot] Received %s, shutting down OTel logging, metrics, and tracing', signal);
     shutdownOTelLogging()
+      .then(() => shutdownMetrics())
       .then(() => shutdownTracing())
       .finally(() => {
         process.exit(0);
@@ -73,7 +84,7 @@ if (tracingConfig) {
 
   // Handle process.exit() calls
   process.on('exit', () => {
-    appDebug('[Boot] Process exiting, OTel logging and tracing may not flush completely');
+    appDebug('[Boot] Process exiting, OTel logging, metrics, and tracing may not flush completely');
   });
 } else {
   appDebug('[Boot] Tracing disabled');
@@ -319,13 +330,15 @@ if (shouldRunCli) {
     console.error(error);
     exitCode = 1;
   } finally {
-    // Ensure OTel logging and tracing are flushed before exit
-    appDebug('[Trace] About to shutdown OTel logging and tracing...');
+    // Ensure OTel logging, metrics, and tracing are flushed before exit
+    appDebug('[Trace] About to shutdown OTel logging, metrics, and tracing...');
     appDebug('[Boot] Shutting down OTel logging (explicit)');
     await shutdownOTelLogging();
+    appDebug('[Boot] Shutting down metrics (explicit)');
+    await shutdownMetrics();
     appDebug('[Boot] Shutting down tracing (explicit)');
     await shutdownTracing();
-    appDebug('[Trace] OTel logging and tracing shutdown complete');
+    appDebug('[Trace] OTel logging, metrics, and tracing shutdown complete');
     process.exit(exitCode);
   }
 } else {

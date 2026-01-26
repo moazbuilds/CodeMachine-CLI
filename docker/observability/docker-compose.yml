@@ -25,7 +25,7 @@ services:
     volumes:
       - loki-data:/loki
 
-  # OpenTelemetry Collector - Receives OTLP and forwards to Tempo/Loki
+  # OpenTelemetry Collector - Receives OTLP and forwards to Tempo/Loki/Prometheus
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
     command: ["--config=/etc/otel-collector.yaml"]
@@ -33,9 +33,25 @@ services:
       - ./otel-collector.yaml:/etc/otel-collector.yaml
     ports:
       - "4319:4318"   # OTLP HTTP (remapped to avoid conflict with Tempo)
+      - "8889:8889"   # Prometheus metrics endpoint (for scraping)
     depends_on:
       - tempo
       - loki
+
+  # Prometheus - Metrics storage and query
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - otel-collector
 
   # Grafana - Visualization
   grafana:
@@ -61,3 +77,4 @@ volumes:
   tempo-data:
   loki-data:
   grafana-data:
+  prometheus-data:

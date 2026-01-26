@@ -2,6 +2,7 @@
  * Tracing Initialization
  *
  * Initializes the OpenTelemetry SDK with the configured exporters and samplers.
+ * Also configures metrics if enabled (same config as tracing).
  * Should be called early in the application startup.
  */
 
@@ -11,6 +12,8 @@ import {
   SpanProcessor,
   ReadableSpan,
 } from '@opentelemetry/sdk-trace-base';
+import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
+import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import {
   ATTR_SERVICE_NAME,
@@ -23,11 +26,65 @@ import { getConfig, type TracingConfig } from './config.js';
 import { createSampler } from './sampler.js';
 import { createExporter, getExporterDescription } from './exporters/factory.js';
 import { addSpan } from './storage.js';
+import { FileMetricExporter } from '../metrics/exporters/file.js';
 
 /**
  * Global SDK instance
  */
 let sdk: NodeSDK | null = null;
+
+/**
+ * Derive metrics OTLP endpoint from trace endpoint
+ */
+function deriveMetricsEndpoint(traceEndpoint: string): string {
+  return traceEndpoint.replace('/v1/traces', '/v1/metrics');
+}
+
+/**
+ * Get the metrics export interval from environment or default
+ */
+function getMetricsExportInterval(): number {
+  const interval = parseInt(process.env.CODEMACHINE_METRICS_INTERVAL || '', 10);
+  return interval > 0 ? interval : 60000; // Default: 1 minute
+}
+
+/**
+ * Create metric reader based on config
+ */
+function createMetricReader(config: TracingConfig): PeriodicExportingMetricReader | null {
+  const exportIntervalMs = getMetricsExportInterval();
+
+  switch (config.exporter) {
+    case 'otlp': {
+      const metricsEndpoint = deriveMetricsEndpoint(config.otlpEndpoint);
+      const exporter = new OTLPMetricExporter({
+        url: metricsEndpoint,
+      });
+      return new PeriodicExportingMetricReader({
+        exporter,
+        exportIntervalMillis: exportIntervalMs,
+        exportTimeoutMillis: exportIntervalMs * 0.8,
+      });
+    }
+
+    case 'file': {
+      const exporter = new FileMetricExporter(config.tracesDir);
+      return new PeriodicExportingMetricReader({
+        exporter,
+        exportIntervalMillis: exportIntervalMs,
+        exportTimeoutMillis: exportIntervalMs * 0.8,
+      });
+    }
+
+    case 'none':
+    case 'zipkin':
+      // Zipkin doesn't support metrics
+      return null;
+
+    default:
+      return null;
+  }
+}
 
 /**
  * Whether tracing has been initialized
@@ -108,11 +165,15 @@ export async function initTracing(): Promise<TracingConfig | null> {
     // Create the buffering processor for bug reports
     const bufferingProcessor = new BufferingSpanProcessor();
 
+    // Create metric reader if enabled
+    const metricReader = createMetricReader(config);
+
     // Initialize the SDK
     sdk = new NodeSDK({
       resource,
       sampler,
       spanProcessors: [bufferingProcessor, exportProcessor],
+      metricReader: metricReader ?? undefined,
     });
 
     // Start the SDK
