@@ -506,6 +506,27 @@ After appending:
 - Verify all used placeholders are registered
 - Result: "✓ All placeholders registered" or "⚠️ Unregistered: \{name\}"
 
+**Check 5: Agent Input/Output Chain** (for multi-agent workflows)
+- For workflows with 2+ agents, verify each agent has defined input/output
+- Verify agent outputs are registered as placeholders for subsequent agents
+- Verify each non-first agent has input defined (placeholder from previous agent, codebase read, or user Q&A)
+- Exception: Q&A/interactive agents that only collect user input don't need file output
+- Result: "✓ Agent chain properly connected" or "⚠️ Agent '\{id\}' has no input defined - it won't receive context from previous agents"
+
+*[If Check 5 fails:]*
+"**Agent chain incomplete.**
+
+The following agents have no defined input - they won't know what previous agents produced:
+\{list agents without input\}
+
+Options:
+1. Go back to Step 04 and define input/output for these agents
+2. Confirm these are standalone agents that don't need previous context
+
+How would you like to proceed?"
+
+Wait for response. Do not generate workflow until resolved.
+
 **If any issues found:**
 "**Issues Found:**"
 List each issue.
@@ -588,6 +609,7 @@ codemachine workflow \{workflow_name\}
     <files-exist>\{true|false\}</files-exist>
     <workflow-integrity>\{true|false\}</workflow-integrity>
     <placeholders-registered>\{true|false\}</placeholders-registered>
+    <agent-chain-connected>\{true|false\}</agent-chain-connected>
     <issues-fixed count="\{count\}">
       <!-- If any issues were fixed -->
       <issue type="\{type\}" path="\{path\}" action="\{action taken\}" />
@@ -639,7 +661,8 @@ Run: `codemachine workflow \{workflow_name\}`"
 - Missing files recreated if any
 - Workflow.js file created
 - All config files updated (main.agents.js, sub.agents.js, modules.js, placeholders.js)
-- Final validation passed (IDs, files, integrity, placeholders)
+- Final validation passed (IDs, files, integrity, placeholders, agent chain)
+- Agent input/output chain validated for multi-agent workflows
 - User educated about keyboard shortcuts
 - Run command provided
 - **Step-05 XML appended to plan file**
@@ -651,6 +674,7 @@ Run: `codemachine workflow \{workflow_name\}`"
 - Workflow.js not created
 - Config files not updated
 - Validation failures not addressed
+- Proceeding with multi-agent workflow where agents have no input defined (they won't receive context)
 - Not showing how to run the workflow
 - Skipping keyboard shortcuts education
 - **Not appending to plan file**

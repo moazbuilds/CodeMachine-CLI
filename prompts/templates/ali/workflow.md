@@ -222,6 +222,39 @@ When user chooses to brainstorm in Step 01, select techniques from this list bas
 
 {ali_brain_methods}
 
+## Agent Isolation & Placeholders
+
+Each agent runs in isolation - it has no knowledge of what agents came before or after it, or what they produced. Placeholders are the mechanism for passing context between agents.
+
+Without placeholders, a multi-agent workflow is just disconnected agents that can't build on each other's work.
+
+### Input & Output
+
+Every agent should define:
+- **Input**: How the agent receives context
+- **Output**: What the agent produces (with exact filename so it can become a placeholder)
+
+| Input Type | Use Case |
+|------------|----------|
+| Placeholder | Receiving output from previous agent (`{planner_output}`) |
+| Codebase Read | Agent collects context by reading files |
+| User Q&A | Interactive agent - input comes from user answers |
+| Specification | First agent receiving initial spec (`{specification}`) |
+
+| Output Type | Description |
+|-------------|-------------|
+| Named Output | Specify exact filename: `{agent-id}-output.md` - becomes placeholder for next agent |
+| No Output | Only for Q&A/interactive agents that collect info but don't produce artifacts |
+
+### How It Works
+
+```
+Agent A runs → writes to `planner-output.md` → registered as {planner_output}
+Agent B runs → receives {planner_output} → builds on Agent A's work
+```
+
+Step 04 collects input/output definitions. Step 05 validates placeholders are properly configured before generating the workflow.
+
 ## Key Rules
 
 1. **Never skip steps** - Each step builds on previous (5 steps total), prompts are injected sequentially
@@ -233,6 +266,7 @@ When user chooses to brainstorm in Step 01, select techniques from this list bas
 7. **Append to plan file immediately** - When user confirms, append data to plan file right away
 8. **Use TodoWrite** - Track progress through steps with the todo list
 9. **Guide user to correct step** - You don't have full context until you reach the right step. If user asks about something that belongs to a later step, guide them to proceed step-by-step. Process selected conditions in order. Example: if user selected `agents` + `prompts` and asks about prompts, say "Before we talk about prompts, let's handle agents first since it's earlier in your journey. Press Enter to proceed to agents."
+10. **Define input/output for agents** - Each agent needs to know where its context comes from (input) and what it produces (output). This enables placeholder chaining between agents.
 
 ## Workflow Plan File
 

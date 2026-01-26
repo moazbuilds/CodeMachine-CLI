@@ -10,6 +10,7 @@ description: "Create prompt files and register placeholders"
 Create the actual prompt files for all agents:
 - Create folder structure
 - Generate prompt files for each agent
+- Define input and output for each agent
 - Create shared files
 - Register NEW placeholders in config
 
@@ -260,6 +261,25 @@ Remove previous agent output from list.
 
 **For all agents, after context decided:**
 
+"**What output does '\{agent.name\}' produce?**
+
+Since agents are isolated and can't see each other's work, we need to define what this agent outputs so the next agent can receive it.
+
+*[If agent produces artifacts/plans/code:]*
+I recommend: `.codemachine/artifacts/\{agent.id\}-output.md`
+
+*[If Q&A/interactive agent that only collects info:]*
+This agent collects user input - it may not need a file output if the next agent can access conversation context.
+
+**Output filename** (or 'none' for Q&A agents):"
+
+Wait. Store as `agent.outputFile`.
+
+*[If output file specified, confirm placeholder:]*
+"This will be registered as placeholder `\{agent_id\}_output` for the next agent to receive."
+
+---
+
 "**Should this agent's prompt be split into smaller files?**
 
 Based on '\{agent.name\}', I \{recommend/don't recommend\} splitting because \{reasoning\}.
@@ -306,17 +326,27 @@ Moving to '\{next_agent.name\}'..."
 
 "**Context Summary:**"
 
-| Agent | Input From | Outputs To | Placeholders |
-|-------|------------|------------|--------------|
-| \{agent1\} | - | \{agent2\} | \{list\} |
-| \{agent2\} | \{agent1\} | \{agent3\} | \{list\} |
+| Agent | Input Type | Input Source | Output File | Output Placeholder |
+|-------|------------|--------------|-------------|-------------------|
+| \{agent1\} | \{type\} | \{source or '-'\} | \{file\} | \{placeholder\} |
+| \{agent2\} | placeholder | \{agent1_output\} | \{file\} | \{placeholder\} |
 
 *[Show data flow visually:]*
 
 "**Data Flow:**
 ```
-\{agent1\} → \{agent2\} → \{agent3\}
+\{agent1\} → writes \{output-file\} → registered as \{placeholder\}
+     ↓
+\{agent2\} → receives \{placeholder\} → writes \{output-file\} → registered as \{placeholder\}
+     ↓
+\{agent3\} → receives \{placeholder\} → ...
 ```"
+
+*[If any agent has no input defined (except first agent):]*
+"**Note:** The following agents have no input defined - they won't receive context from previous agents:
+- \{list\}
+
+Is this intentional? (Q&A agents may not need input from previous agents)"
 
 "**Shared files to create:**"
 - \{deduplicated list\}
@@ -1436,7 +1466,10 @@ For each shared:
       <persona path="prompts/templates/\{workflow_name\}/\{agent-id\}/persona.md" created="true" />
       <prompt path="prompts/templates/\{workflow_name\}/\{agent-id\}/\{prompt.md or workflow.md\}" created="true">
         <goal>\{agent goal\}</goal>
-        <output>\{expected output\}</output>
+        <input-type>\{placeholder|codebase-read|user-qa|specification\}</input-type>
+        <input-source>\{placeholder name or description\}</input-source>
+        <output-file>\{output filename or 'none'\}</output-file>
+        <output-placeholder>\{placeholder name for next agent\}</output-placeholder>
         <has-sub-agent-coordination>\{true/false\}</has-sub-agent-coordination>
       </prompt>
       <!-- For each chained step (if multi-step) -->
@@ -1517,6 +1550,11 @@ For each shared:
     <controller>\{Yes/No\}</controller>
     <shared-files>\{count\}</shared-files>
     <total-files>\{count\}</total-files>
+    <agent-chain>
+      <agents-with-input>\{count\}</agents-with-input>
+      <agents-with-output>\{count\}</agents-with-output>
+      <placeholder-chains>\{count\}</placeholder-chains>
+    </agent-chain>
   </summary>
 </step-04>
 ```
