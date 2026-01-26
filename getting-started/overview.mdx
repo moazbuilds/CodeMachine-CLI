@@ -1,3 +1,47 @@
 ---
 title: "CodeMachine Overview"
+description: " Learn how to install CodeMachine and start orchestrating coding agents into repeatable workflows."
 ---
+
+## Get Started in 30 Seconds
+
+Prerequisites:
+
+- One working AI engine CLI configured (Codex, Claude Code, OpenCode, or others). See supported engines →
+
+```bash
+npm install -g codemachine # or bun/pnpm/yarn
+```
+
+### Start using CodeMachine:
+
+```bash
+cd your-project
+codemachine # or cm
+```
+
+### Authenticate Your Engines:
+
+Use `/login `to authenticate one or more AI engines.
+
+<Note>
+  Note: Each workflow specifies which engine(s) it uses. You can override this in the workflow file if needed. Check the workflow's requirements before running.
+</Note>
+
+### Choose A workflow:
+
+Use `/templates` to browse workflows. The default is ali.workflow - a built-in workflow builder to help you create your first workflow. If you have imported templates they will also appear here. Explore the workflows library → 
+
+---
+
+## What CodeMachine Does For You
+
+- **Build Once, Run Forever:** Define complex workflows once and execute them reliably on every project. Stop rebuilding the same patterns manually.
+- **Multi-Agent Orchestration:** Assign different coding agents to different tasks.
+- **Parallel Execution: **Run multiple agents simultaneously on different parts of your workflow for faster results.
+- **Long-Running Workflows:** Execute workflows for hours or days. CodeMachine handles persistence so you don't have to babysit.
+- **Context Engineering: **Centralize prompts, manage dynamic context, and control what each agent sees at each step.
+
+---
+
+## Next Steps
