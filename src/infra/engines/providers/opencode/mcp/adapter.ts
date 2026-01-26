@@ -28,7 +28,7 @@ export const opencodeAdapter: MCPAdapter = {
       const data = await settings.readSettings(settingsPath);
 
       data.mcp = data.mcp || {};
-      data.mcp[settings.ROUTER_ID] = settings.getMCPRouterConfig(workflowDir);
+      data.mcp[settings.ROUTER_ID] = settings.getMCPRouterConfig();
 
       await settings.writeSettings(settingsPath, data);
       debug('[MCP:opencode] Configuration complete (router: %s)', settings.ROUTER_ID);

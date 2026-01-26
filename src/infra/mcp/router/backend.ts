@@ -1,15 +1,17 @@
 /**
  * MCP Backend Connection Manager
  *
- * Manages connections to backend MCP servers via stdio transport.
- * Each backend is spawned as a child process and communicates via MCP protocol.
+ * Manages connections to backend MCP servers.
+ * Supports both:
+ * - In-process backends: Built-in servers that run in the same process
+ * - External backends: User-defined servers spawned as child processes
  */
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { Tool, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { debug } from '../../../shared/logging/logger.js';
-import type { BackendServerConfig } from './config.js';
+import type { BackendServerConfig, InProcessBackendConfig, ToolHandler } from './config.js';
 import type { MCPServerFilterConfig } from '../types.js';
 
 // ============================================================================
@@ -191,10 +193,15 @@ export class MCPBackend {
     debug('[MCP:backend:%s] Calling tool: %s', this.id, name);
 
     try {
-      const result = await this.client.callTool({
-        name,
-        arguments: args,
-      });
+      // Use 10-minute timeout to match agent execution timeout (default: 600000ms)
+      const result = await this.client.callTool(
+        {
+          name,
+          arguments: args,
+        },
+        undefined,
+        { timeout: 600000 }
+      );
 
       return result as CallToolResult;
     } catch (error) {
@@ -205,62 +212,200 @@ export class MCPBackend {
 }
 
 // ============================================================================
+// IN-PROCESS BACKEND CLASS
+// ============================================================================
+
+/**
+ * InProcessBackend handles built-in MCP servers that run in the same process
+ *
+ * Unlike MCPBackend which spawns child processes, InProcessBackend calls
+ * tool handlers directly. This provides better performance and eliminates
+ * the need for external dependencies like bun or path resolution.
+ */
+export class InProcessBackend {
+  private readonly id: string;
+  private readonly tools: Tool[];
+  private readonly toolHandler: ToolHandler;
+
+  constructor(config: InProcessBackendConfig) {
+    this.id = config.id;
+    this.tools = config.tools;
+    this.toolHandler = config.handler;
+    debug('[MCP:in-process:%s] Created with %d tools', this.id, this.tools.length);
+  }
+
+  /**
+   * Get backend identifier
+   */
+  getId(): string {
+    return this.id;
+  }
+
+  /**
+   * Get the list of tools provided by this backend
+   */
+  getTools(): Tool[] {
+    return this.tools;
+  }
+
+  /**
+   * In-process backends are always connected
+   */
+  isConnected(): boolean {
+    return true;
+  }
+
+  /**
+   * Get backend status
+   */
+  getStatus(): MCPBackendStatus {
+    return {
+      connected: true,
+      toolCount: this.tools.length,
+    };
+  }
+
+  /**
+   * Call a tool directly via the handler
+   */
+  async callTool(name: string, args: Record<string, unknown>): Promise<CallToolResult> {
+    debug('[MCP:in-process:%s] Calling tool: %s', this.id, name);
+    return this.toolHandler(name, args);
+  }
+
+  /**
+   * No-op for in-process backends
+   */
+  async disconnect(): Promise<void> {
+    debug('[MCP:in-process:%s] Disconnect called (no-op)', this.id);
+  }
+}
+
+// ============================================================================
+// BACKEND INTERFACE
+// ============================================================================
+
+/**
+ * Common interface for both MCPBackend and InProcessBackend
+ */
+interface Backend {
+  getId(): string;
+  getTools(): Tool[];
+  isConnected(): boolean;
+  getStatus(): MCPBackendStatus;
+  callTool(name: string, args: Record<string, unknown>): Promise<CallToolResult>;
+  disconnect(): Promise<void>;
+}
+
+// ============================================================================
 // BACKEND MANAGER
 // ============================================================================
 
 /**
- * BackendManager manages multiple MCPBackend connections
+ * BackendManager manages multiple backend connections
  *
  * Provides:
- * - Connection lifecycle for all backends
- * - Tool aggregation and routing
+ * - Connection lifecycle for external backends
+ * - Tool aggregation and routing for both in-process and external backends
  * - Backend lookup by tool name
  */
 export class BackendManager {
-  private backends: Map<string, MCPBackend> = new Map();
+  private inProcessBackends: Map<string, InProcessBackend> = new Map();
+  private externalBackends: Map<string, MCPBackend> = new Map();
   private toolRouting: Map<string, string> = new Map(); // tool name → backend id
 
   /**
-   * Add a backend configuration
+   * Add an in-process backend (built-in servers)
+   */
+  addInProcessBackend(config: InProcessBackendConfig): void {
+    const backend = new InProcessBackend(config);
+    this.inProcessBackends.set(config.id, backend);
+    debug('[MCP:manager] Added in-process backend: %s', config.id);
+  }
+
+  /**
+   * Add an external backend configuration (user-defined servers)
    */
   addBackend(id: string, config: BackendServerConfig): void {
     const backend = new MCPBackend(id, config);
-    this.backends.set(id, backend);
-    debug('[MCP:manager] Added backend: %s', id);
+    this.externalBackends.set(id, backend);
+    debug('[MCP:manager] Added external backend: %s', id);
+  }
+
+  /**
+   * Get a backend by ID (either in-process or external)
+   */
+  private getBackend(id: string): Backend | undefined {
+    return this.inProcessBackends.get(id) || this.externalBackends.get(id);
+  }
+
+  /**
+   * Get all backends (both in-process and external)
+   */
+  private getAllBackends(): Map<string, Backend> {
+    const all = new Map<string, Backend>();
+    for (const [id, backend] of this.inProcessBackends) {
+      all.set(id, backend);
+    }
+    for (const [id, backend] of this.externalBackends) {
+      all.set(id, backend);
+    }
+    return all;
   }
 
   /**
    * Connect to all configured backends
    *
-   * Connections are attempted in parallel. Failed connections are logged
-   * but don't prevent other backends from connecting.
+   * In-process backends are always connected.
+   * External backends are connected in parallel.
    */
   async connectAll(): Promise<void> {
-    debug('[MCP:manager] Connecting to %d backends', this.backends.size);
+    const totalBackends = this.inProcessBackends.size + this.externalBackends.size;
+    debug('[MCP:manager] Connecting to %d backends (%d in-process, %d external)',
+      totalBackends, this.inProcessBackends.size, this.externalBackends.size);
 
-    await Promise.allSettled(
-      Array.from(this.backends.values()).map((backend) => backend.connect())
-    );
+    // Connect external backends in parallel
+    if (this.externalBackends.size > 0) {
+      await Promise.allSettled(
+        Array.from(this.externalBackends.values()).map((backend) => backend.connect())
+      );
+    }
 
-    // Build tool routing table from successfully connected backends
+    // Build tool routing table
     this.toolRouting.clear();
 
-    for (const [id, backend] of this.backends) {
+    // Register in-process backend tools first
+    for (const [id, backend] of this.inProcessBackends) {
+      for (const tool of backend.getTools()) {
+        if (this.toolRouting.has(tool.name)) {
+          debug('[MCP:manager] Warning: tool %s already registered, overriding with %s',
+            tool.name, id);
+        }
+        this.toolRouting.set(tool.name, id);
+      }
+    }
+
+    // Register external backend tools (may override in-process)
+    for (const [id, backend] of this.externalBackends) {
       if (backend.isConnected()) {
         for (const tool of backend.getTools()) {
           if (this.toolRouting.has(tool.name)) {
-            debug('[MCP:manager] Warning: tool %s already registered by %s, overriding with %s',
-              tool.name, this.toolRouting.get(tool.name), id);
+            debug('[MCP:manager] Warning: tool %s already registered, overriding with %s',
+              tool.name, id);
           }
           this.toolRouting.set(tool.name, id);
         }
       }
     }
 
-    // Log connection results
-    const connected = Array.from(this.backends.values()).filter((b) => b.isConnected()).length;
-    debug('[MCP:manager] Connected to %d/%d backends, %d tools available',
-      connected, this.backends.size, this.toolRouting.size);
+    // Log results
+    const connectedExternal = Array.from(this.externalBackends.values())
+      .filter((b) => b.isConnected()).length;
+    debug('[MCP:manager] Ready: %d in-process, %d/%d external, %d tools available',
+      this.inProcessBackends.size,
+      connectedExternal,
+      this.externalBackends.size,
+      this.toolRouting.size);
   }
 
   /**
@@ -269,8 +414,9 @@ export class BackendManager {
   async disconnectAll(): Promise<void> {
     debug('[MCP:manager] Disconnecting all backends');
 
+    // Disconnect external backends
     await Promise.allSettled(
-      Array.from(this.backends.values()).map((backend) => backend.disconnect())
+      Array.from(this.externalBackends.values()).map((backend) => backend.disconnect())
     );
 
     this.toolRouting.clear();
@@ -281,11 +427,19 @@ export class BackendManager {
    */
   getAllTools(): Tool[] {
     const tools: Tool[] = [];
-    for (const backend of this.backends.values()) {
+
+    // In-process backends
+    for (const backend of this.inProcessBackends.values()) {
+      tools.push(...backend.getTools());
+    }
+
+    // External backends
+    for (const backend of this.externalBackends.values()) {
       if (backend.isConnected()) {
         tools.push(...backend.getTools());
       }
     }
+
     return tools;
   }
 
@@ -305,7 +459,7 @@ export class BackendManager {
       throw new Error(`Unknown tool: ${name}`);
     }
 
-    const backend = this.backends.get(backendId);
+    const backend = this.getBackend(backendId);
     if (!backend || !backend.isConnected()) {
       throw new Error(`Backend ${backendId} for tool ${name} is not available`);
     }
@@ -318,7 +472,7 @@ export class BackendManager {
    */
   getStatus(): Record<string, MCPBackendStatus> {
     const status: Record<string, MCPBackendStatus> = {};
-    for (const [id, backend] of this.backends) {
+    for (const [id, backend] of this.getAllBackends()) {
       status[id] = backend.getStatus();
     }
     return status;
@@ -346,7 +500,7 @@ export class BackendManager {
     const filteredTools: Tool[] = [];
     const allowedServerIds = new Set(activeServers.map((s) => s.server));
 
-    for (const [backendId, backend] of this.backends) {
+    for (const [backendId, backend] of this.getAllBackends()) {
       // Skip disconnected backends or backends not in allowed list
       if (!backend.isConnected() || !allowedServerIds.has(backendId)) {
         continue;

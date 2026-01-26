@@ -8,7 +8,6 @@
 import { onMount } from "solid-js"
 import { useToast } from "@tui/shared/context/toast"
 import { useDialog } from "@tui/shared/context/dialog"
-import { FadeIn } from "@tui/shared/components/fade-in"
 import { Toast } from "@tui/shared/ui/toast"
 import { WelcomeSection } from "./components/welcome-section"
 import { CommandInput } from "./components/command-input"
@@ -40,12 +39,10 @@ export function HomeView(props: HomeViewProps) {
   const isDialogOpen = () => dialog.current !== null
 
   return (
-    <FadeIn duration={600}>
-      <box flexGrow={1} justifyContent="center" alignItems="center" paddingLeft={2} paddingRight={2} gap={1}>
-        <WelcomeSection />
-        <CommandInput onSubmit={handleCommand} disabled={isDialogOpen()} />
-        <Toast />
-      </box>
-    </FadeIn>
+    <box flexGrow={1} justifyContent="center" alignItems="center" paddingLeft={2} paddingRight={2} gap={1}>
+      <WelcomeSection />
+      <CommandInput onSubmit={handleCommand} disabled={isDialogOpen()} />
+      <Toast />
+    </box>
   )
 }

@@ -92,9 +92,12 @@ export async function writeConfig(configPath: string, config: CursorMCPConfig): 
 
 /**
  * Get MCP router configuration for Cursor format
+ *
+ * The router now runs as `codemachine mcp router` and uses process.cwd()
+ * for the working directory, eliminating the need for path parameters.
  */
-export function getMCPRouterConfig(workingDir: string): MCPServerConfig {
-  const config = getRouterConfig(workingDir);
+export function getMCPRouterConfig(): MCPServerConfig {
+  const config = getRouterConfig();
   return {
     command: config.command,
     args: config.args,
@@ -108,12 +111,12 @@ export { ROUTER_ID };
 /**
  * Add MCP router to config
  */
-export function addMCPServers(config: CursorMCPConfig, workflowDir: string): CursorMCPConfig {
+export function addMCPServers(config: CursorMCPConfig): CursorMCPConfig {
   return {
     ...config,
     mcpServers: {
       ...config.mcpServers,
-      [ROUTER_ID]: getMCPRouterConfig(workflowDir),
+      [ROUTER_ID]: getMCPRouterConfig(),
     },
   };
 }

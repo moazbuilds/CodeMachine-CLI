@@ -44,10 +44,7 @@ export {
   getAllInstalledImports,
   isImportRegistered,
   getImportRoots,
-  getImportRootsWithMetadata,
-  buildImportPathToNameMap,
 } from './registry.js';
-export type { ImportRootWithMetadata } from './registry.js';
 
 // Source resolution
 export {
@@ -58,11 +55,9 @@ export {
 // Import-aware path resolution
 export {
   resolvePromptPath,
-  resolvePromptPathWithContext,
   resolvePromptFolder,
   resolveWorkflowTemplate,
   resolvePathWithImports,
   getAllWorkflowDirectories,
   getAllPromptDirectories,
 } from './resolve.js';
-export type { ResolvedPromptPath } from './resolve.js';

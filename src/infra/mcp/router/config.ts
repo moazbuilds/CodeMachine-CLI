@@ -1,21 +1,20 @@
 /**
  * MCP Router Configuration
  *
- * Path resolution and backend server configuration loading.
- * Follows the same pattern as workflow-signals/config.ts for consistency.
+ * Configuration for the MCP router and backend servers.
+ * The router now runs as part of the codemachine binary.
  */
 
 import * as path from 'path';
 import * as fs from 'fs/promises';
-import { fileURLToPath } from 'url';
 import { homedir } from 'os';
+import type { Tool, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { debug } from '../../../shared/logging/logger.js';
-import { MCPPathError } from '../errors.js';
 import type { MCPServerConfig } from '../types.js';
-import { getServerPath as getWorkflowSignalsPath } from '../servers/workflow-signals/config.js';
-import { getServerPath as getAgentCoordinationPath } from '../servers/agent-coordination/config.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { workflowSignalTools } from '../servers/workflow-signals/tools.js';
+import { handleWorkflowSignalsTool } from '../servers/workflow-signals/handler.js';
+import { agentCoordinationTools } from '../servers/agent-coordination/tools.js';
+import { handleAgentCoordinationTool } from '../servers/agent-coordination/handler.js';
 
 // ============================================================================
 // SERVER METADATA
@@ -25,9 +24,12 @@ export const ROUTER_ID = 'codemachine';
 export const ROUTER_NAME = 'CodeMachine MCP Router';
 
 // ============================================================================
-// BACKEND SERVER CONFIG TYPE
+// BACKEND SERVER CONFIG TYPES
 // ============================================================================
 
+/**
+ * Configuration for external MCP backend servers (spawned as child processes)
+ */
 export interface BackendServerConfig {
   id: string;
   command: string;
@@ -35,51 +37,46 @@ export interface BackendServerConfig {
   env?: Record<string, string>;
 }
 
-// ============================================================================
-// PATH RESOLUTION
-// ============================================================================
+/**
+ * Tool handler function type for in-process backends
+ */
+export type ToolHandler = (
+  name: string,
+  args: Record<string, unknown>
+) => Promise<CallToolResult>;
 
 /**
- * Get the path to the MCP router entry point
- *
- * When running from a compiled binary, __dirname resolves to Bun's virtual
- * filesystem (/$bunfs/...) which doesn't exist on disk. In that case, we
- * must use CODEMACHINE_PACKAGE_ROOT to get the real filesystem path.
+ * Configuration for in-process backend servers (no child process)
  */
-export function getRouterPath(): string {
-  const isCompiledBinary = __dirname.startsWith('/$bunfs');
-
-  debug('[MCP:router] Resolving router path (compiled: %s)', isCompiledBinary);
-
-  if (isCompiledBinary) {
-    const packageRoot = process.env.CODEMACHINE_PACKAGE_ROOT;
-    if (!packageRoot) {
-      throw new MCPPathError(
-        'CODEMACHINE_PACKAGE_ROOT must be set when running from compiled binary'
-      );
-    }
-    const routerPath = path.join(packageRoot, 'src', 'infra', 'mcp', 'router', 'index.ts');
-    debug('[MCP:router] Using compiled binary path: %s', routerPath);
-    return routerPath;
-  }
-
-  // Dev mode or bun link - use __dirname which points to real filesystem
-  const routerPath = path.resolve(__dirname, 'index.ts');
-  debug('[MCP:router] Using dev mode path: %s', routerPath);
-  return routerPath;
+export interface InProcessBackendConfig {
+  id: string;
+  tools: Tool[];
+  handler: ToolHandler;
 }
 
+// ============================================================================
+// ROUTER CONFIG
+// ============================================================================
+
 /**
- * Get the MCP config for the router (used by Claude adapter)
+ * Get the MCP config for the router (used by engine adapters)
+ *
+ * The router now runs as `codemachine mcp router` instead of spawning
+ * a separate bun process. This eliminates path resolution issues and
+ * external dependencies.
  */
-export function getRouterConfig(workingDir: string): MCPServerConfig {
-  return {
-    command: 'bun',
-    args: ['run', getRouterPath()],
-    env: {
-      CODEMACHINE_WORKING_DIR: workingDir,
-    },
+export function getRouterConfig(): MCPServerConfig {
+  const config: MCPServerConfig = {
+    command: 'codemachine',
+    args: ['mcp', 'router'],
   };
+
+  // Only add LOG_LEVEL if debugging is enabled
+  if (process.env.LOG_LEVEL === 'debug') {
+    config.env = { LOG_LEVEL: 'debug' };
+  }
+
+  return config;
 }
 
 // ============================================================================
@@ -90,24 +87,19 @@ export function getRouterConfig(workingDir: string): MCPServerConfig {
  * Load built-in backend server configurations
  *
  * These are the MCP servers that ship with codemachine.
+ * They run in-process (no child processes needed).
  */
-function loadBuiltinBackends(workingDir: string): BackendServerConfig[] {
+export function loadBuiltinBackends(): InProcessBackendConfig[] {
   return [
     {
       id: 'workflow-signals',
-      command: 'bun',
-      args: ['run', getWorkflowSignalsPath()],
-      env: {
-        WORKFLOW_DIR: workingDir,
-      },
+      tools: workflowSignalTools,
+      handler: handleWorkflowSignalsTool,
     },
     {
       id: 'agent-coordination',
-      command: 'bun',
-      args: ['run', getAgentCoordinationPath()],
-      env: {
-        CODEMACHINE_WORKING_DIR: workingDir,
-      },
+      tools: agentCoordinationTools,
+      handler: handleAgentCoordinationTool,
     },
   ];
 }
@@ -169,30 +161,38 @@ async function loadUserBackends(workingDir: string): Promise<BackendServerConfig
 }
 
 /**
+ * Result of loading backend configurations
+ */
+export interface LoadedBackendConfigs {
+  /** In-process backends (built-in servers) */
+  inProcess: InProcessBackendConfig[];
+  /** External backends (user-defined servers spawned as child processes) */
+  external: Map<string, BackendServerConfig>;
+}
+
+/**
  * Load all backend server configurations
  *
- * Returns combined list of:
- * 1. Built-in servers (workflow-signals, agent-coordination)
- * 2. User config from ~/.config/codemachine/mcp-servers.json
- * 3. Project config from .codemachine/mcp-servers.json
+ * Returns:
+ * 1. Built-in servers as in-process configs (workflow-signals, agent-coordination)
+ * 2. User-defined servers as external configs from config files
  *
- * Project configs override user configs which override built-in configs for same ID.
+ * Built-in servers run in-process for better performance.
+ * User-defined servers are spawned as child processes.
  */
-export async function loadBackendConfigs(workingDir: string): Promise<Map<string, BackendServerConfig>> {
-  const configs = new Map<string, BackendServerConfig>();
+export async function loadBackendConfigs(workingDir: string): Promise<LoadedBackendConfigs> {
+  // Load built-in backends (run in-process)
+  const inProcess = loadBuiltinBackends();
 
-  // Load built-in backends first
-  const builtins = loadBuiltinBackends(workingDir);
-  for (const backend of builtins) {
-    configs.set(backend.id, backend);
-  }
-
-  // Load user backends (may override built-ins)
+  // Load user backends (run as child processes)
   const userBackends = await loadUserBackends(workingDir);
+  const external = new Map<string, BackendServerConfig>();
   for (const backend of userBackends) {
-    configs.set(backend.id, backend);
+    external.set(backend.id, backend);
   }
 
-  debug('[MCP:router] Loaded %d backend configs', configs.size);
-  return configs;
+  debug('[MCP:router] Loaded %d in-process backends, %d external backends',
+    inProcess.length, external.size);
+
+  return { inProcess, external };
 }

@@ -43,7 +43,13 @@ function getSessionPath(sessionId: string, codexHome: string): string | null {
 }
 
 /**
- * Read telemetry from Codex session file (last token_count event with total_token_usage)
+ * Read telemetry from Codex session file (last token_count event)
+ *
+ * Context window calculation uses Codex's formula:
+ *   effective_window = model_context_window - 12000
+ *   used = max(last_token_usage.total_tokens - 12000, 0)
+ *
+ * The 12,000 token baseline represents system prompts and tool overhead.
  */
 function readSessionTelemetry(sessionPath: string): ParsedTelemetry | null {
   if (!existsSync(sessionPath)) {
@@ -62,18 +68,26 @@ function readSessionTelemetry(sessionPath: string): ParsedTelemetry | null {
         if (
           entry.type === 'event_msg' &&
           entry.payload?.type === 'token_count' &&
-          entry.payload?.info?.total_token_usage
+          entry.payload?.info?.last_token_usage
         ) {
-          const usage = entry.payload.info.total_token_usage;
+          const info = entry.payload.info;
+          const lastUsage = info.last_token_usage;
+          const totalUsage = info.total_token_usage;
 
-          debug('[SESSION-READER] total_token_usage: input=%d, output=%d, cached=%d',
-            usage.input_tokens, usage.output_tokens, usage.cached_input_tokens);
+          // Apply Codex's context window formula:
+          // used = max(last_token_usage.total_tokens - 12000, 0)
+          const BASELINE_TOKENS = 12000;
+          const contextUsed = Math.max((lastUsage.total_tokens || 0) - BASELINE_TOKENS, 0);
 
-          // Pass through raw values from total_token_usage
+          debug('[SESSION-READER] last_token_usage.total_tokens=%d, contextUsed=%d (after -12k baseline)',
+            lastUsage.total_tokens, contextUsed);
+          debug('[SESSION-READER] total_token_usage: output=%d, cached=%d',
+            totalUsage?.output_tokens, totalUsage?.cached_input_tokens);
+
           return {
-            tokensIn: usage.input_tokens || 0,
-            tokensOut: usage.output_tokens || 0,
-            cached: usage.cached_input_tokens || 0,
+            tokensIn: contextUsed,
+            tokensOut: totalUsage?.output_tokens || 0,
+            cached: totalUsage?.cached_input_tokens || 0,
           };
         }
       } catch { /* skip malformed */ }

@@ -164,29 +164,6 @@ export interface ExecuteAgentOptions {
 }
 
 /**
- * Ensures the engine is authenticated
- */
-async function ensureEngineAuth(engineType: EngineType): Promise<void> {
-  const { registry } = await import('../../infra/engines/index.js');
-  const engine = registry.get(engineType);
-
-  if (!engine) {
-    const availableEngines = registry.getAllIds().join(', ');
-    throw new Error(
-      `Unknown engine type: ${engineType}. Available engines: ${availableEngines}`
-    );
-  }
-
-  const isAuthed = await engine.auth.isAuthenticated();
-  if (!isAuthed) {
-    console.error(`\n${engine.metadata.name} authentication required`);
-    console.error(`\nRun the following command to authenticate:\n`);
-    console.error(`  codemachine auth login\n`);
-    throw new Error(`${engine.metadata.name} authentication required`);
-  }
-}
-
-/**
  * Executes a sub-agent or CLI agent with a pre-built prompt
  *
  * This is a low-level execution function that:
@@ -286,8 +263,50 @@ export async function executeAgent(
     info(`No engine specified for agent '${agentId}', using ${foundEngine.metadata.name} (${engineType})`);
   }
 
-  // Ensure authentication
-  await ensureEngineAuth(engineType);
+  // Ensure authentication with fallback to other engines
+  let didFallback = false;
+  const selectedEngine = registry.get(engineType);
+  const isAuthed = selectedEngine
+    ? await authCache.isAuthenticated(selectedEngine.metadata.id, () => selectedEngine.auth.isAuthenticated())
+    : false;
+
+  if (!isAuthed) {
+    // Try to find a fallback engine
+    const engines = registry.getAll();
+    let fallbackEngine = null;
+
+    for (const eng of engines) {
+      if (eng.metadata.id !== engineType) {
+        const isEngAuth = await authCache.isAuthenticated(
+          eng.metadata.id,
+          () => eng.auth.isAuthenticated()
+        );
+        if (isEngAuth) {
+          fallbackEngine = eng;
+          break;
+        }
+      }
+    }
+
+    // If none authenticated, fall back to registry default (may still work - e.g., opencode only needs CLI installed)
+    if (!fallbackEngine) {
+      fallbackEngine = registry.getDefault() ?? null;
+    }
+
+    if (fallbackEngine) {
+      const originalName = selectedEngine?.metadata.name ?? engineType;
+      info(`${originalName} not authenticated for agent '${agentId}', falling back to ${fallbackEngine.metadata.name}`);
+      engineType = fallbackEngine.metadata.id;
+      didFallback = true;
+    } else {
+      // No fallback available - throw with helpful message
+      const engineName = selectedEngine?.metadata.name ?? engineType;
+      console.error(`\n${engineName} authentication required`);
+      console.error(`\nRun the following command to authenticate:\n`);
+      console.error(`  codemachine auth login\n`);
+      throw new Error(`${engineName} authentication required and no fallback engine available`);
+    }
+  }
 
   // Ensure MCP config exists (lazy init - fast check, write only if missing)
   const { ensureMCPConfig } = await import('../../infra/mcp/writer.js');
@@ -312,7 +331,8 @@ export async function executeAgent(
   }
 
   // Model resolution: CLI override > agent config (legacy) > engine default
-  const model = modelOverride ?? (agentConfig.model as string | undefined) ?? engineModule.metadata.defaultModel;
+  // When falling back to a different engine, ignore agent's model config (it's for the original engine)
+  const model = modelOverride ?? (didFallback ? undefined : (agentConfig.model as string | undefined)) ?? engineModule.metadata.defaultModel;
   const modelReasoningEffort = (agentConfig.modelReasoningEffort as 'low' | 'medium' | 'high' | undefined) ?? engineModule.metadata.defaultModelReasoningEffort;
 
   // Initialize monitoring with engine/model info (unless explicitly disabled)

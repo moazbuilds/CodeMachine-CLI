@@ -100,9 +100,12 @@ export async function writeSettings(
  *
  * Uses getRouterConfig() as single source of truth, converts to OpenCode format.
  * OpenCode uses: { type, command[], environment, enabled }
+ *
+ * The router now runs as `codemachine mcp router` and uses process.cwd()
+ * for the working directory, eliminating the need for path parameters.
  */
-export function getMCPRouterConfig(workingDir: string): OpenCodeMCPServer {
-  const config = getRouterConfig(workingDir);
+export function getMCPRouterConfig(): OpenCodeMCPServer {
+  const config = getRouterConfig();
   return {
     type: 'local',
     command: [config.command, ...config.args],

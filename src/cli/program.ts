@@ -8,6 +8,7 @@ import {
   registerAgentsCommand,
   registerImportCommand,
   registerExportCommand,
+  registerMCPCommand,
 } from './commands/index.js';
 import { resolvePackageJson } from '../shared/runtime/root.js';
 
@@ -22,13 +23,7 @@ export async function registerCli(program: Command): Promise<void> {
       console.log(`CodeMachine v${pkg.version}`);
     });
 
-  program
-    .command('mcp')
-    .description('Model Context Protocol integration stubs')
-    .action(() => {
-      console.log('Model Context Protocol support coming soon');
-    });
-
+  registerMCPCommand(program);
   registerTemplatesCommand(program);
   registerAuthCommands(program);
   registerAgentsCommand(program);

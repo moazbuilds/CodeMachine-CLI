@@ -31,44 +31,14 @@ function getPackageRoot(): string | null {
 /**
  * Merges two agent characters configs
  * Imported config extends/overrides the base config
- * @param packageName - If provided, namespace agent IDs with this package name
  */
 function mergeCharactersConfigs(
   base: AgentCharactersConfig,
-  imported: Partial<AgentCharactersConfig>,
-  packageName?: string
+  imported: AgentCharactersConfig
 ): AgentCharactersConfig {
-  // Namespace agent IDs if from an imported package
-  const namespacedAgents: Record<string, string> = {}
-  if (imported.agents) {
-    for (const [agentId, personaName] of Object.entries(imported.agents)) {
-      const namespacedId = packageName ? `${packageName}:${agentId}` : agentId
-      namespacedAgents[namespacedId] = personaName
-    }
-  }
-
-  // Namespace persona names if from an imported package
-  const namespacedPersonas: Record<string, Persona> = {}
-  if (imported.personas) {
-    for (const [personaName, persona] of Object.entries(imported.personas)) {
-      const namespacedName = packageName ? `${packageName}:${personaName}` : personaName
-      namespacedPersonas[namespacedName] = persona
-    }
-  }
-
-  // Update agent mappings to use namespaced persona names
-  const finalAgents: Record<string, string> = { ...base.agents }
-  for (const [agentId, personaName] of Object.entries(namespacedAgents)) {
-    // If persona was namespaced AND the persona exists in imported, update the mapping
-    // Otherwise keep the original persona name (allows referencing base personas)
-    const namespacedPersonaName = packageName ? `${packageName}:${personaName}` : personaName
-    const finalPersonaName = imported.personas?.[personaName] ? namespacedPersonaName : personaName
-    finalAgents[agentId] = finalPersonaName
-  }
-
   return {
-    personas: { ...base.personas, ...namespacedPersonas },
-    agents: finalAgents,
+    personas: { ...base.personas, ...imported.personas },
+    agents: { ...base.agents, ...imported.agents },
     defaultPersona: base.defaultPersona, // Keep base default
   }
 }
@@ -120,7 +90,7 @@ export function loadAgentCharactersConfig(): AgentCharactersConfig {
     }
   }
 
-  // Merge characters from all installed imports with namespacing
+  // Merge characters from all installed imports
   try {
     const imports = getAllInstalledImports()
     debug('[Characters] Found %d imports to merge', imports.length)
@@ -139,8 +109,7 @@ export function loadAgentCharactersConfig(): AgentCharactersConfig {
             imp.name,
             importedConfig.personas ? Object.keys(importedConfig.personas).length : 0,
             importedConfig.agents ? Object.keys(importedConfig.agents).length : 0)
-          // Namespace agent IDs and persona names with the import package name
-          config = mergeCharactersConfigs(config, importedConfig, imp.name)
+          config = mergeCharactersConfigs(config, importedConfig)
         } else {
           debug('[Characters] Import %s: failed to load config from %s', imp.name, charactersPath)
         }
@@ -189,7 +158,6 @@ function getDefaultConfig(): AgentCharactersConfig {
 /**
  * Resolve agent ID to find matching character config
  * Handles workflow agent IDs with step suffixes (e.g., "bmad-analyst-step-0")
- * and finds namespaced agents (e.g., "bmad:bmad-analyst")
  */
 function resolveAgentId(agentId: string, agents: Record<string, string>): string | null {
   debug('[Characters] resolveAgentId: input=%s (%d agents available)', agentId, Object.keys(agents).length)
@@ -209,15 +177,6 @@ function resolveAgentId(agentId: string, agents: Record<string, string>): string
     return baseId
   }
 
-  // 3. Look for namespaced version (e.g., "bmad:bmad-analyst" for "bmad-analyst")
-  for (const key of Object.keys(agents)) {
-    // Check if key ends with ":baseId" (namespaced match)
-    if (key.endsWith(`:${baseId}`)) {
-      debug('[Characters] resolveAgentId: namespaced match found %s for baseId %s', key, baseId)
-      return key
-    }
-  }
-
   debug('[Characters] resolveAgentId: no match found for %s, will use default', agentId)
   return null
 }
@@ -225,7 +184,7 @@ function resolveAgentId(agentId: string, agents: Record<string, string>): string
 /**
  * Gets the persona configuration for a specific agent
  * Looks up agent -> persona mapping, falls back to defaultPersona
- * Handles workflow agent IDs with step suffixes and namespaced imports
+ * Handles workflow agent IDs with step suffixes
  */
 export function getCharacter(agentId: string): Persona {
   const config = loadAgentCharactersConfig()

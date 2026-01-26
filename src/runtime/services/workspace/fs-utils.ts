@@ -62,9 +62,7 @@ export async function mirrorAgentsToJson(
   const normalizedAgents = await Promise.all(
     agents.map(async (agent) => {
       const rawId = agent.id ?? agent.name ?? 'agent';
-      // Extract just the local name if namespaced (e.g., 'pkg:name' -> 'name')
-      const localName = String(rawId).includes(':') ? String(rawId).split(':').pop() ?? rawId : rawId;
-      const slugBase = slugify(localName) || 'agent';
+      const slugBase = slugify(String(rawId)) || 'agent';
       const filename = `${slugBase}.md`;
       const promptFile = path.join(agentsDir, filename);
 

@@ -11,6 +11,9 @@ export interface CoordinatorOptions {
 
   /** Optional logger for agent output */
   logger?: (agentName: string, chunk: string) => void;
+
+  /** Suppress all console output (for MCP/headless execution) */
+  silent?: boolean;
 }
 
 /**
@@ -40,8 +43,11 @@ export class CoordinatorService {
    * Execute a coordination script
    */
   async execute(script: string, options: CoordinatorOptions): Promise<CoordinationResult> {
-    console.log(chalk.bold('\n🎭 Starting coordination...\n'));
-    console.log(chalk.dim(`Script: ${script}\n`));
+    const log = options.silent ? () => {} : console.log.bind(console);
+    const logError = options.silent ? () => {} : console.error.bind(console);
+
+    log(chalk.bold('\n🎭 Starting coordination...\n'));
+    log(chalk.dim(`Script: ${script}\n`));
 
     // Parse the script
     let plan;
@@ -50,7 +56,7 @@ export class CoordinatorService {
       logger.debug(`Parsed coordination plan with ${plan.groups.length} groups`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(chalk.red(`\n✗ Failed to parse coordination script: ${message}\n`));
+      logError(chalk.red(`\n✗ Failed to parse coordination script: ${message}\n`));
       throw error;
     }
 
@@ -84,16 +90,17 @@ export class CoordinatorService {
     // Don't register coordination session - it's just a coordinator
     // Spawned agents will be registered directly under the parent workflow agent
     if (contextParentId !== undefined) {
-      console.log(chalk.dim(`Coordination under parent agent ID: ${contextParentId}\n`));
+      log(chalk.dim(`Coordination under parent agent ID: ${contextParentId}\n`));
     } else {
-      console.log(chalk.dim(`Coordination running as standalone session\n`));
+      log(chalk.dim(`Coordination running as standalone session\n`));
     }
 
     // Create executor - pass parent ID directly (no coordination session wrapper)
     const executor = new CoordinationExecutor({
       workingDir: options.workingDir,
       parentId: contextParentId, // Agents register directly under workflow agent
-      logger: options.logger
+      logger: options.logger,
+      silent: options.silent,
     });
 
     // Execute the plan
@@ -104,13 +111,15 @@ export class CoordinatorService {
       // No monitoring needed - child agents track themselves
       // Coordination success = all children succeeded
 
-      // Print summary
-      this.printSummary(result);
+      // Print summary (unless silent)
+      if (!options.silent) {
+        this.printSummary(result);
+      }
 
       return result;
     } catch (error) {
       // Error is already tracked by the failing child agent
-      console.error(chalk.red(`\n✗ Coordination failed: ${error}\n`));
+      logError(chalk.red(`\n✗ Coordination failed: ${error}\n`));
       throw error;
     }
   }

@@ -27,7 +27,7 @@ export const cursorAdapter: MCPAdapter = {
       const configPath = settings.getSettingsPath(scope, workflowDir);
       const existingConfig = await settings.readConfig(configPath);
 
-      const updatedConfig = settings.addMCPServers(existingConfig, workflowDir);
+      const updatedConfig = settings.addMCPServers(existingConfig);
 
       await settings.writeConfig(configPath, updatedConfig);
       debug('[MCP:cursor] Configuration complete (router: %s)', settings.ROUTER_ID);

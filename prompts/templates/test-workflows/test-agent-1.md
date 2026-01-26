@@ -1,1 +1,0 @@
-Calculate 2+2= ? then say your hi

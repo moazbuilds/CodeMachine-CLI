@@ -5,3 +5,4 @@ export { registerStepCommand } from './step.command.js';
 export { registerAgentsCommand } from './agents/register.js';
 export { registerImportCommand } from './import.command.js';
 export { registerExportCommand } from './export.command.js';
+export { registerMCPCommand } from './mcp.command.js';

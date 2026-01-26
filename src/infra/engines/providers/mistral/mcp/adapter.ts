@@ -28,7 +28,7 @@ export const mistralAdapter: MCPAdapter = {
       const existingContent = await settings.readConfig(configPath);
 
       const cleanedContent = settings.removeAllMCPSections(existingContent);
-      const newSections = settings.generateAllMCPSections(workflowDir);
+      const newSections = settings.generateAllMCPSections();
       const finalContent = cleanedContent
         ? cleanedContent + '\n\n' + newSections
         : newSections;

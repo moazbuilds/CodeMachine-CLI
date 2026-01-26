@@ -18,6 +18,9 @@ export interface CoordinationExecutorOptions {
 
   /** Optional logger for agent output */
   logger?: (agentName: string, chunk: string) => void;
+
+  /** Suppress all console output (for MCP/headless execution) */
+  silent?: boolean;
 }
 
 /**
@@ -26,9 +29,12 @@ export interface CoordinationExecutorOptions {
  */
 export class CoordinationExecutor {
   private options: CoordinationExecutorOptions;
+  private log: typeof console.log;
 
   constructor(options: CoordinationExecutorOptions) {
     this.options = options;
+    // Suppress console output in silent mode (MCP context)
+    this.log = options.silent ? () => {} : console.log.bind(console);
   }
 
   /**
@@ -74,7 +80,7 @@ export class CoordinationExecutor {
    * Execute commands in parallel
    */
   private async executeParallel(commands: AgentCommand[]): Promise<AgentExecutionResult[]> {
-    console.log(chalk.dim(`\n→ Executing ${commands.length} agents in parallel...\n`));
+    this.log(chalk.dim(`\n→ Executing ${commands.length} agents in parallel...\n`));
 
     const promises = commands.map(cmd => this.executeCommand(cmd));
     return Promise.all(promises);
@@ -87,7 +93,7 @@ export class CoordinationExecutor {
     const results: AgentExecutionResult[] = [];
 
     for (let i = 0; i < commands.length; i++) {
-      console.log(chalk.dim(`\n→ Executing agent ${i + 1}/${commands.length}...\n`));
+      this.log(chalk.dim(`\n→ Executing agent ${i + 1}/${commands.length}...\n`));
 
       const result = await this.executeCommand(commands[i]);
       results.push(result);
@@ -106,11 +112,11 @@ export class CoordinationExecutor {
    * Execute a single command
    */
   private async executeCommand(command: AgentCommand): Promise<AgentExecutionResult> {
-    console.log(chalk.bold.cyan(`\n┌─ Agent: ${command.name}`));
+    this.log(chalk.bold.cyan(`\n┌─ Agent: ${command.name}`));
     if (command.input && command.input.length > 0) {
-      console.log(chalk.dim(`│  Input: ${command.input.join(', ')}`));
+      this.log(chalk.dim(`│  Input: ${command.input.join(', ')}`));
     }
-    console.log(chalk.dim('└' + '─'.repeat(60) + '\n'));
+    this.log(chalk.dim('└' + '─'.repeat(60) + '\n'));
 
     try {
       // Load input files if specified
@@ -163,18 +169,18 @@ export class CoordinationExecutor {
         }
       }
 
-      console.log(chalk.green(`\n✓ Agent ${command.name} completed successfully`));
+      this.log(chalk.green(`\n✓ Agent ${command.name} completed successfully`));
       if (tailApplied) {
-        console.log(chalk.dim(`  (Output limited to last ${tailApplied} lines)`));
+        this.log(chalk.dim(`  (Output limited to last ${tailApplied} lines)`));
       }
 
       // Print the tail-limited output if it was suppressed during execution
       if (suppressOutput && finalOutput) {
-        console.log('\n' + chalk.bold('═'.repeat(60)));
-        console.log(chalk.bold(`Agent Output: ${command.name} ID:${monitoringAgentId}`));
-        console.log(chalk.bold('═'.repeat(60)) + '\n');
-        console.log(finalOutput);
-        console.log('\n' + chalk.dim('─'.repeat(60)) + '\n');
+        this.log('\n' + chalk.bold('═'.repeat(60)));
+        this.log(chalk.bold(`Agent Output: ${command.name} ID:${monitoringAgentId}`));
+        this.log(chalk.bold('═'.repeat(60)) + '\n');
+        this.log(finalOutput);
+        this.log('\n' + chalk.dim('─'.repeat(60)) + '\n');
       }
 
       return {
@@ -188,7 +194,7 @@ export class CoordinationExecutor {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.log(chalk.red(`\n✗ Agent ${command.name} failed: ${errorMessage}`));
+      this.log(chalk.red(`\n✗ Agent ${command.name} failed: ${errorMessage}`));
 
       // Try to get the agent ID even on failure (for better error reporting)
       const monitor = AgentMonitorService.getInstance();

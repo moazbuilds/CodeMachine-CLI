@@ -12,8 +12,6 @@ export type WorkspaceStructureOptions = {
 export type MirrorSubAgentsOptions = {
   cwd: string;
   subAgentIds: string[];
-  /** Package name of the source workflow (for imported templates) */
-  sourcePackage?: string;
 };
 
 function resolveDesiredCwd(explicitCwd?: string): string {
@@ -60,9 +58,9 @@ export async function ensureWorkspaceStructure(options?: WorkspaceStructureOptio
  * Should only be called when the template has subAgentIds defined.
  */
 export async function mirrorSubAgents(options: MirrorSubAgentsOptions): Promise<void> {
-  const { cwd, subAgentIds, sourcePackage } = options;
+  const { cwd, subAgentIds } = options;
 
-  appDebug('[mirrorSubAgents] Called with cwd=%s, subAgentIds=%O, sourcePackage=%s', cwd, subAgentIds, sourcePackage);
+  appDebug('[mirrorSubAgents] Called with cwd=%s, subAgentIds=%O', cwd, subAgentIds);
 
   if (!subAgentIds || subAgentIds.length === 0) {
     appDebug('[mirrorSubAgents] No subAgentIds to mirror, skipping');
@@ -91,8 +89,8 @@ export async function mirrorSubAgents(options: MirrorSubAgentsOptions): Promise<
   await ensureDir(agentsDir);
 
   // Load and mirror only the specified sub-agents
-  appDebug('[mirrorSubAgents] Calling loadAgents with filterIds=%O, sourcePackage=%s', subAgentIds, sourcePackage);
-  const { subAgents } = await loadAgents(agentRoots, subAgentIds, sourcePackage);
+  appDebug('[mirrorSubAgents] Calling loadAgents with filterIds=%O', subAgentIds);
+  const { subAgents } = await loadAgents(agentRoots, subAgentIds);
   appDebug('[mirrorSubAgents] loadAgents returned %d sub-agents: %O', subAgents.length, subAgents.map(a => a.id ?? a.name));
 
   debugLog('Mirroring agents', { agentRoots, agentCount: subAgents.length, subAgentIds });

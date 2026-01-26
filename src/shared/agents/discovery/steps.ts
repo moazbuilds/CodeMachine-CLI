@@ -13,14 +13,6 @@ export type WorkflowAgentDefinition = {
   modelReasoningEffort?: 'low' | 'medium' | 'high';
 };
 
-/**
- * Workflow file with source metadata for namespacing
- */
-interface WorkflowFileWithSource {
-  filePath: string;
-  packageName: string | null;
-}
-
 function discoverWorkflowFiles(root: string): string[] {
   const baseDir = path.resolve(root, 'templates', 'workflows');
   if (!existsSync(baseDir)) {
@@ -34,13 +26,9 @@ function discoverWorkflowFiles(root: string): string[] {
 
 /**
  * Discover workflow files from all workflow directories including imports
- * Returns files with their source package name for namespacing
  */
-function discoverAllWorkflowFilesWithSource(
-  localRoot: string,
-  importPathToPackage: Map<string, string>
-): WorkflowFileWithSource[] {
-  const allFiles: WorkflowFileWithSource[] = [];
+function discoverAllWorkflowFiles(localRoot: string): string[] {
+  const allFiles: string[] = [];
   const seenDirs = new Set<string>();
 
   // Get all workflow directories (imports + local)
@@ -50,76 +38,44 @@ function discoverAllWorkflowFilesWithSource(
     if (seenDirs.has(dir) || !existsSync(dir)) continue;
     seenDirs.add(dir);
 
-    // Determine package name by checking if this dir is under an import root
-    let packageName: string | null = null;
-    for (const [importPath, pkgName] of importPathToPackage) {
-      if (dir.startsWith(importPath)) {
-        packageName = pkgName;
-        break;
-      }
-    }
-
     const files = readdirSync(dir)
       .filter((file) => file.endsWith('.workflow.js'))
-      .map((file) => ({
-        filePath: path.resolve(dir, file),
-        packageName,
-      }));
+      .map((file) => path.resolve(dir, file));
     allFiles.push(...files);
   }
 
   return allFiles;
 }
 
-/**
- * Collect agent definitions from workflow templates
- * @param roots - Root directories to search for workflows
- * @param importPathToPackage - Map from import path to package name for namespacing (optional)
- */
-export async function collectAgentsFromWorkflows(
-  roots: string[],
-  importPathToPackage?: Map<string, string>
-): Promise<WorkflowAgentDefinition[]> {
+export async function collectAgentsFromWorkflows(roots: string[]): Promise<WorkflowAgentDefinition[]> {
   appDebug('[collectAgentsFromWorkflows] Called with roots=%O', roots);
 
   const seenFiles = new Set<string>();
   const byId = new Map<string, WorkflowAgentDefinition>();
-  const pathToPackage = importPathToPackage ?? new Map<string, string>();
 
-  appDebug('[collectAgentsFromWorkflows] pathToPackage size=%d', pathToPackage.size);
-
-  // Collect workflow files from all roots with source tracking
-  const allWorkflowFiles: WorkflowFileWithSource[] = [];
+  // Collect workflow files from all roots
+  const allWorkflowFiles: string[] = [];
 
   for (const root of roots) {
     if (!root) continue;
     const resolvedRoot = path.resolve(root);
 
-    // Determine package name for this root
-    const packageName = pathToPackage.get(resolvedRoot) ?? null;
-    appDebug('[collectAgentsFromWorkflows] Scanning root=%s, packageName=%s', resolvedRoot, packageName);
-
-    // Use traditional discovery for this root
-    const discoveredFiles = discoverWorkflowFiles(resolvedRoot);
-    appDebug('[collectAgentsFromWorkflows] Discovered %d workflow files from %s', discoveredFiles.length, resolvedRoot);
-
-    for (const filePath of discoveredFiles) {
-      allWorkflowFiles.push({ filePath, packageName });
+    // Use both traditional discovery and import-aware discovery
+    for (const filePath of discoverWorkflowFiles(resolvedRoot)) {
+      allWorkflowFiles.push(filePath);
     }
   }
 
-  // Also discover from all import directories with source tracking
+  // Also discover from all import directories (handles case where imports aren't in roots)
   if (roots.length > 0) {
-    appDebug('[collectAgentsFromWorkflows] Discovering from import directories...');
-    const importFiles = discoverAllWorkflowFilesWithSource(roots[0], pathToPackage);
-    appDebug('[collectAgentsFromWorkflows] Found %d import workflow files', importFiles.length);
+    const importFiles = discoverAllWorkflowFiles(roots[0]);
     allWorkflowFiles.push(...importFiles);
   }
 
   appDebug('[collectAgentsFromWorkflows] Total workflow files to process: %d', allWorkflowFiles.length);
 
   // Process all discovered workflow files
-  for (const { filePath, packageName } of allWorkflowFiles) {
+  for (const filePath of allWorkflowFiles) {
     if (seenFiles.has(filePath)) {
       appDebug('[collectAgentsFromWorkflows] Skipping already seen file: %s', filePath);
       continue;
@@ -141,14 +97,12 @@ export async function collectAgentsFromWorkflows(
           continue;
         }
 
-        const rawId = typeof step.agentId === 'string' ? step.agentId.trim() : '';
-        if (!rawId) {
+        const id = typeof step.agentId === 'string' ? step.agentId.trim() : '';
+        if (!id) {
           continue;
         }
 
-        // Namespace the ID if from an imported package
-        const id = packageName ? `${packageName}:${rawId}` : rawId;
-        appDebug('[collectAgentsFromWorkflows] Found agent in workflow: rawId=%s, id=%s, packageName=%s', rawId, id, packageName);
+        appDebug('[collectAgentsFromWorkflows] Found agent in workflow: id=%s', id);
 
         const existing = byId.get(id) ?? { id };
         byId.set(id, {

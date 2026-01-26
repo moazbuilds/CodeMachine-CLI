@@ -26,8 +26,11 @@ function validatePackageRoot(candidate: string | undefined): string | undefined 
  * Resolves the CodeMachine package root directory.
  *
  * Resolution order:
- * 1. Environment variables: CODEMACHINE_PACKAGE_ROOT, CODEMACHINE_INSTALL_DIR
+ * 1. Environment variables: CODEMACHINE_INSTALL_DIR (dev/source override), CODEMACHINE_PACKAGE_ROOT
  * 2. Traverse filesystem from the given module URL
+ *
+ * CODEMACHINE_INSTALL_DIR is checked first to allow overriding the resources
+ * directory (set by embed.ts for compiled binaries) with the actual source repo.
  */
 export function resolvePackageRoot(moduleUrl: string, errorContext: string): string {
   appDebug('[Root] resolvePackageRoot called from: %s', errorContext);
@@ -39,12 +42,13 @@ export function resolvePackageRoot(moduleUrl: string, errorContext: string): str
   }
 
   // 1. Try environment variables first
-  appDebug('[Root] CODEMACHINE_PACKAGE_ROOT: %s', process.env.CODEMACHINE_PACKAGE_ROOT ?? '(not set)');
+  // INSTALL_DIR takes precedence to allow dev/source override of compiled resources
   appDebug('[Root] CODEMACHINE_INSTALL_DIR: %s', process.env.CODEMACHINE_INSTALL_DIR ?? '(not set)');
+  appDebug('[Root] CODEMACHINE_PACKAGE_ROOT: %s', process.env.CODEMACHINE_PACKAGE_ROOT ?? '(not set)');
 
   const envCandidates = [
-    process.env.CODEMACHINE_PACKAGE_ROOT,
     process.env.CODEMACHINE_INSTALL_DIR,
+    process.env.CODEMACHINE_PACKAGE_ROOT,
   ];
 
   for (const candidate of envCandidates) {

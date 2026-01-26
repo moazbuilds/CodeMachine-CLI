@@ -1,33 +1,15 @@
-#!/usr/bin/env node
 /**
- * Workflow Signals MCP Server
+ * Workflow Signals MCP Server - Tool Handler
  *
- * A Model Context Protocol (MCP) server that provides structured tools
- * for workflow step completion signaling between agents.
- *
- * This replaces fragile text-based signals like "ACTION: NEXT" with
- * schema-validated tool calls that are more reliable across different models.
- *
- * Usage:
- *   node workflow-signals/index.js
- *
- * Signals are stored globally at ~/.codemachine/mcp/workflow-signals/
+ * Extracted tool handling logic for in-process execution.
+ * Used by both the standalone MCP server and the embedded router.
  */
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import * as crypto from 'crypto';
 import * as fs from 'fs/promises';
 
 import { initDebugLogging, debug } from '../../../../shared/logging/logger.js';
-import { workflowSignalTools } from './tools.js';
-
-// Initialize debug logging if LOG_LEVEL=debug (writes to ~/.codemachine/logs/debug.log)
-initDebugLogging();
 import {
   ProposeStepCompletionSchema,
   ApproveStepTransitionSchema,
@@ -35,45 +17,23 @@ import {
 } from './schemas.js';
 import { SignalQueue } from './queue.js';
 
-// ============================================================================
-// CONFIGURATION
-// ============================================================================
+// Initialize debug logging for this handler
+initDebugLogging();
 
+// Shared signal queue instance
 const signalQueue = new SignalQueue();
 
-// ============================================================================
-// MCP SERVER
-// ============================================================================
-
-const server = new Server(
-  {
-    name: 'workflow-signals',
-    version: '1.0.0',
-  },
-  {
-    capabilities: {
-      tools: {},
-    },
-  }
-);
-
-// ============================================================================
-// LIST TOOLS HANDLER
-// ============================================================================
-
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: workflowSignalTools,
-  };
-});
-
-// ============================================================================
-// CALL TOOL HANDLER
-// ============================================================================
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-
+/**
+ * Handle workflow signal tool calls
+ *
+ * @param name - Tool name to execute
+ * @param args - Tool arguments
+ * @returns Tool result
+ */
+export async function handleWorkflowSignalsTool(
+  name: string,
+  args: Record<string, unknown>
+): Promise<CallToolResult> {
   try {
     await signalQueue.init();
 
@@ -244,21 +204,4 @@ Review the artifact and call approve_step_transition with your decision.`,
     // Re-throw other errors
     throw error;
   }
-});
-
-// ============================================================================
-// MAIN
-// ============================================================================
-
-async function main(): Promise<void> {
-  debug('[workflow-signals] Starting MCP server');
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  debug('[workflow-signals] Server connected and ready');
 }
-
-main().catch((error) => {
-  debug('[workflow-signals] Fatal error: %s', error instanceof Error ? error.stack : error);
-  console.error('[workflow-signals] Fatal error:', error);
-  process.exit(1);
-});

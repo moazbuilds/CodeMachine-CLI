@@ -299,6 +299,19 @@ export async function runStepResume(
   const selectedConditions = await getSelectedConditions(ctx.cmRoot);
   const selectedTrack = await getSelectedTrack(ctx.cmRoot);
 
+  // Determine and set engine (with fallback if configured engine isn't authenticated)
+  // This is critical for crash recovery when the original engine may no longer be available
+  const engineType = await selectEngine(step, ctx.emitter, uniqueAgentId);
+  step.engine = engineType;
+  ctx.emitter.updateAgentEngine(uniqueAgentId, engineType);
+
+  // Resolve model
+  const engineModule = registry.get(engineType);
+  const resolvedModel = step.model ?? engineModule?.metadata.defaultModel;
+  if (resolvedModel) {
+    ctx.emitter.updateAgentModel(uniqueAgentId, resolvedModel);
+  }
+
   try {
     const output = await executeStep(step, ctx.cwd, {
       logger: () => {},

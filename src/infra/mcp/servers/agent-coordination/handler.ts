@@ -1,35 +1,22 @@
-#!/usr/bin/env node
 /**
- * Agent Coordination MCP Server
+ * Agent Coordination MCP Server - Tool Handler
  *
- * A Model Context Protocol (MCP) server that provides tools for executing
- * codemachine agents and querying their status.
- *
- * This server wraps CoordinatorService to allow external tools (Claude Code,
- * Codex, etc.) to run agents via MCP tool calls.
- *
- * Usage:
- *   bun run src/infra/mcp/servers/agent-coordination/index.ts
+ * Extracted tool handling logic for in-process execution.
+ * Used by both the standalone MCP server and the embedded router.
  */
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 import { initDebugLogging, debug } from '../../../../shared/logging/logger.js';
-import { agentCoordinationTools } from './tools.js';
-
-// Initialize debug logging if LOG_LEVEL=debug (writes to ~/.codemachine/logs/debug.log)
-initDebugLogging();
 import { RunAgentsSchema, GetAgentStatusSchema, ListAvailableAgentsSchema } from './schemas.js';
 import type { ExecutionResult } from './schemas.js';
 import { executeAgents, queryAgentStatus, getActiveAgents, listAvailableAgents } from './executor.js';
 import type { AvailableAgent } from './executor.js';
 import type { AgentRecord } from '../../../../agents/monitoring/types.js';
 import { validateScriptTargets, filterAgentsByTargets } from './validator.js';
+
+// Initialize debug logging for this handler
+initDebugLogging();
 
 // ============================================================================
 // TARGET FILTERING HELPERS
@@ -41,14 +28,10 @@ import { validateScriptTargets, filterAgentsByTargets } from './validator.js';
  * The router injects this field to communicate target restrictions.
  * We extract it and remove it before passing args to tool handlers.
  */
-function extractAllowedTargets(args: Record<string, unknown> | undefined): {
+function extractAllowedTargets(args: Record<string, unknown>): {
   allowedTargets: string[] | null;
   cleanArgs: Record<string, unknown>;
 } {
-  if (!args) {
-    return { allowedTargets: null, cleanArgs: {} };
-  }
-
   const { _allowed_targets, ...cleanArgs } = args;
 
   // _allowed_targets can be null (no restrictions) or string[]
@@ -60,38 +43,126 @@ function extractAllowedTargets(args: Record<string, unknown> | undefined): {
 }
 
 // ============================================================================
-// MCP SERVER
+// FORMATTERS
 // ============================================================================
 
-const server = new Server(
-  {
-    name: 'agent-coordination',
-    version: '1.0.0',
-  },
-  {
-    capabilities: {
-      tools: {},
-    },
+/**
+ * Format execution result for MCP response
+ */
+function formatExecutionResult(result: ExecutionResult): string {
+  const lines: string[] = [
+    `Coordination ${result.success ? 'SUCCEEDED' : 'FAILED'}`,
+    `Duration: ${result.duration_ms}ms`,
+    '',
+    'Agent Results:',
+  ];
+
+  for (const r of result.results) {
+    const status = r.success ? '[OK]' : '[FAIL]';
+    lines.push(`  ${status} ${r.name} (ID: ${r.agentId})`);
+    if (r.prompt) {
+      const truncated = r.prompt.length > 80 ? r.prompt.slice(0, 77) + '...' : r.prompt;
+      lines.push(`      Prompt: ${truncated}`);
+    }
+    if (r.error) {
+      lines.push(`      Error: ${r.error}`);
+    }
+    if (r.tailApplied) {
+      lines.push(`      Output limited to last ${r.tailApplied} lines`);
+    }
   }
-);
+
+  return lines.join('\n');
+}
+
+/**
+ * Format agent records for MCP response
+ */
+function formatAgentRecords(agents: AgentRecord[]): string {
+  if (agents.length === 0) {
+    return 'No matching agents found.';
+  }
+
+  const lines: string[] = [`Found ${agents.length} agent(s):`, ''];
+
+  for (const a of agents) {
+    const statusIcon: Record<string, string> = {
+      running: '[RUN]',
+      completed: '[OK]',
+      failed: '[FAIL]',
+      paused: '[PAUSE]',
+      skipped: '[SKIP]',
+    };
+    lines.push(`${statusIcon[a.status] || '[?]'} ID:${a.id} ${a.name}`);
+    lines.push(`    Status: ${a.status}`);
+    lines.push(`    Started: ${a.startTime}`);
+    if (a.duration !== undefined) {
+      lines.push(`    Duration: ${a.duration}ms`);
+    }
+    if (a.error) {
+      lines.push(`    Error: ${a.error}`);
+    }
+    if (a.parentId) {
+      lines.push(`    Parent: ${a.parentId}`);
+    }
+    if (a.sessionId) {
+      lines.push(`    Session: ${a.sessionId}`);
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Format available agents catalog for MCP response
+ */
+function formatAvailableAgents(agents: AvailableAgent[]): string {
+  const lines: string[] = [`Available agents (${agents.length}):`, ''];
+
+  // Group by role for better organization
+  const controllers = agents.filter((a) => a.role === 'controller');
+  const regular = agents.filter((a) => a.role !== 'controller');
+
+  if (controllers.length > 0) {
+    lines.push('Controller agents (autonomous mode):');
+    for (const a of controllers) {
+      const meta: string[] = [];
+      if (a.engine) meta.push(`engine:${a.engine}`);
+      if (a.model) meta.push(`model:${a.model}`);
+      lines.push(`  - ${a.id}${meta.length ? ` (${meta.join(', ')})` : ''}`);
+    }
+    lines.push('');
+  }
+
+  if (regular.length > 0) {
+    lines.push('Standard agents:');
+    for (const a of regular) {
+      const meta: string[] = [];
+      if (a.engine) meta.push(`engine:${a.engine}`);
+      if (a.model) meta.push(`model:${a.model}`);
+      lines.push(`  - ${a.id}${meta.length ? ` (${meta.join(', ')})` : ''}`);
+    }
+  }
+
+  return lines.join('\n');
+}
 
 // ============================================================================
-// LIST TOOLS HANDLER
+// TOOL HANDLER
 // ============================================================================
 
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: agentCoordinationTools,
-  };
-});
-
-// ============================================================================
-// CALL TOOL HANDLER
-// ============================================================================
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-
+/**
+ * Handle agent coordination tool calls
+ *
+ * @param name - Tool name to execute
+ * @param args - Tool arguments (may include _allowed_targets from router)
+ * @returns Tool result
+ */
+export async function handleAgentCoordinationTool(
+  name: string,
+  args: Record<string, unknown>
+): Promise<CallToolResult> {
   // Extract target filtering from router-injected args
   const { allowedTargets, cleanArgs } = extractAllowedTargets(args);
 
@@ -100,12 +171,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     // RUN_AGENTS
     // ========================================================================
     if (name === 'run_agents') {
+      debug('[agent-coordination:handler] run_agents called with script: %s', cleanArgs.script);
       const validated = RunAgentsSchema.parse(cleanArgs);
 
       // Validate script targets before execution
       validateScriptTargets(validated.script, allowedTargets);
 
+      debug('[agent-coordination:handler] Executing agents...');
       const result = await executeAgents(validated);
+      debug('[agent-coordination:handler] Execution complete: success=%s', result.success);
 
       return {
         content: [
@@ -217,127 +291,4 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       isError: true,
     };
   }
-});
-
-// ============================================================================
-// FORMATTERS
-// ============================================================================
-
-/**
- * Format execution result for MCP response
- */
-function formatExecutionResult(result: ExecutionResult): string {
-  const lines: string[] = [
-    `Coordination ${result.success ? 'SUCCEEDED' : 'FAILED'}`,
-    `Duration: ${result.duration_ms}ms`,
-    '',
-    'Agent Results:',
-  ];
-
-  for (const r of result.results) {
-    const status = r.success ? '[OK]' : '[FAIL]';
-    lines.push(`  ${status} ${r.name} (ID: ${r.agentId})`);
-    if (r.prompt) {
-      const truncated = r.prompt.length > 80 ? r.prompt.slice(0, 77) + '...' : r.prompt;
-      lines.push(`      Prompt: ${truncated}`);
-    }
-    if (r.error) {
-      lines.push(`      Error: ${r.error}`);
-    }
-    if (r.tailApplied) {
-      lines.push(`      Output limited to last ${r.tailApplied} lines`);
-    }
-  }
-
-  return lines.join('\n');
 }
-
-/**
- * Format agent records for MCP response
- */
-function formatAgentRecords(agents: AgentRecord[]): string {
-  if (agents.length === 0) {
-    return 'No matching agents found.';
-  }
-
-  const lines: string[] = [`Found ${agents.length} agent(s):`, ''];
-
-  for (const a of agents) {
-    const statusIcon: Record<string, string> = {
-      running: '[RUN]',
-      completed: '[OK]',
-      failed: '[FAIL]',
-      paused: '[PAUSE]',
-      skipped: '[SKIP]',
-    };
-    lines.push(`${statusIcon[a.status] || '[?]'} ID:${a.id} ${a.name}`);
-    lines.push(`    Status: ${a.status}`);
-    lines.push(`    Started: ${a.startTime}`);
-    if (a.duration !== undefined) {
-      lines.push(`    Duration: ${a.duration}ms`);
-    }
-    if (a.error) {
-      lines.push(`    Error: ${a.error}`);
-    }
-    if (a.parentId) {
-      lines.push(`    Parent: ${a.parentId}`);
-    }
-    if (a.sessionId) {
-      lines.push(`    Session: ${a.sessionId}`);
-    }
-    lines.push('');
-  }
-
-  return lines.join('\n');
-}
-
-/**
- * Format available agents catalog for MCP response
- */
-function formatAvailableAgents(agents: AvailableAgent[]): string {
-  const lines: string[] = [`Available agents (${agents.length}):`, ''];
-
-  // Group by role for better organization
-  const controllers = agents.filter((a) => a.role === 'controller');
-  const regular = agents.filter((a) => a.role !== 'controller');
-
-  if (controllers.length > 0) {
-    lines.push('Controller agents (autonomous mode):');
-    for (const a of controllers) {
-      const meta: string[] = [];
-      if (a.engine) meta.push(`engine:${a.engine}`);
-      if (a.model) meta.push(`model:${a.model}`);
-      lines.push(`  - ${a.id}${meta.length ? ` (${meta.join(', ')})` : ''}`);
-    }
-    lines.push('');
-  }
-
-  if (regular.length > 0) {
-    lines.push('Standard agents:');
-    for (const a of regular) {
-      const meta: string[] = [];
-      if (a.engine) meta.push(`engine:${a.engine}`);
-      if (a.model) meta.push(`model:${a.model}`);
-      lines.push(`  - ${a.id}${meta.length ? ` (${meta.join(', ')})` : ''}`);
-    }
-  }
-
-  return lines.join('\n');
-}
-
-// ============================================================================
-// MAIN
-// ============================================================================
-
-async function main(): Promise<void> {
-  debug('[agent-coordination] Starting MCP server');
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  debug('[agent-coordination] Server connected and ready');
-}
-
-main().catch((error) => {
-  debug('[agent-coordination] Fatal error: %s', error instanceof Error ? error.stack : error);
-  console.error('[agent-coordination] Fatal error:', error);
-  process.exit(1);
-});
