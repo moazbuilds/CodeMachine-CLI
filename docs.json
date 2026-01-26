@@ -12,6 +12,7 @@
       {
         "group": "Getting Started",
         "pages": [
+          "getting-started/untitled-page",
           "getting-started/overview"
         ]
       }
