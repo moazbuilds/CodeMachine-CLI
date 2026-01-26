@@ -12,6 +12,12 @@ if (earlyDebugEnabled) {
   const appDebugLogPath = path.join(earlyCwd, '.codemachine', 'logs', 'app-debug.log');
   setAppLogFile(appDebugLogPath);
 }
+
+// OTEL LOGGING INITIALIZATION - Initialize early to capture all boot logs
+// Note: Early logs won't have trace correlation since tracing isn't initialized yet
+const { initOTelLogging, shutdownOTelLogging } = await import('../shared/logging/otel-init.js');
+await initOTelLogging();
+
 appDebug('[Boot] CLI module loading started');
 
 // ENSURE EMBEDDED RESOURCES EARLY (BEFORE IMPORTS)
@@ -45,26 +51,29 @@ const tracingConfig = await initTracing();
 if (tracingConfig) {
   appDebug('[Boot] Tracing enabled: level=%d, exporter=%s', tracingConfig.level, tracingConfig.exporter);
 
-  // Register shutdown handlers to flush spans on exit
+  // Register shutdown handlers to flush spans and logs on exit
   // Handle normal exit
   process.on('beforeExit', async () => {
-    appDebug('[Boot] Shutting down tracing (beforeExit)');
+    appDebug('[Boot] Shutting down OTel logging and tracing (beforeExit)');
+    await shutdownOTelLogging();
     await shutdownTracing();
   });
 
   // Handle signals (SIGINT = Ctrl+C, SIGTERM = kill)
   const handleSignal = (signal: string) => {
-    appDebug('[Boot] Received %s, shutting down tracing', signal);
-    shutdownTracing().finally(() => {
-      process.exit(0);
-    });
+    appDebug('[Boot] Received %s, shutting down OTel logging and tracing', signal);
+    shutdownOTelLogging()
+      .then(() => shutdownTracing())
+      .finally(() => {
+        process.exit(0);
+      });
   };
   process.on('SIGINT', () => handleSignal('SIGINT'));
   process.on('SIGTERM', () => handleSignal('SIGTERM'));
 
   // Handle process.exit() calls
   process.on('exit', () => {
-    appDebug('[Boot] Process exiting, tracing may not flush completely');
+    appDebug('[Boot] Process exiting, OTel logging and tracing may not flush completely');
   });
 } else {
   appDebug('[Boot] Tracing disabled');
@@ -310,11 +319,13 @@ if (shouldRunCli) {
     console.error(error);
     exitCode = 1;
   } finally {
-    // Ensure tracing is flushed before exit
-    appDebug('[Trace] About to shutdown tracing...');
+    // Ensure OTel logging and tracing are flushed before exit
+    appDebug('[Trace] About to shutdown OTel logging and tracing...');
+    appDebug('[Boot] Shutting down OTel logging (explicit)');
+    await shutdownOTelLogging();
     appDebug('[Boot] Shutting down tracing (explicit)');
     await shutdownTracing();
-    appDebug('[Trace] Tracing shutdown complete');
+    appDebug('[Trace] OTel logging and tracing shutdown complete');
     process.exit(exitCode);
   }
 } else {

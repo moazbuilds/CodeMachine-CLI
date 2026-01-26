@@ -2,6 +2,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { format as formatMessage } from 'node:util';
 
+import { SeverityNumber, emitOTelLog, isOTelLoggingEnabled, LOGGER_NAMES } from './otel-logger.js';
+
 /**
  * Logger utility that respects LOG_LEVEL environment variable
  */
@@ -138,20 +140,38 @@ function writeAppLog(message: string, ...args: unknown[]): void {
 
 export function appDebug(message: string, ...args: unknown[]): void {
   if (shouldLog('debug')) {
+    const formatted = formatMessage(message, ...args);
     writeAppLog(`[DEBUG] ${message}`, ...args);
+
+    // Emit OTel log if enabled
+    if (isOTelLoggingEnabled()) {
+      emitOTelLog(LOGGER_NAMES.BOOT, SeverityNumber.DEBUG, formatted);
+    }
   }
 }
 
 export function debug(message: string, ...args: unknown[]): void {
   if (shouldLog('debug')) {
+    const formatted = formatMessage(message, ...args);
     writeDebugLog(`[DEBUG] ${message}`, ...args);
+
+    // Emit OTel log if enabled
+    if (isOTelLoggingEnabled()) {
+      emitOTelLog(LOGGER_NAMES.CLI, SeverityNumber.DEBUG, formatted);
+    }
   }
 }
 
 export function info(message: string, ...args: unknown[]): void {
   if (shouldLog('info')) {
+    const formatted = formatMessage(message, ...args);
     // Write to debug log file only (not to UI)
     writeDebugLog(message, ...args);
+
+    // Emit OTel log if enabled
+    if (isOTelLoggingEnabled()) {
+      emitOTelLog(LOGGER_NAMES.CLI, SeverityNumber.INFO, formatted);
+    }
   }
 }
 
@@ -161,6 +181,11 @@ export function warn(message: string, ...args: unknown[]): void {
     // Write directly to stderr to bypass console hijacking
     const formatted = formatMessage(`[WARN] ${message}`, ...args);
     process.stderr.write(formatted + '\n');
+
+    // Emit OTel log if enabled
+    if (isOTelLoggingEnabled()) {
+      emitOTelLog(LOGGER_NAMES.CLI, SeverityNumber.WARN, formatted);
+    }
   }
 }
 
@@ -170,5 +195,10 @@ export function error(message: string, ...args: unknown[]): void {
     // Write directly to stderr to bypass console hijacking
     const formatted = formatMessage(`[ERROR] ${message}`, ...args);
     process.stderr.write(formatted + '\n');
+
+    // Emit OTel log if enabled
+    if (isOTelLoggingEnabled()) {
+      emitOTelLog(LOGGER_NAMES.CLI, SeverityNumber.ERROR, formatted);
+    }
   }
 }

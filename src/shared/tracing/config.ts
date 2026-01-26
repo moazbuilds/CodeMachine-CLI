@@ -85,12 +85,12 @@ function parseExporter(value: string | undefined): ExporterType {
 }
 
 /**
- * Get the traces directory path
+ * Get the traces directory path (in CWD)
  */
 function getTracesDir(): string {
-  const { homedir } = require('node:os');
   const { join } = require('node:path');
-  return join(homedir(), '.codemachine', 'traces');
+  const cwd = process.env.CODEMACHINE_CWD || process.cwd();
+  return join(cwd, '.codemachine', 'traces');
 }
 
 /**
