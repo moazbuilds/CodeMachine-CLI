@@ -21,6 +21,7 @@
     "default": "system"
   },
   "fonts": {
-    "family": "Roboto Slab"
-  }
+    "family": "Ubuntu"
+  },
+  "logo": "/images/codemachine-docs-logo.png"
 }
