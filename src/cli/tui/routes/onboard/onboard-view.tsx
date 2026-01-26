@@ -49,6 +49,8 @@ export function OnboardView(props: OnboardViewProps) {
   const [currentStep, setCurrentStep] = createSignal<OnboardStep>('project_name')
   const [projectName, setProjectName] = createSignal("")
   const [currentGroupSelections, setCurrentGroupSelections] = createSignal<Set<string>>(new Set())
+  // Version counter to force memo re-evaluation when service state changes (e.g., condition_group → condition_group)
+  const [optionsVersion, setOptionsVersion] = createSignal(0)
 
   // Legacy state (for backward compatibility without service)
   const [selectedTrackId, setSelectedTrackId] = createSignal<string | undefined>()
@@ -80,8 +82,9 @@ export function OnboardView(props: OnboardViewProps) {
 
   // Question text
   const currentQuestion = createMemo(() => {
-    // Always track currentStep to trigger re-evaluation on step changes
+    // Always track currentStep and optionsVersion to trigger re-evaluation
     const step = currentStep()
+    const _version = optionsVersion()
     if (useService()) {
       return props.service!.getCurrentQuestion()
     }
@@ -103,8 +106,10 @@ export function OnboardView(props: OnboardViewProps) {
 
   // Current entries for selection - memoized for reactivity
   const currentOptions = createMemo(() => {
-    // Force dependency on currentStep to trigger re-evaluation when step changes
+    // Force dependency on currentStep and optionsVersion to trigger re-evaluation
+    // optionsVersion handles cases like condition_group → condition_group where step type is the same
     const step = currentStep()
+    const _version = optionsVersion()
     if (useService()) {
       return props.service!.getCurrentOptions()
     }
@@ -216,6 +221,9 @@ export function OnboardView(props: OnboardViewProps) {
         setCurrentStep(event.step)
         setSelectedIndex(0)
         setCurrentGroupSelections(new Set<string>())
+        // Increment version to force currentOptions memo to re-evaluate
+        // (handles condition_group → condition_group transitions where step type doesn't change)
+        setOptionsVersion(v => v + 1)
       })
 
       // Subscribe to condition events to sync checkbox state
