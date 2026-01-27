@@ -3,17 +3,17 @@
   "theme": "mint",
   "name": "Documentation",
   "colors": {
-    "primary": "#12a4b3",
-    "light": "#06b2c9",
-    "dark": "#5e1ea8"
+    "primary": "#85c7cf",
+    "light": "#85c7cf",
+    "dark": "#85c7cf"
   },
   "navigation": {
     "groups": [
       {
         "group": "Getting Started",
         "pages": [
-          "getting-started/untitled-page",
-          "getting-started/overview"
+          "getting-started/overview",
+          "getting-started/untitled-page"
         ]
       }
     ]
