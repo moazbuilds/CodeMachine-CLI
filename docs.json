@@ -25,8 +25,8 @@
     "family": "Ubuntu"
   },
   "logo": {
-    "light": "/images/1.svg",
-    "dark": "/images/2.svg"
+    "light": "/images/2.svg",
+    "dark": "/images/1.svg"
   },
   "background": {
     "color": {
