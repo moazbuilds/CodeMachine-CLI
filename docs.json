@@ -25,8 +25,8 @@
     "family": "Ubuntu"
   },
   "logo": {
-    "light": "/images/CodeMachine-docs-dark.png",
-    "dark": "/images/CodeMachine-docs-light.png"
+    "light": "/images/1.svg",
+    "dark": "/images/2.svg"
   },
   "background": {
     "color": {
