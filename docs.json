@@ -28,10 +28,10 @@
     "color": {
       "light": "#fffffb",
       "dark": "#0e0e0e"
-    },
-    "image": {
-      "light": "/images/2.svg",
-      "dark": "/images/1.svg"
     }
+  },
+  "logo": {
+    "light": "/images/2.svg",
+    "dark": "/images/1.svg"
   }
 }
