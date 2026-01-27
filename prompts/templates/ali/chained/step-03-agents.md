@@ -58,10 +58,9 @@ Define all main agents, modules, and controller for the workflow:
 Each agent in your workflow is a distinct persona that handles a specific part of the process. Agents can be:
 - **Single-step**: One prompt file injected once. No additional steps.
 - **Multi-step**: Multiple prompts injected sequentially, like this Ali workflow with 8 steps.
-- **Module**: An agent with loop behavior - can send the workflow back to previous steps (like validation gates)."
+- **Module**: An agent with loop behavior - can send the workflow back to previous steps (like validation gates).
 
-**In Expert mode, add:**
-"**When to use multi-step agents:**
+**When to use multi-step agents:**
 - Same session maintains context throughout
 - Agent holds data in memory from previous steps
 - Great for Q&A and conversational flows where context matters
@@ -163,16 +162,6 @@ Wait for response.
 - If user approves: Store type, step count, and purposes
 - If user wants changes: "What would you like to change?" then update accordingly
 
-**In Expert mode, add context before suggestion:**
-"**When to use multi-step:**
-- Same session maintains context throughout
-- Agent holds data in memory from previous steps
-- Great for Q&A and conversational flows
-
-**When to use single-step:**
-- Smaller, focused tasks
-- Keeps prompts lean - less context management"
-
 ### 4b. Module Behavior (Optional)
 
 "**Does '\{agent_name\}' need loop behavior?**
@@ -218,8 +207,7 @@ Store as:
 - `agents[n].loopMaxIterations`
 - `agents[n].loopSkip`
 
-**In Expert mode, add context before suggestion:**
-"**How module loops work:**
+**How module loops work:**
 - Module writes to `.codemachine/memory/directive.json`
 - `action: 'loop'` + reason → workflow goes back N steps
 - `action: 'stop'` + reason → workflow continues forward
@@ -228,7 +216,7 @@ Store as:
 **Common module patterns:**
 - **Validation loops** - Check work, fix issues, re-check
 - **Review cycles** - Review, get feedback, revise
-- **Quality gates** - Iterate until quality threshold met"
+- **Quality gates** - Iterate until quality threshold met
 
 ### 4c. Sub-Agents (Optional)
 
@@ -385,8 +373,6 @@ Wait. If no, allow edits.
 ---
 
 #### Sub-Agent Invocation Reference
-
-**In Expert mode, explain how main agents call sub-agents:**
 
 "**How to Call Sub-Agents**
 
@@ -908,9 +894,7 @@ Wait. If no, allow edits.
 
 ---
 
-**In Expert mode, add context:**
-
-"**How Characters Work:**
+**How Characters Work:**
 
 The character system brings your agents to life in the CLI:
 
@@ -941,7 +925,7 @@ The character system brings your agents to life in the CLI:
 - Match character tone to agent's communication style
 - Use varied phrases (5-10 per state) to keep it fresh
 - Expressions should be readable in terminal
-- Consider your workflow's overall vibe"
+- Consider your workflow's overall vibe
 
 ---
 
@@ -949,28 +933,9 @@ The character system brings your agents to life in the CLI:
 
 "**5. Engine for '\{agents[n].name\}'**
 
-Which AI engine should this agent use?"
+Which AI engine should this agent use?
 
-**Quick Mode:**
-
-"| # | Engine | Notes |
-|---|--------|-------|
-| 1 | `claude` | Recommended - best tested |
-| 2 | `codex` | Fastest, has reasoning effort control |
-| 3 | Other | Show all engines |
-
-Enter **1**, **2**, or **3**:"
-
-Wait for response.
-- If 1: Store `agents[n].engine = 'claude'`, skip to model question
-- If 2: Store `agents[n].engine = 'codex'`, `agents[n].model = 'gpt-5.2-codex'`, ask about reasoning effort
-- If 3: Continue to full engine table
-
----
-
-**Expert Mode OR user chose "Other":**
-
-"**Available Engines** (case-sensitive IDs):
+**Available Engines** (case-sensitive IDs):
 
 | ID | Name | Default Model | Status |
 |----|------|---------------|--------|
@@ -1097,8 +1062,7 @@ Does this work, or would you like to change it?"
 
 Wait for response. Store as `agents[n].steps[s].tracks` and `agents[n].steps[s].conditions`.
 
-**In Expert mode, explain:**
-"**How filtering works:**
+**How filtering works:**
 - **Agent-level**: Agent only runs if user selected matching track/condition
 - **Step-level**: Step only loads if user selected matching track/condition
 - **Both track AND conditions must match** if both are specified
@@ -1116,7 +1080,7 @@ Wait for response. Store as `agents[n].steps[s].tracks` and `agents[n].steps[s].
     { path: 'mobile.md', conditions: ['has_mobile'] },    // Only if mobile
   ],
 }
-```"
+```
 
 ### 8. Summary & File Generation
 

@@ -2,31 +2,47 @@ export default {
   name: 'CodeMachine Workflow Builder',
   autonomousMode: 'never',
   projectName: true,
-  
+
   tracks: {
-    question: 'What do you want to do?',
+    question: 'Choose your workflow building mode:',
     options: {
-      'create-workflow': {
-        label: 'Create Workflow',
-        description: 'Build a new workflow from scratch'
+      'expert': {
+        label: 'Expert Mode',
+        description: 'For complex or custom workflows'
       },
-      'modify-workflow': {
-        label: 'Modify Workflow',
-        description: 'Edit or update an existing workflow'
-      },
-      'have-questions': {
-        label: 'Have Questions',
-        description: 'Ask questions about workflows or get help'
+      'quick': {
+        label: 'Quick Mode',
+        description: 'Speed over customization'
       },
     },
   },
 
   conditionGroups: [
     {
+      id: 'workflow_action',
+      question: 'What do you want to do?',
+      multiSelect: false,
+      tracks: ['quick', 'expert'],
+      conditions: {
+        'create-workflow': {
+          label: 'Create Workflow',
+          description: 'Build a new workflow from scratch'
+        },
+        'modify-workflow': {
+          label: 'Modify Workflow',
+          description: 'Edit or update an existing workflow'
+        },
+        'have-questions': {
+          label: 'Have Questions',
+          description: 'Ask questions about workflows or get help'
+        },
+      },
+    },
+    {
       id: 'workflow_scope',
       question: 'How do you want to build your workflow?',
       multiSelect: false,
-      tracks: ['create-workflow', 'modify-workflow', 'have-questions'],
+      tracks: ['expert'],
       conditions: {
         'full-workflow': {
           label: 'Full Workflow',
@@ -69,6 +85,16 @@ export default {
   ],
 
   steps: [
-    resolveStep('cm-workflow-builder', {engine: 'claude'}),
+    // Quick Mode - one-step build
+    resolveStep('cm-workflow-builder-quick', {
+      engine: 'claude',
+      tracks: ['quick'],
+    }),
+
+    // Expert Mode - guided 5-step process
+    resolveStep('cm-workflow-builder', {
+      engine: 'claude',
+      tracks: ['expert'],
+    }),
   ],
 };

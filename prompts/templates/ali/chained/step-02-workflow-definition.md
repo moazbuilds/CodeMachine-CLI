@@ -242,14 +242,6 @@ Let's continue!"
 
 ### 5. Ask About Tracks (Optional)
 
-**Quick Mode:**
-"Most workflows don't need tracks. Skipping for now - you can add them later if needed."
-Store `tracks: null` and proceed to Section 7 (Workflow Mode).
-
----
-
-**Expert Mode - Start with intent question:**
-
 "**Quick question:** Will your workflow need different paths for different situations?
 
 For example:
@@ -441,14 +433,6 @@ Ali will inform users about these placeholders when creating prompts in Step 4.
 
 ---
 
-**Quick Mode:**
-"Skipping condition groups - you can add them later if needed."
-Store `conditionGroups: []` and proceed to Section 7.
-
----
-
-**Expert Mode - Start with intent question:**
-
 "**Quick question:** Will some parts of your workflow be optional based on user choices?
 
 For example:
@@ -603,23 +587,6 @@ Repeat if yes. Store all in `conditionGroups` array.
 ---
 
 ### 7. Ask About Workflow Mode
-
-**Quick Mode:**
-
-"**How should your workflow run?**
-
-1. **Manual** - You control the flow, agents wait for your input
-2. **Continuous** - Runs start to finish automatically
-3. **Hybrid** - Mix of auto and interactive agents (you decide per-agent)
-4. **Autonomous with Controller** (Beta) - A controller agent responds on your behalf
-
-Enter **1**, **2**, **3**, or **4**:"
-
-Wait for response. Handle same as Expert mode responses below.
-
----
-
-**Expert Mode:**
 
 "**Workflow Execution Mode**
 
@@ -1075,14 +1042,6 @@ Wait for response. Store as:
 Proceed to Section 8 (Specification Flag).
 
 ### 8. Ask About Specification Flag
-
-**Quick Mode:**
-"Skipping specification file configuration. You can add it later if needed."
-Store `specification: false` and proceed to Section 9.
-
----
-
-**Expert Mode - Smart Inference:**
 
 **Determine likely need based on workflow mode:**
 
