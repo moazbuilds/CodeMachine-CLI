@@ -13,16 +13,52 @@ This quickstart guide will have you running AI-powered workflows in just a few m
 
 ## Step 1: install CodeMachine
 
-npm install -g codemachine # or bun/pnpm/yarn
+```bash
+npm install -g codemachine # or bun/pnpm/yarn`
+```
 
-### Authenticate Your Engines
+## Step 2: Authenticate Your Engines
 
-Use `/login `to authenticate one or more AI engines.
+CodeMachine requires having one working engine when you start an interactive session, you'll need to log in to [one of the supported engines.](#)
+
+```bash
+codemachine
+# to run codemachine interactive session
+```
+
+```bash
+/login
+# to authenticate one or more AI engines.
+```
 
 <Note>
   Note: Each workflow specifies which engine(s) it uses. You can override this in the workflow file if needed. Check the workflow's requirements before running.
 </Note>
 
-### Choose A workflow:
+## Step 3: Choose A workflow
 
-Use `/templates` to browse workflows. The default is ali.workflow - a built-in workflow builder to help you create your first workflow. If you have imported templates they will also appear here. Explore the workflows library →
+```bash
+/templates
+# to list all built-in or imported templates.
+```
+
+<Note>
+  Note: The default workflow is Ali-Workflow, a built-in workflow builder to help you create your first workflow.
+
+  You can import other workflows to try, however, all supported workflows are currently unstable in v0.8 (NOVA). If you still want to use them, [explore the workflow library here →](#)
+</Note>
+
+## Step 4: Start Your Workflow
+
+Use  to run the selected workflow.
+
+```bash
+/start
+# to run the selected workflow.
+```
+
+Your screen will differ depending on the workflow. You may see onboarding questions, indicating the workflow has [tracks or conditions](#). Once you reach the [workflow screen](#), you're at the main screen where you can monitor all your agents.
+
+## Next Steps
+
+## Getting help 
