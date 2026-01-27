@@ -33,5 +33,17 @@
   "logo": {
     "light": "/images/2.svg",
     "dark": "/images/1.svg"
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/moazbuilds/CodeMachine-CLI",
+      "discord": "https://discord.com/invite/vS3A5UDNSq",
+      "website": "https://codemachine.co/",
+      "reddit": "https://www.reddit.com/r/CodeMachine/",
+      "x": "https://x.com/CodeMachineCLI"
+    }
+  },
+  "navbar": {
+    "links": []
   }
 }
