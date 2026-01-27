@@ -19,7 +19,7 @@
     ]
   },
   "appearance": {
-    "default": "dark"
+    "default": "system"
   },
   "fonts": {
     "family": "Ubuntu"
