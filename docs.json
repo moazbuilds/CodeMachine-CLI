@@ -19,7 +19,7 @@
     ]
   },
   "appearance": {
-    "default": "system"
+    "default": "dark"
   },
   "fonts": {
     "family": "Ubuntu"
@@ -27,7 +27,7 @@
   "background": {
     "color": {
       "light": "#fffffb",
-      "dark": "#0e0e0e"
+      "dark": "#222b60"
     }
   },
   "logo": {
