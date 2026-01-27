@@ -3,8 +3,8 @@
   "theme": "mint",
   "name": "Documentation",
   "colors": {
-    "primary": "#85c7cf",
-    "light": "#36c8d9",
+    "primary": "#2ed0e1",
+    "light": "#2ed0e1",
     "dark": "#85c7cf"
   },
   "navigation": {
