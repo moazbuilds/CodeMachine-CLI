@@ -3,9 +3,9 @@
   "theme": "mint",
   "name": "Documentation",
   "colors": {
-    "primary": "#2ed0e1",
-    "light": "#2ed0e1",
-    "dark": "#85c7cf"
+    "primary": "#081f4f",
+    "light": "#081f4f",
+    "dark": "#05c5d8"
   },
   "navigation": {
     "groups": [
