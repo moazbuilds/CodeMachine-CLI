@@ -25,13 +25,13 @@
     "family": "Ubuntu"
   },
   "logo": {
-    "light": "/images/CodeMachine-docs-light.png",
-    "dark": "/images/CodeMachine-docs-dark.png"
+    "light": "/images/CodeMachine-docs-dark.png",
+    "dark": "/images/CodeMachine-docs-light.png"
   },
   "background": {
     "color": {
-      "light": "#ffffd8",
-      "dark": "#2f2e48"
+      "light": "#fffffb",
+      "dark": "#0e0e0e"
     }
   }
 }
