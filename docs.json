@@ -24,5 +24,14 @@
   "fonts": {
     "family": "Ubuntu"
   },
-  "logo": "/images/codemachine-docs-logo.png"
+  "logo": {
+    "light": "/images/CodeMachine-docs-light.png",
+    "dark": "/images/CodeMachine-docs-dark.png"
+  },
+  "background": {
+    "color": {
+      "light": "#ffffd8",
+      "dark": "#2f2e48"
+    }
+  }
 }
