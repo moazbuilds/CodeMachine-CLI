@@ -10,7 +10,6 @@ import type { SelectionChoice } from '../utils/selection-menu.js';
 import { isModuleStep } from '../../workflows/templates/types.js';
 import { resolvePackageRoot } from '../../shared/runtime/root.js';
 import { getAllInstalledImports } from '../../shared/imports/index.js';
-import { runInteractiveImport } from './import.command.js';
 import { registerImportedAgents, clearImportedAgents } from '../../workflows/utils/config.js';
 
 const packageRoot = resolvePackageRoot(import.meta.url, 'templates command');
@@ -176,6 +175,19 @@ export async function selectTemplateByNumber(templateNumber: number): Promise<vo
   }
 }
 
+export async function listTemplates(): Promise<void> {
+  const templates = await getAvailableTemplates();
+
+  if (templates.length === 0) {
+    console.log('No workflow templates found.');
+    return;
+  }
+
+  for (const t of templates) {
+    console.log(t.title);
+  }
+}
+
 export async function runTemplatesCommand(inSession: boolean = false): Promise<void> {
   try {
     const templates = await getAvailableTemplates();
@@ -221,8 +233,13 @@ export async function runTemplatesCommand(inSession: boolean = false): Promise<v
 }
 
 export function registerTemplatesCommand(program: Command): void {
-  program
+  const templates = program
     .command('templates')
     .description('List and select workflow templates')
     .action(runTemplatesCommand);
+
+  templates
+    .command('list')
+    .description('List available template names')
+    .action(listTemplates);
 }
