@@ -4,8 +4,8 @@
   "name": "Documentation",
   "colors": {
     "primary": "#32bde3",
-    "light": "#8e51b9",
-    "dark": "#32bde3"
+    "light": "#32bde3",
+    "dark": "#8e51b9"
   },
   "navigation": {
     "groups": [
