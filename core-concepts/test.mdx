@@ -126,7 +126,7 @@ Both controller and step agents see input prefixes: `{USER (username):}` or `{ag
     Designs system architecture based on requirements.
 
     <Card title="Input" icon="file-import">
-      `{prd}` + Controllers Instructions 
+      `{prd}` + Controllers Instructions
     </Card>
     <Card title="Steps (Chained Prompts)" icon="list-check">
       System design → Controller → Architecture decisions
@@ -142,7 +142,7 @@ Both controller and step agents see input prefixes: `{USER (username):}` or `{ag
     Implements the code based on architecture.
 
     <Card title="Input" icon="file-import">
-      `{prd}` + `{architecture}` + Controllers Instructions 
+      `{prd}` + `{architecture}` + Controllers Instructions
     </Card>
     <Card title="Steps (Chained Prompts)" icon="list-check">
       Implementation → Controller → Code review
@@ -165,6 +165,72 @@ Both controller and step agents see input prefixes: `{USER (username):}` or `{ag
     </Card>
     <Card title="Output" icon="file-export">
       `tests/*`
+    </Card>
+  </Step>
+</Steps>
+
+## Continuous
+
+**Auto-advance with zero interaction. Agents run to completion.**
+
+You provide a specification file upfront. Agents iterate on it following a well-defined pattern. No pauses, no approvals — just results.
+
+**Use when:**
+
+- The workflow pattern is proven and repeatable
+- You have a clear specification file
+- Same objective, different inputs each time
+
+**Example: Adding APIs**
+
+<Steps>
+  <Step title="Specification File">
+    Define the APIs you need: endpoints, methods, schemas, validation rules.
+
+    <Note>
+      Workflows with `specification: true` won't start until this file is provided. [Learn more →](#)
+    </Note>
+    <Card title="Input" icon="file-import">
+      `specification.md` = `{specification}`
+    </Card>
+  </Step>
+  <Step title="API Designer">
+    Designs endpoint contracts and schemas from spec.
+
+    <Card title="Input" icon="file-import">
+      `{specification}`
+    </Card>
+    <Card title="Steps (Chained Prompts)" icon="list-check">
+      Parse spec & Design contracts → Generate schemas
+    </Card>
+    <Card title="Output" icon="file-export">
+      `api-design.md` = `{api_design}`
+    </Card>
+  </Step>
+  <Step title="Developer">
+    Implements the API endpoints. Examines codebase using tools.
+
+    <Card title="Input" icon="file-import">
+      `{specification}` + `{api_design}`
+    </Card>
+    <Card title="Steps (Chained Prompts)" icon="list-check">
+      Implement endpoints → Add validation → Wire routes
+    </Card>
+    <Card title="Output" icon="file-export">
+      `src/api/*`
+    </Card>
+  </Step>
+  <Step title="Tester">
+    Writes tests for the API. Examines codebase using tools.
+
+    <Card title="Input" icon="file-import">
+      `{api_spec}` + `{api_design}`
+    </Card>
+    <Card title="Steps (Chained Prompts)" icon="list-check">
+      Test planning → Write unit tests → Write integration tests
+    </Card>
+    <Card title="Output" icon="file-export">
+      `tests/api/*`
     </Card>
   </Step>
 </Steps>
