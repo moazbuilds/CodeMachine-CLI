@@ -26,7 +26,7 @@ You respond at every step. Each agent asks questions, gathers insights, and prod
       User Answers + Project context
     </Card>
     <Card title="Steps (Chained Prompts)" icon="list-check">
-      Deep-dive analysis through Q&A → User → Complete system architecture design → User
+      Deep-dive analysis through Q&A → User → Complete system architecture design
     </Card>
     <Card title="Output" icon="file-export">
       `architecture.md` = `{architecture}`
@@ -42,7 +42,7 @@ You respond at every step. Each agent asks questions, gathers insights, and prod
       `{architecture}`
     </Card>
     <Card title="Steps (Chained Prompts)" icon="list-check">
-      Threat modeling and attack surface analysis →  User → Security controls and mitigation strategy →  User
+      Threat modeling and attack surface analysis →  User → Security controls and mitigation strategy
     </Card>
     <Card title="Output" icon="file-export">
       `security-review.md` = `{security_review}`
@@ -58,7 +58,7 @@ You respond at every step. Each agent asks questions, gathers insights, and prod
       `{architecture}` + `{security_review}`
     </Card>
     <Card title="Steps (Chained Prompts)" icon="list-check">
-      Feasibility analysis → User → Final design incorporating all feedback → User
+      Feasibility analysis → User → Final design incorporating all feedback
     </Card>
     <Card title="Output" icon="file-export">
       `final-design.md`
@@ -66,5 +66,105 @@ You respond at every step. Each agent asks questions, gathers insights, and prod
   </Step>
   <Step title="User">
     Review the final design. Confirm everything looks good or request changes.
+  </Step>
+</Steps>
+
+## Autonomous
+
+<Warning>
+  This mode is in beta. Behavior may change as we refine controller-agent coordination.
+</Warning>
+
+**Controller agent runs agents on your behalf.**
+
+You brief the controller agent with your objective and workflow structure. It manages the agents, makes decisions between steps. You review the results instead of managing the process.
+
+**Use when:**
+
+- You have a clear objective but don't need to control every decision
+- The task is too long to babysit
+- You want to review results, not manage the process
+
+**Prefixes:**
+
+Both controller and step agents see input prefixes: `{USER (username):}` or `{agent_name:}`. You have full control to talk to either at any time.
+
+**You can pause anytime to:**
+
+- Talk to controller agent- give more instructions about the project
+- Talk to step agent -  give direct instructions for that step
+
+<Note>
+  You must brief the controller about the full workflow: what agents it will talk to and what output is expected from each. This keeps it on track. Autonomous is the hardest mode to control, but powerful for long objectives when managed correctly.
+
+  Both step agents and controller agent must be configured to use the signals MCP. Step agents propose proceeding to the next step, and the controller accepts or rejects. This replaces user interaction.
+</Note>
+
+**Example: Greenfield Project Build**
+
+<Steps>
+  <Step title="User → Controller">
+    Brief the controller with your project idea, constraints, goals, and the full workflow structure.
+  </Step>
+  <Step title="PM">
+    Refines requirements and creates product specification.
+
+    <Card title="Input" icon="file-import">
+      Controller's project brief + Constraints
+    </Card>
+    <Card title="Steps (Chained Prompts)" icon="list-check">
+      Requirements gathering → Controller → Product specification
+    </Card>
+    <Card title="Output" icon="file-export">
+      `prd.md` = `{prd}`
+    </Card>
+  </Step>
+  <Step title="Controller">
+    Reviews PRD. Proceeds or adjusts.
+  </Step>
+  <Step title="Architect">
+    Designs system architecture based on requirements.
+
+    <Card title="Input" icon="file-import">
+      `{prd}` + Controllers Instructions 
+    </Card>
+    <Card title="Steps (Chained Prompts)" icon="list-check">
+      System design → Controller → Architecture decisions
+    </Card>
+    <Card title="Output" icon="file-export">
+      `architecture.md` = `{architecture}`
+    </Card>
+  </Step>
+  <Step title="Controller">
+    Reviews architecture. Proceeds or adjusts.
+  </Step>
+  <Step title="Developer">
+    Implements the code based on architecture.
+
+    <Card title="Input" icon="file-import">
+      `{prd}` + `{architecture}` + Controllers Instructions 
+    </Card>
+    <Card title="Steps (Chained Prompts)" icon="list-check">
+      Implementation → Controller → Code review
+    </Card>
+    <Card title="Output" icon="file-export">
+      `src/*`
+    </Card>
+  </Step>
+  <Step title="Controller">
+    Reviews implementation. Proceeds or adjusts.
+  </Step>
+  <Step title="Tester">
+    Writes tests for the implementation. Examines codebase using tools.
+
+    <Card title="Input" icon="file-import">
+      `{prd}` + `{architecture}`
+    </Card>
+    <Card title="Steps (Chained Prompts)" icon="list-check">
+      Test planning → Controller → Test implementation
+    </Card>
+    <Card title="Output" icon="file-export">
+      `tests/*`
+    </Card>
   </Step>
 </Steps>
