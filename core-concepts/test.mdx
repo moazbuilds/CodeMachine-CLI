@@ -6,7 +6,9 @@ sidebarTitle: "Workflow Patterns"
 
 **Workflows take many shapes. Here's how to choose.**
 
-## Interactive
+## Execution Modes and Workflow Patterns
+
+### Interactive
 
 You respond at every step. Each agent asks questions, gathers insights, and produces output for the next agent. Press enter to proceed and inject the next prompt.
 
@@ -69,7 +71,7 @@ You respond at every step. Each agent asks questions, gathers insights, and prod
   </Step>
 </Steps>
 
-## Autonomous
+### Autonomous
 
 <Warning>
   This mode is in beta. Behavior may change as we refine controller-agent coordination.
@@ -169,7 +171,7 @@ Both controller and step agents see input prefixes: `{USER (username):}` or `{ag
   </Step>
 </Steps>
 
-## Continuous
+### Continuous
 
 **Auto-advance with zero interaction. Agents run to completion.**
 
@@ -201,7 +203,7 @@ You provide a specification file upfront. Agents iterate on it following a well-
       `{specification}`
     </Card>
     <Card title="Steps (Chained Prompts)" icon="list-check">
-      Parse spec & Design contracts → Generate schemas
+      Parse spec → Design contracts → Generate schemas
     </Card>
     <Card title="Output" icon="file-export">
       `api-design.md` = `{api_design}`
@@ -234,3 +236,123 @@ You provide a specification file upfront. Agents iterate on it following a well-
     </Card>
   </Step>
 </Steps>
+
+### Hybrid
+
+**Mix interactive and auto-advance agents in the same workflow.**
+
+Some steps need your input. Others run automatically. Hybrid gives you both — time effective and controllable.
+
+This is possible because interactivity is set at the agent level, not the workflow level. Each agent decides whether to wait for you or proceed automatically.
+
+**Use when:**
+
+- Key decisions need you, routine steps don't
+- You want speed without losing control
+- Most workflows fit this pattern
+
+**Example: Bug Fix Pipeline**
+
+<Steps>
+  <Step title="Triage (Interactive)">
+    Asks you about the bug: What's the issue? Which device? Steps to reproduce?
+
+    <Card title="Input" icon="file-import">
+      User Answers
+    </Card>
+    <Card title="Steps (Chained Prompts)" icon="list-check">
+      Gather symptoms → User → Reproduction steps → User → Environment details
+    </Card>
+    <Card title="Output" icon="file-export">
+      `bug-report.md` = `{bug_report}`
+    </Card>
+  </Step>
+  <Step title="User">
+    Review bug report. Confirm details are correct.
+  </Step>
+  <Step title="Reproducer (Auto)">
+    Reproduces the bug with gathered insights. Examines codebase using tools.
+
+    <Card title="Input" icon="file-import">
+      `{bug_report}`
+    </Card>
+    <Card title="Steps (Chained Prompts)" icon="list-check">
+      Set up environment → Reproduce steps → Confirm bug exists
+    </Card>
+    <Card title="Output" icon="file-export">
+      `reproduction.md` = `{reproduction}`
+    </Card>
+  </Step>
+  <Step title="Investigator (Auto)">
+    Finds root cause. Examines codebase using tools.
+
+    <Card title="Input" icon="file-import">
+      `{bug_report}` + `{reproduction}`
+    </Card>
+    <Card title="Steps (Chained Prompts)" icon="list-check">
+      Trace execution → Identify root cause → Document findings
+    </Card>
+    <Card title="Output" icon="file-export">
+      `investigation.md` = `{investigation}`
+    </Card>
+  </Step>
+  <Step title="Discuss & Plan (Interactive)">
+    Discusses findings with you. Plans the fix together.
+
+    <Card title="Input" icon="file-import">
+      `{bug_report}` + `{reproduction}` + `{investigation}`
+    </Card>
+    <Card title="Steps (Chained Prompts)" icon="list-check">
+      Present findings → User → Discuss options → User → Agree on approach
+    </Card>
+    <Card title="Output" icon="file-export">
+      `fix-plan.md` = `{fix_plan}`
+    </Card>
+  </Step>
+  <Step title="User">
+    Review the plan. Approve or request changes.
+  </Step>
+  <Step title="Developer (Auto)">
+    Implements the fix. Examines codebase using tools.
+
+    <Card title="Input" icon="file-import">
+      `{investigation}` + `{fix_plan}`
+    </Card>
+    <Card title="Steps (Chained Prompts)" icon="list-check">
+      Implement fix → Self-review → Refine
+    </Card>
+    <Card title="Output" icon="file-export">
+      `src/*`
+    </Card>
+  </Step>
+  <Step title="Tester (Auto)">
+    Writes tests for the fix. Examines codebase using tools.
+
+    <Card title="Input" icon="file-import">
+      `{bug_report}` + `{fix_plan}`
+    </Card>
+    <Card title="Steps (Chained Prompts)" icon="list-check">
+      Write regression test → Write edge case tests → Verify fix
+    </Card>
+    <Card title="Output" icon="file-export">
+      `tests/*`
+    </Card>
+  </Step>
+</Steps>
+
+## Advance Modes
+
+**Who drives the workflow?**
+
+Two modes: **manual** and **auto**. You can toggle between them from the TUI.
+
+What happens in each mode depends on the agent's interactivity, chained prompts, and controller setup. [Learn more →](#)
+
+**Four behaviors emerge:**
+
+| Mode | Behavior |
+|------|----------|
+| **User drives** | You send input. Agent waits for you. |
+| **Controller drives** | Controller sends input. Agent waits for controller. |
+| **Fully autonomous** | System auto-sends. No waiting. |
+| **Forced** | Designed to run automatically but auto mode is off. Falls back to user drives with a warning. |
