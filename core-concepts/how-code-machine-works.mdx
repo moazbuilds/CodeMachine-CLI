@@ -26,14 +26,6 @@ CodeMachine is built on two ideas:
 
 **Context Management** - What each agent knows. You control the data, the focus, the specialization. Instead of one agent knowing everything, each agent knows exactly what it needs.
 
-| Feature             | How it manages context                            |
-| ------------------- | ------------------------------------------------- |
-| Placeholders        | Inject specific data into prompts                 |
-| Chained Prompts     | Build context gradually in same session           |
-| Tracks & Conditions | Shape context based on user choices               |
-| Sub-agents          | Delegate work, return results to parent           |
-| Modules             | Loop back to refine or retry with updated context |
-
 ## How CodeMachine Runs Engines
 
 It is an orchestration layer that runs AI coding CLIs (Claude Code, Codex, Cursor, and others) through structured workflows. You define the workflow once, and CodeMachine handles execution, context passing, and agent coordination.
