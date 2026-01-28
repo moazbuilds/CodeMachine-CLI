@@ -1,10 +1,42 @@
 ---
 title: "How CodeMachine Works"
 description: "Understand how CodeMachine orchestrates AI coding engines through workflows, agents, and context management."
-sidebarTitle: "Core Concepts"
+sidebarTitle: "How CodeMachine Works"
 ---
 
-CodeMachine runs AI workflows in your terminal. It is an orchestration layer that runs AI coding CLIs (Claude Code, Codex, Cursor, and others) through structured workflows. You define the workflow once, and CodeMachine handles execution, context passing, and agent coordination.
+**CodeMachine runs AI workflows in your terminal.**
+
+## The Workflow Model
+
+Every time you use an AI coding agent, you're running a workflow. Fix a bug? You ask questions, reproduce, analyze, plan, implement, test. Build a feature? You research, design, code, review. You've already figured out what works.
+
+The workflow lives in your head. You guide the agent through it, step by step, session by session. It works. But every time you start, you rebuild it from scratch. You re-explain the process. You remember to ask the right questions. You manage when to clear context, when to push forward, when to loop back.
+
+CodeMachine lets you capture that workflow and run it again.
+
+Define the steps once. Choose which agents handle what. Add an agent that always asks the right questions at the start. Chain agents together - one to plan, one to implement, one to review. Control exactly what each agent sees, so they stay focused instead of overwhelmed.
+
+> **Your workflows become tools instead of steps in your head. Share them with your team. Run them on every project. Improve them over time.**
+
+### The Conceptual Layer
+
+CodeMachine is built on two ideas:
+
+**Workflows** - The structure. What happens, in what order, with what controls. You define this once and reuse it.
+
+**Context Management** - What each agent knows. You control the data, the focus, the specialization. Instead of one agent knowing everything, each agent knows exactly what it needs.
+
+| Feature             | How it manages context                            |
+| ------------------- | ------------------------------------------------- |
+| Placeholders        | Inject specific data into prompts                 |
+| Chained Prompts     | Build context gradually in same session           |
+| Tracks & Conditions | Shape context based on user choices               |
+| Sub-agents          | Delegate work, return results to parent           |
+| Modules             | Loop back to refine or retry with updated context |
+
+## How CodeMachine Runs Engines
+
+It is an orchestration layer that runs AI coding CLIs (Claude Code, Codex, Cursor, and others) through structured workflows. You define the workflow once, and CodeMachine handles execution, context passing, and agent coordination.
 
 CodeMachine uses the headless or detached scripting mode that AI coding engines provide for automation. It spawns engines via CLI wrapping, passes the right arguments and flags, and controls agents through its infrastructure.
 
@@ -14,21 +46,11 @@ This follows each engine's official documentation for scripting and automation u
   Have questions about compliance or engine usage policies? [Read our FAQ →](#)
 </Note>
 
-## Context Management
+## Definitions
 
-Everything in CodeMachine is context management. Every feature exists to control what agents know and when they know it.
+Every workflow is made of these pieces. Understanding them will help you build, customize, and share workflows.
 
-| Feature             | How it manages context                  |
-| ------------------- | --------------------------------------- |
-| Sub-agents          | Delegate work, return results to parent |
-| Placeholders        | Inject data into prompts                |
-| Chained Prompts     | Build context gradually in same session |
-| Tracks & Conditions | Shape context based on user choices     |
-| Directives          | Agents signal workflow state            |
-| Steps               | Sequential context building             |
-| Modules             | Loop back to iterate or retry           |
-
-## Workflows
+### Workflows
 
 A workflow is a configured execution plan. It defines which agents run, in what order, with what controls, and how context flows between them.
 
@@ -39,7 +61,7 @@ A workflow contains:
 - **Tracks & Conditions** - Branching based on user choices
 - **Controls** - Autonomy, interactivity, engines, models
 
-## Agents
+### Agents
 
 An agent is a session of an AI coding engine. One agent equals one engine session with a unique ID. Each agent has its own engine, model, and configuration.
 
@@ -52,7 +74,7 @@ An agent is a session of an AI coding engine. One agent equals one engine sessio
 
 Sub-agents are not steps. They are a context management tool for delegating work between agents.
 
-## Steps
+### Steps
 
 A step is an execution of an agent. Input and output are defined in prompts using placeholders. Steps run sequentially.
 
@@ -69,7 +91,7 @@ A module is a step that can loop back to repeat earlier steps or retry if valida
 - User choices (tracks, conditions)
 - Built-in data (date, time, project info)
 
-## Engines & Models
+### Engines & Models
 
 An engine is an AI coding CLI such as Claude Code, Codex, Cursor, or others.
 
@@ -77,7 +99,7 @@ A model is the AI model used by that engine.
 
 Both are configured per agent. You can mix different engines and models in one workflow. For example, use Codex for planning and Claude Code for implementation.
 
-## Placeholders
+### Placeholders
 
 Placeholders inject data into agent prompts.
 
@@ -99,7 +121,7 @@ System data injected automatically:
 - Selected tracks and conditions
 - Other workflow context
 
-## Tracks & Conditions
+### Tracks & Conditions
 
 Tracks and conditions are onboarding questions asked at the start of a workflow. User answers:
 
@@ -109,7 +131,7 @@ Tracks and conditions are onboarding questions asked at the start of a workflow.
 
 This creates multiple workflow paths inside a single workflow definition.
 
-## Execution Modes
+### Execution Modes
 
 Workflow behavior depends on settings at two levels:
 
@@ -125,7 +147,7 @@ Workflow behavior depends on settings at two levels:
 
 These combinations create different execution behaviors, from fully autonomous where the controller handles everything, to fully interactive where the user responds to each step.
 
-## Directives
+### Directives
 
 Directives allow agents to control the workflow by writing to a JSON file. The workflow listens after each step and takes action.
 
@@ -138,7 +160,7 @@ Directives allow agents to control the workflow by writing to a JSON file. The w
 | `loop`       | Returns back to a previous step (modules only)    |
 | `trigger`    | Triggers any agent in the workflow (modules only) |
 
-## Chained Prompts
+### Chained Prompts
 
 Chained prompts are multiple prompts injected into the same agent session, one after another. Instead of overwhelming one step with all instructions, you break it into smaller sequential prompts.
 
@@ -147,7 +169,7 @@ Chained prompts are multiple prompts injected into the same agent session, one a
 - Common in interactive Q&A workflows
 - Defined per agent
 
-## Imports
+### Imports
 
 Imports are external workflows built by the CodeMachine team or community.
 
