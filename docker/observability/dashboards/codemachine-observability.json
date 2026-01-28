@@ -77,7 +77,7 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "count_over_time({service_name=\"codemachine\", severity_text=\"ERROR\"}[$__range])",
+          "expr": "sum(count_over_time({service_name=\"codemachine\"} | severity_text=\"ERROR\" [$__range]))",
           "queryType": "instant",
           "refId": "A"
         }
@@ -141,7 +141,7 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "count_over_time({service_name=\"codemachine\", severity_text=\"WARN\"}[$__range])",
+          "expr": "sum(count_over_time({service_name=\"codemachine\"} | severity_text=\"WARN\" [$__range]))",
           "queryType": "instant",
           "refId": "A"
         }
@@ -201,7 +201,7 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "count_over_time({service_name=\"codemachine\"}[$__range])",
+          "expr": "sum(count_over_time({service_name=\"codemachine\"}[$__range]))",
           "queryType": "instant",
           "refId": "A"
         }

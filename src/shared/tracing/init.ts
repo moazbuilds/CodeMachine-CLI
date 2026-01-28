@@ -45,7 +45,7 @@ function deriveMetricsEndpoint(traceEndpoint: string): string {
  */
 function getMetricsExportInterval(): number {
   const interval = parseInt(process.env.CODEMACHINE_METRICS_INTERVAL || '', 10);
-  return interval > 0 ? interval : 60000; // Default: 1 minute
+  return interval > 0 ? interval : 500;
 }
 
 /**

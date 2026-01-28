@@ -50,7 +50,7 @@ const DEFAULTS: TracingConfig = {
   enabled: false,
   level: 0,
   exporter: 'file',
-  otlpEndpoint: 'http://localhost:4318/v1/traces',
+  otlpEndpoint: 'http://localhost:4319/v1/traces', // otel-collector (4319), not Tempo (4318)
   zipkinEndpoint: 'http://localhost:9411/api/v2/spans',
   tracesDir: '', // Will be set dynamically
   serviceName: 'codemachine',

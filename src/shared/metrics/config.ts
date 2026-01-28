@@ -29,7 +29,7 @@ export interface MetricsConfig {
  * Default configuration values
  */
 const DEFAULTS = {
-  exportIntervalMs: 60000, // 1 minute
+  exportIntervalMs: 500,
 } as const;
 
 /**
