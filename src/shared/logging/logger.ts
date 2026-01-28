@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { format as formatMessage } from 'node:util';
+import {format as formatMessage} from 'node:util';
 
 import { SeverityNumber, emitOTelLog, isOTelLoggingEnabled, LOGGER_NAMES } from './otel-logger.js';
 
@@ -79,8 +79,8 @@ export function setDebugLogFile(filePath: string | null): void {
     return;
   }
 
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  debugLogStream = fs.createWriteStream(filePath, { flags: 'a' });
+  fs.mkdirSync(path.dirname(filePath), {recursive: true});
+  debugLogStream = fs.createWriteStream(filePath, {flags: 'a'});
 }
 
 /**
@@ -124,8 +124,8 @@ export function setAppLogFile(filePath: string | null): void {
     return;
   }
 
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  appLogStream = fs.createWriteStream(filePath, { flags: 'a' });
+  fs.mkdirSync(path.dirname(filePath), {recursive: true});
+  appLogStream = fs.createWriteStream(filePath, {flags: 'a'});
 }
 
 function writeAppLog(message: string, ...args: unknown[]): void {
@@ -138,41 +138,48 @@ function writeAppLog(message: string, ...args: unknown[]): void {
   appLogStream.write(`${timestamp} ${formatted}\n`);
 }
 
-export function appDebug(message: string, ...args: unknown[]): void {
-  if (shouldLog('debug')) {
-    const formatted = formatMessage(message, ...args);
-    writeAppLog(`[DEBUG] ${message}`, ...args);
 
-    // Emit OTel log if enabled
-    if (isOTelLoggingEnabled()) {
-      emitOTelLog(LOGGER_NAMES.BOOT, SeverityNumber.DEBUG, formatted);
-    }
+export function otel_log(logger_name: (typeof LOGGER_NAMES)[keyof typeof LOGGER_NAMES],
+                         level: SeverityNumber, message: string, args: unknown[]): void {
+  if (isOTelLoggingEnabled()) {
+    const formatted = formatMessage(message, ...args);
+    emitOTelLog(logger_name, level, formatted);
   }
 }
 
+export function appDebug(message: string, ...args: unknown[]): void {
+  if (shouldLog('debug')) {
+    writeAppLog(`[DEBUG] ${message}`, ...args);
+  }
+}
+
+export function otel_appDebug(logger_name: (typeof LOGGER_NAMES)[keyof typeof LOGGER_NAMES],
+                              message: string, args: unknown[]): void {
+  otel_log(logger_name, SeverityNumber.DEBUG, message, args);
+}
+
+
 export function debug(message: string, ...args: unknown[]): void {
   if (shouldLog('debug')) {
-    const formatted = formatMessage(message, ...args);
     writeDebugLog(`[DEBUG] ${message}`, ...args);
-
-    // Emit OTel log if enabled
-    if (isOTelLoggingEnabled()) {
-      emitOTelLog(LOGGER_NAMES.CLI, SeverityNumber.DEBUG, formatted);
-    }
   }
+}
+
+export function otel_debug(logger_name: (typeof LOGGER_NAMES)[keyof typeof LOGGER_NAMES],
+                           message: string, args: unknown[]): void {
+  otel_log(logger_name, SeverityNumber.DEBUG, message, args);
 }
 
 export function info(message: string, ...args: unknown[]): void {
   if (shouldLog('info')) {
-    const formatted = formatMessage(message, ...args);
     // Write to debug log file only (not to UI)
     writeDebugLog(message, ...args);
-
-    // Emit OTel log if enabled
-    if (isOTelLoggingEnabled()) {
-      emitOTelLog(LOGGER_NAMES.CLI, SeverityNumber.INFO, formatted);
-    }
   }
+}
+
+export function otel_info(logger_name: (typeof LOGGER_NAMES)[keyof typeof LOGGER_NAMES],
+                          message: string, args: unknown[]): void {
+  otel_log(logger_name, SeverityNumber.INFO, message, args);
 }
 
 export function warn(message: string, ...args: unknown[]): void {
@@ -181,12 +188,12 @@ export function warn(message: string, ...args: unknown[]): void {
     // Write directly to stderr to bypass console hijacking
     const formatted = formatMessage(`[WARN] ${message}`, ...args);
     process.stderr.write(formatted + '\n');
-
-    // Emit OTel log if enabled
-    if (isOTelLoggingEnabled()) {
-      emitOTelLog(LOGGER_NAMES.CLI, SeverityNumber.WARN, formatted);
-    }
   }
+}
+
+export function otel_warn(logger_name: (typeof LOGGER_NAMES)[keyof typeof LOGGER_NAMES],
+                          message: string, args: unknown[]): void {
+  otel_log(logger_name, SeverityNumber.WARN, message, args);
 }
 
 export function error(message: string, ...args: unknown[]): void {
@@ -195,10 +202,10 @@ export function error(message: string, ...args: unknown[]): void {
     // Write directly to stderr to bypass console hijacking
     const formatted = formatMessage(`[ERROR] ${message}`, ...args);
     process.stderr.write(formatted + '\n');
-
-    // Emit OTel log if enabled
-    if (isOTelLoggingEnabled()) {
-      emitOTelLog(LOGGER_NAMES.CLI, SeverityNumber.ERROR, formatted);
-    }
   }
+}
+
+export function otel_error(logger_name: (typeof LOGGER_NAMES)[keyof typeof LOGGER_NAMES],
+                           message: string, args: unknown[]): void {
+  otel_log(logger_name, SeverityNumber.ERROR, message, args);
 }
