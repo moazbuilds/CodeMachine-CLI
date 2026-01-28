@@ -19,7 +19,8 @@
       {
         "group": "Core Concepts",
         "pages": [
-          "core-concepts/how-code-machine-works"
+          "core-concepts/how-code-machine-works",
+          "core-concepts/test"
         ]
       }
     ]

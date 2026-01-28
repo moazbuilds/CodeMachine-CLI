@@ -1,0 +1,70 @@
+---
+title: "Workflow Patterns"
+description: "Learn the common workflow patterns and when to use each execution style."
+sidebarTitle: "Workflow Patterns"
+---
+
+**Workflows take many shapes. Here's how to choose.**
+
+## Interactive
+
+You respond at every step. Each agent asks questions, gathers insights, and produces output for the next agent. Press enter to proceed and inject the next prompt.
+
+**Use when:**
+
+- Tasks need human judgment at each stage
+- You want full control over direction
+- Multiple perspectives improve the outcome
+
+**Example: Technical Design Review**
+
+<Steps>
+  <Step title="Architect">
+    Asks you about requirements, constraints, and tradeoffs.
+
+    <Card title="Input" icon="file-import">
+      User Answers + Project context
+    </Card>
+    <Card title="Steps (Chained Prompts)" icon="list-check">
+      Deep-dive analysis through Q&A → User (Press Enter) → Complete system architecture design → User (Press Enter)
+    </Card>
+    <Card title="Output" icon="file-export">
+      `architecture.md` = `{architecture}`
+    </Card>
+  </Step>
+  <Step title="User">
+    Review the architecture analysis. Answer follow-up questions. Press enter to proceed.
+  </Step>
+  <Step title="Security Expert">
+    Asks you about security concerns and compliance needs.
+
+    <Card title="Input" icon="file-import">
+      `{architecture}`
+    </Card>
+    <Card title="Steps (Chained Prompts)" icon="list-check">
+      Threat modeling and attack surface analysis →  (Press Enter) → Security controls and mitigation strategy →  (Press Enter)
+    </Card>
+    <Card title="Output" icon="file-export">
+      `security-review.md` = `{security_review}`
+    </Card>
+  </Step>
+  <Step title="User">
+    Review the security assessment. Answer follow-up questions. Press enter to proceed.
+  </Step>
+  <Step title="Senior Engineer">
+    Asks you about implementation preferences and team constraints.
+
+    <Card title="Input" icon="file-import">
+      `{architecture}` + `{security_review}`
+    </Card>
+    <Card title="Steps (Chained Prompts)" icon="list-check">
+      Feasibility analysis →  (Press Enter) → Final design incorporating all feedback → (Press Enter)
+    </Card>
+    <Card title="Output" icon="file-export">
+      `final-design.md`
+    </Card>
+  </Step>
+  <Step title="User">
+     Review the final design. Confirm everything looks good or request changes.
+  </Step>
+</Steps>
