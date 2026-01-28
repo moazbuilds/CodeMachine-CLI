@@ -15,6 +15,12 @@
           "getting-started/overview",
           "getting-started/untitled-page"
         ]
+      },
+      {
+        "group": "Core Concepts",
+        "pages": [
+          "core-concepts/how-code-machine-works"
+        ]
       }
     ]
   },
@@ -27,7 +33,7 @@
   "background": {
     "color": {
       "light": "#fffffb",
-      "dark": "#00051a"
+      "dark": "#010205"
     }
   },
   "logo": {
