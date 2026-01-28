@@ -1,23 +1,66 @@
 stream_over_http_enabled: true
+
 server:
   http_listen_port: 3200
+  grpc_listen_port: 9095
+  log_level: info
 
+# OTLP receiver (from your collector)
 distributor:
   receivers:
     otlp:
       protocols:
-        http:
-          endpoint: "0.0.0.0:4318"
         grpc:
           endpoint: "0.0.0.0:4317"
+        http:
+          endpoint: "0.0.0.0:4318"
+
+# Use an in-memory ring for single-binary mode
+ingester:
+  lifecycler:
+    ring:
+      kvstore:
+        store: inmemory
+
+querier:
+  frontend_worker:
+    frontend_address: 127.0.0.1:9095
+
+query_frontend:
+  rf1_after: "1999-01-01T00:00:00Z"
+  mcp_server:
+    enabled: true
 
 storage:
   trace:
     backend: local
+    wal:
+      path: /var/tempo/wal
     local:
       path: /var/tempo/blocks
+
+metrics_generator:
+  ring:
+    kvstore:
+      store: inmemory
+  registry:
+    external_labels:
+      source: tempo
+      cluster: docker-compose
+  processor:
+    local_blocks:
+      filter_server_spans: false
+  storage:
+    path: /var/tempo/generator/wal
+    remote_write:
+      - url: http://prometheus:9090/api/v1/write
+        send_exemplars: true
 
 overrides:
   defaults:
     metrics_generator:
-      processors: []
+      processors: ["local-blocks", "span-metrics", "service-graphs"]
+      generate_native_histograms: both
+
+usage_report:
+  reporting_enabled: false

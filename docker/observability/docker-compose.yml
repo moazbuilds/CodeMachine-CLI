@@ -5,7 +5,7 @@
 services:
   # Tempo - Distributed tracing backend
   tempo:
-    image: grafana/tempo:latest
+    image: grafana/tempo:2.9.1
     command: ["-config.file=/etc/tempo.yaml"]
     user: "0"  # Run as root to avoid permission issues
     volumes:
@@ -45,6 +45,7 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.enable-lifecycle'
+      - '--web.enable-remote-write-receiver'
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus-data:/prometheus
