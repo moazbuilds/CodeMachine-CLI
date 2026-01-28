@@ -26,14 +26,14 @@ You respond at every step. Each agent asks questions, gathers insights, and prod
       User Answers + Project context
     </Card>
     <Card title="Steps (Chained Prompts)" icon="list-check">
-      Deep-dive analysis through Q&A → User (Press Enter) → Complete system architecture design → User (Press Enter)
+      Deep-dive analysis through Q&A → User → Complete system architecture design → User
     </Card>
     <Card title="Output" icon="file-export">
       `architecture.md` = `{architecture}`
     </Card>
   </Step>
   <Step title="User">
-    Review the architecture analysis. Answer follow-up questions. Press enter to proceed.
+    Review the architecture analysis. Answer follow-up questions.
   </Step>
   <Step title="Security Expert">
     Asks you about security concerns and compliance needs.
@@ -42,14 +42,14 @@ You respond at every step. Each agent asks questions, gathers insights, and prod
       `{architecture}`
     </Card>
     <Card title="Steps (Chained Prompts)" icon="list-check">
-      Threat modeling and attack surface analysis →  (Press Enter) → Security controls and mitigation strategy →  (Press Enter)
+      Threat modeling and attack surface analysis →  User → Security controls and mitigation strategy →  User
     </Card>
     <Card title="Output" icon="file-export">
       `security-review.md` = `{security_review}`
     </Card>
   </Step>
   <Step title="User">
-    Review the security assessment. Answer follow-up questions. Press enter to proceed.
+    Review the security assessment. Answer follow-up questions.
   </Step>
   <Step title="Senior Engineer">
     Asks you about implementation preferences and team constraints.
@@ -58,13 +58,13 @@ You respond at every step. Each agent asks questions, gathers insights, and prod
       `{architecture}` + `{security_review}`
     </Card>
     <Card title="Steps (Chained Prompts)" icon="list-check">
-      Feasibility analysis →  (Press Enter) → Final design incorporating all feedback → (Press Enter)
+      Feasibility analysis → User → Final design incorporating all feedback → User
     </Card>
     <Card title="Output" icon="file-export">
       `final-design.md`
     </Card>
   </Step>
   <Step title="User">
-     Review the final design. Confirm everything looks good or request changes.
+    Review the final design. Confirm everything looks good or request changes.
   </Step>
 </Steps>
