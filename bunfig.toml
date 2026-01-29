@@ -1,4 +1,0 @@
-# Global preload removed - now scoped to TUI via src/cli/tui/launcher.ts
-# This prevents the SolidJS transform from affecting React/Ink components
-
-# Tests archived to .tests.archive/ (hidden folder, ignored by bun test)

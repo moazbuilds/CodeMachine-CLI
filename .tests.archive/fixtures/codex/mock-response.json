@@ -1,7 +1,0 @@
-{
-  "id": "smoke-run",
-  "agentId": "test-agent",
-  "status": "success",
-  "summary": "Planning workflow completed successfully",
-  "output": "Advancing Planning workflow to next phase: Building"
-}
