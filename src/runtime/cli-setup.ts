@@ -49,6 +49,46 @@ const hasHelpOrVersion = args.some(arg =>
 const shouldSkipSplash = hasSubcommand || hasHelpOrVersion;
 appDebug('[Boot] hasSubcommand=%s, hasHelpOrVersion=%s, shouldSkipSplash=%s', hasSubcommand, hasHelpOrVersion, shouldSkipSplash);
 
+// EARLY HOME DIRECTORY BLOCKER - Check before splash screen
+// Parse --dir/-d manually since commander hasn't run yet
+const dirArgIndex = args.findIndex(arg => arg === '--dir' || arg === '-d');
+const explicitDir = dirArgIndex !== -1 ? args[dirArgIndex + 1] : null;
+const targetCwd = explicitDir || earlyCwd;
+const home = homedir();
+appDebug('[Boot] Home directory check: targetCwd=%s, home=%s', targetCwd, home);
+
+try {
+  const resolvedTarget = realpathSync(targetCwd);
+  const resolvedHome = realpathSync(home);
+  if (resolvedTarget === resolvedHome) {
+    appDebug('[Boot] Blocked: attempted to run from home directory');
+    const cyan = '\x1b[36m';
+    const dim = '\x1b[2m';
+    const reset = '\x1b[0m';
+    const bold = '\x1b[1m';
+
+    console.error('');
+    console.error(`${dim}───────────────────────────────────────────────${reset}`);
+    console.error(`${bold}  Cannot run from home directory${reset}`);
+    console.error(`${dim}───────────────────────────────────────────────${reset}`);
+    console.error('');
+    console.error('  CodeMachine needs to run in a project directory,');
+    console.error('  not directly in your home folder.');
+    console.error('');
+    console.error(`  ${dim}Try:${reset}`);
+    console.error(`    ${cyan}cd ~/your-project${reset}`);
+    console.error(`    ${cyan}codemachine${reset}`);
+    console.error('');
+    console.error(`  ${dim}Or specify a directory:${reset}`);
+    console.error(`    ${cyan}codemachine --dir ~/your-project${reset}`);
+    console.error('');
+    process.exit(1);
+  }
+} catch (err) {
+  appDebug('[Boot] Home directory check failed: %s', err);
+  // Continue - directory might not exist yet
+}
+
 if (process.stdout.isTTY && !shouldSkipSplash) {
   appDebug('[Boot] Showing splash screen');
   const { rows = 24, columns = 80 } = process.stdout;
@@ -66,6 +106,7 @@ appDebug('[Boot] Importing remaining modules');
 import { Command } from 'commander';
 import { realpathSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { homedir } from 'node:os';
 appDebug('[Boot] Imports complete');
 
 const DEFAULT_SPEC_PATH = '.codemachine/inputs/specifications.md';
