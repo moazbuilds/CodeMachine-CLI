@@ -19,14 +19,14 @@
       {
         "group": "Core Concepts",
         "pages": [
-          "core-concepts/how-code-machine-works",
-          "core-concepts/tess",
+          "core-concepts/the-model",
+          "core-concepts/components",
           {
             "group": "Workflow",
             "expanded": true,
             "pages": [
-              "core-concepts/workflow/ressss",
-              "core-concepts/test"
+              "core-concepts/workflow/controls",
+              "core-concepts/patterns"
             ]
           }
         ]
