@@ -4,3 +4,213 @@ description: "Build your first workflow using the CLI."
 sidebarTitle: "Your First Workflow"
 ---
 
+A workflow file defines how your agents execute: the order they run and how they interact with users.
+
+<Tip>
+  Before creating a workflow, make sure you've already [configured your agents](/build-workflows/build-agents) and [written your prompts](/build-workflows/write-prompts).
+</Tip>
+
+---
+
+## Workflow File Location
+
+Workflow files live in `templates/workflows/` and use the `.workflow.js` extension:
+
+<Tree>
+  <Tree.Folder name="my-workflow-codemachine" defaultOpen>
+    <Tree.Folder name="templates" defaultOpen>
+      <Tree.Folder name="workflows" defaultOpen>
+        <Tree.File name="my-workflow.workflow.js" />
+      </Tree.Folder>
+    </Tree.Folder>
+  </Tree.Folder>
+</Tree>
+
+---
+
+## Basic Structure
+
+Every workflow exports a default object with a name and steps:
+
+```javascript templates/workflows/my-workflow.workflow.js
+export default {
+  name: 'My Workflow',
+
+  steps: [
+    resolveStep('planner'),
+    resolveStep('developer'),
+    resolveStep('reviewer'),
+  ],
+};
+```
+
+That's it - three agents running in sequence. The `resolveStep()` function loads an agent from your `config/main.agents.js`.
+
+---
+
+## Workflow Modes
+
+Choose how your workflow runs:
+
+| Mode | Description | Best For |
+|------|-------------|----------|
+| **Manual** | User controls flow, agents wait for input | Interactive workflows, brainstorming |
+| **Continuous** | Runs automatically from start to finish | Batch processing, reports |
+| **Hybrid** | Mix of interactive and auto-advancing agents | Complex workflows with checkpoints |
+
+Set the mode using `autonomousMode`:
+
+```javascript
+export default {
+  name: 'My Workflow',
+  autonomousMode: 'never',  // Manual mode - user controls each step
+
+  steps: [
+    resolveStep('planner'),
+    resolveStep('developer'),
+  ],
+};
+```
+
+| Value | Behavior |
+|-------|----------|
+| `'never'` or `false` | Manual - waits for user at each step |
+| `'always'` or `true` | Continuous - auto-advances through all steps |
+
+---
+
+## Adding Separators
+
+Use `separator()` to add visual dividers between workflow phases:
+
+```javascript templates/workflows/code-review.workflow.js
+export default {
+  name: 'Code Review Workflow',
+
+  steps: [
+    separator('Analysis Phase'),
+    resolveStep('analyzer'),
+
+    separator('Review Phase'),
+    resolveStep('structure-reviewer'),
+    resolveStep('quality-reviewer'),
+
+    separator('Final Report'),
+    resolveStep('report-generator'),
+  ],
+};
+```
+
+Separators appear in the TUI timeline to help users understand workflow progress.
+
+---
+
+## Interactive vs Non-Interactive Steps
+
+By default, steps are interactive - the workflow waits for user input. Set `interactive: false` to auto-advance:
+
+```javascript
+export default {
+  name: 'Hybrid Pipeline',
+
+  steps: [
+    // First step is interactive - gather requirements from user
+    resolveStep('requirements-gatherer'),
+
+    // Remaining steps run automatically
+    resolveStep('planner', { interactive: false }),
+    resolveStep('developer', { interactive: false }),
+    resolveStep('tester', { interactive: false }),
+  ],
+};
+```
+
+<Info>
+  A common pattern is making the first step interactive for gathering requirements, then running subsequent steps non-interactively.
+</Info>
+
+---
+
+## Complete Simple Example
+
+Here's a complete workflow for a basic code generation pipeline:
+
+```javascript templates/workflows/code-generator.workflow.js
+export default {
+  name: 'Code Generator',
+  autonomousMode: 'never',
+
+  steps: [
+    separator('Requirements'),
+    resolveStep('requirements-analyst'),
+
+    separator('Planning'),
+    resolveStep('architect', { interactive: false }),
+
+    separator('Implementation'),
+    resolveStep('developer', { interactive: false }),
+
+    separator('Quality Check'),
+    resolveStep('reviewer', { interactive: false }),
+  ],
+};
+```
+
+---
+
+## Running Your Workflow
+
+Once your workflow is complete, run it with:
+
+```bash
+codemachine workflow my-workflow
+```
+
+Or select it from the TUI workflow picker.
+
+### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| **Shift+Tab** | Toggle Autonomous Mode |
+| **Tab** | Toggle Timeline Panel |
+| **P** | Pause Workflow |
+| **Ctrl+S** | Skip current prompt or agent |
+| **Escape** | Stop Confirmation |
+| **H** | History View |
+| **Enter** | Toggle Expand / Open Log |
+| **Arrow Up/Down** | Navigate |
+| **Arrow Right** | Focus Prompt Box |
+
+---
+
+## Validation Checklist
+
+Before running your workflow, verify:
+
+<Steps>
+  <Step title="Agent IDs Match">
+    Every agent ID in `resolveStep()` exists in `config/main.agents.js`
+  </Step>
+  <Step title="Prompt Files Exist">
+    All `promptPath` references in agent configs point to existing files
+  </Step>
+  <Step title="Placeholders Registered">
+    All placeholders used in prompts are registered in `config/placeholders.js`
+  </Step>
+</Steps>
+
+---
+
+## Next Steps
+
+Ready for more? Learn about tracks, conditions, modules, controllers, and sub-agents.
+
+<CardGroup cols={2}>
+  <Card title="Advanced Workflows" icon="wand-magic-sparkles" href="./advanced-workflows">
+    Tracks, conditions, modules, and controllers
+  </Card>
+  <Card title="Workflow Examples" icon="book-open" href="./workflow-examples">
+    Complete real-world examples
+  </Card>
+</CardGroup>

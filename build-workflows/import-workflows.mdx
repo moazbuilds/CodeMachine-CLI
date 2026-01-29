@@ -1,6 +1,305 @@
 ---
 title: "Import Workflows"
-description: "Install workflows from GitHub and other git repositories."
+description: "Install workflows from local directories, GitHub, and other git repositories."
 sidebarTitle: "Import Workflows"
 ---
 
+Import workflow packages from local directories, GitHub repositories, or any git URL.
+
+---
+
+## Quick Start
+
+<Tabs>
+<Tab title="CLI">
+```bash
+codemachine import ./my-workflow
+codemachine import user/repo
+codemachine import https://github.com/user/repo
+```
+</Tab>
+<Tab title="TUI">
+```
+/import ./my-workflow
+/import user/repo
+/import https://github.com/user/repo
+```
+</Tab>
+</Tabs>
+
+After importing, your workflow appears in the selection menu when you run `codemachine` or `codemachine run`.
+
+---
+
+## Source Formats
+
+CodeMachine supports multiple import source formats:
+
+| Format | Example | Resolution |
+|--------|---------|------------|
+| Local path (absolute) | `/path/to/folder` | local-path |
+| Local path (relative) | `./my-package` or `../other` | local-path |
+| Local path (home) | `~/projects/my-workflow` | local-path |
+| Short name | `package-name` | github-search |
+| Owner/repo | `user/repo` | github-repo |
+| Full URL | `https://github.com/user/repo` | github-repo |
+| Git SSH | `git@github.com:user/repo.git` | git-url |
+
+### Resolution Priority
+
+When you run an import, CodeMachine checks sources in this order:
+
+1. **Local path** — if it's absolute, starts with `./`, `../`, or `~`
+2. **HTTPS URLs** — full GitHub or git URLs
+3. **Git SSH URLs** — `git@` format
+4. **Owner/repo format** — checks if local path exists first
+5. **Short name** — searches GitHub for matching packages
+
+---
+
+## Local Imports
+
+Import workflows from your local filesystem for development and testing.
+
+### Path Formats
+
+```bash
+# Absolute path
+codemachine import /home/user/my-workflows
+
+# Relative path
+codemachine import ./my-local-package
+codemachine import ../shared-workflows
+
+# Home directory
+codemachine import ~/projects/codemachine-prompts
+```
+
+<Info>
+  Local imports require a valid manifest file (`codemachine.json` or `.codemachine.json`) in the source directory.
+</Info>
+
+### Local Path Resolution
+
+For a path to be recognized as local, it must:
+- Be an absolute path (starts with `/`)
+- Start with `./` or `../` (relative)
+- Start with `~` (home directory)
+- Contain a valid manifest file
+
+---
+
+## GitHub Imports
+
+Import workflows directly from GitHub repositories.
+
+### By Owner/Repo
+
+```bash
+codemachine import moazbuilds/codemachine-one-codemachine
+```
+
+### By Full URL
+
+```bash
+codemachine import https://github.com/moazbuilds/bmad-codemachine
+```
+
+### By Short Name
+
+Search GitHub for packages by name:
+
+```bash
+codemachine import codemachine-one
+```
+
+<Note>
+  Short name search looks for repositories with the `-codemachine` suffix on GitHub.
+</Note>
+
+### Git SSH
+
+```bash
+codemachine import git@github.com:user/repo.git
+```
+
+---
+
+## Manifest Files
+
+Every importable package needs a manifest file. CodeMachine looks for these in order:
+
+1. `.codemachine.json` — hidden file, preferred for local development
+2. `codemachine.json` — standard for published packages
+
+Both have the same structure:
+
+```json codemachine.json
+{
+  "name": "my-package",
+  "version": "1.0.0",
+  "description": "Optional description",
+  "paths": {
+    "config": "config",
+    "workflows": "templates/workflows",
+    "prompts": "prompts",
+    "characters": "config/agent-characters.json"
+  }
+}
+```
+
+### Required Fields
+
+| Field | Description |
+|-------|-------------|
+| `name` | Package identifier (must be unique) |
+| `version` | Semantic version (e.g., `1.0.0`) |
+
+### Optional Fields
+
+| Field | Description |
+|-------|-------------|
+| `description` | Brief description of the workflow |
+| `paths` | Custom paths for package resources |
+
+### Custom Paths
+
+Override default resource locations:
+
+| Path | Default | Description |
+|------|---------|-------------|
+| `config` | `config/` | Configuration files directory |
+| `workflows` | `templates/workflows/` | Workflow definition files |
+| `prompts` | `prompts/` | Prompt templates |
+| `characters` | `config/agent-characters.json` | Agent character definitions |
+
+---
+
+## Validation Requirements
+
+Both local and remote imports must pass validation:
+
+<Steps>
+<Step title="Manifest Present">
+  Must have `codemachine.json` or `.codemachine.json` with `name` and `version` fields.
+</Step>
+<Step title="Config Directory">
+  Must have `config/main.agents.js` with agent definitions.
+</Step>
+<Step title="Workflow Files">
+  Must have at least one `.workflow.js` file in the workflows directory.
+</Step>
+<Step title="Prompts Directory (Optional)">
+  If missing, you'll see a warning but import will proceed.
+</Step>
+</Steps>
+
+---
+
+## Import Location
+
+Imported packages are stored in:
+
+```
+~/.codemachine/imports/{name}-codemachine/
+```
+
+For example, importing a package named `codemachine-one` creates:
+
+```
+~/.codemachine/imports/codemachine-one-codemachine/
+├── codemachine.json
+├── config/
+│   ├── main.agents.js
+│   └── ...
+├── templates/
+│   └── workflows/
+│       └── codemachine-one.workflow.js
+└── prompts/
+    └── ...
+```
+
+---
+
+## Examples
+
+### Import Local Development Package
+
+```bash
+# Create a local package
+mkdir -p ~/my-workflow/config ~/my-workflow/templates/workflows
+
+# Add manifest
+echo '{"name": "my-workflow", "version": "1.0.0"}' > ~/my-workflow/codemachine.json
+
+# Add required files...
+
+# Import it
+codemachine import ~/my-workflow
+```
+
+### Import from GitHub
+
+```bash
+# By owner/repo
+codemachine import moazbuilds/codemachine-one
+
+# By short name (searches GitHub)
+codemachine import codemachine-one
+
+# By full URL
+codemachine import https://github.com/moazbuilds/codemachine-one
+```
+
+### Import Using TUI
+
+Within CodeMachine, use the `/import` command:
+
+```
+/import ./my-local-package
+/import moazbuilds/codemachine-one-codemachine
+```
+
+---
+
+## Troubleshooting
+
+<AccordionGroup>
+<Accordion title="Import fails with 'manifest not found'">
+Ensure your package has either `codemachine.json` or `.codemachine.json` at the root level with valid `name` and `version` fields.
+</Accordion>
+
+<Accordion title="Import fails with 'missing main.agents.js'">
+Create `config/main.agents.js` with at least one agent definition:
+
+```javascript
+module.exports = [
+  {
+    id: 'my-agent',
+    name: 'My Agent',
+    description: 'Agent description',
+    promptPath: './prompts/my-agent.md'
+  }
+];
+```
+</Accordion>
+
+<Accordion title="Import fails with 'no workflow files'">
+Create at least one `.workflow.js` file in `templates/workflows/`:
+
+```javascript
+export default {
+  steps: [
+    resolveStep('my-agent'),
+  ],
+};
+```
+</Accordion>
+
+<Accordion title="Local path not recognized">
+Make sure your path:
+- Starts with `/` (absolute), `./`, `../` (relative), or `~` (home)
+- Points to an existing directory
+- Contains a valid manifest file
+</Accordion>
+</AccordionGroup>

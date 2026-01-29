@@ -1,0 +1,386 @@
+---
+title: "Advanced Workflows"
+description: "Master workflow definitions with tracks, conditions, modules, and controllers."
+sidebarTitle: "Advanced Workflows"
+---
+
+This guide covers advanced workflow features: step types, configuration options, tracks, conditions, modules, and controllers.
+
+---
+
+## Workflow Definition
+
+The workflow definition file (`.workflow.js`) is the core of your package. It defines what happens when someone runs your workflow.
+
+### Minimum Workflow
+
+A workflow only needs steps to run:
+
+```javascript example.workflow.js
+export default {
+  steps: [
+    resolveStep('analyst-agent'),
+    resolveStep('developer-agent'),
+    resolveStep('reviewer-agent'),
+  ],
+};
+```
+
+### Full Structure
+
+```javascript example.workflow.js
+export default {
+  name: 'My Workflow',
+  autonomousMode: 'never',
+  specification: false,
+  controller: controller('my-controller', {}),
+
+  tracks: { /* ... */ },
+  conditionGroups: [ /* ... */ ],
+
+  steps: [ /* ... */ ],
+  subAgentIds: [ /* ... */ ],
+};
+```
+
+---
+
+## Step Functions
+
+Three functions are available globally in workflow files:
+
+### resolveStep
+
+Resolves a main agent from `config/main.agents.js`:
+
+```javascript
+resolveStep('agent-id')
+resolveStep('agent-id', { engine: 'claude', interactive: false })
+```
+
+### resolveModule
+
+Resolves a module from `config/modules.js` with loop behavior:
+
+```javascript
+resolveModule('review-module', { loopSteps: 2, loopMaxIterations: 5 })
+```
+
+### separator
+
+Creates a visual phase separator in the workflow timeline:
+
+```javascript
+separator("Planning Phase")
+separator("⟲ Development Cycle ⟲")
+```
+
+### controller
+
+Defines a controller agent for autonomous execution:
+
+```javascript
+controller('controller-agent-id', { engine: 'claude' })
+```
+
+---
+
+## Step Options
+
+Configure how each step behaves:
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `engine` | `string` | AI engine to use |
+| `model` | `string` | Specific model override |
+| `modelReasoningEffort` | `'low' \| 'medium' \| 'high'` | Reasoning effort level |
+| `interactive` | `boolean` | Wait for user input between prompts |
+| `executeOnce` | `boolean` | Run only once (skip on re-runs) |
+| `tracks` | `string[]` | Only run for specified tracks |
+| `conditions` | `string[]` | Only run when ALL conditions are selected |
+| `conditionsAny` | `string[]` | Run when ANY condition is selected |
+| `agentName` | `string` | Override display name |
+| `promptPath` | `string \| string[]` | Override default prompt path |
+
+### Engines
+
+| Engine | Description |
+|--------|-------------|
+| `'claude'` | Anthropic Claude (default) |
+| `'codex'` | OpenAI Codex |
+| `'cursor'` | Cursor AI |
+| `'ccr'` | Claude Code Runner |
+| `'opencode'` | OpenCode |
+
+### Examples
+
+```javascript
+// Basic step
+resolveStep('analyst')
+
+// With engine override
+resolveStep('developer', { engine: 'codex' })
+
+// Non-interactive step (auto-continues)
+resolveStep('code-gen', { interactive: false })
+
+// Conditional step
+resolveStep('ui-designer', { conditions: ['has-ui'] })
+
+// Track-specific step
+resolveStep('mobile-dev', { tracks: ['mobile-app'] })
+
+// Execute once (skip on workflow resume)
+resolveStep('init', { executeOnce: true })
+```
+
+---
+
+## Module Options
+
+Modules extend step options with loop behavior:
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `loopSteps` | `number` | How many steps to go back when looping |
+| `loopMaxIterations` | `number` | Maximum loop iterations |
+| `loopSkip` | `string[]` | Agent IDs to skip when looping back |
+
+```javascript
+// Loop back 2 steps, max 5 iterations
+resolveModule('review-agent', {
+  loopSteps: 2,
+  loopMaxIterations: 5
+})
+
+// Loop back 6 steps, skip certain agents
+resolveModule('task-checker', {
+  loopSteps: 6,
+  loopMaxIterations: 20,
+  loopSkip: ['runtime-prep', 'init']
+})
+```
+
+<Info>
+  Modules are agents that can loop back to earlier steps. Use them for review cycles or iterative refinement until a condition is met.
+</Info>
+
+---
+
+## Tracks
+
+Tracks let users choose different workflow paths. Only one track can be selected at runtime.
+
+```javascript
+tracks: {
+  question: 'Choose your project type:',
+  options: {
+    'landing-page': {
+      label: 'Landing Page',
+      description: 'Single page website'
+    },
+    'full-app': {
+      label: 'Full Application',
+      description: 'Complete web application'
+    },
+    'api-only': {
+      label: 'API Only',
+      description: 'Backend API without frontend'
+    },
+  },
+},
+```
+
+Use tracks when you have mutually exclusive paths that significantly change the workflow.
+
+### Track-Filtered Steps
+
+```javascript
+steps: [
+  resolveStep('planner'),
+  resolveStep('frontend-dev', { tracks: ['landing-page', 'full-app'] }),
+  resolveStep('backend-dev', { tracks: ['full-app', 'api-only'] }),
+  resolveStep('deployer'),
+]
+```
+
+---
+
+## Condition Groups
+
+Conditions are feature toggles that enable or disable specific steps. Unlike tracks, multiple conditions can be selected.
+
+```javascript
+conditionGroups: [
+  {
+    id: 'features',
+    question: 'What features do you need?',
+    multiSelect: true,
+    conditions: {
+      'has-api': { label: 'API', description: 'REST or GraphQL API' },
+      'has-auth': { label: 'Auth', description: 'User authentication' },
+      'has-db': { label: 'Database', description: 'Database integration' },
+    },
+  },
+],
+```
+
+### Nested Conditions
+
+Conditions can have children that appear based on parent selection:
+
+```javascript
+conditionGroups: [
+  {
+    id: 'deployment',
+    question: 'Where will you deploy?',
+    multiSelect: false,
+    conditions: {
+      'cloud': { label: 'Cloud', description: 'AWS, GCP, or Azure' },
+      'self-hosted': { label: 'Self-hosted', description: 'Your own servers' },
+    },
+    children: {
+      'cloud': {
+        question: 'Which cloud provider?',
+        multiSelect: false,
+        conditions: {
+          'aws': { label: 'AWS', description: 'Amazon Web Services' },
+          'gcp': { label: 'GCP', description: 'Google Cloud Platform' },
+          'azure': { label: 'Azure', description: 'Microsoft Azure' },
+        },
+      },
+    },
+  },
+],
+```
+
+### Track-Specific Conditions
+
+Condition groups can be limited to specific tracks:
+
+```javascript
+conditionGroups: [
+  {
+    id: 'advanced-features',
+    question: 'Select advanced features:',
+    multiSelect: true,
+    tracks: ['full-app'],  // Only shown when 'full-app' track is selected
+    conditions: {
+      'microservices': { label: 'Microservices', description: 'Service-based architecture' },
+      'caching': { label: 'Caching', description: 'Redis or Memcached' },
+    },
+  },
+],
+```
+
+### Condition-Filtered Steps
+
+```javascript
+steps: [
+  resolveStep('planner'),
+  resolveStep('api-architect', { conditions: ['has-api'] }),
+  resolveStep('auth-setup', { conditions: ['has-auth'] }),
+  resolveStep('db-designer', { conditionsAny: ['has-db', 'has-api'] }),
+]
+```
+
+<Note>
+  Use `conditions` when ALL listed conditions must be selected. Use `conditionsAny` when ANY of the listed conditions enables the step.
+</Note>
+
+---
+
+## Controllers
+
+Controllers are special agents that drive workflows autonomously. They can approve step transitions without user input.
+
+```javascript
+export default {
+  name: 'My Workflow',
+  controller: controller('my-controller-agent', { engine: 'claude' }),
+  autonomousMode: 'always',
+  // ...
+};
+```
+
+The controller agent needs access to workflow signals via MCP to approve transitions.
+
+<Warning>
+  Controllers are in beta. The workflow can still run without a controller in manual mode.
+</Warning>
+
+---
+
+## Autonomous Mode
+
+Control how the workflow runs:
+
+| Value | Behavior |
+|-------|----------|
+| `'never'` | Always manual - user controls each step |
+| `'always'` | Always autonomous - controller drives everything |
+| `true` | Same as `'always'` |
+| `false` | Same as `'never'` |
+
+```javascript
+export default {
+  name: 'My Workflow',
+  autonomousMode: 'never',
+  // ...
+};
+```
+
+<Tip>
+  Users can toggle autonomous mode during workflow execution with `Shift+Tab`.
+</Tip>
+
+---
+
+## Sub-Agents
+
+Define sub-agents that can be invoked by main agents through MCP:
+
+```javascript
+export default {
+  name: 'My Workflow',
+  steps: [
+    resolveStep('orchestrator', {
+      mcp: [{
+        server: 'agent-coordination',
+        targets: ['sub-agent-1', 'sub-agent-2']
+      }]
+    }),
+  ],
+  subAgentIds: [
+    'sub-agent-1',
+    'sub-agent-2',
+    'sub-agent-3',
+  ],
+};
+```
+
+Sub-agents are defined in `config/sub.agents.js` and can be called by orchestrator agents.
+
+---
+
+## Specification Mode
+
+Enable specification mode to require a spec file before running:
+
+```javascript
+export default {
+  name: 'My Workflow',
+  specification: true,
+  // ...
+};
+```
+
+When `specification: true`, CodeMachine prompts for a specification file path at workflow start.
+
+---
+
+## Next Steps
+
+<Card title="Workflow Examples" icon="code" href="./workflow-examples">
+  See complete real-world workflow examples
+</Card>

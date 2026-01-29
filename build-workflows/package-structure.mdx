@@ -1,0 +1,148 @@
+---
+title: "Package Structure"
+description: "Understand the folder structure and manifest file of a workflow package."
+sidebarTitle: "Package Structure"
+---
+
+A workflow package is a folder containing everything CodeMachine needs to run your workflow: configuration, prompts, and workflow definitions.
+
+<Tip>
+  New to building workflows? Use the built-in [Ali workflow](/build-workflows/your-first-workflow) for step-by-step guidance.
+</Tip>
+
+---
+
+## Folder Structure
+
+Every workflow package follows this structure:
+
+<Tree>
+  <Tree.Folder name="my-workflow-codemachine" defaultOpen>
+    <Tree.File name="codemachine.json" />
+    <Tree.Folder name="config" defaultOpen>
+      <Tree.File name="main.agents.js" />
+      <Tree.File name="sub.agents.js" />
+      <Tree.File name="modules.js" />
+      <Tree.File name="placeholders.js" />
+      <Tree.File name="agent-characters.json" />
+    </Tree.Folder>
+    <Tree.Folder name="templates" defaultOpen>
+      <Tree.Folder name="workflows" defaultOpen>
+        <Tree.File name="example.workflow.js" />
+      </Tree.Folder>
+    </Tree.Folder>
+    <Tree.Folder name="prompts">
+      <Tree.Folder name="templates" defaultOpen>
+        <Tree.Folder name="workflow-name">
+          <Tree.Folder name="agent-name">
+            <Tree.File name="persona.md" />
+            <Tree.File name="workflow.md" />
+            <Tree.Folder name="chained">
+              <Tree.File name="step-01.md" />
+              <Tree.File name="step-02.md" />
+            </Tree.Folder>
+          </Tree.Folder>
+          <Tree.Folder name="shared">
+            <Tree.File name="common-instructions.md" />
+          </Tree.Folder>
+        </Tree.Folder>
+      </Tree.Folder>
+    </Tree.Folder>
+  </Tree.Folder>
+</Tree>
+
+<Note>
+  A minimum workflow requires only three files: `codemachine.json`, `main.agents.js`, and a `.workflow.js` file. Everything else is optional.
+</Note>
+
+---
+
+## Required Files
+
+| File | Location | Purpose |
+|------|----------|---------|
+| `codemachine.json` | Root | Package manifest with name and version |
+| `main.agents.js` | `config/` | Main agent definitions |
+| `*.workflow.js` | `templates/workflows/` | Workflow step definitions |
+
+## Optional Files
+
+| File | Location | Purpose |
+|------|----------|---------|
+| `sub.agents.js` | `config/` | Sub-agent definitions for orchestrated agents |
+| `modules.js` | `config/` | Module definitions for looping agents |
+| `placeholders.js` | `config/` | Dynamic content placeholders |
+| `agent-characters.json` | `config/` | Agent personalities and display styles |
+| `prompts/` | Root | Prompt templates for agents |
+
+---
+
+## Manifest File
+
+Every workflow package must have a `codemachine.json` manifest at its root:
+
+```json codemachine.json
+{
+  "name": "my-workflow",
+  "version": "1.0.0",
+  "description": "Optional description of your workflow"
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Package identifier (used for imports) |
+| `version` | Yes | Semantic version (e.g., `1.0.0`) |
+| `description` | No | Brief description of your workflow |
+
+<Warning>
+  The `name` field must be unique. When importing, CodeMachine uses this to identify the package.
+</Warning>
+
+### Real Examples
+
+<CodeGroup>
+```json BMAD
+{
+  "name": "bmad",
+  "version": "1.0.0",
+  "description": "BMAD Method - Business-driven Modular Agile Development workflow for greenfield projects"
+}
+```
+
+```json CodeMachine-One
+{
+  "name": "codemachine-one",
+  "version": "1.0.0",
+  "description": "CodeMachine-One autonomous development workflow - from specification to implementation"
+}
+```
+</CodeGroup>
+
+---
+
+## Importing Packages
+
+Once your package has a valid manifest, you can import it using the CLI or TUI:
+
+```bash
+codemachine import ./path/to/workflow
+```
+
+Or from within CodeMachine:
+
+```
+/import ./path/to/workflow
+```
+
+<Card title="Import Workflows" icon="download" href="./import-workflows">
+  Learn about all import sources: local paths, GitHub repos, and more
+</Card>
+
+---
+
+## Next Steps
+
+<Card title="Build Agents" icon="robot" href="./build-agents">
+  Learn how to configure agents in `main.agents.js`
+</Card>

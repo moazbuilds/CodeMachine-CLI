@@ -1,0 +1,344 @@
+---
+title: "Workflow Examples"
+description: "Real-world workflow examples from simple to complex."
+sidebarTitle: "Workflow Examples"
+---
+
+Learn from complete, production-ready workflow examples ranging from simple sequential flows to complex autonomous systems.
+
+---
+
+## Simple: API Forge
+
+A straightforward sequential workflow for generating APIs. No tracks or conditions—just a linear progression of agents.
+
+<Accordion title="api-forge.workflow.js" defaultOpen>
+```javascript api-forge.workflow.js
+export default {
+  name: 'API Forge',
+  autonomousMode: 'never',
+
+  steps: [
+    separator('Requirements Gathering'),
+
+    resolveStep('api-architect', {
+      // Interactive - asks clarifying questions
+    }),
+
+    separator('Code Generation'),
+
+    resolveStep('schema-generator', {
+      interactive: false,
+    }),
+
+    resolveStep('endpoint-builder', {
+      interactive: false,
+    }),
+
+    resolveStep('database-migrator', {
+      interactive: false,
+    }),
+
+    separator('Documentation'),
+
+    resolveStep('docs-writer', {
+      interactive: false,
+    }),
+  ],
+};
+```
+</Accordion>
+
+**Key patterns:**
+- Linear step progression with `separator()` for visual organization
+- First step is interactive for requirements gathering
+- Subsequent steps run non-interactively
+- No tracks or conditions needed for simple workflows
+
+---
+
+## Intermediate: BMAD Method
+
+A business-driven development workflow with tracks, conditions, controller, and a review loop.
+
+<Accordion title="bmad.workflow.js" defaultOpen>
+```javascript bmad.workflow.js
+export default {
+  name: 'BMAD Method',
+  controller: controller('bmad-po'),
+
+  tracks: {
+    question: 'What is your project size?',
+    options: {
+      medium: {
+        label: 'Medium Project',
+        description: 'Balanced approach for greenfield projects'
+      },
+    },
+  },
+
+  conditionGroups: [
+    {
+      id: 'features',
+      question: 'What features does your project have?',
+      multiSelect: true,
+      conditions: {
+        has_ui: {
+          label: 'Has UI',
+          description: 'Project includes a user interface'
+        },
+      },
+    },
+  ],
+
+  steps: [
+    separator("∴ Planning Phase ∴"),
+    resolveStep('bmad-pm', {}),
+    resolveStep('bmad-ux', { conditions: ['has_ui'] }),
+
+    separator("∴ Solutioning Phase ∴"),
+    resolveStep('bmad-architect', {}),
+    resolveStep('bmad-epics', {}),
+
+    separator("∴ Implementation Phase ∴"),
+    resolveStep('bmad-sprints', {}),
+
+    separator("⟲ Story Loop ⟲"),
+    resolveStep('bmad-stories', { interactive: false }),
+    resolveStep('bmad-dev', { interactive: false }),
+    resolveModule('bmad-review', { interactive: false, loopSteps: 2 }),
+  ],
+};
+```
+</Accordion>
+
+**Key patterns:**
+- Controller for autonomous orchestration
+- Tracks for project size selection
+- Conditions to enable/disable UX designer based on UI requirement
+- Phase separators for clear workflow organization
+- `resolveModule` with `loopSteps: 2` creates a review cycle (loops back to stories → dev → review)
+
+---
+
+## Advanced: CodeMachine-One
+
+A fully autonomous development workflow with sub-agents, specification mode, and a complex task loop.
+
+<Accordion title="codemachine-one.workflow.js" defaultOpen>
+```javascript codemachine-one.workflow.js
+export default {
+  name: 'CodeMachine-One Workflow',
+  specification: true,
+  autonomousMode: 'always',
+
+  steps: [
+    resolveStep('init', { interactive: false }),
+    resolveStep('principal-analyst', { interactive: false }),
+
+    separator("∴ Planning Phase ∴"),
+    resolveStep('blueprint-orchestrator', { interactive: false }),
+    resolveStep('plan-agent', { interactive: false }),
+    resolveStep('task-breakdown', { interactive: false }),
+    resolveStep('git-commit', { interactive: false }),
+
+    separator("⟲ Development Cycle ⟲"),
+    resolveStep('context-manager', { interactive: false }),
+    resolveStep('code-generation', { interactive: false }),
+    resolveStep('runtime-prep', { interactive: false }),
+    resolveStep('task-sanity-check', { interactive: false }),
+    resolveStep('git-commit', { interactive: false }),
+
+    separator("◈◈ Iteration Gate ◈◈"),
+    resolveModule('check-task', {
+      loopSteps: 6,
+      loopMaxIterations: 20,
+      loopSkip: ['runtime-prep'],
+      interactive: false
+    }),
+  ],
+
+  subAgentIds: [
+    'founder-architect',
+    'structural-data-architect',
+    'behavior-architect',
+    'ui-ux-architect',
+    'operational-architect',
+    'file-assembler'
+  ],
+};
+```
+</Accordion>
+
+**Key patterns:**
+- `specification: true` requires a spec file at start
+- `autonomousMode: 'always'` runs without manual intervention
+- All steps are non-interactive for fully autonomous execution
+- `blueprint-orchestrator` coordinates sub-agents via MCP
+- `subAgentIds` declares available sub-agents for orchestration
+- Complex loop module:
+  - `loopSteps: 6` goes back through the entire development cycle
+  - `loopMaxIterations: 20` prevents infinite loops
+  - `loopSkip: ['runtime-prep']` skips redundant steps on loop
+
+---
+
+## Module Configuration
+
+Modules require configuration in `config/modules.js`. Here are examples from the workflows above:
+
+<Tabs>
+<Tab title="BMAD Review Module">
+```javascript modules.js
+const path = require('node:path');
+const promptsDir = path.join(__dirname, '..', 'prompts');
+
+module.exports = [
+  {
+    id: 'bmad-review',
+    name: 'Amelia [Dev: Review]',
+    description: 'BMAD Developer for code review',
+    promptPath: [
+      path.join(promptsDir, 'templates', 'bmad', 'shared', 'system-files-protection.md'),
+      path.join(promptsDir, 'templates', 'bmad', '07-dev', 'amelia.md'),
+      path.join(promptsDir, 'templates', 'bmad', '07-dev', '02-code-review', 'instructions.xml'),
+      path.join(promptsDir, 'templates', 'bmad', '07-dev', '02-code-review', 'checklist.md'),
+    ],
+    engine: 'claude',
+    chainedPromptsPath: [
+      path.join(promptsDir, 'templates', 'bmad', '07-dev', '02-code-review', 'next-state.xml'),
+      path.join(promptsDir, 'templates', 'bmad', '07-dev', '02-code-review', 'ensure-loop.xml'),
+    ],
+    behavior: {
+      type: 'loop',
+      action: 'stepBack',
+    },
+  },
+];
+```
+</Tab>
+<Tab title="CodeMachine Task Checker">
+```javascript modules.js
+const path = require('node:path');
+const promptsDir = path.join(__dirname, '..', 'prompts');
+
+module.exports = [
+  {
+    id: 'check-task',
+    name: 'Task Loop Checker',
+    description: 'Validates that all tasks are completed and signals whether to repeat workflow steps.',
+    promptPath: path.join(promptsDir, 'templates', 'codemachine', 'workflows', 'task-verification-workflow.md'),
+    behavior: {
+      type: 'loop',
+      action: 'stepBack',
+    },
+    engine: 'codex'
+  },
+];
+```
+</Tab>
+</Tabs>
+
+<Info>
+  The `behavior.type: 'loop'` and `behavior.action: 'stepBack'` are required for modules to loop back. The `loopSteps` in the workflow definition controls how far back to go.
+</Info>
+
+---
+
+## Main Agents Configuration
+
+Here's an example `main.agents.js` from CodeMachine-One:
+
+<Accordion title="main.agents.js">
+```javascript main.agents.js
+const path = require('node:path');
+const promptsDir = path.join(__dirname, '..', 'prompts', 'templates');
+
+module.exports = [
+  {
+    id: 'init',
+    name: 'Init',
+    description: 'Initializes development environment',
+    promptPath: path.join(promptsDir, 'codemachine', 'main-agents', '00-init.md'),
+    engine: 'codex'
+  },
+  {
+    id: 'principal-analyst',
+    name: 'Analyst Checkpoint',
+    description: 'Reviews specifications and identifies ambiguities',
+    promptPath: path.join(promptsDir, 'codemachine', 'main-agents', '01-principal-analyst.md'),
+    engine: 'codex'
+  },
+  {
+    id: 'blueprint-orchestrator',
+    name: 'Blueprint Orchestrator',
+    description: 'Orchestrates architecture sub-agents',
+    promptPath: path.join(promptsDir, 'codemachine', 'main-agents', '02-blueprint-orchestrator.md'),
+    mcp: [
+      {
+        server: 'agent-coordination',
+        targets: [
+          'founder-architect',
+          'structural-data-architect',
+          'behavior-architect',
+          'operational-architect',
+          'ui-ux-architect'
+        ]
+      }
+    ]
+  },
+  {
+    id: 'code-generation',
+    name: 'Code Generation Agent',
+    description: 'Generates code based on task specifications',
+    promptPath: path.join(promptsDir, 'codemachine', 'main-agents', '06-code-generation-agent.md'),
+    engine: 'codex'
+  },
+];
+```
+</Accordion>
+
+---
+
+## Comparison Table
+
+| Feature | API Forge | BMAD | CodeMachine-One |
+|---------|-----------|------|-----------------|
+| Complexity | Simple | Intermediate | Advanced |
+| Autonomous Mode | `never` | With controller | `always` |
+| Tracks | No | Yes | No |
+| Conditions | No | Yes | No |
+| Modules (Loops) | No | Yes (2 steps) | Yes (6 steps) |
+| Sub-Agents | No | No | Yes (6 agents) |
+| Specification | No | No | Yes |
+| Interactive Steps | Mixed | Mixed | None |
+
+---
+
+## When to Use Each Pattern
+
+<AccordionGroup>
+<Accordion title="Simple Sequential (like API Forge)">
+Use when:
+- Steps always run in the same order
+- No branching logic needed
+- Single-purpose workflow
+- Getting started with CodeMachine
+</Accordion>
+
+<Accordion title="Tracks & Conditions (like BMAD)">
+Use when:
+- Different project types need different paths
+- Optional features that enable/disable steps
+- User choice affects workflow behavior
+- Building flexible, reusable workflows
+</Accordion>
+
+<Accordion title="Autonomous with Sub-Agents (like CodeMachine-One)">
+Use when:
+- Complex tasks requiring specialized sub-agents
+- Fully autonomous execution is desired
+- Iterative development cycles
+- Production-grade development workflows
+</Accordion>
+</AccordionGroup>

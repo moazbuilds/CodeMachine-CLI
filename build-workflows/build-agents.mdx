@@ -4,3 +4,675 @@ description: "Configure main agents, sub-agents, modules, and controllers for yo
 sidebarTitle: "Build Agents"
 ---
 
+Agents are configured in JavaScript files inside the `config/` folder. Each agent type has its own configuration file.
+
+| File | Agent Type | Purpose |
+|------|------------|---------|
+| `main.agents.js` | Main agents | Core workflow steps |
+| `modules.js` | Modules | Agents with loop behavior |
+| `sub.agents.js` | Sub-agents | Delegated tasks spawned by main agents |
+
+<Note>
+  Controllers are defined in `main.agents.js` with `role: 'controller'`. They're main agents with special orchestration capabilities.
+</Note>
+
+---
+
+## Main Agents
+
+Main agents are the core building blocks of your workflow. Each main agent runs as a step in the workflow sequence.
+
+### Basic Structure
+
+```javascript config/main.agents.js
+const path = require('node:path');
+const promptsDir = path.join(__dirname, '..', 'prompts', 'templates');
+
+module.exports = [
+  {
+    id: 'planner',
+    name: 'Project Planner',
+    description: 'Analyzes requirements and creates implementation plan',
+    promptPath: path.join(promptsDir, 'planner', 'main.md'),
+  },
+];
+```
+
+### Agent Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | Yes | Unique identifier (lowercase, hyphens) |
+| `name` | Yes | Display name shown in UI |
+| `description` | Yes | Brief description of what the agent does |
+| `promptPath` | Yes | Path or array of paths to prompt files |
+| `chainedPromptsPath` | No | Array of chained prompt paths (multi-step agents) |
+| `engine` | No | AI engine to use (defaults to workflow default) |
+| `model` | No | AI model to use (defaults to engine default) |
+| `tracks` | No | Array of track IDs this agent runs for |
+| `conditions` | No | Array of condition IDs this agent runs for |
+
+---
+
+## Prompt Path: String vs Array
+
+The `promptPath` field accepts either a single path or an array of paths.
+
+<Tabs>
+  <Tab title="String (Single File)" icon="file">
+    One prompt file loaded as the agent's instructions.
+
+    ```javascript
+    {
+      id: 'planner',
+      promptPath: path.join(promptsDir, 'planner', 'main.md'),
+    }
+    ```
+  </Tab>
+  <Tab title="Array (Multiple Files)" icon="layer-group">
+    Multiple prompt files **merged into one** and shown to the agent as a single prompt. Use this to split large prompts into organized files.
+
+    ```javascript
+    {
+      id: 'planner',
+      promptPath: [
+        path.join(promptsDir, 'planner', 'persona.md'),
+        path.join(promptsDir, 'planner', 'instructions.md'),
+        path.join(promptsDir, 'planner', 'examples.md'),
+      ],
+    }
+    ```
+  </Tab>
+</Tabs>
+
+<Info>
+  **promptPath array** = Files merged into one prompt, shown at once.
+
+  **chainedPromptsPath** = Separate prompts injected sequentially, one after another with user interaction between each.
+</Info>
+
+### When to Use Array promptPath
+
+| Use Case | Example |
+|----------|---------|
+| Organizing large prompts | Split persona, instructions, and examples into separate files |
+| Reusing prompt components | Share common instructions across agents |
+| Maintaining readability | Keep individual files focused and manageable |
+
+```javascript
+// Complex agent with organized prompt structure
+{
+  id: 'architect',
+  name: 'System Architect',
+  description: 'Designs system architecture',
+  promptPath: [
+    path.join(promptsDir, 'shared', 'coding-standards.md'),
+    path.join(promptsDir, 'architect', 'persona.md'),
+    path.join(promptsDir, 'architect', 'workflow.md'),
+    path.join(promptsDir, 'architect', 'output-format.md'),
+  ],
+}
+```
+
+---
+
+## Single-Step vs Multi-Step
+
+Agents can be single-step or multi-step based on whether they have chained prompts.
+
+<Tabs>
+  <Tab title="Single-Step" icon="circle-1">
+    One prompt file, injected once. Best for focused tasks.
+
+    ```javascript
+    {
+      id: 'code-reviewer',
+      name: 'Code Reviewer',
+      description: 'Reviews code for issues and improvements',
+      promptPath: path.join(promptsDir, 'reviewer', 'main.md'),
+    }
+    ```
+  </Tab>
+  <Tab title="Multi-Step" icon="list-ol">
+    Multiple prompts injected sequentially into the same session. Best for complex workflows with progressive context.
+
+    ```javascript
+    {
+      id: 'onboarding-guide',
+      name: 'Onboarding Guide',
+      description: 'Guides users through project setup',
+      promptPath: path.join(promptsDir, 'onboarding', 'main.md'),
+      chainedPromptsPath: [
+        path.join(promptsDir, 'onboarding', 'chained', 'step-01-intro.md'),
+        path.join(promptsDir, 'onboarding', 'chained', 'step-02-setup.md'),
+        path.join(promptsDir, 'onboarding', 'chained', 'step-03-config.md'),
+      ],
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### When to Use Each
+
+| Type | Use When |
+|------|----------|
+| **Single-step** | Focused tasks, smaller prompts, minimal context needed |
+| **Multi-step** | Q&A flows, progressive context building, conversational agents |
+
+<Info>
+  Multi-step agents maintain the same session throughout all steps. The agent remembers everything from previous steps.
+</Info>
+
+---
+
+## Modules
+
+Modules are main agents with loop behavior. They can send the workflow back to earlier steps, creating validation gates and iteration cycles.
+
+### Module Structure
+
+```javascript config/modules.js
+const path = require('node:path');
+const promptsDir = path.join(__dirname, '..', 'prompts', 'modules');
+
+module.exports = [
+  {
+    id: 'quality-gate',
+    name: 'Quality Gate',
+    description: 'Validates work and loops back if issues found',
+    promptPath: path.join(promptsDir, 'quality-gate', 'main.md'),
+    behavior: {
+      type: 'loop',
+      action: 'stepBack',
+    },
+  },
+];
+```
+
+### Module Fields
+
+In addition to standard agent fields, modules have:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `behavior.type` | Yes | Must be `'loop'` |
+| `behavior.action` | Yes | Must be `'stepBack'` |
+
+### How Modules Control Flow
+
+Modules communicate with the workflow by writing to a directive file:
+
+```
+.codemachine/memory/directive.json
+```
+
+| Directive | Action |
+|-----------|--------|
+| `action: 'loop'` | Go back N steps and re-run |
+| `action: 'stop'` | Continue forward (validation passed) |
+
+### Common Module Patterns
+
+<AccordionGroup>
+  <Accordion title="Validation Loop" icon="check-double">
+    Check work quality, fix issues, re-check until passing.
+
+    ```javascript
+    {
+      id: 'validator',
+      name: 'Code Validator',
+      description: 'Validates code quality and loops if issues found',
+      promptPath: path.join(promptsDir, 'validator', 'main.md'),
+      behavior: { type: 'loop', action: 'stepBack' },
+    }
+    ```
+  </Accordion>
+  <Accordion title="Review Cycle" icon="rotate">
+    Review output, request changes, iterate until approved.
+
+    ```javascript
+    {
+      id: 'reviewer',
+      name: 'Review Module',
+      description: 'Reviews and requests revisions until approved',
+      promptPath: path.join(promptsDir, 'reviewer', 'main.md'),
+      behavior: { type: 'loop', action: 'stepBack' },
+    }
+    ```
+  </Accordion>
+  <Accordion title="Quality Gate" icon="shield-check">
+    Block progression until quality threshold is met.
+
+    ```javascript
+    {
+      id: 'quality-gate',
+      name: 'Quality Gate',
+      description: 'Ensures quality standards before proceeding',
+      promptPath: path.join(promptsDir, 'quality-gate', 'main.md'),
+      behavior: { type: 'loop', action: 'stepBack' },
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Workflow File Options
+
+When using modules in your workflow file, you can configure loop behavior:
+
+```javascript
+resolveModule('quality-gate', {
+  loopSteps: 2,           // How many steps to go back
+  loopMaxIterations: 3,   // Maximum loop attempts
+  loopSkip: ['logger'],   // Agents to skip on re-loop
+})
+```
+
+---
+
+## Sub-Agents
+
+Sub-agents are helper agents that main agents can spawn during execution. They run as separate sessions and return results to the calling agent.
+
+### When to Use Sub-Agents
+
+- Delegating specialized subtasks
+- Parallel task execution
+- Context isolation for specific work
+- Reusable agent capabilities
+
+### Sub-Agent Types
+
+<Tabs>
+  <Tab title="Static" icon="file">
+    Pre-defined prompt file. You define the prompt at build time.
+
+    ```javascript config/sub.agents.js
+    {
+      id: 'test-writer',
+      name: 'Test Writer',
+      description: 'Writes unit tests for given code',
+      mirrorPath: path.join(promptsDir, 'sub-agents', 'test-writer.md'),
+    }
+    ```
+  </Tab>
+  <Tab title="Dynamic" icon="bolt">
+    No prompt file. The main agent generates the prompt at runtime.
+
+    ```javascript config/sub.agents.js
+    {
+      id: 'specialist',
+      name: 'Dynamic Specialist',
+      description: 'Specialized agent generated at runtime',
+      // No mirrorPath - prompt generated in .codemachine/agents/
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Sub-Agent Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | Yes | Unique identifier |
+| `name` | Yes | Display name |
+| `description` | Yes | What the sub-agent does |
+| `mirrorPath` | Static only | Path to pre-defined prompt file |
+
+### Invoking Sub-Agents
+
+Main agents can invoke sub-agents using MCP tools or CLI commands.
+
+<Tabs>
+  <Tab title="MCP Tools" icon="plug">
+    Available MCP tools for sub-agent management:
+
+    | Tool | Description |
+    |------|-------------|
+    | `list_available_agents` | Discover available agents |
+    | `run_agents` | Execute agent scripts |
+    | `get_agent_status` | Check execution status |
+    | `list_active_agents` | See running agents |
+
+    **Workflow:**
+    1. `list_available_agents` - see what's available
+    2. `run_agents { "script": "agent-id 'task'" }` - execute
+    3. `get_agent_status { "name": "agent-id" }` - check results
+  </Tab>
+  <Tab title="CLI Commands" icon="terminal">
+    ```bash
+    # Single agent
+    codemachine run "code-generator 'Build login feature'"
+
+    # With input file
+    codemachine run "analyst[input:requirements.md] 'analyze'"
+
+    # Parallel execution
+    codemachine run "frontend 'UI' & backend 'API'"
+
+    # Sequential then parallel
+    codemachine run "db 'setup' && frontend & backend"
+    ```
+
+    **Options:**
+    | Option | Description |
+    |--------|-------------|
+    | `input:file.md` | Pass file content to agent |
+    | `input:f1.md;f2.md` | Multiple input files |
+    | `tail:100` | Limit output lines |
+
+    **Orchestration:**
+    | Pattern | Syntax | Description |
+    |---------|--------|-------------|
+    | Parallel | `&` | Independent tasks run simultaneously |
+    | Sequential | `&&` | Tasks run in order |
+    | Mixed | `a && b & c` | a first, then b and c in parallel |
+  </Tab>
+</Tabs>
+
+<Warning>
+  Include MCP tools documentation in your main agent's prompt if it needs to call sub-agents.
+</Warning>
+
+---
+
+## Controllers
+
+Controllers are special agents that orchestrate autonomous workflows. They respond on behalf of the user, driving the entire workflow.
+
+### Controller Structure
+
+```javascript config/main.agents.js
+{
+  id: 'project-controller',
+  name: 'Project Owner',
+  description: 'Orchestrates workflow and makes decisions',
+  role: 'controller',
+  promptPath: path.join(promptsDir, 'controller', 'project-controller.md'),
+  engine: 'claude',
+  model: 'opus',
+}
+```
+
+### Controller Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `role` | Yes | Must be `'controller'` |
+| All standard fields | Yes | id, name, description, promptPath |
+
+### Workflow Configuration
+
+Enable the controller in your workflow file:
+
+```javascript example.workflow.js
+export default {
+  name: 'My Workflow',
+  controller: controller('project-controller', { engine: 'claude', model: 'opus' }),
+  autonomousMode: 'always', // 'never' | 'always' | true | false
+  // ... steps
+};
+```
+
+### Autonomous Mode Options
+
+| Value | Behavior |
+|-------|----------|
+| `'never'` | Controller never activates automatically |
+| `'always'` | Controller always runs in autonomous mode |
+| `true` | Same as 'always' |
+| `false` | Same as 'never' |
+
+<Info>
+  Controllers require a signals MCP to communicate with agents. The controller sees agent outputs and decides whether to approve, request changes, or move forward.
+</Info>
+
+---
+
+## Agent Characters
+
+Agent characters give your agents visual personality in the CLI. Each agent can have custom ASCII faces and phrases.
+
+### Character Configuration
+
+```json config/agent-characters.json
+{
+  "personas": {
+    "swagger": {
+      "baseFace": "(⌐■_■)",
+      "expressions": {
+        "thinking": "(╭ರ_•́)",
+        "tool": "<(•_•<)",
+        "error": "(╥﹏╥)",
+        "idle": "(⌐■_■)"
+      },
+      "phrases": {
+        "thinking": ["Processing...", "Working on it..."],
+        "tool": ["Got what I needed", "Perfect, moving on"],
+        "error": ["Hmm, that didn't work", "Trying another way"],
+        "idle": ["Ready when you are", "Your turn"]
+      }
+    }
+  },
+  "agents": {
+    "planner": "swagger",
+    "reviewer": "analytical"
+  },
+  "defaultPersona": "friendly"
+}
+```
+
+### Pre-built Styles
+
+| Style | Base Face | Best For |
+|-------|-----------|----------|
+| `swagger` | `(⌐■_■)` | Cool, confident agents |
+| `friendly` | `(˶ᵔ ᵕ ᵔ˶)` | Warm, helpful agents |
+| `analytical` | `[•_•]` | Logical, precise agents |
+| `cheerful` | `◕‿◕` | Upbeat, positive agents |
+| `technical` | `{•_•}` | Developer-focused agents |
+| `precise` | `<•_•>` | Validation, QA agents |
+
+### Custom Characters
+
+Create custom characters by defining all expressions and phrases:
+
+```json
+{
+  "personas": {
+    "my-custom-style": {
+      "baseFace": "[◉_◉]",
+      "expressions": {
+        "thinking": "[◉~◉]",
+        "tool": "[◉!◉]",
+        "error": "[x_x]",
+        "idle": "[◉_◉]"
+      },
+      "phrases": {
+        "thinking": ["Analyzing...", "Computing..."],
+        "tool": ["Data received", "Processing result..."],
+        "error": ["Error encountered", "Retrying..."],
+        "idle": ["Standing by", "Awaiting input"]
+      }
+    }
+  }
+}
+```
+
+---
+
+## Engine & Model
+
+Each agent can use a different AI engine and model. Configure these to optimize for your use case.
+
+### Available Engines
+
+| Engine ID | Name | Default Model | Status |
+|-----------|------|---------------|--------|
+| `claude` | Claude Code | opus | Stable - Best tested |
+| `codex` | Codex | gpt-5.2-codex | Stable - Fastest |
+| `ccr` | Claude Code Router | sonnet | Stable (needs config) |
+| `opencode` | OpenCode | opencode/glm-4.7-free | Stable (free fallback) |
+| `auggie` | Auggie CLI | (provider default) | Unstable |
+| `mistral` | Mistral Vibe | devstral-2 | Unstable |
+| `cursor` | Cursor | auto | Experimental |
+
+<Note>
+  If no engine is set or authentication fails, CodeMachine falls back to `opencode` free plan.
+</Note>
+
+### Configuration
+
+```javascript
+{
+  id: 'planner',
+  name: 'Project Planner',
+  description: 'Creates implementation plans',
+  promptPath: path.join(promptsDir, 'planner', 'main.md'),
+  engine: 'claude',
+  model: 'opus',
+}
+```
+
+### Codex Reasoning Effort
+
+Codex supports reasoning effort control:
+
+```javascript
+{
+  id: 'complex-analyzer',
+  name: 'Complex Analyzer',
+  description: 'Deep analysis of complex systems',
+  promptPath: path.join(promptsDir, 'analyzer', 'main.md'),
+  engine: 'codex',
+  model: 'gpt-5.2-codex',
+  modelReasoningEffort: 'high', // 'low' | 'medium' | 'high'
+}
+```
+
+| Level | Use Case |
+|-------|----------|
+| `low` | Fast responses, simple tasks |
+| `medium` | Balanced (default) |
+| `high` | Complex reasoning, thorough analysis |
+
+---
+
+## Track & Condition Filtering
+
+Filter when agents run based on user-selected tracks and conditions.
+
+### Agent-Level Filtering
+
+Control when an entire agent runs:
+
+```javascript
+{
+  id: 'frontend-specialist',
+  name: 'Frontend Specialist',
+  description: 'Handles frontend implementation',
+  promptPath: path.join(promptsDir, 'frontend', 'main.md'),
+  tracks: ['frontend', 'fullstack'],    // Only runs for these tracks
+  conditions: ['has_ui'],                // AND only if has_ui is selected
+}
+```
+
+### Step-Level Filtering
+
+For multi-step agents, filter individual steps:
+
+```javascript
+{
+  id: 'developer',
+  name: 'Full Stack Developer',
+  description: 'Implements features',
+  promptPath: path.join(promptsDir, 'developer', 'main.md'),
+  chainedPromptsPath: [
+    // Always loads
+    path.join(promptsDir, 'developer', 'chained', 'step-01-setup.md'),
+    // Only for frontend track
+    {
+      path: path.join(promptsDir, 'developer', 'chained', 'step-02-react.md'),
+      tracks: ['frontend'],
+    },
+    // Only if mobile condition selected
+    {
+      path: path.join(promptsDir, 'developer', 'chained', 'step-03-mobile.md'),
+      conditions: ['has_mobile'],
+    },
+  ],
+}
+```
+
+### Filtering Rules
+
+- **Both track AND conditions must match** if both are specified
+- **Empty arrays = always runs/loads**
+- Agent-level filtering is checked first, then step-level
+
+---
+
+## Complete Example
+
+Here's a complete `main.agents.js` with multiple agent types:
+
+```javascript config/main.agents.js
+const path = require('node:path');
+const promptsDir = path.join(__dirname, '..', 'prompts', 'templates');
+
+module.exports = [
+  // Single-step main agent
+  {
+    id: 'planner',
+    name: 'Project Planner',
+    description: 'Analyzes requirements and creates implementation plan',
+    promptPath: path.join(promptsDir, 'planner', 'main.md'),
+    engine: 'claude',
+    model: 'opus',
+  },
+
+  // Multi-step main agent with filtering
+  {
+    id: 'developer',
+    name: 'Developer',
+    description: 'Implements the planned features',
+    promptPath: path.join(promptsDir, 'developer', 'main.md'),
+    chainedPromptsPath: [
+      path.join(promptsDir, 'developer', 'chained', 'step-01-setup.md'),
+      {
+        path: path.join(promptsDir, 'developer', 'chained', 'step-02-frontend.md'),
+        tracks: ['frontend', 'fullstack'],
+      },
+      {
+        path: path.join(promptsDir, 'developer', 'chained', 'step-03-backend.md'),
+        tracks: ['backend', 'fullstack'],
+      },
+    ],
+    engine: 'codex',
+    modelReasoningEffort: 'medium',
+  },
+
+  // Controller agent
+  {
+    id: 'project-controller',
+    name: 'Project Owner',
+    description: 'Orchestrates the workflow autonomously',
+    role: 'controller',
+    promptPath: path.join(promptsDir, 'controller', 'project-owner.md'),
+    engine: 'claude',
+    model: 'opus',
+  },
+];
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Write Prompts" icon="pen" href="./write-prompts">
+    Create prompts for your agents
+  </Card>
+  <Card title="Your First Workflow" icon="rocket" href="./your-first-workflow">
+    Put it all together in a workflow
+  </Card>
+</CardGroup>

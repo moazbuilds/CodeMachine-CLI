@@ -37,10 +37,12 @@
           {
             "group": "Build Workflows",
             "pages": [
-              "build-workflows/workflow-structure",
+              "build-workflows/package-structure",
               "build-workflows/build-agents",
               "build-workflows/write-prompts",
-              "build-workflows/your-first-workflow"
+              "build-workflows/your-first-workflow",
+              "build-workflows/advanced-workflows",
+              "build-workflows/workflow-examples"
             ]
           },
           {
