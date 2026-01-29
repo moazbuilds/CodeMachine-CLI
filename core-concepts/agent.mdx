@@ -1,0 +1,223 @@
+---
+title: "Agents"
+description: "Understand what an agent is, the different types, and when to use each one."
+sidebarTitle: "Agents"
+---
+
+**An agent is a session of an AI coding engine.**
+
+One agent equals one engine session with a unique ID. Each agent has its own engine, model, and configuration.
+
+---
+
+## What Makes Up an Agent
+
+Every agent consists of:
+
+- <Icon icon="microchip" /> **Engine** - The AI coding CLI that powers the agent
+- <Icon icon="brain" /> **Model** - The AI model the engine uses
+- <Icon icon="hand" /> **Interactivity** - Whether the agent waits for input or runs automatically
+- <Icon icon="plug" /> **MCP** - External tools and integrations available to the agent
+- <Icon icon="message" /> **Prompts** - The instructions sent to the agent
+
+---
+
+## Agent Types
+
+<CardGroup cols={2}>
+  <Card title="Main Agent" icon="robot">
+    Runs as a step in the workflow. Does the primary work.
+  </Card>
+  <Card title="Module" icon="rotate">
+    A main agent that can loop back to earlier steps.
+  </Card>
+  <Card title="Sub-agent" icon="share-nodes">
+    Spawned by main agents via MCP to delegate work.
+  </Card>
+  <Card title="Controller" icon="gamepad">
+    Orchestrates on your behalf - answers questions, signals next steps.
+  </Card>
+</CardGroup>
+
+---
+
+## When to Use Each Type
+
+### Main Agent
+
+Use for standard workflow steps that run once and pass output forward.
+
+<Accordion title="Best for" icon="check" defaultOpen>
+  - Single-pass tasks (analysis, generation, implementation)
+  - Steps that don't need to revisit previous work
+  - Most workflow steps
+</Accordion>
+
+### Module
+
+Use when a step needs to loop back based on results.
+
+<Accordion title="Best for" icon="check" defaultOpen>
+  - Review and revision cycles
+  - Iterative refinement
+  - Quality gates that may require rework
+</Accordion>
+
+### Sub-agent
+
+Use to break complex work into delegated tasks within a single step.
+
+<Accordion title="Best for" icon="check" defaultOpen>
+  - Parallel task execution
+  - Context isolation
+  - Specialized subtasks
+</Accordion>
+
+<Note>
+  Sub-agents are not steps. They are a context management tool for delegating work between agents.
+</Note>
+
+### Controller
+
+Use for autonomous workflows where you want an agent to make decisions between steps.
+
+<Accordion title="Best for" icon="check" defaultOpen>
+  - Long-running autonomous workflows
+  - Tasks where you want to review results, not manage process
+  - Complex multi-step operations with clear objectives
+</Accordion>
+
+---
+
+## Agent vs Step
+
+| Concept | What It Is |
+|---------|-----------|
+| **Step** | A position in the workflow sequence |
+| **Agent** | The AI session that executes at that position |
+
+Every step has exactly one agent. The step defines when to run. The agent defines how to run.
+
+---
+
+## Engines
+
+An engine is an AI coding CLI that powers the agent. Different engines have different capabilities.
+
+| Engine | Description |
+|--------|-------------|
+| Claude Code | Anthropic's coding CLI |
+| Codex | OpenAI's coding CLI |
+| Cursor | Cursor's AI assistant |
+| Others | Community-supported engines |
+
+Each agent can use a different engine. Mix and match based on task requirements.
+
+### Models
+
+Each engine supports different AI models. The model determines the agent's capabilities, speed, and cost. Configure both engine and model per agent to optimize for your use case.
+
+---
+
+## Interactivity
+
+Interactivity determines whether an agent waits for input or proceeds automatically.
+
+<Tabs>
+  <Tab title="Interactive" icon="hand">
+    **Agent waits for user input.**
+
+    - Pauses after each prompt
+    - User reviews and responds
+    - Best for exploration and Q&A
+  </Tab>
+  <Tab title="Non-Interactive" icon="bolt">
+    **Agent proceeds automatically.**
+
+    - No pauses between prompts
+    - Runs to completion
+    - Best for automated pipelines
+  </Tab>
+</Tabs>
+
+<Info>
+  This is how hybrid workflows work - some agents wait for you, others run automatically.
+</Info>
+
+---
+
+## MCP
+
+MCP (Model Context Protocol) servers extend agent capabilities with additional tools.
+
+**What MCP provides:**
+- <Icon icon="plug" /> Custom tool integrations
+- <Icon icon="database" /> External data access
+- <Icon icon="share-nodes" /> Sub-agent spawning
+- <Icon icon="bell" /> Signals for workflow control
+
+<Note>
+  The signals MCP is required for autonomous workflows where agents need to communicate with the controller.
+</Note>
+
+---
+
+## Prompts
+
+Prompts are the instructions sent to an agent. They define what the agent should do.
+
+### Chained Prompts
+
+Multiple prompts injected into the same agent session, one after another. Instead of overwhelming one step with all instructions, you break it into smaller sequential prompts.
+
+**Example flow:**
+1. First prompt: "Analyze the codebase structure"
+2. User reviews output
+3. Second prompt: "Based on your analysis, identify potential issues"
+4. User reviews output
+5. Third prompt: "Create a plan to address the top 3 issues"
+
+<Info>
+  Same agent, same session. Prompts run in sequence. Common in interactive Q&A workflows.
+</Info>
+
+### Placeholders
+
+Placeholders inject data into agent prompts.
+
+| Type | Source | Use case |
+|------|--------|----------|
+| Static (packageDir) | Pre-defined prompts from workflow package | Shared prompts, split large prompts |
+| Dynamic (userDir) | Files created during workflow | Agent A outputs a file, Agent B receives it |
+
+<Icon icon="gear" /> **Built-in Placeholders:** System data injected automatically - date, time, username, project name, selected tracks and conditions.
+
+### Directives
+
+Directives allow agents to control the workflow by writing to a JSON file. The workflow listens after each step and takes action.
+
+| Directive | Action |
+|-----------|--------|
+| `checkpoint` | Shows message to user, option to continue or stop |
+| `stop` | Stops the workflow |
+| `error` | Shows error message and stops |
+| `pause` | Pauses and waits for user input |
+| `loop` | Returns back to a previous step (modules only) |
+| `trigger` | Triggers any agent in the workflow (modules only) |
+
+<Note>
+  Directives come from agents. Signals come from users. Both control execution, but from different sources.
+</Note>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Workflow Basics" icon="route" href="./workflow/definition">
+    Learn how workflows orchestrate agents
+  </Card>
+  <Card title="Workflow Patterns" icon="shuffle" href="./workflow/patterns">
+    See how agents work together in different patterns
+  </Card>
+</CardGroup>

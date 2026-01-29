@@ -20,15 +20,16 @@
         "group": "Core Concepts",
         "pages": [
           "core-concepts/the-model",
-          "core-concepts/components",
           {
             "group": "Workflow",
             "expanded": true,
             "pages": [
+              "core-concepts/workflow/definition",
               "core-concepts/workflow/patterns",
               "core-concepts/workflow/controls"
             ]
-          }
+          },
+          "core-concepts/agent"
         ]
       }
     ]

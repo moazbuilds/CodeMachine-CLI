@@ -1,0 +1,73 @@
+---
+title: "Workflow Basics"
+description: "Understand what a workflow is and how it orchestrates agents to accomplish tasks."
+sidebarTitle: "Workflow Basics"
+---
+
+**A workflow is a configured execution plan.**
+
+It defines which agents run, in what order, with what controls, and how context flows between them.
+
+---
+
+## What Makes Up a Workflow
+
+Every workflow consists of:
+
+- <Icon icon="tag" /> **Name** - The workflow's display name
+- <Icon icon="list-ol" /> **Steps** - The sequence of steps to execute
+- <Icon icon="share-nodes" /> **Sub-agents** - Additional agents the workflow can use
+- <Icon icon="code-branch" /> **Tracks** - Different workflow paths users can choose from
+- <Icon icon="toggle-on" /> **Condition Groups** - Questions to customize which steps run
+- <Icon icon="gamepad" /> **Controller** - An agent that guides users before the workflow starts
+- <Icon icon="file-lines" /> **Specification** - Whether a spec file is needed before starting
+- <Icon icon="robot" /> **Autonomous Mode** - How the workflow runs (auto or manual)
+
+---
+
+## How Workflows Execute
+
+Workflows run step by step. Each step contains an agent that performs work, produces output, and passes context to the next step.
+
+<Steps>
+  <Step title="Onboarding">
+    If tracks or conditions are defined, user answers questions to configure the workflow path.
+  </Step>
+  <Step title="Step Execution">
+    Each step runs its agent. The agent receives prompts, uses tools, and produces output.
+  </Step>
+  <Step title="Context Passing">
+    Files, outputs, and user choices flow to the next step as placeholders.
+  </Step>
+  <Step title="Completion">
+    All steps finish. Final outputs are available in the project directory.
+  </Step>
+</Steps>
+
+---
+
+## Workflow vs Agent
+
+| Concept | What It Is | Scope |
+|---------|-----------|-------|
+| **Workflow** | Execution plan | Orchestrates multiple agents |
+| **Agent** | Engine session | Executes a single step |
+
+A workflow coordinates agents. An agent does the actual work.
+
+<Info>
+  One workflow can have many agents. One agent belongs to one step.
+</Info>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Workflow Patterns" icon="shuffle" href="./patterns">
+    See how workflows take different shapes
+  </Card>
+  <Card title="Workflow Controls" icon="sliders" href="./controls">
+    Learn how to control workflow execution
+  </Card>
+</CardGroup>
