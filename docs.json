@@ -20,7 +20,14 @@
         "group": "Core Concepts",
         "pages": [
           "core-concepts/how-code-machine-works",
-          "core-concepts/test"
+          "core-concepts/tess",
+          {
+            "group": "Workflow",
+            "pages": [
+              "core-concepts/workflow/ressss",
+              "core-concepts/test"
+            ]
+          }
         ]
       }
     ]

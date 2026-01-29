@@ -1,0 +1,165 @@
+---
+title: "Controls"
+description: "Learn how to control workflow execution at runtime - signals, modes, state, and recovery."
+sidebarTitle: "Controls"
+---
+
+**What you can do while a workflow runs.**
+
+## Signals
+
+Signals are user-initiated commands that control workflow execution. Use keyboard shortcuts to send them.
+
+| Signal | Shortcut | What It Does |
+|--------|----------|--------------|
+| **Pause** | `Ctrl+P` or `p` | Pause execution, switch to manual mode |
+| **Skip** | `Ctrl+S` | Skip the current step, move to the next |
+| **Stop** | `Ctrl+C` | Stop the workflow entirely |
+| **Mode Toggle** | `m` | Switch between manual and auto mode |
+| **Return to Controller** | `c` | Go back to controller view (if controller exists) |
+
+Signals are available when the workflow is in an appropriate state. For example, you can't skip a step that hasn't started.
+
+---
+
+## Modes
+
+Two modes control who drives the workflow: **manual** and **auto**.
+
+**Manual mode:** You send input. Agents wait for you to press enter before proceeding.
+
+**Auto mode:** The system drives. Either the controller agent sends input, or agents auto-advance without waiting.
+
+You can toggle between modes at any time using `m` or by pausing with `Ctrl+P`.
+
+### Who Drives?
+
+What happens depends on the combination of mode, agent interactivity, and controller setup:
+
+| Auto Mode | Paused | Agent Interactive | Result |
+|-----------|--------|-------------------|--------|
+| OFF | - | Yes | **User drives** |
+| OFF | - | No | **Forced** (warning shown) |
+| ON | YES | Any | **User drives** (paused overrides) |
+| ON | NO | Yes | **Controller drives** |
+| ON | NO | No | **Fully autonomous** |
+
+**The rule:** `shouldUseUserInput = paused OR NOT autoMode`
+
+### Four Behaviors
+
+| Behavior | Description |
+|----------|-------------|
+| **User drives** | You send input. Agent waits for you. |
+| **Controller drives** | Controller sends input. Agent waits for controller. |
+| **Fully autonomous** | System auto-sends. No waiting. |
+| **Forced** | Agent designed to run automatically but auto mode is off. Falls back to user drives with a warning. |
+
+---
+
+## State
+
+Workflows move through states during execution. Understanding state helps you know what to expect.
+
+| State | Meaning | What You Can Do |
+|-------|---------|-----------------|
+| **idle** | Workflow not started | Start the workflow |
+| **running** | Agent is executing | Wait, or send signals (pause, skip, stop) |
+| **awaiting** | Waiting for user input | Send input, or toggle mode |
+| **delegated** | Controller is deciding | Wait for controller, or pause to intervene |
+| **completed** | All steps finished successfully | Review results |
+| **stopped** | User stopped the workflow | Restart or review partial results |
+| **error** | Fatal error occurred | Check error, fix issue, restart |
+
+### State Transitions
+
+```
+idle → running (workflow starts)
+running → awaiting (step needs input)
+running → delegated (controller takes over)
+awaiting → running (user sends input)
+delegated → running (controller sends input)
+running → completed (all steps done)
+running → stopped (user stops)
+running → error (fatal error)
+```
+
+---
+
+## Recovery
+
+Workflows survive crashes. If the process terminates unexpectedly, CodeMachine can resume from where it left off.
+
+### How It Works
+
+1. **Detection:** On startup, CodeMachine checks if a step started but never completed
+2. **Restoration:** Previous state is loaded (session ID, progress, completed prompts)
+3. **Resumption:**
+   - In auto mode: Continuation prompt sent to agent
+   - In manual mode: Workflow pauses, waits for your input
+
+### What Gets Persisted
+
+- Current step index
+- Prompt queue progress (for chained prompts)
+- Step completion status
+- Session IDs (for resuming agent conversations)
+- Monitoring IDs (for logs)
+
+All state is saved to `.codemachine/template.json` in your project directory.
+
+### Recovery Scenarios
+
+| Scenario | What Happens |
+|----------|--------------|
+| Process crash mid-step | Step resumes from last checkpoint |
+| Machine restart | Workflow resumes on next start |
+| Network timeout | Agent session reconnects if possible |
+| User closes terminal | State preserved, resume anytime |
+
+<Note>
+  Recovery works best when agents have unique session IDs. Make sure your workflow template is properly configured for persistence.
+</Note>
+
+---
+
+## Directives vs Signals
+
+Both control workflow execution, but they come from different sources:
+
+| | Signals | Directives |
+|-|---------|------------|
+| **Source** | User (keyboard) | Agent (JSON file) |
+| **When** | Anytime during execution | After step completes |
+| **Purpose** | User intervention | Agent-controlled flow |
+| **Examples** | Pause, Skip, Stop | Loop, Checkpoint, Trigger |
+
+Signals let you intervene. Directives let agents influence what happens next.
+
+---
+
+## Quick Reference
+
+**Keyboard Shortcuts:**
+
+```
+Ctrl+P / p  → Pause
+Ctrl+S      → Skip step
+Ctrl+C      → Stop workflow
+m           → Toggle mode (manual/auto)
+c           → Return to controller
+Enter       → Advance (in manual mode)
+```
+
+**State at a glance:**
+
+```
+running   → Agent working
+awaiting  → Waiting for you
+delegated → Controller deciding
+```
+
+## Next Steps
+
+- [Building Your First Workflow →](#) - Create a custom workflow
+- [Template Reference →](#) - Configuration options

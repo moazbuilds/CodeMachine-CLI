@@ -1,14 +1,12 @@
 ---
-title: "Workflow Patterns"
+title: "Patterns"
 description: "Learn the common workflow patterns and when to use each execution style."
-sidebarTitle: "Workflow Patterns"
+sidebarTitle: "Patterns"
 ---
 
 **Workflows take many shapes. Here's how to choose.**
 
-## Execution Modes and Workflow Patterns
-
-### Interactive
+## Interactive
 
 You respond at every step. Each agent asks questions, gathers insights, and produces output for the next agent. Press enter to proceed and inject the next prompt.
 
@@ -44,7 +42,7 @@ You respond at every step. Each agent asks questions, gathers insights, and prod
       `{architecture}`
     </Card>
     <Card title="Steps (Chained Prompts)" icon="list-check">
-      Threat modeling and attack surface analysis →  User → Security controls and mitigation strategy
+      Threat modeling and attack surface analysis → User → Security controls and mitigation strategy
     </Card>
     <Card title="Output" icon="file-export">
       `security-review.md` = `{security_review}`
@@ -71,7 +69,9 @@ You respond at every step. Each agent asks questions, gathers insights, and prod
   </Step>
 </Steps>
 
-### Autonomous
+---
+
+## Autonomous
 
 <Warning>
   This mode is in beta. Behavior may change as we refine controller-agent coordination.
@@ -93,8 +93,8 @@ Both controller and step agents see input prefixes: `{USER (username):}` or `{ag
 
 **You can pause anytime to:**
 
-- Talk to controller agent- give more instructions about the project
-- Talk to step agent -  give direct instructions for that step
+- Talk to controller agent - give more instructions about the project
+- Talk to step agent - give direct instructions for that step
 
 <Note>
   You must brief the controller about the full workflow: what agents it will talk to and what output is expected from each. This keeps it on track. Autonomous is the hardest mode to control, but powerful for long objectives when managed correctly.
@@ -128,7 +128,7 @@ Both controller and step agents see input prefixes: `{USER (username):}` or `{ag
     Designs system architecture based on requirements.
 
     <Card title="Input" icon="file-import">
-      `{prd}` + Controllers Instructions
+      `{prd}` + Controller's Instructions
     </Card>
     <Card title="Steps (Chained Prompts)" icon="list-check">
       System design → Controller → Architecture decisions
@@ -144,7 +144,7 @@ Both controller and step agents see input prefixes: `{USER (username):}` or `{ag
     Implements the code based on architecture.
 
     <Card title="Input" icon="file-import">
-      `{prd}` + `{architecture}` + Controllers Instructions
+      `{prd}` + `{architecture}` + Controller's Instructions
     </Card>
     <Card title="Steps (Chained Prompts)" icon="list-check">
       Implementation → Controller → Code review
@@ -171,7 +171,9 @@ Both controller and step agents see input prefixes: `{USER (username):}` or `{ag
   </Step>
 </Steps>
 
-### Continuous
+---
+
+## Continuous
 
 **Auto-advance with zero interaction. Agents run to completion.**
 
@@ -226,7 +228,7 @@ You provide a specification file upfront. Agents iterate on it following a well-
     Writes tests for the API. Examines codebase using tools.
 
     <Card title="Input" icon="file-import">
-      `{api_spec}` + `{api_design}`
+      `{specification}` + `{api_design}`
     </Card>
     <Card title="Steps (Chained Prompts)" icon="list-check">
       Test planning → Write unit tests → Write integration tests
@@ -237,7 +239,9 @@ You provide a specification file upfront. Agents iterate on it following a well-
   </Step>
 </Steps>
 
-### Hybrid
+---
+
+## Hybrid
 
 **Mix interactive and auto-advance agents in the same workflow.**
 
@@ -340,19 +344,19 @@ This is possible because interactivity is set at the agent level, not the workfl
   </Step>
 </Steps>
 
-## Advance Modes
+---
 
-**Who drives the workflow?**
+## Choosing a Pattern
 
-Two modes: **manual** and **auto**. You can toggle between them from the TUI.
+| Pattern | User Involvement | Best For |
+|---------|------------------|----------|
+| **Interactive** | Every step | Tasks needing judgment, exploration, Q&A |
+| **Autonomous** | Brief controller, review results | Long-running tasks, clear objectives |
+| **Continuous** | None (spec upfront) | Repeatable, proven workflows |
+| **Hybrid** | Key decisions only | Most real-world workflows |
 
-What happens in each mode depends on the agent's interactivity, chained prompts, and controller setup. [Learn more →](#)
+Most workflows end up being **Hybrid** — you want control where it matters and speed everywhere else.
 
-**Four behaviors emerge:**
+## Next Steps
 
-| Mode | Behavior |
-|------|----------|
-| **User drives** | You send input. Agent waits for you. |
-| **Controller drives** | Controller sends input. Agent waits for controller. |
-| **Fully autonomous** | System auto-sends. No waiting. |
-| **Forced** | Designed to run automatically but auto mode is off. Falls back to user drives with a warning. |
+- [Workflow Controls →](./controls) - Learn how to control execution at runtime

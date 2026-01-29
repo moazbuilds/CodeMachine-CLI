@@ -1,7 +1,7 @@
 ---
-title: "How CodeMachine Works"
-description: "Understand how CodeMachine orchestrates AI coding engines through workflows, agents, and context management."
-sidebarTitle: "How CodeMachine Works"
+title: "The Model"
+description: "Understand the philosophy behind CodeMachine and why workflows work this way."
+sidebarTitle: "The Model"
 ---
 
 **CodeMachine runs AI workflows in your terminal.**
@@ -18,7 +18,7 @@ Define the steps once. Choose which agents handle what. Add an agent that always
 
 > **Your workflows become tools instead of steps in your head. Share them with your team. Run them on every project. Improve them over time.**
 
-### The Conceptual Layer
+## The Conceptual Layer
 
 CodeMachine is built on two ideas:
 
@@ -28,7 +28,7 @@ CodeMachine is built on two ideas:
 
 ## How CodeMachine Runs Engines
 
-It is an orchestration layer that runs AI coding CLIs (Claude Code, Codex, Cursor, and others) through structured workflows. You define the workflow once, and CodeMachine handles execution, context passing, and agent coordination.
+CodeMachine is an orchestration layer that runs AI coding CLIs (Claude Code, Codex, Cursor, and others) through structured workflows. You define the workflow once, and CodeMachine handles execution, context passing, and agent coordination.
 
 CodeMachine uses the headless or detached scripting mode that AI coding engines provide for automation. It spawns engines via CLI wrapping, passes the right arguments and flags, and controls agents through its infrastructure.
 
@@ -38,147 +38,8 @@ This follows each engine's official documentation for scripting and automation u
   Have questions about compliance or engine usage policies? [Read our FAQ →](#)
 </Note>
 
-## Definitions
-
-Every workflow is made of these pieces. Understanding them will help you build, customize, and share workflows.
-
-### Workflows
-
-A workflow is a configured execution plan. It defines which agents run, in what order, with what controls, and how context flows between them.
-
-A workflow contains:
-
-- **Steps** - The execution sequence
-- **Agents** - Who does the work
-- **Tracks & Conditions** - Branching based on user choices
-- **Controls** - Autonomy, interactivity, engines, models
-
-### Agents
-
-An agent is a session of an AI coding engine. One agent equals one engine session with a unique ID. Each agent has its own engine, model, and configuration.
-
-| Type           | Role                                                                      |
-| -------------- | ------------------------------------------------------------------------- |
-| **Main Agent** | Runs as a step in the workflow                                            |
-| **Module**     | A main agent that can loop back to earlier steps                          |
-| **Sub-agent**  | Spawned by main agents via MCP to delegate work and return results        |
-| **Controller** | Orchestrates on your behalf - answers agent questions, signals next steps |
-
-Sub-agents are not steps. They are a context management tool for delegating work between agents.
-
-### Steps
-
-A step is an execution of an agent. Input and output are defined in prompts using placeholders. Steps run sequentially.
-
-A module is a step that can loop back to repeat earlier steps or retry if validation fails.
-
-**What triggers the next step:**
-
-- **Interactive mode** - User confirms to proceed
-- **Autonomous mode** - Controller agent signals to proceed
-
-**What passes between steps:**
-
-- Files and outputs
-- User choices (tracks, conditions)
-- Built-in data (date, time, project info)
-
-### Engines & Models
-
-An engine is an AI coding CLI such as Claude Code, Codex, Cursor, or others.
-
-A model is the AI model used by that engine.
-
-Both are configured per agent. You can mix different engines and models in one workflow. For example, use Codex for planning and Claude Code for implementation.
-
-### Placeholders
-
-Placeholders inject data into agent prompts.
-
-**File Injection:**
-
-| Type                | Source                                    | Use case                                                    |
-| ------------------- | ----------------------------------------- | ----------------------------------------------------------- |
-| Static (packageDir) | Pre-defined prompts from workflow package | Shared prompts, split large prompts, separation of concerns |
-| Dynamic (userDir)   | Files created during workflow             | Agent A outputs a file, Agent B receives it as input        |
-
-Dynamic placeholders expect files that do not exist yet. Previous agents produce them for later agents.
-
-**Built-in Placeholders:**
-
-System data injected automatically:
-
-- Date and time
-- Username and project name
-- Selected tracks and conditions
-- Other workflow context
-
-### Tracks & Conditions
-
-Tracks and conditions are onboarding questions asked at the start of a workflow. User answers:
-
-- Enable or disable specific steps and agents
-- Generate placeholders injected into prompts
-- Tell agents how to behave based on user choices
-
-This creates multiple workflow paths inside a single workflow definition.
-
-### Execution Modes
-
-Workflow behavior depends on settings at two levels:
-
-**Workflow level:**
-
-- Mode (manual or auto)
-- Controller (set or not)
-
-**Agent level:**
-
-- Interactive (yes or no)
-- Chained prompts (yes or no)
-
-These combinations create different execution behaviors, from fully autonomous where the controller handles everything, to fully interactive where the user responds to each step.
-
-### Directives
-
-Directives allow agents to control the workflow by writing to a JSON file. The workflow listens after each step and takes action.
-
-| Directive    | Action                                            |
-| ------------ | ------------------------------------------------- |
-| `checkpoint` | Shows message to user, option to continue or stop |
-| `stop`       | Stops the workflow                                |
-| `error`      | Shows error message and stops                     |
-| `pause`      | Pauses and waits for user input                   |
-| `loop`       | Returns back to a previous step (modules only)    |
-| `trigger`    | Triggers any agent in the workflow (modules only) |
-
-### Chained Prompts
-
-Chained prompts are multiple prompts injected into the same agent session, one after another. Instead of overwhelming one step with all instructions, you break it into smaller sequential prompts.
-
-- Same agent, same session
-- Prompts run in sequence
-- Common in interactive Q&A workflows
-- Defined per agent
-
-### Imports
-
-Imports are external workflows built by the CodeMachine team or community.
-
-- Shared via external repos
-- Contains workflows, agents, prompts, and config
-- Install via TUI or CLI
-- Anyone can share, anyone can install
-
-**Built-in workflows** come with the CodeMachine package. **Imports** are installed separately.
-
-```bash
-/import
-# to install external workflows
-```
-
 ## Next Steps
 
-- [Common Workflows →](#) - Step-by-step guides for typical tasks
-- [Build Your First Workflow →](#) - Create a custom workflow from scratch
-- [Workflow Reference →](#) - Detailed configuration options
+- [Components →](./components) - Learn the building blocks of workflows
+- [Workflow Patterns →](./workflow/patterns) - See the different shapes workflows can take
+- [Workflow Controls →](./workflow/controls) - Understand how to control execution
