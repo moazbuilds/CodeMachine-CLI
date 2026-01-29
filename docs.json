@@ -23,6 +23,7 @@
           "core-concepts/tess",
           {
             "group": "Workflow",
+            "expanded": true,
             "pages": [
               "core-concepts/workflow/ressss",
               "core-concepts/test"
