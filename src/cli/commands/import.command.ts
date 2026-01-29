@@ -5,10 +5,15 @@
  *   codemachine import <source>           Install/update an import
  *   codemachine import --list             List installed imports
  *   codemachine import --remove <name>    Remove an import
+ *
+ * Source formats:
+ *   - Local path: /path/to/folder or ./relative/path (requires .codemachine.json)
+ *   - GitHub: package-name, owner/repo, or https://github.com/...
+ *   - Git URL: git@github.com:user/repo.git
  */
 
 import type { Command } from 'commander';
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, rmSync, cpSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import {
@@ -83,6 +88,25 @@ function removeGitDir(repoPath: string): void {
 }
 
 /**
+ * Copy a local folder to the imports directory
+ */
+function copyLocalFolder(
+  sourcePath: string,
+  destPath: string,
+  verbose: boolean
+): void {
+  if (verbose) {
+    console.log(`  Copying from: ${sourcePath}`);
+    console.log(`  Copying to: ${destPath}`);
+  }
+
+  cpSync(sourcePath, destPath, { recursive: true });
+
+  // Remove .git directory if present in the copied folder
+  removeGitDir(destPath);
+}
+
+/**
  * Install an import from a source
  */
 async function installImport(source: string, verbose: boolean): Promise<void> {
@@ -114,12 +138,18 @@ async function installImport(source: string, verbose: boolean): Promise<void> {
   // Ensure imports directory exists
   ensureImportsDir();
 
-  // Clone the repository
-  console.log('  Cloning repository...');
-  await cloneRepo(resolved.url, installPath, verbose);
+  // Handle local paths vs git URLs
+  if (resolved.type === 'local-path') {
+    console.log('  Copying local folder...');
+    copyLocalFolder(resolved.url, installPath, verbose);
+  } else {
+    // Clone the repository
+    console.log('  Cloning repository...');
+    await cloneRepo(resolved.url, installPath, verbose);
 
-  // Remove .git directory (we don't need version control for imports)
-  removeGitDir(installPath);
+    // Remove .git directory (we don't need version control for imports)
+    removeGitDir(installPath);
+  }
 
   // Validate the import
   console.log('  Validating...');
@@ -198,6 +228,7 @@ function listImports(): void {
     console.log(`  codemachine import <package-name>`);
     console.log(`  codemachine import <owner>/<repo>`);
     console.log(`  codemachine import <https://github.com/...>`);
+    console.log(`  codemachine import </path/to/folder>  (local with .codemachine.json)`);
     return;
   }
 
@@ -246,6 +277,8 @@ async function runImportCommand(
       console.log(`  codemachine import <package-name>`);
       console.log(`  codemachine import <owner>/<repo>`);
       console.log(`  codemachine import <https://github.com/...>`);
+      console.log(`  codemachine import </path/to/folder>   (local path with .codemachine.json)`);
+      console.log(`  codemachine import <./relative/path>   (local path with .codemachine.json)`);
       console.log('\nOther options:');
       console.log('  codemachine import --list            List installed imports');
       console.log('  codemachine import --remove <name>   Remove an import');

@@ -111,7 +111,7 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
     // Add import option at the top (no category)
     const selectOptions = [
       {
-        title: "⬇ Import template from GitHub",
+        title: "⬇ Import template (GitHub or local)",
         value: IMPORT_ACTION,
       },
       ...templateOptions,
@@ -322,7 +322,7 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
       isImportInstalled,
       ensureImportsDir,
     } = await import("../../../../../shared/imports/index.js")
-    const { existsSync, rmSync } = await import("node:fs")
+    const { existsSync, rmSync, cpSync } = await import("node:fs")
     const { spawn } = await import("node:child_process")
 
     const cloneRepo = (url: string, destPath: string): Promise<void> => {
@@ -351,6 +351,10 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
       })
     }
 
+    const copyLocalFolder = (sourcePath: string, destPath: string): void => {
+      cpSync(sourcePath, destPath, { recursive: true })
+    }
+
     const removeGitDir = (repoPath: string): void => {
       const { join } = require("node:path")
       const gitDir = join(repoPath, ".git")
@@ -361,7 +365,7 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
 
     const performInstall = async (source: string) => {
       try {
-        // Resolve the source to a clone URL
+        // Resolve the source to a clone URL or local path
         const resolved = await resolveSource(source)
         const installPath = getImportInstallPath(resolved.repoName)
 
@@ -373,10 +377,15 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
         // Ensure imports directory exists
         ensureImportsDir()
 
-        // Clone the repository
-        await cloneRepo(resolved.url, installPath)
+        // Handle local paths vs git URLs
+        if (resolved.type === "local-path") {
+          copyLocalFolder(resolved.url, installPath)
+        } else {
+          // Clone the repository
+          await cloneRepo(resolved.url, installPath)
+        }
 
-        // Remove .git directory
+        // Remove .git directory (in case local folder had one)
         removeGitDir(installPath)
 
         // Validate the import
@@ -394,9 +403,11 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
           if (hasMissingManifest) {
             return {
               success: false,
-              error: "Missing codemachine.json file",
+              error: "Missing manifest file",
               errorDetails:
-                "The repository must contain a codemachine.json manifest file in the root directory.",
+                resolved.type === "local-path"
+                  ? "The folder must contain a .codemachine.json or codemachine.json manifest file."
+                  : "The repository must contain a codemachine.json manifest file in the root directory.",
             }
           }
 
@@ -443,6 +454,22 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
             success: false,
             error: "Failed to clone repository",
             errorDetails: "Check that the URL is correct and the repository is accessible.",
+          }
+        }
+
+        if (errorMessage.includes("ENOENT") || errorMessage.includes("no such file")) {
+          return {
+            success: false,
+            error: "Local folder not found",
+            errorDetails: "Check that the path exists and is accessible.",
+          }
+        }
+
+        if (errorMessage.includes("EACCES") || errorMessage.includes("permission denied")) {
+          return {
+            success: false,
+            error: "Permission denied",
+            errorDetails: "Check that you have read access to the folder.",
           }
         }
 

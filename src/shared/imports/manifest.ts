@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import type { ImportManifest, ValidationResult } from './types.js';
 
 const MANIFEST_FILENAME = 'codemachine.json';
+const LOCAL_MANIFEST_FILENAME = '.codemachine.json';
 
 /**
  * Default paths following CodeMachine conventions
@@ -19,12 +20,31 @@ const DEFAULT_PATHS = {
 };
 
 /**
+ * Find the manifest file path (checks both codemachine.json and .codemachine.json)
+ */
+export function findManifestPath(importPath: string): string | null {
+  // Check for .codemachine.json first (local imports)
+  const localManifestPath = join(importPath, LOCAL_MANIFEST_FILENAME);
+  if (existsSync(localManifestPath)) {
+    return localManifestPath;
+  }
+
+  // Check for codemachine.json (standard imports)
+  const manifestPath = join(importPath, MANIFEST_FILENAME);
+  if (existsSync(manifestPath)) {
+    return manifestPath;
+  }
+
+  return null;
+}
+
+/**
  * Parse a manifest file from a directory
  */
 export function parseManifest(importPath: string): ImportManifest | null {
-  const manifestPath = join(importPath, MANIFEST_FILENAME);
+  const manifestPath = findManifestPath(importPath);
 
-  if (!existsSync(manifestPath)) {
+  if (!manifestPath) {
     return null;
   }
 
@@ -66,7 +86,7 @@ export function validateImport(importPath: string): ValidationResult {
   // Check manifest exists
   const manifest = parseManifest(importPath);
   if (!manifest) {
-    errors.push(`Missing ${MANIFEST_FILENAME} file`);
+    errors.push(`Missing manifest file (${MANIFEST_FILENAME} or ${LOCAL_MANIFEST_FILENAME})`);
     return { valid: false, errors, warnings };
   }
 

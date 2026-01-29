@@ -29,6 +29,7 @@ export {
 // Manifest parsing
 export {
   parseManifest,
+  findManifestPath,
   getResolvedPaths,
   validateImport,
   getManifestFilename,

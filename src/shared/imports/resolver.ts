@@ -1,17 +1,30 @@
 /**
  * Source resolution for CodeMachine imports
- * Handles: short names, owner/repo, full URLs
+ * Handles: short names, owner/repo, full URLs, local paths
  */
 
+import { existsSync } from 'node:fs';
+import { basename, isAbsolute, resolve } from 'node:path';
 import type { ResolvedSource } from './types.js';
 
 const GITHUB_BASE = 'https://github.com';
 const GITHUB_API_BASE = 'https://api.github.com';
+const LOCAL_MANIFEST_FILENAME = '.codemachine.json';
+const STANDARD_MANIFEST_FILENAME = 'codemachine.json';
+
+/**
+ * Check if a directory has a valid manifest file
+ */
+function hasManifestFile(dirPath: string): boolean {
+  return existsSync(resolve(dirPath, LOCAL_MANIFEST_FILENAME)) ||
+         existsSync(resolve(dirPath, STANDARD_MANIFEST_FILENAME));
+}
 
 /**
  * Resolve an import source string to a clone-able URL
  *
  * Supported formats:
+ * - Local path: `/path/to/folder` or `./relative/path` (with .codemachine.json)
  * - Short name: `package-name` (searches GitHub)
  * - Owner/repo: `user/repo` (assumes GitHub)
  * - Full URL: `github.com/user/repo` or `https://...`
@@ -19,6 +32,12 @@ const GITHUB_API_BASE = 'https://api.github.com';
  */
 export async function resolveSource(input: string): Promise<ResolvedSource> {
   const trimmed = input.trim();
+
+  // Check for local path first (absolute or relative starting with ./ or ../)
+  const localResult = resolveLocalPath(trimmed);
+  if (localResult) {
+    return localResult;
+  }
 
   // Full HTTPS URL
   if (trimmed.startsWith('https://') || trimmed.startsWith('http://')) {
@@ -32,17 +51,68 @@ export async function resolveSource(input: string): Promise<ResolvedSource> {
 
   // Domain prefix without protocol (e.g., github.com/user/repo)
   if (trimmed.includes('.') && trimmed.includes('/')) {
+    // Check if it's a local path that exists before treating as URL
+    const absolutePath = resolve(trimmed);
+    if (existsSync(absolutePath)) {
+      const localCheck = resolveLocalPath(absolutePath);
+      if (localCheck) {
+        return localCheck;
+      }
+    }
     return resolveFullUrl(`https://${trimmed}`);
   }
 
   // Owner/repo format (e.g., user/repo)
   if (trimmed.includes('/') && !trimmed.includes('.')) {
+    // Check if it's a local path first
+    const absolutePath = resolve(trimmed);
+    if (existsSync(absolutePath)) {
+      const localCheck = resolveLocalPath(absolutePath);
+      if (localCheck) {
+        return localCheck;
+      }
+    }
     const [owner, repo] = trimmed.split('/');
     return resolveOwnerRepo(owner, repo);
   }
 
   // Short name (e.g., package-name) - search GitHub
   return resolveShortName(trimmed);
+}
+
+/**
+ * Resolve a local folder path with .codemachine.json or codemachine.json
+ */
+function resolveLocalPath(path: string): ResolvedSource | null {
+  // Handle absolute paths
+  if (isAbsolute(path)) {
+    if (existsSync(path) && hasManifestFile(path)) {
+      return {
+        type: 'local-path',
+        url: path,
+        repoName: basename(path),
+      };
+    }
+    return null;
+  }
+
+  // Handle relative paths starting with ./ or ../
+  if (path.startsWith('./') || path.startsWith('../') || path.startsWith('~')) {
+    const absolutePath = path.startsWith('~')
+      ? path.replace('~', process.env.HOME || '')
+      : resolve(path);
+
+    if (existsSync(absolutePath) && hasManifestFile(absolutePath)) {
+      return {
+        type: 'local-path',
+        url: absolutePath,
+        repoName: basename(absolutePath),
+      };
+    }
+    return null;
+  }
+
+  return null;
 }
 
 /**

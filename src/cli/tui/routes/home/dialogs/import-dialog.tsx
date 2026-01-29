@@ -36,11 +36,44 @@ export interface ImportDialogProps {
 }
 
 /**
- * Parse input to extract owner/repo and generate GitHub URL
+ * Parse input to extract owner/repo, GitHub URL, or local path
  */
-function parseGitHubInput(input: string): { owner?: string; repo: string; url?: string } | null {
+function parseGitHubInput(input: string): { owner?: string; repo: string; url?: string; isLocal?: boolean } | null {
   const trimmed = input.trim()
   if (!trimmed) return null
+
+  // Local path: absolute path starting with /
+  if (trimmed.startsWith('/')) {
+    const parts = trimmed.split('/')
+    const repo = parts[parts.length - 1] || 'local-import'
+    return {
+      repo,
+      url: trimmed,
+      isLocal: true,
+    }
+  }
+
+  // Local path: relative path starting with ./ or ../
+  if (trimmed.startsWith('./') || trimmed.startsWith('../')) {
+    const parts = trimmed.split('/')
+    const repo = parts[parts.length - 1] || 'local-import'
+    return {
+      repo,
+      url: trimmed,
+      isLocal: true,
+    }
+  }
+
+  // Local path: home directory shorthand ~/
+  if (trimmed.startsWith('~/')) {
+    const parts = trimmed.split('/')
+    const repo = parts[parts.length - 1] || 'local-import'
+    return {
+      repo,
+      url: trimmed,
+      isLocal: true,
+    }
+  }
 
   // Full GitHub URL: https://github.com/owner/repo or https://github.com/owner/repo.git
   const urlMatch = trimmed.match(/^https?:\/\/github\.com\/([^\/]+)\/([^\/\s]+?)(?:\.git)?$/i)
@@ -101,11 +134,12 @@ export function ImportDialog(props: ImportDialogProps) {
     if (!source) return
 
     appDebug("[ImportDialog] Starting install process")
+    const isLocalPath = parsed()?.isLocal ?? false
     setState({
       phase: "installing",
       steps: [
         { label: "Resolving source", status: "active" },
-        { label: "Cloning repository", status: "pending" },
+        { label: isLocalPath ? "Copying folder" : "Cloning repository", status: "pending" },
         { label: "Validating manifest", status: "pending" },
         { label: "Registering package", status: "pending" },
       ],
@@ -277,7 +311,7 @@ export function ImportDialog(props: ImportDialogProps) {
                 <box flexDirection="column" width={50}>
                   <Show when={p}>
                     <text fg={theme.theme.textMuted} marginBottom={1}>
-                      {p!.owner}/{p!.repo}
+                      {p!.isLocal ? `📁 ${p!.repo}` : p!.owner ? `${p!.owner}/${p!.repo}` : p!.repo}
                     </text>
                   </Show>
 
@@ -298,7 +332,7 @@ export function ImportDialog(props: ImportDialogProps) {
         <box flexDirection="column" width={50}>
           {/* Title */}
           <text fg={theme.theme.primary} attributes={1} marginBottom={1}>
-            ⬇ Add Workflow from GitHub
+            ⬇ Add Workflow Package
           </text>
 
           {/* Input field */}
@@ -312,7 +346,7 @@ export function ImportDialog(props: ImportDialogProps) {
           >
             <input
               value={inputValue()}
-              placeholder="owner/repo"
+              placeholder="owner/repo or /path/to/folder"
               onInput={setInputValue}
               onPaste={handlePaste}
               focused={true}
@@ -325,14 +359,14 @@ export function ImportDialog(props: ImportDialogProps) {
           <box marginBottom={1} minHeight={2}>
             <Show when={validation().status === "empty"}>
               <text fg={theme.theme.textMuted}>
-                Enter repo name or paste full GitHub URL
+                Enter repo name, GitHub URL, or local path
               </text>
             </Show>
 
             <Show when={validation().status === "valid" && parsed()}>
               <box flexDirection="column">
                 <text fg={theme.theme.success}>
-                  ↳ {parsed()!.url || parsed()!.repo}
+                  {parsed()!.isLocal ? "📁" : "↳"} {parsed()!.url || parsed()!.repo}
                 </text>
               </box>
             </Show>

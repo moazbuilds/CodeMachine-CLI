@@ -64,8 +64,8 @@ export interface ImportRegistry {
  */
 export interface ResolvedSource {
   /** Type of resolution */
-  type: 'github-search' | 'github-repo' | 'git-url';
-  /** Full URL to clone */
+  type: 'github-search' | 'github-repo' | 'git-url' | 'local-path';
+  /** Full URL to clone (or absolute path for local) */
   url: string;
   /** Repository name (folder name) */
   repoName: string;
