@@ -19,17 +19,11 @@
       {
         "group": "Core Concepts",
         "pages": [
-          "core-concepts/the-model",
-          {
-            "group": "Workflow",
-            "expanded": true,
-            "pages": [
-              "core-concepts/workflow/definition",
-              "core-concepts/workflow/patterns",
-              "core-concepts/workflow/controls"
-            ]
-          },
-          "core-concepts/agent"
+          "core-concepts/what-is-codemachine",
+          "core-concepts/workflow/definition",
+          "core-concepts/workflow/patterns",
+          "core-concepts/workflow/controls",
+          "core-concepts/agents"
         ]
       }
     ]
