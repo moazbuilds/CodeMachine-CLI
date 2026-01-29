@@ -38,7 +38,7 @@ if (embeddedRoot) {
   try {
     const packageRoot = resolvePackageRoot(import.meta.url, 'cli-setup');
     process.env.CODEMACHINE_INSTALL_DIR = packageRoot;
-    otel_info(LOGGER_NAMES.BOOT, 'Install directory: %s', [packageRoot]);
+    otel_info(LOGGER_NAMES.BOOT, 'Running from source, install directory: %s', [packageRoot]);
   } catch (err) {
     otel_warn(LOGGER_NAMES.BOOT, 'Failed to resolve package root: %s', [err]);
   }
@@ -49,12 +49,16 @@ otel_info(LOGGER_NAMES.BOOT, 'Initializing tracing...', []);
 const { initTracing, shutdownTracing } = await import('../shared/tracing/index.js');
 const tracingConfig = await initTracing();
 const tracingInitTime = performance.now();
+otel_info(LOGGER_NAMES.BOOT, 'Tracing initialized in %dms, enabled: %s, level: %s, exporter: %s',
+  [Math.round(tracingInitTime - embedTime), !!tracingConfig, tracingConfig?.level ?? 'n/a', tracingConfig?.exporter ?? 'n/a']);
 
 // METRICS INITIALIZATION
 otel_info(LOGGER_NAMES.BOOT, 'Initializing metrics...', []);
 const { initMetrics, shutdownMetrics } = await import('../shared/metrics/index.js');
 const metricsEnabled = await initMetrics();
 const metricsInitTime = performance.now();
+otel_info(LOGGER_NAMES.BOOT, 'Metrics initialized in %dms, enabled: %s',
+  [Math.round(metricsInitTime - tracingInitTime), metricsEnabled]);
 
 // Create boot timing histogram after metrics are initialized
 let bootHistogram: import('@opentelemetry/api').Histogram | null = null;
@@ -74,8 +78,6 @@ if (metricsEnabled) {
 }
 
 if (tracingConfig) {
-  otel_info(LOGGER_NAMES.BOOT, 'Tracing enabled: level=%d, exporter=%s', [tracingConfig.level, tracingConfig.exporter]);
-
   process.on('beforeExit', async () => {
     await shutdownOTelLogging();
     await shutdownMetrics();
@@ -95,9 +97,6 @@ if (tracingConfig) {
   process.on('SIGTERM', () => handleSignal('SIGTERM'));
 }
 
-if (metricsEnabled) {
-  otel_info(LOGGER_NAMES.BOOT, 'Metrics enabled', []);
-}
 
 // Import CLI tracer after tracing is initialized
 const { getCliTracer, withSpan, withSpanSync } = await import('../shared/tracing/index.js');
@@ -113,10 +112,10 @@ const shouldSkipSplash = hasSubcommand || hasHelpOrVersion;
 
 const splashStartTime = performance.now();
 const splashShown = process.stdout.isTTY && !shouldSkipSplash;
-withSpanSync(cliTracer, 'cli.boot.splash', (span) => {
+withSpanSync(cliTracer, 'cli.boot.splash_write', (span) => {
   span.setAttribute('cli.splash.shown', splashShown);
   if (splashShown) {
-    otel_info(LOGGER_NAMES.BOOT, 'Displaying splash screen', []);
+    otel_info(LOGGER_NAMES.BOOT, 'Writing splash screen to terminal', []);
     const { rows = 24, columns = 80 } = process.stdout;
     const centerY = Math.floor(rows / 2);
     const centerX = Math.floor(columns / 2);
@@ -131,28 +130,33 @@ withSpanSync(cliTracer, 'cli.boot.splash', (span) => {
   }
 });
 const splashEndTime = performance.now();
-bootHistogram?.record(splashEndTime - splashStartTime, { 'boot.phase': 'splash_screen' });
+bootHistogram?.record(splashEndTime - splashStartTime, { 'boot.phase': 'splash_write' });
 
 import { Command } from 'commander';
 import { realpathSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const importsEndTime = performance.now();
-bootHistogram?.record(importsEndTime - splashEndTime, { 'boot.phase': 'module_imports' });
-otel_info(LOGGER_NAMES.BOOT, 'Core modules loaded in %dms', [Math.round(importsEndTime - splashEndTime)]);
+bootHistogram?.record(importsEndTime - splashEndTime, { 'boot.phase': 'cli_deps_import' });
+otel_info(LOGGER_NAMES.BOOT, 'CLI dependencies loaded in %dms (commander, node:fs, node:url)', [Math.round(importsEndTime - splashEndTime)]);
 
-const DEFAULT_SPEC_PATH = '.codemachine/inputs/specifications.md';
+// TODO: Move spec path handling to template level, not cli-setup level
+// const DEFAULT_SPEC_PATH = '.codemachine/inputs/specifications.md';
 
 /**
- * Background initialization - runs AFTER TUI is visible
+ * Lazy loading - runs AFTER TUI is visible
+ *
+ * Loads non-critical services in 3 parts:
+ * 1. Check for updates
+ * 2. Load engine registry
+ * 3. Sync engine configs
  */
 async function initializeInBackground(cwd: string): Promise<void> {
-  return withSpan(cliTracer, 'cli.init.background', async (span) => {
+  return withSpan(cliTracer, 'cli.init.lazy_loading', async (span) => {
     span.setAttribute('cli.workspace.path', cwd);
     const bgStartTime = performance.now();
-    otel_info(LOGGER_NAMES.CLI, 'Starting background initialization for workspace: %s', [cwd]);
 
-    // Check for updates
+    // 1. Check for updates
     await withSpan(cliTracer, 'cli.init.updates', async (updateSpan) => {
       otel_info(LOGGER_NAMES.CLI, 'Checking for updates...', []);
       const { check } = await import('../shared/updates/index.js');
@@ -162,19 +166,20 @@ async function initializeInBackground(cwd: string): Promise<void> {
       });
     });
 
-    const cmRoot = path.join(cwd, '.codemachine');
+    // LEGACY: Workspace bootstrap - now handled by workflows (preflight.ts, run.ts)
+    // TODO: Remove this block once confirmed unused
+    // const cmRoot = path.join(cwd, '.codemachine');
+    // if (!existsSync(cmRoot)) {
+    //   await withSpan(cliTracer, 'cli.init.workspace', async (wsSpan) => {
+    //     wsSpan.setAttribute('cli.init.workspace.first_run', true);
+    //     otel_info(LOGGER_NAMES.CLI, 'First run detected, bootstrapping workspace...', []);
+    //     const { ensureWorkspaceStructure } = await import('./services/workspace/index.js');
+    //     await ensureWorkspaceStructure({ cwd });
+    //     otel_info(LOGGER_NAMES.CLI, 'Workspace bootstrapped at: %s', [cmRoot]);
+    //   });
+    // }
 
-    if (!existsSync(cmRoot)) {
-      await withSpan(cliTracer, 'cli.init.workspace', async (wsSpan) => {
-        wsSpan.setAttribute('cli.init.workspace.first_run', true);
-        otel_info(LOGGER_NAMES.CLI, 'First run detected, bootstrapping workspace...', []);
-        const { ensureWorkspaceStructure } = await import('./services/workspace/index.js');
-        await ensureWorkspaceStructure({ cwd });
-        otel_info(LOGGER_NAMES.CLI, 'Workspace bootstrapped at: %s', [cmRoot]);
-      });
-    }
-
-    // Load engine registry
+    // 2. Load engine registry
     const engines = await withSpan(cliTracer, 'cli.init.engines', async (engSpan) => {
       otel_info(LOGGER_NAMES.CLI, 'Loading engine registry...', []);
       const { registry } = await import('../infra/engines/index.js');
@@ -184,7 +189,7 @@ async function initializeInBackground(cwd: string): Promise<void> {
       return allEngines;
     });
 
-    // Sync engine configs
+    // 3. Sync engine configs
     const enginesWithConfig = engines.filter(e => e.syncConfig);
     if (enginesWithConfig.length > 0) {
       otel_info(LOGGER_NAMES.CLI, 'Syncing configs for %d engines...', [enginesWithConfig.length]);
@@ -197,8 +202,7 @@ async function initializeInBackground(cwd: string): Promise<void> {
     }
 
     const bgEndTime = performance.now();
-    bootHistogram?.record(bgEndTime - bgStartTime, { 'boot.phase': 'background_init' });
-    otel_info(LOGGER_NAMES.CLI, 'Background initialization complete in %dms', [Math.round(bgEndTime - bgStartTime)]);
+    otel_info(LOGGER_NAMES.CLI, 'Lazy loading complete in %dms', [Math.round(bgEndTime - bgStartTime)]);
   });
 }
 
@@ -221,47 +225,58 @@ export async function runCodemachineCli(argv: string[] = process.argv): Promise<
       .version(VERSION)
       .description('Codemachine multi-agent CLI orchestrator')
       .option('-d, --dir <path>', 'Target workspace directory', process.cwd())
-      .option('--spec <path>', 'Path to the planning specification file', DEFAULT_SPEC_PATH)
+      // TODO: Move spec path handling to template level
+      // .option('--spec <path>', 'Path to the planning specification file', DEFAULT_SPEC_PATH)
       .action(async (options) => {
         const cwd = options.dir || process.cwd();
         process.env.CODEMACHINE_CWD = cwd;
         otel_info(LOGGER_NAMES.CLI, 'Workspace directory: %s', [cwd]);
 
-        if (options.spec && options.spec !== DEFAULT_SPEC_PATH) {
-          const specPath = path.resolve(cwd, options.spec);
-          process.env.CODEMACHINE_SPEC_PATH = specPath;
-          otel_info(LOGGER_NAMES.CLI, 'Using custom spec path: %s', [specPath]);
-        }
+        // TODO: Move spec path handling to template level
+        // if (options.spec && options.spec !== DEFAULT_SPEC_PATH) {
+        //   const specPath = path.resolve(cwd, options.spec);
+        //   process.env.CODEMACHINE_SPEC_PATH = specPath;
+        //   otel_info(LOGGER_NAMES.CLI, 'Using custom spec path: %s', [specPath]);
+        // } else {
+        //   otel_info(LOGGER_NAMES.CLI, 'Using default spec path: %s', [DEFAULT_SPEC_PATH]);
+        // }
 
         // Start background initialization
         initializeInBackground(cwd).catch(err => {
-          otel_error(LOGGER_NAMES.CLI, 'Background init error: %s', [err]);
-          console.error('[Background Init Error]', err);
+          otel_error(LOGGER_NAMES.CLI, 'Lazy loading error: %s', [err]);
+          console.error('[Lazy Loading Error]', err);
         });
 
         // Launch TUI
         await withSpan(cliTracer, 'cli.tui.launch', async (tuiSpan) => {
           const tuiStartTime = performance.now();
-          otel_info(LOGGER_NAMES.TUI, 'Loading TUI module...', []);
+          otel_info(LOGGER_NAMES.TUI, 'Loading TUI launcher...', []);
           const { startTUI } = await import('../cli/tui/launcher.js');
 
           const tuiImportTime = performance.now();
           const importDuration = Math.round(tuiImportTime - tuiStartTime);
           bootHistogram?.record(importDuration, { 'boot.phase': 'tui_import' });
           tuiSpan.setAttribute('cli.tui.import_duration_ms', importDuration);
-          otel_info(LOGGER_NAMES.TUI, 'TUI module loaded in %dms, starting...', [importDuration]);
+          otel_info(LOGGER_NAMES.TUI, 'TUI launcher loaded in %dms, starting...', [importDuration]);
 
-          // Record time-to-interactive (before TUI blocks)
-          const timeToInteractive = performance.now() - bootStartTime;
-          bootHistogram?.record(timeToInteractive, { 'boot.phase': 'time_to_interactive' });
-          tuiSpan.setAttribute('cli.boot.time_to_interactive_ms', timeToInteractive);
-          otel_info(LOGGER_NAMES.BOOT, 'Time to interactive: %dms', [Math.round(timeToInteractive)]);
+          // Record boot duration before TUI starts
+          const bootDurationPreTui = performance.now() - bootStartTime;
+          bootHistogram?.record(bootDurationPreTui, { 'boot.phase': 'boot_duration_pre_tui' });
+          tuiSpan.setAttribute('cli.boot.duration_pre_tui_ms', bootDurationPreTui);
+          otel_info(LOGGER_NAMES.BOOT, 'Boot duration (pre-TUI): %dms', [Math.round(bootDurationPreTui)]);
 
           try {
-            const tuiSessionStart = performance.now();
+            // TODO: Move session duration tracking to app.tsx onExit handler
+            // const tuiSessionStart = performance.now();
             await startTUI();
-            const tuiSessionDuration = performance.now() - tuiSessionStart;
-            otel_info(LOGGER_NAMES.TUI, 'TUI session ended after %dms', [Math.round(tuiSessionDuration)]);
+            // const tuiSessionDuration = performance.now() - tuiSessionStart;
+            // otel_info(LOGGER_NAMES.TUI, 'TUI session ended after %dms', [Math.round(tuiSessionDuration)]);
+
+            // Clear main buffer after TUI exits (removes splash from scrollback)
+            if (splashShown && process.stdout.isTTY) {
+              // \x1b[2J = clear screen, \x1b[3J = clear scrollback, \x1b[H = cursor home, \x1b[?25h = show cursor
+              process.stdout.write('\x1b[2J\x1b[3J\x1b[H\x1b[?25h');
+            }
           } catch (tuiError) {
             otel_error(LOGGER_NAMES.TUI, 'TUI error: %s', [tuiError]);
             throw tuiError;
@@ -281,7 +296,7 @@ export async function runCodemachineCli(argv: string[] = process.argv): Promise<
       });
     }
 
-    otel_info(LOGGER_NAMES.CLI, 'Parsing command line...', []);
+    otel_info(LOGGER_NAMES.CLI, 'Processing CLI arguments via Commander...', []);
     await withSpan(cliTracer, 'cli.command.parse', async () => {
       await program.parseAsync(argv);
     });
