@@ -96,13 +96,13 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "codemachine_boot_phase_duration_milliseconds_sum{boot_phase=\"time_to_interactive\"}",
+          "expr": "codemachine_boot_phase_duration_milliseconds_sum{boot_phase=\"cli.boot.total\"}",
           "legendFormat": "Time to Interactive",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Time to Interactive",
+      "title": "Boot Total",
       "type": "stat"
     },
     {
@@ -166,13 +166,13 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "codemachine_boot_phase_duration_milliseconds_sum{boot_phase=\"tui_import\"}",
+          "expr": "codemachine_boot_phase_duration_milliseconds_sum{boot_phase=\"cli.boot.tui_launcher_import\"}",
           "legendFormat": "TUI Import",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "TUI Import Time",
+      "title": "TUI Launcher Import",
       "type": "stat"
     },
     {
@@ -236,13 +236,13 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "codemachine_boot_phase_duration_milliseconds_sum{boot_phase=\"tracing_init\"}",
+          "expr": "codemachine_boot_phase_duration_milliseconds_sum{boot_phase=\"cli.preBoot.tracing\"}",
           "legendFormat": "Tracing Init",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Tracing Init Time",
+      "title": "Tracing Init",
       "type": "stat"
     },
     {
@@ -306,13 +306,13 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "codemachine_boot_phase_duration_milliseconds_sum{boot_phase=\"metrics_init\"}",
+          "expr": "codemachine_boot_phase_duration_milliseconds_sum{boot_phase=\"cli.preBoot.metrics\"}",
           "legendFormat": "Metrics Init",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Metrics Init Time",
+      "title": "Metrics Init",
       "type": "stat"
     },
     {
@@ -409,7 +409,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "codemachine_boot_phase_duration_milliseconds_sum{boot_phase=~\"otel_logging_init|embed_resources|tracing_init|metrics_init|splash_screen|module_imports|tui_import\"}",
+          "expr": "codemachine_boot_phase_duration_milliseconds_sum{boot_phase=~\"cli.preBoot.otel_logging|cli.preBoot.tracing|cli.preBoot.metrics|cli.preBoot.embed_resources|cli.preBoot.cli_deps_import|cli.boot.tui_launcher_import|cli.boot.total\"}",
           "legendFormat": "{{boot_phase}}",
           "range": true,
           "refId": "A"
@@ -501,13 +501,13 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "codemachine_boot_phase_duration_milliseconds_sum{boot_phase=\"time_to_interactive\"}",
+          "expr": "codemachine_boot_phase_duration_milliseconds_sum{boot_phase=\"cli.boot.total\"}",
           "legendFormat": "Time to Interactive",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Time to Interactive Over Time",
+      "title": "Boot Total Over Time",
       "type": "timeseries"
     },
     {
@@ -520,7 +520,7 @@
       },
       "id": 9,
       "panels": [],
-      "title": "Background Initialization",
+      "title": "Lazy Loading",
       "type": "row"
     },
     {
@@ -584,13 +584,13 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "codemachine_boot_phase_duration_milliseconds_sum{boot_phase=\"background_init\"}",
-          "legendFormat": "Background Init",
+          "expr": "codemachine_boot_phase_duration_milliseconds_sum{boot_phase=\"cli.lazy.total\"}",
+          "legendFormat": "Lazy Loading",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Background Init Duration",
+      "title": "Lazy Loading Total",
       "type": "stat"
     },
     {
@@ -676,13 +676,13 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "codemachine_boot_phase_duration_milliseconds_sum{boot_phase=\"background_init\"}",
-          "legendFormat": "Background Init",
+          "expr": "codemachine_boot_phase_duration_milliseconds_sum{boot_phase=\"cli.lazy.total\"}",
+          "legendFormat": "Lazy Loading",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Background Init Over Time",
+      "title": "Lazy Loading Over Time",
       "type": "timeseries"
     }
   ],
