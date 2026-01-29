@@ -8,22 +8,48 @@
     "dark": "#8e51b9"
   },
   "navigation": {
-    "groups": [
+    "tabs": [
       {
-        "group": "Getting Started",
-        "pages": [
-          "getting-started/overview",
-          "getting-started/quickstart"
+        "tab": "Getting Started",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "getting-started/overview",
+              "getting-started/quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "core-concepts/what-is-codemachine",
+              "core-concepts/workflow/definition",
+              "core-concepts/workflow/patterns",
+              "core-concepts/workflow/controls",
+              "core-concepts/agents"
+            ]
+          }
         ]
       },
       {
-        "group": "Core Concepts",
-        "pages": [
-          "core-concepts/what-is-codemachine",
-          "core-concepts/workflow/definition",
-          "core-concepts/workflow/patterns",
-          "core-concepts/workflow/controls",
-          "core-concepts/agents"
+        "tab": "Build Workflows",
+        "groups": [
+          {
+            "group": "Build Workflows",
+            "pages": [
+              "build-workflows/workflow-structure",
+              "build-workflows/build-agents",
+              "build-workflows/write-prompts",
+              "build-workflows/your-first-workflow"
+            ]
+          },
+          {
+            "group": "Share Workflows",
+            "pages": [
+              "build-workflows/import-workflows",
+              "build-workflows/publish-workflow"
+            ]
+          }
         ]
       }
     ]
