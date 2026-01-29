@@ -1,0 +1,80 @@
+---
+title: "Quick Start"
+description: "Get running with AI-powered workflows in minutes."
+sidebarTitle: "Quick Start"
+---
+
+**Get running in 5 minutes.**
+
+## Setup
+
+<Steps>
+  <Step title="Install CodeMachine">
+    ```bash
+    npm install -g codemachine
+    # or bun/pnpm/yarn
+    ```
+  </Step>
+
+  <Step title="Start CodeMachine">
+    ```bash
+    codemachine
+    # to run codemachine interactive session
+    ```
+  </Step>
+
+  <Step title="Authenticate an Engine">
+    ```bash
+    /login
+    # to authenticate one or more AI engines
+    ```
+
+    <Info>
+      Each workflow specifies which engine(s) it uses. You can override this in the workflow file if needed. [See supported engines →](#)
+    </Info>
+  </Step>
+
+  <Step title="Choose a Workflow">
+    ```bash
+    /templates
+    # to list all built-in or imported templates
+    ```
+
+    <Tip>
+      The default workflow is [Ali Workflow](#), a built-in workflow builder to help you create your first workflow. More workflows are available in the library but currently experimental. [Browse workflows →](#)
+    </Tip>
+  </Step>
+
+  <Step title="Run It">
+    ```bash
+    /start
+    # to run the selected workflow
+    ```
+    Your screen will differ depending on the workflow. You may see onboarding questions, indicating the workflow has [tracks or conditions](#). Once you reach the [workflow screen](#), you're at the main screen where you can monitor all your agents.
+  </Step>
+</Steps>
+
+<Check>
+  You're now running your first workflow!
+</Check>
+
+---
+
+## Next Steps
+
+- [Core Concepts →](/core-concepts/the-model) — Understand how CodeMachine works
+- [Workflow Patterns →](/core-concepts/workflow/patterns) — Learn execution styles
+
+## Getting Help
+
+<CardGroup cols={3}>
+  <Card title="Discord" icon="discord" href="https://discord.com/invite/vS3A5UDNSq">
+    Join the community
+  </Card>
+  <Card title="GitHub" icon="github" href="https://github.com/moazbuilds/CodeMachine-CLI">
+    Report issues
+  </Card>
+  <Card title="Reddit" icon="reddit" href="https://www.reddit.com/r/CodeMachine/">
+    Discuss with others
+  </Card>
+</CardGroup>

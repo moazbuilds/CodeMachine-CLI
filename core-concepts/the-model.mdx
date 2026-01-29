@@ -16,23 +16,32 @@ CodeMachine lets you capture that workflow and run it again.
 
 Define the steps once. Choose which agents handle what. Add an agent that always asks the right questions at the start. Chain agents together - one to plan, one to implement, one to review. Control exactly what each agent sees, so they stay focused instead of overwhelmed.
 
-> **Your workflows become tools instead of steps in your head. Share them with your team. Run them on every project. Improve them over time.**
+<Tip>
+  Your workflows become tools instead of steps in your head. Share them with your team. Run them on every project. Improve them over time.
+</Tip>
 
 ## The Conceptual Layer
 
 CodeMachine is built on two ideas:
 
-**Workflows** - The structure. What happens, in what order, with what controls. You define this once and reuse it.
-
-**Context Management** - What each agent knows. You control the data, the focus, the specialization. Instead of one agent knowing everything, each agent knows exactly what it needs.
+<CardGroup cols={2}>
+  <Card title="Workflows" icon="diagram-project">
+    The structure. What happens, in what order, with what controls. You define this once and reuse it.
+  </Card>
+  <Card title="Context Management" icon="brain">
+    What each agent knows. You control the data, the focus, the specialization. Instead of one agent knowing everything, each agent knows exactly what it needs.
+  </Card>
+</CardGroup>
 
 ## How CodeMachine Runs Engines
 
-CodeMachine is an orchestration layer that runs AI coding CLIs (Claude Code, Codex, Cursor, and others) through structured workflows. You define the workflow once, and CodeMachine handles execution, context passing, and agent coordination.
+CodeMachine is an orchestration layer that runs AI coding CLIs through structured workflows. You define the workflow once, and CodeMachine handles execution, context passing, and agent coordination.
 
-CodeMachine uses the headless or detached scripting mode that AI coding engines provide for automation. It spawns engines via CLI wrapping, passes the right arguments and flags, and controls agents through its infrastructure.
+<Accordion title="Technical details" icon="gear" defaultOpen>
+  CodeMachine uses the headless or detached scripting mode that AI coding engines provide for automation (Claude Code, Codex, Cursor, and others). It spawns engines via CLI wrapping, passes the right arguments and flags, and controls agents through its infrastructure.
 
-This follows each engine's official documentation for scripting and automation use.
+  This follows each engine's official documentation for scripting and automation use.
+</Accordion>
 
 <Note>
   Have questions about compliance or engine usage policies? [Read our FAQ →](#)
@@ -40,6 +49,14 @@ This follows each engine's official documentation for scripting and automation u
 
 ## Next Steps
 
-- [Components →](./components) - Learn the building blocks of workflows
-- [Workflow Patterns →](./workflow/patterns) - See the different shapes workflows can take
-- [Workflow Controls →](./workflow/controls) - Understand how to control execution
+<CardGroup cols={3}>
+  <Card title="Components" icon="puzzle-piece" href="./components">
+    Learn the building blocks of workflows
+  </Card>
+  <Card title="Workflow Patterns" icon="shuffle" href="./workflow/patterns">
+    See the different shapes workflows can take
+  </Card>
+  <Card title="Workflow Controls" icon="sliders" href="./workflow/controls">
+    Understand how to control execution
+  </Card>
+</CardGroup>

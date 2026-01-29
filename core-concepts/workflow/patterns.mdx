@@ -6,15 +6,34 @@ sidebarTitle: "Patterns"
 
 **Workflows take many shapes. Here's how to choose.**
 
+## At a Glance
+
+<CardGroup cols={4}>
+  <Card title="Interactive" icon="hand" href="#interactive">
+    You control every step
+  </Card>
+  <Card title="Autonomous" icon="robot" href="#autonomous">
+    Controller runs agents
+  </Card>
+  <Card title="Continuous" icon="forward" href="#continuous">
+    Zero interaction
+  </Card>
+  <Card title="Hybrid" icon="shuffle" href="#hybrid">
+    Mix both styles
+  </Card>
+</CardGroup>
+
+---
+
 ## Interactive
 
 You respond at every step. Each agent asks questions, gathers insights, and produces output for the next agent. Press enter to proceed and inject the next prompt.
 
-**Use when:**
-
-- Tasks need human judgment at each stage
-- You want full control over direction
-- Multiple perspectives improve the outcome
+<Accordion title="When to use" icon="check" defaultOpen>
+  - Tasks need human judgment at each stage
+  - You want full control over direction
+  - Multiple perspectives improve the outcome
+</Accordion>
 
 **Example: Technical Design Review**
 
@@ -81,20 +100,20 @@ You respond at every step. Each agent asks questions, gathers insights, and prod
 
 You brief the controller agent with your objective and workflow structure. It manages the agents, makes decisions between steps. You review the results instead of managing the process.
 
-**Use when:**
-
-- You have a clear objective but don't need to control every decision
-- The task is too long to babysit
-- You want to review results, not manage the process
+<Accordion title="When to use" icon="check">
+  - You have a clear objective but don't need to control every decision
+  - The task is too long to babysit
+  - You want to review results, not manage the process
+</Accordion>
 
 **Prefixes:**
 
 Both controller and step agents see input prefixes: `{USER (username):}` or `{agent_name:}`. You have full control to talk to either at any time.
 
-**You can pause anytime to:**
-
-- Talk to controller agent - give more instructions about the project
-- Talk to step agent - give direct instructions for that step
+<Accordion title="You can pause anytime to" icon="pause">
+  - Talk to controller agent — give more instructions about the project
+  - Talk to step agent — give direct instructions for that step
+</Accordion>
 
 <Note>
   You must brief the controller about the full workflow: what agents it will talk to and what output is expected from each. This keeps it on track. Autonomous is the hardest mode to control, but powerful for long objectives when managed correctly.
@@ -179,11 +198,11 @@ Both controller and step agents see input prefixes: `{USER (username):}` or `{ag
 
 You provide a specification file upfront. Agents iterate on it following a well-defined pattern. No pauses, no approvals — just results.
 
-**Use when:**
-
-- The workflow pattern is proven and repeatable
-- You have a clear specification file
-- Same objective, different inputs each time
+<Accordion title="When to use" icon="check">
+  - The workflow pattern is proven and repeatable
+  - You have a clear specification file
+  - Same objective, different inputs each time
+</Accordion>
 
 **Example: Adding APIs**
 
@@ -249,11 +268,11 @@ Some steps need your input. Others run automatically. Hybrid gives you both — 
 
 This is possible because interactivity is set at the agent level, not the workflow level. Each agent decides whether to wait for you or proceed automatically.
 
-**Use when:**
-
-- Key decisions need you, routine steps don't
-- You want speed without losing control
-- Most workflows fit this pattern
+<Accordion title="When to use" icon="check">
+  - Key decisions need you, routine steps don't
+  - You want speed without losing control
+  - Most workflows fit this pattern
+</Accordion>
 
 **Example: Bug Fix Pipeline**
 
@@ -348,15 +367,37 @@ This is possible because interactivity is set at the agent level, not the workfl
 
 ## Choosing a Pattern
 
-| Pattern | User Involvement | Best For |
-|---------|------------------|----------|
-| **Interactive** | Every step | Tasks needing judgment, exploration, Q&A |
-| **Autonomous** | Brief controller, review results | Long-running tasks, clear objectives |
-| **Continuous** | None (spec upfront) | Repeatable, proven workflows |
-| **Hybrid** | Key decisions only | Most real-world workflows |
+<CardGroup cols={2}>
+  <Card title="Interactive" icon="hand">
+    **User Involvement:** Every step
 
-Most workflows end up being **Hybrid** — you want control where it matters and speed everywhere else.
+    Best for tasks needing judgment, exploration, Q&A
+  </Card>
+  <Card title="Autonomous" icon="robot">
+    **User Involvement:** Brief controller, review results
+
+    Best for long-running tasks, clear objectives
+  </Card>
+  <Card title="Continuous" icon="forward">
+    **User Involvement:** None (spec upfront)
+
+    Best for repeatable, proven workflows
+  </Card>
+  <Card title="Hybrid" icon="shuffle">
+    **User Involvement:** Key decisions only
+
+    Best for most real-world workflows
+  </Card>
+</CardGroup>
+
+<Tip>
+  Most workflows end up being **Hybrid** — you want control where it matters and speed everywhere else.
+</Tip>
+
+---
 
 ## Next Steps
 
-- [Workflow Controls →](./controls) - Learn how to control execution at runtime
+<Card title="Workflow Controls" icon="sliders" href="./controls">
+  Learn how to control execution at runtime
+</Card>

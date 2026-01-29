@@ -1,42 +1,72 @@
 ---
-description: " Learn how to install CodeMachine and start orchestrating coding agents into repeatable workflows."
 title: "CodeMachine Overview"
+description: "Learn how to install CodeMachine and start orchestrating coding agents into repeatable workflows."
 sidebarTitle: "Overview"
 ---
 
+**CodeMachine orchestrates AI coding agents into repeatable, long-running workflows.**
+
 ## Get Started in 30 Seconds
 
-Prerequisites:
+<Steps>
+  <Step title="Prerequisites">
+    One working AI engine CLI configured (Codex, Claude Code, OpenCode, or others). [See supported engines →](#)
+  </Step>
+  <Step title="Install">
+    ```bash
+    npm install -g codemachine # or bun/pnpm/yarn
+    ```
+  </Step>
+  <Step title="Run">
+    ```bash
+    cd your-project
+    codemachine # or cm
+    ```
+  </Step>
+</Steps>
 
-- One working AI engine CLI configured (Codex, Claude Code, OpenCode, or others). See supported engines →
+<Check>
+  You will see the interactive session started. That's it! [Continue with Quickstart →](#)
+</Check>
 
-```bash
-npm install -g codemachine # or bun/pnpm/yarn
-```
-
-### Start using CodeMachine
-
-```bash
-cd your-project
-codemachine # or cm
-```
-
-You will see the interactive session started. That’s it! [Continue with Quickstart (5 minutes) →](#)
-
-<Info>
+<Note>
   See [**advanced setup**](#) for installation options, manual updates, or uninstallation instructions.
-</Info>
+</Note>
 
 ---
 
 ## What CodeMachine Does For You
 
-- **Build Once, Run Forever:** Define complex workflows once and execute them reliably on every project. Stop rebuilding the same patterns manually.
-- **Multi-Agent Orchestration:** Assign different coding agents to different tasks.
-- **Parallel Execution:** Run multiple agents simultaneously on different parts of your workflow for faster results.
-- **Long-Running Workflows:** Execute workflows for hours or days. CodeMachine handles persistence so you don't have to babysit.
-- **Context Engineering:** Centralize prompts, manage dynamic context, and control what each agent sees at each step.
+<CardGroup cols={2}>
+  <Card title="Build Once, Run Forever" icon="repeat">
+    Define complex workflows once and execute them reliably on every project. Stop rebuilding the same patterns manually.
+  </Card>
+  <Card title="Multi-Agent Orchestration" icon="users">
+    Assign different coding agents to different tasks. Each agent brings its own strengths.
+  </Card>
+  <Card title="Parallel Execution" icon="bolt">
+    Run multiple agents simultaneously on different parts of your workflow for faster results.
+  </Card>
+  <Card title="Long-Running Workflows" icon="clock">
+    Execute workflows for hours or days. CodeMachine handles persistence so you don't have to babysit.
+  </Card>
+  <Card title="Context Engineering" icon="brain">
+    Centralize prompts, manage dynamic context, and control what each agent sees at each step.
+  </Card>
+  <Card title="Shareable Workflows" icon="share-nodes">
+    Import community workflows or share your own. Build once, share everywhere.
+  </Card>
+</CardGroup>
 
 ---
 
 ## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="#">
+    Build your first workflow in 5 minutes.
+  </Card>
+  <Card title="Core Concepts" icon="book" href="#">
+    Understand how CodeMachine works under the hood.
+  </Card>
+</CardGroup>

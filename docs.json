@@ -13,7 +13,7 @@
         "group": "Getting Started",
         "pages": [
           "getting-started/overview",
-          "getting-started/untitled-page"
+          "getting-started/quickstart"
         ]
       },
       {
@@ -25,8 +25,8 @@
             "group": "Workflow",
             "expanded": true,
             "pages": [
-              "core-concepts/workflow/controls",
-              "core-concepts/workflow/patterns"
+              "core-concepts/workflow/patterns",
+              "core-concepts/workflow/controls"
             ]
           }
         ]

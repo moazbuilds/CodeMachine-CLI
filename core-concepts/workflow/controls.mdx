@@ -10,15 +10,24 @@ sidebarTitle: "Controls"
 
 Signals are user-initiated events that interrupt or redirect workflow execution. They let you intervene while agents are running.
 
-| Signal | What It Does |
-|--------|--------------|
-| **Pause** | Stops execution, switches to manual mode |
-| **Skip** | Moves to the next step without completing the current one |
-| **Stop** | Terminates the workflow entirely |
-| **Mode Toggle** | Switches between manual and auto mode |
-| **Return to Controller** | Goes back to controller view (if controller exists) |
+<AccordionGroup>
+  <Accordion title="Pause" icon="pause">
+    Stops execution and switches to manual mode. Use when you need to review or intervene.
+  </Accordion>
+  <Accordion title="Skip" icon="forward">
+    Moves to the next step without completing the current one.
+  </Accordion>
+    <Accordion title="Mode Toggle" icon="toggle-on">
+    Switches between manual and auto mode.
+  </Accordion>
+  <Accordion title="Return to Controller" icon="arrow-up">
+    Goes back to controller view (if controller exists).
+  </Accordion>
+</AccordionGroup>
 
-Signals are context-aware. You can only send signals that make sense for the current workflow state.
+<Tip>
+  Want to know the keyboard shortcuts for signals? [Check the shortcuts reference →](#)
+</Tip>
 
 <Note>
   Signals come from the user. Directives come from agents. Both control execution, but from different sources. [Learn about directives →](../components#directives)
@@ -28,11 +37,26 @@ Signals are context-aware. You can only send signals that make sense for the cur
 
 ## Modes
 
-Two modes determine who drives the workflow: **manual** and **auto**.
+Two modes determine who drives the workflow:
 
-**Manual mode:** You control advancement. Agents wait for you to proceed between steps and prompts.
+<Tabs>
+  <Tab title="Manual Mode" icon="hand">
+    **You control advancement.** Agents wait for you to proceed between steps and prompts.
 
-**Auto mode:** The system controls advancement. Either a controller agent makes decisions, or agents auto-advance without waiting.
+    Best for:
+    - Learning how workflows behave
+    - Debugging issues
+    - High-stakes operations requiring review
+  </Tab>
+  <Tab title="Auto Mode" icon="robot">
+    **The system controls advancement.** Either a controller agent makes decisions, or agents auto-advance without waiting.
+
+    Best for:
+    - Repetitive tasks
+    - Trusted workflows
+    - Background processing
+  </Tab>
+</Tabs>
 
 You can switch modes at any time during execution.
 
@@ -50,18 +74,28 @@ The actual behavior depends on three factors:
 | OFF | — | No | User (forced, with warning) |
 | ON | YES | Any | User (pause overrides) |
 | ON | NO | Yes | Controller |
-| ON | NO | No | System (fully autonomous) |
+| ON | NO | No | System (auto advance) |
 
-**The rule:** Pausing always gives you control. Auto mode only takes over when not paused.
+<Info>
+  **The rule:** Pausing always gives you control. Auto mode only takes over when not paused.
+</Info>
 
 ### Four Behaviors
 
-| Behavior | Description |
-|----------|-------------|
-| **User drives** | You send input. Agent waits for you. |
-| **Controller drives** | Controller agent sends input. Agent waits for controller. |
-| **Fully autonomous** | System auto-advances. No waiting. |
-| **Forced** | Agent designed to auto-advance but mode is manual. Falls back to user control with a warning. |
+<CardGroup cols={2}>
+  <Card title="User drives" icon="user">
+    You send input. Agent waits for you.
+  </Card>
+  <Card title="Controller drives" icon="gamepad">
+    Controller agent sends input. Agent waits for controller.
+  </Card>
+  <Card title="Auto advance" icon="bolt">
+    System auto-advances. No waiting.
+  </Card>
+  <Card title="Forced" icon="triangle-exclamation">
+    Agent designed to auto-advance but mode is manual. Falls back to user control with a warning.
+  </Card>
+</CardGroup>
 
 ---
 
@@ -71,32 +105,26 @@ Workflows move through defined states during execution. State determines what ac
 
 | State | Meaning |
 |-------|---------|
-| **idle** | Workflow has not started |
-| **running** | An agent is actively executing |
-| **awaiting** | Workflow is waiting for user input |
-| **delegated** | Workflow is waiting for controller to decide |
-| **completed** | All steps finished successfully |
-| **stopped** | User terminated the workflow |
-| **error** | A fatal error occurred |
+| <Badge>idle</Badge> | Workflow has not started |
+| <Badge color="blue">running</Badge> | An agent is actively executing |
+| <Badge color="yellow">awaiting</Badge> | Workflow is waiting for user input |
+| <Badge color="purple">delegated</Badge> | Workflow is waiting for controller to decide |
+| <Badge color="green">completed</Badge> | All steps finished successfully |
+| <Badge color="gray">stopped</Badge> | User exited the workflow view |
+| <Badge color="red">error</Badge> | Agent directive stopped the workflow or a fatal error occurred |
 
 ### How State Changes
-
-State transitions follow a predictable pattern:
 
 **Starting:** `idle` → `running`
 
 **During execution:**
-- Agent needs input → `running` → `awaiting`
-- Controller takes over → `running` → `delegated`
-- User sends input → `awaiting` → `running`
-- Controller decides → `delegated` → `running`
+- Agent needs input: `running` → `awaiting` → `running`
+- Controller involved: `running` → `delegated` → `running`
 
 **Ending:**
-- All steps complete → `running` → `completed`
-- User stops → `running` → `stopped`
-- Fatal error → `running` → `error`
-
-Understanding state helps you know why a workflow is waiting and what action will move it forward.
+- All steps complete: `running` → `completed`
+- Agent directive to stop: `running` → `error`
+- User exits workflow view: `running` → `stopped`
 
 ---
 
@@ -106,11 +134,19 @@ Workflows are designed to survive interruptions. If the process crashes, loses c
 
 ### How Recovery Works
 
-1. **Detection** — On startup, CodeMachine checks if a step was running but never completed
-2. **Restoration** — Previous state is loaded from the persisted session
-3. **Resumption** — Workflow continues based on mode:
-   - Auto mode: Sends continuation prompt to agent
-   - Manual mode: Pauses and waits for your input
+<Steps>
+  <Step title="Detection">
+    On startup, CodeMachine checks if a step was running but never completed.
+  </Step>
+  <Step title="Restoration">
+    Previous state is loaded from the persisted session.
+  </Step>
+  <Step title="Resumption">
+    Workflow continues based on mode:
+    - **Auto mode:** Sends continuation prompt to agent
+    - **Manual mode:** Pauses and waits for your input
+  </Step>
+</Steps>
 
 ### What Gets Persisted
 
@@ -124,12 +160,20 @@ Workflow state is continuously saved to `.codemachine/template.json`:
 
 ### Recovery Scenarios
 
-| Scenario | Outcome |
-|----------|---------|
-| Process crash mid-step | Resumes from last checkpoint |
-| Machine restart | Resumes on next workflow start |
-| User closes terminal | State preserved, resume anytime |
-| Network timeout | Reconnects if session is still valid |
+<AccordionGroup>
+  <Accordion title="Process crash mid-step" icon="bolt-lightning">
+    Resumes from last checkpoint.
+  </Accordion>
+  <Accordion title="Machine restart" icon="power-off">
+    Resumes on next workflow start.
+  </Accordion>
+  <Accordion title="User closes terminal" icon="rectangle-xmark">
+    State preserved, resume anytime.
+  </Accordion>
+  <Accordion title="Network timeout" icon="wifi">
+    Reconnects if session is still valid.
+  </Accordion>
+</AccordionGroup>
 
 <Note>
   Recovery depends on proper session configuration. Each agent needs a unique session ID for reliable resumption.
@@ -141,16 +185,38 @@ Workflow state is continuously saved to `.codemachine/template.json`:
 
 Both influence workflow execution, but they serve different purposes:
 
-| | Signals | Directives |
-|-|---------|------------|
-| **Source** | User | Agent |
-| **When** | Anytime during execution | After a step completes |
-| **Purpose** | User intervention | Agent-controlled flow |
-| **Examples** | Pause, Skip, Stop | Loop, Checkpoint, Trigger |
+<Columns cols={2}>
+  <Card title="Signals" icon="hand">
+    **Source:** User
+
+    **When:** Anytime during execution
+
+    **Purpose:** User intervention
+
+    **Examples:** Pause, Skip, Stop
+  </Card>
+  <Card title="Directives" icon="robot">
+    **Source:** Agent
+
+    **When:** After a step completes
+
+    **Purpose:** Agent-controlled flow
+
+    **Examples:** Loop, Checkpoint, Trigger
+  </Card>
+</Columns>
 
 Signals let you take control. Directives let agents request what should happen next.
 
+---
+
 ## Next Steps
 
-- [Building Your First Workflow →](#) - Create a custom workflow
-- [Keyboard Shortcuts Reference →](#) - All available shortcuts
+<CardGroup cols={2}>
+  <Card title="Building Your First Workflow" icon="hammer" href="#">
+    Create a custom workflow from scratch.
+  </Card>
+  <Card title="Keyboard Shortcuts" icon="keyboard" href="#">
+    All available shortcuts reference.
+  </Card>
+</CardGroup>
