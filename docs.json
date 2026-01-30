@@ -46,17 +46,17 @@
             ]
           },
           {
-            "group": "Share Workflows",
-            "pages": [
-              "build-workflows/import-workflows",
-              "build-workflows/publish-workflow"
-            ]
-          },
-          {
             "group": "Configuration",
             "pages": [
               "build-workflows/model-configuration",
               "build-workflows/runtime-state"
+            ]
+          },
+          {
+            "group": "Share Workflows",
+            "pages": [
+              "build-workflows/import-workflows",
+              "build-workflows/publish-workflow"
             ]
           }
         ]
