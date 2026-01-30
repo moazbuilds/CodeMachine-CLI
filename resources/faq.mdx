@@ -1,0 +1,45 @@
+---
+title: "FAQ"
+description: "Frequently asked questions about CodeMachine."
+sidebarTitle: "FAQ"
+---
+
+**Common questions about CodeMachine.**
+
+<AccordionGroup>
+  <Accordion title="Does CodeMachine store or access my API keys?" icon="key">
+    No. CodeMachine wraps CLI commands and passes authentication through to the underlying engines. It never sees, stores, or transmits your API keys.
+  </Accordion>
+
+  <Accordion title="Does CodeMachine collect any data?" icon="database">
+    No. CodeMachine runs entirely on your local machine. It does not collect, send, or store any usage data, telemetry, or analytics.
+  </Accordion>
+
+  <Accordion title="Can I use CodeMachine commercially?" icon="building">
+    Yes. CodeMachine is licensed under Apache 2.0—use it for any purpose, including commercial projects.
+  </Accordion>
+
+  <Accordion title="Do I need an account with an AI coding engine?" icon="user">
+    Yes. CodeMachine orchestrates AI coding engines but doesn't provide AI capabilities itself. You need an active subscription or API access to at least one supported engine (Claude Code, Codex, etc.).
+  </Accordion>
+
+  <Accordion title="How do I use a different engine or model?" icon="arrows-rotate">
+    Configure the engine and model in your template file. Each workflow specifies which engine to use, and you can change this at any time.
+
+    [Learn more →](#)
+  </Accordion>
+
+  <Accordion title="How do I restart or resume a workflow?" icon="rotate-left">
+    Your `template.json` serves as the runtime file and maintains the full execution state. It tracks every step, so you can navigate back to any point or restart from the beginning.
+
+    [Learn more →](#)
+  </Accordion>
+
+  <Accordion title="How can I contribute to CodeMachine?" icon="code-pull-request">
+    Join our Discord and connect with the dev team. We discuss feature ideas, review contributions, and coordinate development there.
+
+    <Card title="Join Discord" icon="discord" href="https://discord.com/invite/vS3A5UDNSq">
+      Connect with the community
+    </Card>
+  </Accordion>
+</AccordionGroup>

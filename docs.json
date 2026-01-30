@@ -53,6 +53,19 @@
             ]
           }
         ]
+      },
+      {
+        "tab": "Resources",
+        "groups": [
+          {
+            "group": "Resources",
+            "pages": [
+              "resources/faq",
+              "resources/license",
+              "resources/third-party"
+            ]
+          }
+        ]
       }
     ]
   },
@@ -79,7 +92,69 @@
       "website": "https://codemachine.co/",
       "reddit": "https://www.reddit.com/r/CodeMachine/",
       "x": "https://x.com/CodeMachineCLI"
-    }
+    },
+    "links": [
+      {
+        "header": "Documentation",
+        "items": [
+          {
+            "label": "Getting Started",
+            "href": "/getting-started/overview"
+          },
+          {
+            "label": "Build Workflows",
+            "href": "/build-workflows/your-first-workflow"
+          },
+          {
+            "label": "Core Concepts",
+            "href": "/core-concepts/what-is-codemachine"
+          }
+        ]
+      },
+      {
+        "header": "Community",
+        "items": [
+          {
+            "label": "Discord",
+            "href": "https://discord.com/invite/vS3A5UDNSq"
+          },
+          {
+            "label": "GitHub",
+            "href": "https://github.com/moazbuilds/CodeMachine-CLI"
+          },
+          {
+            "label": "Reddit",
+            "href": "https://www.reddit.com/r/CodeMachine/"
+          }
+        ]
+      },
+      {
+        "header": "Legal",
+        "items": [
+          {
+            "label": "License",
+            "href": "/resources/license"
+          },
+          {
+            "label": "Engine Compliance",
+            "href": "/resources/third-party"
+          },
+          {
+            "label": "FAQ",
+            "href": "/resources/faq"
+          }
+        ]
+      },
+      {
+        "header": "Contact",
+        "items": [
+          {
+            "label": "info@codemachine.co",
+            "href": "mailto:info@codemachine.co"
+          }
+        ]
+      }
+    ]
   },
   "navbar": {
     "links": []

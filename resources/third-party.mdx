@@ -1,0 +1,56 @@
+---
+title: "Engine Compliance"
+description: "CodeMachine orchestrates third-party AI coding engines. Understand the relationship and your responsibilities."
+sidebarTitle: "Engine Compliance"
+---
+
+**CodeMachine is an orchestration layer for AI coding engines.**
+
+## How It Works
+
+CodeMachine wraps AI coding CLIs using their official scripting and automation modes. It spawns engines via CLI, passes arguments, and coordinates workflows—nothing more.
+
+<Note>
+  CodeMachine does not modify, patch, or extend engine functionality. It calls engines exactly as documented in their official automation guides.
+</Note>
+
+---
+
+## Supported Engines
+
+CodeMachine currently supports orchestration of these engines:
+
+| Engine | Provider | Terms |
+|--------|----------|-------|
+| Claude Code | Anthropic | [Terms of Service](https://www.anthropic.com/legal/consumer-terms) |
+| Codex | OpenAI | [Terms of Use](https://openai.com/policies/terms-of-use) |
+| OpenCode | Open Source | [Repository](https://github.com/opencode-ai/opencode) |
+
+<Info>
+  More engines are being added. [Request an engine →](https://github.com/moazbuilds/CodeMachine-CLI/issues)
+</Info>
+
+---
+
+## Your Responsibilities
+
+When using CodeMachine with any engine, you are responsible for:
+
+- **Compliance** — Following each engine's terms of service
+- **Authentication** — Maintaining valid subscriptions or API access
+- **Usage limits** — Respecting rate limits and usage policies
+- **Content policies** — Adhering to each provider's acceptable use policies
+
+<Warning>
+  CodeMachine passes your requests to the engines you configure. Ensure your use complies with each engine's policies.
+</Warning>
+
+---
+
+## Not Affiliated
+
+CodeMachine is an independent open source project. It is not affiliated with, endorsed by, or sponsored by any AI provider.
+
+## Contact
+
+If you have legal concerns or questions about engine compliance, contact us at [info@codemachine.co](mailto:info@codemachine.co).
