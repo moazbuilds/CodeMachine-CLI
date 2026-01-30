@@ -51,6 +51,25 @@
               "build-workflows/import-workflows",
               "build-workflows/publish-workflow"
             ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "build-workflows/model-configuration",
+              "build-workflows/runtime-state"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Reference",
+            "pages": [
+              "reference/cli-reference",
+              "reference/interactive-mode"
+            ]
           }
         ]
       },
@@ -61,6 +80,7 @@
             "group": "Resources",
             "pages": [
               "resources/faq",
+              "resources/data-usage",
               "resources/license",
               "resources/third-party"
             ]
@@ -73,7 +93,7 @@
     "default": "system"
   },
   "fonts": {
-    "family": "Ubuntu"
+    "family": "Inter"
   },
   "background": {
     "color": {
@@ -157,6 +177,15 @@
     ]
   },
   "navbar": {
-    "links": []
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/moazbuilds/CodeMachine-CLI",
+        "icon": "github"
+      }
+    ]
+  },
+  "contextual": {
+    "options": ["copy", "view", "claude", "chatgpt"]
   }
 }
