@@ -3,9 +3,9 @@
   "theme": "mint",
   "name": "Documentation",
   "colors": {
-    "primary": "#8e51b9",
+    "primary": "#000000",
     "light": "#32bde3",
-    "dark": "#8e51b9"
+    "dark": "#000000"
   },
   "navigation": {
     "tabs": [
@@ -131,24 +131,7 @@
           }
         ]
       },
-      {
-        "header": "Community",
-        "items": [
-          {
-            "label": "Discord",
-            "href": "https://discord.com/invite/vS3A5UDNSq"
-          },
-          {
-            "label": "GitHub",
-            "href": "https://github.com/moazbuilds/CodeMachine-CLI"
-          },
-          {
-            "label": "Reddit",
-            "href": "https://www.reddit.com/r/CodeMachine/"
-          }
-        ]
-      },
-      {
+            {
         "header": "Legal",
         "items": [
           {
@@ -169,7 +152,7 @@
         "header": "Contact",
         "items": [
           {
-            "label": "info@codemachine.co",
+            "label": "Email",
             "href": "mailto:info@codemachine.co"
           }
         ]
@@ -178,6 +161,11 @@
   },
   "navbar": {
     "links": [
+      {
+        "label": "Discord",
+        "href": "https://discord.com/invite/vS3A5UDNSq",
+        "icon": "discord"
+      },
       {
         "label": "GitHub",
         "href": "https://github.com/moazbuilds/CodeMachine-CLI",
