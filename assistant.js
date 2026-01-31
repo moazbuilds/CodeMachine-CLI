@@ -1131,10 +1131,8 @@
 
   // assistant/config.js
   var config = {
-    // Backend API URL - update this after deploying your backend
-    apiUrl: "http://localhost:3001/api/chat"
-    // Production URL (uncomment and update after deployment)
-    // apiUrl: 'https://your-backend.run.app/api/chat',
+    // Backend API URL
+    apiUrl: "https://codemachine-backend-163276108650.us-central1.run.app/api/chat"
   };
 
   // assistant/events.js
