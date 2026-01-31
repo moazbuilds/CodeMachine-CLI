@@ -1,6 +1,6 @@
 // CodeMachine AI Assistant - Event Handlers
 import { addMessage, showThinking, hideThinking } from "./messages.js";
-import { getResponse } from "./demo-data.js";
+import { config } from "./config.js";
 
 export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }) {
   const triggerInput = document.getElementById("cm-trigger-input");
@@ -40,7 +40,7 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
     if (triggerShortcut) triggerShortcut.style.display = "flex";
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const question = input.value.trim();
     if (!question) return;
 
@@ -49,12 +49,27 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
     sendBtn.disabled = true;
     showThinking(content);
 
-    setTimeout(() => {
+    try {
+      const response = await fetch(config.apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: question })
+      });
+
+      const data = await response.json();
       hideThinking();
-      const response = getResponse(question);
-      addMessage(content, response.text, "assistant", response.source);
-      sendBtn.disabled = false;
-    }, 800);
+
+      if (data.error) {
+        addMessage(content, 'Sorry, something went wrong. Please try again.', "assistant");
+      } else {
+        addMessage(content, data.text, "assistant", data.source, data.sources || []);
+      }
+    } catch (err) {
+      hideThinking();
+      addMessage(content, 'Sorry, could not connect to the server.', "assistant");
+    }
+
+    sendBtn.disabled = false;
   };
 
   // Close on overlay click (mobile)
@@ -110,14 +125,6 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
   // Close button
   const closeBtn = document.getElementById("cm-assistant-close");
   closeBtn.addEventListener("click", closeAssistant);
-
-  // Suggestion buttons
-  document.querySelectorAll(".cm-suggestion").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      input.value = btn.textContent.trim();
-      handleSend();
-    });
-  });
 
   // Send button and enter key
   sendBtn.addEventListener("click", handleSend);

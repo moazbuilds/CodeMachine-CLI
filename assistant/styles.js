@@ -458,6 +458,82 @@ export const styles = `
     height: 12px;
   }
 
+  /* Markdown content styles */
+  .cm-message.assistant .bubble .cm-code-block {
+    background: var(--cm-bg-tertiary);
+    border: 1px solid var(--cm-border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 8px 0;
+    overflow-x: auto;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .cm-message.assistant .bubble .cm-code-block code {
+    background: none;
+    padding: 0;
+    color: var(--cm-text-primary);
+  }
+  .cm-message.assistant .bubble .cm-inline-code {
+    background: var(--cm-bg-tertiary);
+    border: 1px solid var(--cm-border-light);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    font-size: 12px;
+    color: var(--cm-accent);
+  }
+  .cm-message.assistant .bubble .cm-list {
+    margin: 8px 0;
+    padding-left: 20px;
+  }
+  .cm-message.assistant .bubble .cm-list-item {
+    margin: 4px 0;
+    line-height: 1.5;
+  }
+  .cm-message.assistant .bubble .cm-header {
+    margin: 12px 0 6px;
+    font-weight: 600;
+    color: var(--cm-text-primary);
+  }
+  .cm-message.assistant .bubble h3.cm-header {
+    font-size: 14px;
+  }
+  .cm-message.assistant .bubble h4.cm-header {
+    font-size: 13px;
+  }
+  .cm-message.assistant .bubble a {
+    color: var(--cm-accent);
+    text-decoration: none;
+  }
+  .cm-message.assistant .bubble a:hover {
+    text-decoration: underline;
+  }
+  .cm-message.assistant .bubble .cm-ref-link {
+    color: var(--cm-accent);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 1px 4px;
+    background: var(--cm-accent-bg);
+    border-radius: 4px;
+    text-decoration: none;
+    vertical-align: super;
+    margin: 0 1px;
+  }
+  .cm-message.assistant .bubble .cm-ref-link:hover {
+    background: var(--cm-accent);
+    color: white;
+    text-decoration: none;
+  }
+  .cm-message.assistant .bubble strong {
+    font-weight: 600;
+    color: var(--cm-text-primary);
+  }
+  .cm-message.assistant .bubble em {
+    font-style: italic;
+  }
+
   /* Thinking indicator */
   .cm-thinking {
     display: flex;

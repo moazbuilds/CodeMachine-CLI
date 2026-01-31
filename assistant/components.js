@@ -42,11 +42,6 @@ export function createPanel() {
         <div class="icon-wrapper">${icons.sparkle}</div>
         <h4>How can I help?</h4>
         <p>Ask anything about CodeMachine.</p>
-        <div class="cm-suggestions">
-          <button class="cm-suggestion">${icons.arrow} What is CodeMachine?</button>
-          <button class="cm-suggestion">${icons.arrow} How do I create my first workflow?</button>
-          <button class="cm-suggestion">${icons.arrow} How do agents work?</button>
-        </div>
       </div>
     </div>
     <div id="cm-assistant-input-area">

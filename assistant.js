@@ -459,6 +459,82 @@
     height: 12px;
   }
 
+  /* Markdown content styles */
+  .cm-message.assistant .bubble .cm-code-block {
+    background: var(--cm-bg-tertiary);
+    border: 1px solid var(--cm-border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 8px 0;
+    overflow-x: auto;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .cm-message.assistant .bubble .cm-code-block code {
+    background: none;
+    padding: 0;
+    color: var(--cm-text-primary);
+  }
+  .cm-message.assistant .bubble .cm-inline-code {
+    background: var(--cm-bg-tertiary);
+    border: 1px solid var(--cm-border-light);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    font-size: 12px;
+    color: var(--cm-accent);
+  }
+  .cm-message.assistant .bubble .cm-list {
+    margin: 8px 0;
+    padding-left: 20px;
+  }
+  .cm-message.assistant .bubble .cm-list-item {
+    margin: 4px 0;
+    line-height: 1.5;
+  }
+  .cm-message.assistant .bubble .cm-header {
+    margin: 12px 0 6px;
+    font-weight: 600;
+    color: var(--cm-text-primary);
+  }
+  .cm-message.assistant .bubble h3.cm-header {
+    font-size: 14px;
+  }
+  .cm-message.assistant .bubble h4.cm-header {
+    font-size: 13px;
+  }
+  .cm-message.assistant .bubble a {
+    color: var(--cm-accent);
+    text-decoration: none;
+  }
+  .cm-message.assistant .bubble a:hover {
+    text-decoration: underline;
+  }
+  .cm-message.assistant .bubble .cm-ref-link {
+    color: var(--cm-accent);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 1px 4px;
+    background: var(--cm-accent-bg);
+    border-radius: 4px;
+    text-decoration: none;
+    vertical-align: super;
+    margin: 0 1px;
+  }
+  .cm-message.assistant .bubble .cm-ref-link:hover {
+    background: var(--cm-accent);
+    color: white;
+    text-decoration: none;
+  }
+  .cm-message.assistant .bubble strong {
+    font-weight: 600;
+    color: var(--cm-text-primary);
+  }
+  .cm-message.assistant .bubble em {
+    font-style: italic;
+  }
+
   /* Thinking indicator */
   .cm-thinking {
     display: flex;
@@ -658,11 +734,6 @@
         <div class="icon-wrapper">${icons.sparkle}</div>
         <h4>How can I help?</h4>
         <p>Ask anything about CodeMachine.</p>
-        <div class="cm-suggestions">
-          <button class="cm-suggestion">${icons.arrow} What is CodeMachine?</button>
-          <button class="cm-suggestion">${icons.arrow} How do I create my first workflow?</button>
-          <button class="cm-suggestion">${icons.arrow} How do agents work?</button>
-        </div>
       </div>
     </div>
     <div id="cm-assistant-input-area">
@@ -705,19 +776,53 @@
   }
 
   // assistant/messages.js
-  function addMessage(content, text, type, source = null) {
+  function parseMarkdown(text, sources = []) {
+    let html = text;
+    html = html.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (match, lang, code) => {
+      const langClass = lang ? ` data-lang="${lang}"` : "";
+      return `<pre class="cm-code-block"${langClass}><code>${code.trim()}</code></pre>`;
+    });
+    html = html.replace(/`([^`]+)`/g, '<code class="cm-inline-code">$1</code>');
+    html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    html = html.replace(/_([^_]+)_/g, "<em>$1</em>");
+    html = html.replace(/\[(\d+)\](?:\([^)]*\))?|\(?\[(\d+)\]\)?/g, (match, num1, num2) => {
+      const num = num1 || num2;
+      const index = parseInt(num, 10);
+      const source = sources.find((s) => s.index === index);
+      if (source && source.url) {
+        return `<a href="${source.url}" class="cm-ref-link" target="_blank" rel="noopener" title="${source.title || "Source"}">[${num}]</a>`;
+      }
+      return match;
+    });
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    html = html.replace(/^### (.+)$/gm, '<h4 class="cm-header">$1</h4>');
+    html = html.replace(/^## (.+)$/gm, '<h3 class="cm-header">$1</h3>');
+    html = html.replace(/^# (.+)$/gm, '<h3 class="cm-header">$1</h3>');
+    html = html.replace(/^(\d+)\.\s+(.+)$/gm, '<li class="cm-list-item cm-numbered">$2</li>');
+    html = html.replace(/^[-*•]\s+(.+)$/gm, '<li class="cm-list-item">$1</li>');
+    html = html.replace(/((?:<li class="cm-list-item cm-numbered">.*<\/li>\n?)+)/g, '<ol class="cm-list">$1</ol>');
+    html = html.replace(/((?:<li class="cm-list-item">.*<\/li>\n?)+)/g, '<ul class="cm-list">$1</ul>');
+    html = html.replace(/\n/g, "<br>");
+    html = html.replace(/<\/(pre|ol|ul|h[1-4])><br>/g, "</$1>");
+    html = html.replace(/<br><(pre|ol|ul|h[1-4])/g, "<$1");
+    return html;
+  }
+  function addMessage(content, text, type, source = null, sources = []) {
     const welcome = content.querySelector(".cm-welcome");
     if (welcome)
       welcome.remove();
     const msg = document.createElement("div");
     msg.className = `cm-message ${type}`;
     if (type === "user") {
-      msg.innerHTML = `<div class="bubble">${text}</div>`;
+      const safeText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      msg.innerHTML = `<div class="bubble">${safeText}</div>`;
     } else {
-      const formattedText = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\n/g, "<br>");
+      const formattedText = parseMarkdown(text, sources);
       let sourceHtml = "";
-      if (source) {
-        sourceHtml = `<a href="${source.url}" class="source">${icons.doc} ${source.title}</a>`;
+      if (source && source.url) {
+        sourceHtml = `<a href="${source.url}" class="source" target="_blank" rel="noopener">${icons.doc} ${source.title || "Source"}</a>`;
       }
       msg.innerHTML = `
       <div class="avatar">${icons.sparkle}</div>
@@ -747,28 +852,13 @@
       thinking.remove();
   }
 
-  // assistant/demo-data.js
-  var demoResponses = {
-    "what is codemachine": {
-      text: "CodeMachine is a CLI tool that lets you create, run, and share AI-powered workflows. It enables you to automate tasks by chaining together multiple AI agents with custom prompts.",
-      source: { title: "What is CodeMachine?", url: "/core-concepts/what-is-codemachine" }
-    },
-    "how do i create my first workflow": {
-      text: "To create your first workflow:\n\n1. Create a directory for your workflow\n2. Add a workflow.yaml file defining your agents\n3. Write your prompts in .md files\n4. Run with codemachine run",
-      source: { title: "Your First Workflow", url: "/build-workflows/your-first-workflow" }
-    },
-    "how do agents work": {
-      text: "Agents are the building blocks of workflows. Each agent has a name, model, and prompt. They can receive inputs from other agents and produce outputs for downstream agents.",
-      source: { title: "Build Agents", url: "/build-workflows/build-agents" }
-    }
+  // assistant/config.js
+  var config = {
+    // Backend API URL - update this after deploying your backend
+    apiUrl: "http://localhost:3001/api/chat"
+    // Production URL (uncomment and update after deployment)
+    // apiUrl: 'https://your-backend.run.app/api/chat',
   };
-  function getResponse(question) {
-    const key = question.toLowerCase().replace(/[?!.,]/g, "").trim();
-    return demoResponses[key] || {
-      text: "This is a demo preview. When connected to your backend, I'll search your documentation and provide accurate answers with source citations.",
-      source: null
-    };
-  }
 
   // assistant/events.js
   function setupEvents({ panel, trigger, overlay, input, sendBtn, content }) {
@@ -806,7 +896,7 @@
       if (triggerShortcut)
         triggerShortcut.style.display = "flex";
     };
-    const handleSend = () => {
+    const handleSend = async () => {
       const question = input.value.trim();
       if (!question)
         return;
@@ -814,12 +904,24 @@
       input.value = "";
       sendBtn.disabled = true;
       showThinking(content);
-      setTimeout(() => {
+      try {
+        const response = await fetch(config.apiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: question })
+        });
+        const data = await response.json();
         hideThinking();
-        const response = getResponse(question);
-        addMessage(content, response.text, "assistant", response.source);
-        sendBtn.disabled = false;
-      }, 800);
+        if (data.error) {
+          addMessage(content, "Sorry, something went wrong. Please try again.", "assistant");
+        } else {
+          addMessage(content, data.text, "assistant", data.source, data.sources || []);
+        }
+      } catch (err) {
+        hideThinking();
+        addMessage(content, "Sorry, could not connect to the server.", "assistant");
+      }
+      sendBtn.disabled = false;
     };
     overlay.addEventListener("click", closeAssistant);
     window.addEventListener("resize", () => {
@@ -863,12 +965,6 @@
     triggerInput.addEventListener("input", resizeTriggerInput);
     const closeBtn = document.getElementById("cm-assistant-close");
     closeBtn.addEventListener("click", closeAssistant);
-    document.querySelectorAll(".cm-suggestion").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        input.value = btn.textContent.trim();
-        handleSend();
-      });
-    });
     sendBtn.addEventListener("click", handleSend);
     input.addEventListener("keypress", (e) => {
       if (e.key === "Enter")
