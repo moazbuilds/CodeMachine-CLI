@@ -254,45 +254,94 @@ export const styles = `
 
   /* Header */
   #cm-assistant-header {
-    padding: 16px 20px;
+    padding: 12px 16px;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     flex-shrink: 0;
   }
-  #cm-assistant-header .title-group {
+
+  /* Ali Frame - TUI narrator style */
+  #cm-ali-frame {
+    font-family: 'Courier New', Consolas, 'Liberation Mono', monospace;
+    font-size: 13px;
+    line-height: 1.4;
     display: flex;
-    align-items: center;
-    gap: 10px;
+    flex-direction: row;
+    flex: 1;
+    min-width: 0;
+    overflow: visible;
+    position: relative;
   }
-  #cm-assistant-header .ai-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    background: var(--cm-accent);
+  #cm-ali-frame .ali-border-svg {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 20px;
+    height: 100%;
+    color: var(--cm-border);
+  }
+  #cm-ali-frame .ali-frame-content {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     justify-content: center;
+    padding: 8px 0 8px 22px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
   }
-  #cm-assistant-header .ai-icon svg {
-    width: 16px;
-    height: 16px;
-    color: white;
+  #cm-ali-frame .ali-frame-row {
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    margin: 3px 0;
   }
-  #cm-assistant-header h3 {
-    margin: 0;
-    font-size: 14px;
-    font-weight: 600;
+  #cm-ali-frame .ali-face {
     color: var(--cm-text-primary);
-    font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
-    word-break: normal;
-    overflow-wrap: normal;
+    flex-shrink: 0;
+  }
+  #cm-ali-frame .ali-spacer {
+    display: inline-block;
+    width: 12px;
+    flex-shrink: 0;
+  }
+  #cm-ali-frame .ali-name {
+    color: var(--cm-text-primary);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  #cm-ali-frame .ali-arrow {
+    color: var(--cm-text-tertiary);
+    flex-shrink: 0;
+    margin-right: 6px;
+  }
+  #cm-ali-frame .ali-text {
+    color: #a855f7;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+    letter-spacing: 0.3px;
+  }
+  .dark #cm-ali-frame .ali-text,
+  html.dark #cm-ali-frame .ali-text {
+    color: var(--cm-accent);
+  }
+  #cm-ali-frame .ali-cursor {
+    color: var(--cm-accent);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  @keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
   }
   .header-actions {
     display: flex;
     align-items: center;
     gap: 4px;
+    flex-shrink: 0;
+    margin-left: 8px;
   }
   #cm-assistant-close,
   #cm-assistant-expand,
@@ -352,21 +401,6 @@ export const styles = `
   .cm-welcome {
     padding: 24px 8px;
     text-align: center;
-  }
-  .cm-welcome .icon-wrapper {
-    width: 48px;
-    height: 48px;
-    margin: 0 auto 16px;
-    background: var(--cm-accent-bg);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .cm-welcome .icon-wrapper svg {
-    width: 24px;
-    height: 24px;
-    color: var(--cm-accent);
   }
   .cm-welcome h4 {
     color: var(--cm-text-primary);
@@ -538,22 +572,9 @@ export const styles = `
   .cm-thinking {
     display: flex;
     gap: 10px;
-    align-items: flex-start;
-    animation: fadeIn 0.2s ease;
-  }
-  .cm-thinking .avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
-    background: var(--cm-accent-bg);
-    display: flex;
     align-items: center;
-    justify-content: center;
-  }
-  .cm-thinking .avatar svg {
-    width: 14px;
-    height: 14px;
-    color: var(--cm-accent);
+    animation: fadeIn 0.2s ease;
+    padding: 8px 0;
   }
   .cm-thinking .dots {
     display: flex;
@@ -665,9 +686,10 @@ export const styles = `
     background: var(--cm-bg-secondary);
     color: var(--cm-text-primary);
   }
-  #cm-navbar-ai-btn svg {
-    width: 14px;
-    height: 14px;
+  #cm-navbar-ai-btn .nav-ali-face {
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    font-size: 12px;
+    letter-spacing: -0.5px;
   }
   @media (max-width: 768px) {
     #cm-navbar-ai-btn span {

@@ -1,6 +1,126 @@
 // CodeMachine AI Assistant - DOM Components
 import { icons } from "./icons.js";
 
+// Ali face expressions - matching the TUI narrator (swagger persona)
+export const ALI_FACES = {
+  idle: '(⌐■_■)',
+  thinking: '(╭ರ_•́)',
+  tool: '<(•_•<)',
+  error: '(╥﹏╥)',
+  excited: '(ノ◕ヮ◕)ノ',
+  cool: '(⌐■_■)',
+};
+
+// Swagger phrases from agent-characters.json
+export const ALI_PHRASES = {
+  thinking: [
+    "Aight lemme figure this out real quick",
+    "Brain.exe is running, one sec",
+    "Ooh okay I see what you need",
+    "Processing... not in a robot way tho",
+    "Gimme a moment, I'm onto something",
+    "Hmm interesting, let me think on that",
+    "This is giving me ideas hold up",
+    "Working on it, trust the process",
+    "My last two brain cells are on it",
+    "Cooking up something good rn"
+  ],
+  tool: [
+    "Okay okay I got what I needed from you",
+    "Perfect, that's exactly what I was looking for",
+    "Bet, now I can actually do something with this",
+    "You delivered, now watch me work",
+    "That's the info I needed, let's go",
+    "W response, I can work with this",
+    "Ayyy thanks for that, proceeding now",
+    "Got it got it, running with it",
+    "This is what I'm talking about, moving on",
+    "Locked in, thanks homie"
+  ],
+  error: [
+    "Oof that tool ghosted me, trying plan B",
+    "Didn't work but I got other tricks",
+    "Rip that attempt, switching it up",
+    "Tool said no but I don't take rejection well",
+    "Minor L, already pivoting tho",
+    "That one's on the tool not me js",
+    "Blocked but not stopped, watch this",
+    "Error schmrror, I got backups",
+    "Universe said try harder, so I will",
+    "Speedbump, not a dead end"
+  ],
+  idle: [
+    "Okay your turn, what's next?",
+    "Ball's in your court homie",
+    "Ready when you are, no cap",
+    "Waiting on you, take your time tho",
+    "What we doing next boss?",
+    "I'm here, you lead the way",
+    "Your move chief",
+    "Standing by for orders",
+    "Hit me with the next step",
+    "Listening, what you need?"
+  ]
+};
+
+// Get random phrase for expression
+export function getRandomPhrase(expression) {
+  const phrases = ALI_PHRASES[expression] || ALI_PHRASES.idle;
+  return phrases[Math.floor(Math.random() * phrases.length)];
+}
+
+// Typewriter state
+let typewriterInterval = null;
+let typewriterTimeout = null;
+
+/**
+ * Update the Ali face and typewrite a phrase in the header frame
+ * @param {'idle' | 'thinking' | 'tool' | 'error' | 'excited' | 'cool'} expression
+ * @param {string} [customPhrase] - Optional custom phrase instead of random
+ */
+export function setAliFace(expression, customPhrase = null) {
+  const faceEl = document.querySelector('#cm-ali-frame .ali-face');
+  const textEl = document.querySelector('#cm-ali-frame .ali-text');
+  const cursorEl = document.querySelector('#cm-ali-frame .ali-cursor');
+
+  if (faceEl) {
+    faceEl.textContent = ALI_FACES[expression] || ALI_FACES.idle;
+    faceEl.dataset.expression = expression;
+  }
+
+  if (textEl) {
+    // Clear any existing typewriter
+    if (typewriterInterval) clearInterval(typewriterInterval);
+    if (typewriterTimeout) clearTimeout(typewriterTimeout);
+
+    const phrase = customPhrase || getRandomPhrase(expression);
+    let charIndex = 0;
+    textEl.textContent = '';
+
+    // Show cursor while typing
+    if (cursorEl) {
+      cursorEl.style.display = 'inline';
+      cursorEl.style.animation = 'blink 1s step-end infinite';
+    }
+
+    // Typewriter effect - 30ms per character like the TUI
+    typewriterInterval = setInterval(() => {
+      if (charIndex < phrase.length) {
+        textEl.textContent += phrase[charIndex];
+        charIndex++;
+      } else {
+        clearInterval(typewriterInterval);
+        typewriterInterval = null;
+        // Hide cursor completely after typing completes
+        if (cursorEl) {
+          cursorEl.style.animation = 'none';
+          cursorEl.style.display = 'none';
+        }
+      }
+    }, 30);
+  }
+}
+
 export function createOverlay() {
   const overlay = document.createElement("div");
   overlay.id = "cm-assistant-overlay";
@@ -29,10 +149,19 @@ export function createPanel() {
   panel.innerHTML = `
     <div id="cm-panel-resize-handle"></div>
     <div id="cm-assistant-header">
-      <div class="title-group">
-        <div class="ai-icon">${icons.sparkle}</div>
-        <div>
-          <h3>Ask AI</h3>
+      <div id="cm-ali-frame">
+        <svg class="ali-border-svg" viewBox="0 0 24 60" preserveAspectRatio="none">
+          <path d="M24 2 L12 2 Q2 2 2 12 L2 48 Q2 58 12 58 L24 58" fill="none" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        <div class="ali-frame-content">
+          <div class="ali-frame-row">
+            <span class="ali-face" data-expression="idle">${ALI_FACES.idle}</span>
+            <span class="ali-spacer"></span>
+            <span class="ali-name">Ali | The CM Guy</span>
+          </div>
+          <div class="ali-frame-row">
+            <span class="ali-arrow">↳</span><span class="ali-text"></span><span class="ali-cursor">_</span>
+          </div>
         </div>
       </div>
       <div class="header-actions">
@@ -43,7 +172,6 @@ export function createPanel() {
     </div>
     <div id="cm-assistant-content">
       <div class="cm-welcome">
-        <div class="icon-wrapper">${icons.sparkle}</div>
         <h4>How can I help?</h4>
         <p>Ask anything about CodeMachine.</p>
       </div>
@@ -59,6 +187,9 @@ export function createPanel() {
 
   // Setup resize functionality
   setupPanelResize(panel);
+
+  // Initialize with idle phrase
+  setTimeout(() => setAliFace('idle'), 100);
 
   return panel;
 }
@@ -166,7 +297,7 @@ function injectNavbarButton(openAssistant) {
 
   const navBtn = document.createElement("button");
   navBtn.id = "cm-navbar-ai-btn";
-  navBtn.innerHTML = `${icons.sparkle}<span>Ask AI</span>`;
+  navBtn.innerHTML = `<span class="nav-ali-face">${ALI_FACES.idle}</span><span>Ask Ali</span>`;
   navBtn.setAttribute("aria-label", "Open AI Assistant");
 
   navBtn.addEventListener("click", (e) => {

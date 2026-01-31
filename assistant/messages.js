@@ -1,5 +1,4 @@
 // CodeMachine AI Assistant - Message Handling
-import { icons } from "./icons.js";
 import { highlightCode } from "./highlight.js";
 
 
@@ -109,7 +108,6 @@ export function showThinking(content) {
   thinking.className = "cm-thinking";
   thinking.id = "cm-thinking";
   thinking.innerHTML = `
-    <div class="avatar">${icons.sparkle}</div>
     <div class="dots"><span></span><span></span><span></span></div>
   `;
   content.appendChild(thinking);

@@ -1,5 +1,6 @@
 // CodeMachine AI Assistant - Event Handlers
 import { addMessage, showThinking, hideThinking } from "./messages.js";
+import { setAliFace } from "./components.js";
 import { config } from "./config.js";
 
 // Chat memory using localStorage
@@ -140,6 +141,7 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
     input.value = "";
     input.style.height = "auto";
     sendBtn.disabled = true;
+    setAliFace('thinking');
     showThinking(content);
 
     try {
@@ -156,9 +158,13 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
       hideThinking();
 
       if (data.error) {
+        setAliFace('error');
         addMessage(content, 'Sorry, something went wrong. Please try again.', "assistant");
         uiMessages.push({ type: 'assistant', text: 'Sorry, something went wrong. Please try again.', sources: [] });
+        // Reset face after a delay
+        setTimeout(() => setAliFace('idle'), 2000);
       } else {
+        setAliFace('cool');
         addMessage(content, data.text, "assistant", data.source, data.sources || []);
         // Track assistant message for UI persistence
         uiMessages.push({ type: 'assistant', text: data.text, sources: data.sources || [] });
@@ -169,13 +175,18 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
           { role: 'assistant', content: data.text }
         );
         saveHistory();
+        // Reset face after a delay
+        setTimeout(() => setAliFace('idle'), 2000);
       }
       saveUIMessages(uiMessages);
     } catch (err) {
       hideThinking();
+      setAliFace('error');
       addMessage(content, 'Sorry, could not connect to the server.', "assistant");
       uiMessages.push({ type: 'assistant', text: 'Sorry, could not connect to the server.', sources: [] });
       saveUIMessages(uiMessages);
+      // Reset face after a delay
+      setTimeout(() => setAliFace('idle'), 2000);
     }
 
     sendBtn.disabled = false;
@@ -240,11 +251,11 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
   clearBtn.addEventListener("click", () => {
     clearHistory();
     uiMessages = [];
+    setAliFace('idle');
     // Reset content to welcome state
     content.innerHTML = `
       <div class="cm-welcome">
-        <div class="icon-wrapper"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L14.5 9.5L23 12L14.5 14.5L12 23L9.5 14.5L1 12L9.5 9.5L12 1Z"/></svg></div>
-        <h4>How can I help?</h4>
+                <h4>How can I help?</h4>
         <p>Ask anything about CodeMachine.</p>
       </div>
     `;
@@ -339,11 +350,11 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
   const clearChat = () => {
     clearHistory();
     uiMessages = [];
+    setAliFace('idle');
     // Reset content to welcome state
     content.innerHTML = `
       <div class="cm-welcome">
-        <div class="icon-wrapper"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L14.5 9.5L23 12L14.5 14.5L12 23L9.5 14.5L1 12L9.5 9.5L12 1Z"/></svg></div>
-        <h4>How can I help?</h4>
+                <h4>How can I help?</h4>
         <p>Ask anything about CodeMachine.</p>
       </div>
     `;

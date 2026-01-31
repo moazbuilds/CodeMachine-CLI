@@ -255,45 +255,94 @@
 
   /* Header */
   #cm-assistant-header {
-    padding: 16px 20px;
+    padding: 12px 16px;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     flex-shrink: 0;
   }
-  #cm-assistant-header .title-group {
+
+  /* Ali Frame - TUI narrator style */
+  #cm-ali-frame {
+    font-family: 'Courier New', Consolas, 'Liberation Mono', monospace;
+    font-size: 13px;
+    line-height: 1.4;
     display: flex;
-    align-items: center;
-    gap: 10px;
+    flex-direction: row;
+    flex: 1;
+    min-width: 0;
+    overflow: visible;
+    position: relative;
   }
-  #cm-assistant-header .ai-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    background: var(--cm-accent);
+  #cm-ali-frame .ali-border-svg {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 20px;
+    height: 100%;
+    color: var(--cm-border);
+  }
+  #cm-ali-frame .ali-frame-content {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     justify-content: center;
+    padding: 8px 0 8px 22px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
   }
-  #cm-assistant-header .ai-icon svg {
-    width: 16px;
-    height: 16px;
-    color: white;
+  #cm-ali-frame .ali-frame-row {
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    margin: 3px 0;
   }
-  #cm-assistant-header h3 {
-    margin: 0;
-    font-size: 14px;
-    font-weight: 600;
+  #cm-ali-frame .ali-face {
     color: var(--cm-text-primary);
-    font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
-    word-break: normal;
-    overflow-wrap: normal;
+    flex-shrink: 0;
+  }
+  #cm-ali-frame .ali-spacer {
+    display: inline-block;
+    width: 12px;
+    flex-shrink: 0;
+  }
+  #cm-ali-frame .ali-name {
+    color: var(--cm-text-primary);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  #cm-ali-frame .ali-arrow {
+    color: var(--cm-text-tertiary);
+    flex-shrink: 0;
+    margin-right: 6px;
+  }
+  #cm-ali-frame .ali-text {
+    color: #a855f7;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+    letter-spacing: 0.3px;
+  }
+  .dark #cm-ali-frame .ali-text,
+  html.dark #cm-ali-frame .ali-text {
+    color: var(--cm-accent);
+  }
+  #cm-ali-frame .ali-cursor {
+    color: var(--cm-accent);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  @keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
   }
   .header-actions {
     display: flex;
     align-items: center;
     gap: 4px;
+    flex-shrink: 0;
+    margin-left: 8px;
   }
   #cm-assistant-close,
   #cm-assistant-expand,
@@ -353,21 +402,6 @@
   .cm-welcome {
     padding: 24px 8px;
     text-align: center;
-  }
-  .cm-welcome .icon-wrapper {
-    width: 48px;
-    height: 48px;
-    margin: 0 auto 16px;
-    background: var(--cm-accent-bg);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .cm-welcome .icon-wrapper svg {
-    width: 24px;
-    height: 24px;
-    color: var(--cm-accent);
   }
   .cm-welcome h4 {
     color: var(--cm-text-primary);
@@ -539,22 +573,9 @@
   .cm-thinking {
     display: flex;
     gap: 10px;
-    align-items: flex-start;
-    animation: fadeIn 0.2s ease;
-  }
-  .cm-thinking .avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
-    background: var(--cm-accent-bg);
-    display: flex;
     align-items: center;
-    justify-content: center;
-  }
-  .cm-thinking .avatar svg {
-    width: 14px;
-    height: 14px;
-    color: var(--cm-accent);
+    animation: fadeIn 0.2s ease;
+    padding: 8px 0;
   }
   .cm-thinking .dots {
     display: flex;
@@ -666,9 +687,10 @@
     background: var(--cm-bg-secondary);
     color: var(--cm-text-primary);
   }
-  #cm-navbar-ai-btn svg {
-    width: 14px;
-    height: 14px;
+  #cm-navbar-ai-btn .nav-ali-face {
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    font-size: 12px;
+    letter-spacing: -0.5px;
   }
   @media (max-width: 768px) {
     #cm-navbar-ai-btn span {
@@ -698,6 +720,105 @@
   };
 
   // assistant/components.js
+  var ALI_FACES = {
+    idle: "(\u2310\u25A0_\u25A0)",
+    thinking: "(\u256D\u0CB0_\u2022\u0301)",
+    tool: "<(\u2022_\u2022<)",
+    error: "(\u2565\uFE4F\u2565)",
+    excited: "(\u30CE\u25D5\u30EE\u25D5)\u30CE",
+    cool: "(\u2310\u25A0_\u25A0)"
+  };
+  var ALI_PHRASES = {
+    thinking: [
+      "Aight lemme figure this out real quick",
+      "Brain.exe is running, one sec",
+      "Ooh okay I see what you need",
+      "Processing... not in a robot way tho",
+      "Gimme a moment, I'm onto something",
+      "Hmm interesting, let me think on that",
+      "This is giving me ideas hold up",
+      "Working on it, trust the process",
+      "My last two brain cells are on it",
+      "Cooking up something good rn"
+    ],
+    tool: [
+      "Okay okay I got what I needed from you",
+      "Perfect, that's exactly what I was looking for",
+      "Bet, now I can actually do something with this",
+      "You delivered, now watch me work",
+      "That's the info I needed, let's go",
+      "W response, I can work with this",
+      "Ayyy thanks for that, proceeding now",
+      "Got it got it, running with it",
+      "This is what I'm talking about, moving on",
+      "Locked in, thanks homie"
+    ],
+    error: [
+      "Oof that tool ghosted me, trying plan B",
+      "Didn't work but I got other tricks",
+      "Rip that attempt, switching it up",
+      "Tool said no but I don't take rejection well",
+      "Minor L, already pivoting tho",
+      "That one's on the tool not me js",
+      "Blocked but not stopped, watch this",
+      "Error schmrror, I got backups",
+      "Universe said try harder, so I will",
+      "Speedbump, not a dead end"
+    ],
+    idle: [
+      "Okay your turn, what's next?",
+      "Ball's in your court homie",
+      "Ready when you are, no cap",
+      "Waiting on you, take your time tho",
+      "What we doing next boss?",
+      "I'm here, you lead the way",
+      "Your move chief",
+      "Standing by for orders",
+      "Hit me with the next step",
+      "Listening, what you need?"
+    ]
+  };
+  function getRandomPhrase(expression) {
+    const phrases = ALI_PHRASES[expression] || ALI_PHRASES.idle;
+    return phrases[Math.floor(Math.random() * phrases.length)];
+  }
+  var typewriterInterval = null;
+  var typewriterTimeout = null;
+  function setAliFace(expression, customPhrase = null) {
+    const faceEl = document.querySelector("#cm-ali-frame .ali-face");
+    const textEl = document.querySelector("#cm-ali-frame .ali-text");
+    const cursorEl = document.querySelector("#cm-ali-frame .ali-cursor");
+    if (faceEl) {
+      faceEl.textContent = ALI_FACES[expression] || ALI_FACES.idle;
+      faceEl.dataset.expression = expression;
+    }
+    if (textEl) {
+      if (typewriterInterval)
+        clearInterval(typewriterInterval);
+      if (typewriterTimeout)
+        clearTimeout(typewriterTimeout);
+      const phrase = customPhrase || getRandomPhrase(expression);
+      let charIndex = 0;
+      textEl.textContent = "";
+      if (cursorEl) {
+        cursorEl.style.display = "inline";
+        cursorEl.style.animation = "blink 1s step-end infinite";
+      }
+      typewriterInterval = setInterval(() => {
+        if (charIndex < phrase.length) {
+          textEl.textContent += phrase[charIndex];
+          charIndex++;
+        } else {
+          clearInterval(typewriterInterval);
+          typewriterInterval = null;
+          if (cursorEl) {
+            cursorEl.style.animation = "none";
+            cursorEl.style.display = "none";
+          }
+        }
+      }, 30);
+    }
+  }
   function createOverlay() {
     const overlay = document.createElement("div");
     overlay.id = "cm-assistant-overlay";
@@ -723,10 +844,19 @@
     panel.innerHTML = `
     <div id="cm-panel-resize-handle"></div>
     <div id="cm-assistant-header">
-      <div class="title-group">
-        <div class="ai-icon">${icons.sparkle}</div>
-        <div>
-          <h3>Ask AI</h3>
+      <div id="cm-ali-frame">
+        <svg class="ali-border-svg" viewBox="0 0 24 60" preserveAspectRatio="none">
+          <path d="M24 2 L12 2 Q2 2 2 12 L2 48 Q2 58 12 58 L24 58" fill="none" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        <div class="ali-frame-content">
+          <div class="ali-frame-row">
+            <span class="ali-face" data-expression="idle">${ALI_FACES.idle}</span>
+            <span class="ali-spacer"></span>
+            <span class="ali-name">Ali | The CM Guy</span>
+          </div>
+          <div class="ali-frame-row">
+            <span class="ali-arrow">\u21B3</span><span class="ali-text"></span><span class="ali-cursor">_</span>
+          </div>
         </div>
       </div>
       <div class="header-actions">
@@ -737,7 +867,6 @@
     </div>
     <div id="cm-assistant-content">
       <div class="cm-welcome">
-        <div class="icon-wrapper">${icons.sparkle}</div>
         <h4>How can I help?</h4>
         <p>Ask anything about CodeMachine.</p>
       </div>
@@ -751,6 +880,7 @@
   `;
     document.body.appendChild(panel);
     setupPanelResize(panel);
+    setTimeout(() => setAliFace("idle"), 100);
     return panel;
   }
   function setupPanelResize(panel) {
@@ -831,7 +961,7 @@
     }
     const navBtn = document.createElement("button");
     navBtn.id = "cm-navbar-ai-btn";
-    navBtn.innerHTML = `${icons.sparkle}<span>Ask AI</span>`;
+    navBtn.innerHTML = `<span class="nav-ali-face">${ALI_FACES.idle}</span><span>Ask Ali</span>`;
     navBtn.setAttribute("aria-label", "Open AI Assistant");
     navBtn.addEventListener("click", (e) => {
       e.preventDefault();
@@ -988,7 +1118,6 @@
     thinking.className = "cm-thinking";
     thinking.id = "cm-thinking";
     thinking.innerHTML = `
-    <div class="avatar">${icons.sparkle}</div>
     <div class="dots"><span></span><span></span><span></span></div>
   `;
     content.appendChild(thinking);
@@ -1120,6 +1249,7 @@
       input.value = "";
       input.style.height = "auto";
       sendBtn.disabled = true;
+      setAliFace("thinking");
       showThinking(content);
       try {
         const response = await fetch(config.apiUrl, {
@@ -1133,9 +1263,12 @@
         const data = await response.json();
         hideThinking();
         if (data.error) {
+          setAliFace("error");
           addMessage(content, "Sorry, something went wrong. Please try again.", "assistant");
           uiMessages.push({ type: "assistant", text: "Sorry, something went wrong. Please try again.", sources: [] });
+          setTimeout(() => setAliFace("idle"), 2e3);
         } else {
+          setAliFace("cool");
           addMessage(content, data.text, "assistant", data.source, data.sources || []);
           uiMessages.push({ type: "assistant", text: data.text, sources: data.sources || [] });
           conversationHistory.push(
@@ -1143,13 +1276,16 @@
             { role: "assistant", content: data.text }
           );
           saveHistory();
+          setTimeout(() => setAliFace("idle"), 2e3);
         }
         saveUIMessages(uiMessages);
       } catch (err) {
         hideThinking();
+        setAliFace("error");
         addMessage(content, "Sorry, could not connect to the server.", "assistant");
         uiMessages.push({ type: "assistant", text: "Sorry, could not connect to the server.", sources: [] });
         saveUIMessages(uiMessages);
+        setTimeout(() => setAliFace("idle"), 2e3);
       }
       sendBtn.disabled = false;
     };
@@ -1199,10 +1335,10 @@
     clearBtn.addEventListener("click", () => {
       clearHistory();
       uiMessages = [];
+      setAliFace("idle");
       content.innerHTML = `
       <div class="cm-welcome">
-        <div class="icon-wrapper"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L14.5 9.5L23 12L14.5 14.5L12 23L9.5 14.5L1 12L9.5 9.5L12 1Z"/></svg></div>
-        <h4>How can I help?</h4>
+                <h4>How can I help?</h4>
         <p>Ask anything about CodeMachine.</p>
       </div>
     `;
@@ -1275,10 +1411,10 @@
     const clearChat = () => {
       clearHistory();
       uiMessages = [];
+      setAliFace("idle");
       content.innerHTML = `
       <div class="cm-welcome">
-        <div class="icon-wrapper"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L14.5 9.5L23 12L14.5 14.5L12 23L9.5 14.5L1 12L9.5 9.5L12 1Z"/></svg></div>
-        <h4>How can I help?</h4>
+                <h4>How can I help?</h4>
         <p>Ask anything about CodeMachine.</p>
       </div>
     `;
