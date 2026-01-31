@@ -725,6 +725,10 @@ export const styles = `
     #cm-navbar-ai-btn {
       padding: 6px;
     }
+    /* Hide floating trigger on mobile - use navbar button instead */
+    #cm-assistant-trigger {
+      display: none !important;
+    }
   }
 `;
 

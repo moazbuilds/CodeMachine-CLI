@@ -309,9 +309,82 @@ function injectNavbarButton(openAssistant) {
   const parent = insertTarget.parentElement;
   if (parent) {
     insertTarget.insertAdjacentElement("afterend", navBtn);
-    return true;
   }
-  return false;
+
+  // Also inject into mobile overflow menu if it exists
+  injectMobileMenuButton(openAssistant);
+
+  return true;
+}
+
+function injectMobileMenuButton(openAssistant) {
+  if (document.getElementById("cm-mobile-ai-btn")) return;
+
+  // Look for Mintlify's mobile navigation menu (three dots overflow menu)
+  const mobileMenuSelectors = [
+    '[id*="navigation-items"]',
+    '[class*="mobile-menu"]',
+    '[class*="overflow-menu"]',
+    '[data-testid*="mobile"]',
+    'nav[class*="mobile"]'
+  ];
+
+  // Also watch for the mobile menu to appear dynamically
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          // Check if this is a mobile menu or dropdown
+          const isMenu = node.matches && (
+            node.matches('[role="menu"]') ||
+            node.matches('[class*="dropdown"]') ||
+            node.matches('[class*="popover"]')
+          );
+
+          if (isMenu && !document.getElementById("cm-mobile-ai-btn")) {
+            const links = node.querySelectorAll('a[href*="discord"], a[href*="github"]');
+            if (links.length > 0) {
+              const mobileBtn = createMobileButton(openAssistant);
+              const lastLink = links[links.length - 1];
+              lastLink.parentElement.insertAdjacentElement("afterend", mobileBtn.parentElement || mobileBtn);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+}
+
+function createMobileButton(openAssistant) {
+  const btn = document.createElement("button");
+  btn.id = "cm-mobile-ai-btn";
+  btn.className = "cm-mobile-menu-item";
+  btn.innerHTML = `<span class="nav-ali-face">${ALI_FACES.idle}</span> Ask Ali`;
+  btn.setAttribute("aria-label", "Open AI Assistant");
+  btn.style.cssText = `
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: inherit;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+  `;
+
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openAssistant();
+  });
+
+  return btn;
 }
 
 export function createNavbarButton(openAssistant) {
