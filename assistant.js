@@ -979,28 +979,34 @@
   function injectNavbarButton(openAssistant) {
     if (document.getElementById("cm-navbar-ai-btn"))
       return true;
-    const searchEntry = document.querySelector('[data-testid="search-bar-entry"]') || document.getElementById("search-bar-entry") || document.querySelector('[class*="search-bar-entry"]');
-    const discordLink = document.querySelector('a[href*="discord.com"]');
-    const githubLink = document.querySelector('a[href*="github.com"]');
-    let insertTarget = searchEntry || discordLink || githubLink;
-    if (!insertTarget) {
-      return false;
+    const searchEntry = document.getElementById("search-bar-entry");
+    if (searchEntry) {
+      const navBtn = document.createElement("button");
+      navBtn.id = "cm-navbar-ai-btn";
+      navBtn.innerHTML = `<span class="nav-ali-face">${ALI_FACES.idle}</span><span>Ask Ali</span>`;
+      navBtn.setAttribute("aria-label", "Open AI Assistant");
+      navBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openAssistant();
+      });
+      searchEntry.insertAdjacentElement("afterend", navBtn);
     }
-    const navBtn = document.createElement("button");
-    navBtn.id = "cm-navbar-ai-btn";
-    navBtn.innerHTML = `<span class="nav-ali-face">${ALI_FACES.idle}</span><span>Ask Ali</span>`;
-    navBtn.setAttribute("aria-label", "Open AI Assistant");
-    navBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      openAssistant();
-    });
-    const parent = insertTarget.parentElement;
-    if (parent) {
-      insertTarget.insertAdjacentElement("afterend", navBtn);
-      return true;
+    const mobileSearchBtn = document.getElementById("search-bar-entry-mobile");
+    if (mobileSearchBtn && !document.getElementById("cm-navbar-ai-btn-mobile")) {
+      const mobileBtn = document.createElement("button");
+      mobileBtn.id = "cm-navbar-ai-btn-mobile";
+      mobileBtn.className = "text-gray-500 w-8 h-8 flex items-center justify-center hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300";
+      mobileBtn.setAttribute("aria-label", "Open AI Assistant");
+      mobileBtn.innerHTML = `<span style="font-family: 'SF Mono', Monaco, monospace; font-size: 14px;">${ALI_FACES.idle}</span>`;
+      mobileBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openAssistant();
+      });
+      mobileSearchBtn.insertAdjacentElement("beforebegin", mobileBtn);
     }
-    return false;
+    return true;
   }
   function createNavbarButton(openAssistant) {
     if (!injectNavbarButton(openAssistant)) {
@@ -1013,9 +1019,10 @@
       for (const mutation of mutations) {
         for (const node of mutation.addedNodes) {
           if (node.nodeType === Node.ELEMENT_NODE) {
-            const mobileMenu = node.querySelector ? node.querySelector('[role="menu"]') || node.querySelector("[data-radix-popper-content-wrapper]") || (node.matches && node.matches("[data-radix-popper-content-wrapper]") ? node : null) : null;
-            const menuToCheck = mobileMenu || node;
-            if (menuToCheck && menuToCheck.querySelector) {
+            const dialogPanel = node.querySelector ? node.querySelector('[id^="headlessui-dialog-panel"]') : null;
+            const isDialogPanel = node.id && node.id.startsWith("headlessui-dialog-panel");
+            const menuToCheck = dialogPanel || (isDialogPanel ? node : null);
+            if (menuToCheck) {
               const hasNavLinks = menuToCheck.querySelector('a[href*="discord.com"], a[href*="github.com"]');
               const alreadyHasBtn = menuToCheck.querySelector("#cm-mobile-ai-btn");
               if (hasNavLinks && !alreadyHasBtn) {
@@ -1032,43 +1039,26 @@
     });
   }
   function injectMobileMenuButton(menuContainer, openAssistant) {
-    const links = menuContainer.querySelectorAll('a[href*="discord.com"], a[href*="github.com"]');
-    if (links.length === 0)
+    const navList = menuContainer.querySelector("nav ul");
+    if (!navList)
       return;
-    const lastLink = links[links.length - 1];
-    const linkContainer = lastLink.closest("div") || lastLink.parentElement;
-    if (!linkContainer)
+    if (navList.querySelector("#cm-mobile-ai-btn"))
       return;
-    const menuItem = document.createElement("button");
-    menuItem.id = "cm-mobile-ai-btn";
-    menuItem.innerHTML = `<span style="font-family: monospace; margin-right: 6px;">${ALI_FACES.idle}</span>Ask Ali`;
-    menuItem.style.cssText = `
-    display: flex;
-    align-items: center;
-    width: 100%;
-    padding: 8px 12px;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    font-size: 14px;
-    color: inherit;
-    text-align: left;
-    font-family: inherit;
-    border-radius: 6px;
-    transition: background 0.15s ease;
+    const listItem = document.createElement("li");
+    listItem.className = "navbar-link";
+    listItem.id = "cm-mobile-ai-btn";
+    listItem.innerHTML = `
+    <button class="flex items-center gap-1.5 whitespace-nowrap font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300" style="background: none; border: none; cursor: pointer; padding: 0; font-size: inherit; font-family: inherit;">
+      <span style="font-family: 'SF Mono', Monaco, monospace; font-size: 12px;">${ALI_FACES.idle}</span>
+      Ask Ali
+    </button>
   `;
-    menuItem.addEventListener("mouseenter", () => {
-      menuItem.style.background = "var(--cm-bg-secondary, rgba(0,0,0,0.05))";
-    });
-    menuItem.addEventListener("mouseleave", () => {
-      menuItem.style.background = "transparent";
-    });
-    menuItem.addEventListener("click", (e) => {
+    listItem.querySelector("button").addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
       openAssistant();
     });
-    linkContainer.insertAdjacentElement("afterend", menuItem);
+    navList.appendChild(listItem);
   }
 
   // assistant/highlight.js
