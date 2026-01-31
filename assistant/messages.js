@@ -1,25 +1,28 @@
 // CodeMachine AI Assistant - Message Handling
 import { icons } from "./icons.js";
+import { highlightCode } from "./highlight.js";
+
 
 /**
  * Parse markdown-like text to HTML
  * @param {string} text - Raw text from AI
- * @param {Array} sources - Array of source objects with index, title, url
  */
-function parseMarkdown(text, sources = []) {
+function parseMarkdown(text) {
   let html = text;
 
-  // Escape HTML first (security)
+  // Store code blocks temporarily to protect them from other transformations
+  const codeBlocks = [];
+  html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (match, lang, code) => {
+    const index = codeBlocks.length;
+    codeBlocks.push({ lang, code: code.trim() });
+    return `%%CODEBLOCK_${index}%%`;
+  });
+
+  // Escape HTML (security) - after extracting code blocks
   html = html
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
-
-  // Code blocks (```language\ncode```)
-  html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (match, lang, code) => {
-    const langClass = lang ? ` data-lang="${lang}"` : '';
-    return `<pre class="cm-code-block"${langClass}><code>${code.trim()}</code></pre>`;
-  });
 
   // Inline code (`code`)
   html = html.replace(/`([^`]+)`/g, '<code class="cm-inline-code">$1</code>');
@@ -29,20 +32,6 @@ function parseMarkdown(text, sources = []) {
 
   // Italic (*text* but not in lists)
   html = html.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>');
-
-  // Reference links - handle multiple numbers like [1, 2], [1, 2, 5], (1), etc.
-  html = html.replace(/\[(\d+(?:\s*,\s*\d+)*)\]/g, (match, nums) => {
-    const numbers = nums.split(/\s*,\s*/);
-    const links = numbers.map(num => {
-      const index = parseInt(num.trim(), 10);
-      const source = sources.find(s => s.index === index);
-      if (source && source.url) {
-        return `<a href="${source.url}" class="cm-ref-link" target="_blank" rel="noopener" title="${source.title || 'Source'}">[${num.trim()}]</a>`;
-      }
-      return `[${num.trim()}]`;
-    });
-    return links.join('');
-  });
 
   // Regular links [text](url)
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
@@ -62,7 +51,7 @@ function parseMarkdown(text, sources = []) {
   html = html.replace(/((?:<li class="cm-list-item cm-numbered">.*?<\/li>[\n\r]*)+)/g, '<ol class="cm-list">$1</ol>');
   html = html.replace(/((?:<li class="cm-list-item">.*?<\/li>[\n\r]*)+)/g, '<ul class="cm-list">$1</ul>');
 
-  // Line breaks
+  // Line breaks (outside code blocks)
   html = html.replace(/\n/g, '<br>');
 
   // Clean up extra <br> after/before block elements
@@ -71,23 +60,21 @@ function parseMarkdown(text, sources = []) {
   html = html.replace(/<br><li/g, '<li');
   html = html.replace(/<\/li><br>/g, '</li>');
 
+  // Restore code blocks with proper formatting
+  html = html.replace(/%%CODEBLOCK_(\d+)%%/g, (match, index) => {
+    const block = codeBlocks[parseInt(index, 10)];
+    const langAttr = block.lang ? ` data-lang="${block.lang}"` : '';
+    // Escape HTML in code and preserve newlines
+    const escapedCode = block.code
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    return `<pre class="cm-code-block"${langAttr}><code>${escapedCode}</code></pre>`;
+  });
+
   return html;
 }
 
-/**
- * Extract referenced source numbers from text (e.g., [1], [2, 3])
- * @param {string} text - The message text
- * @returns {Set<number>} Set of referenced source numbers
- */
-function extractReferencedSources(text) {
-  const refs = new Set();
-  const matches = text.matchAll(/\[(\d+(?:\s*,\s*\d+)*)\]/g);
-  for (const match of matches) {
-    const nums = match[1].split(/\s*,\s*/);
-    nums.forEach(n => refs.add(parseInt(n.trim(), 10)));
-  }
-  return refs;
-}
 
 export function addMessage(content, text, type, source = null, sources = []) {
   const welcome = content.querySelector(".cm-welcome");
@@ -104,35 +91,13 @@ export function addMessage(content, text, type, source = null, sources = []) {
       .replace(/>/g, '&gt;');
     msg.innerHTML = `<div class="bubble">${safeText}</div>`;
   } else {
-    // Assistant messages - parse markdown with sources for reference links
-    const formattedText = parseMarkdown(text, sources);
+    // Assistant messages - parse markdown (handles bold links for references)
+    const formattedText = parseMarkdown(text);
 
-    // Extract which sources were actually referenced in the text
-    const referencedNums = extractReferencedSources(text);
+    msg.innerHTML = `<div class="content">${formattedText}</div>`;
 
-    // Build source cards only for referenced sources (max 3)
-    let sourcesHtml = "";
-    if (sources.length > 0 && referencedNums.size > 0) {
-      const referencedSources = sources
-        .filter(s => referencedNums.has(s.index))
-        .slice(0, 3); // Max 3 cards
-
-      if (referencedSources.length > 0) {
-        sourcesHtml = `<div class="cm-source-cards">` +
-          referencedSources.map(s =>
-            `<a href="${s.url}" class="source" target="_blank" rel="noopener">${icons.doc} ${s.title || 'Source'}</a>`
-          ).join('') +
-          `</div>`;
-      }
-    }
-
-    msg.innerHTML = `
-      <div class="avatar">${icons.sparkle}</div>
-      <div class="content">
-        <div class="bubble">${formattedText}</div>
-        ${sourcesHtml}
-      </div>
-    `;
+    // Apply syntax highlighting to code blocks
+    setTimeout(() => highlightCode(msg), 0);
   }
 
   content.appendChild(msg);

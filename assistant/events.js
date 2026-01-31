@@ -138,6 +138,7 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
     saveUIMessages(uiMessages);
 
     input.value = "";
+    input.style.height = "auto";
     sendBtn.disabled = true;
     showThinking(content);
 
@@ -294,9 +295,19 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
 
   // Send button and enter key
   sendBtn.addEventListener("click", handleSend);
-  input.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") handleSend();
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   });
+
+  // Auto-resize panel input
+  const resizePanelInput = () => {
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 120) + "px";
+  };
+  input.addEventListener("input", resizePanelInput);
 
   // Escape key and Ctrl/Cmd + I shortcut
   document.addEventListener("keydown", (e) => {

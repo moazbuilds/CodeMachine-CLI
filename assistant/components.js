@@ -33,7 +33,6 @@ export function createPanel() {
         <div class="ai-icon">${icons.sparkle}</div>
         <div>
           <h3>Ask AI</h3>
-          <div class="subtitle">Search the docs</div>
         </div>
       </div>
       <div class="header-actions">
@@ -51,12 +50,9 @@ export function createPanel() {
     </div>
     <div id="cm-assistant-input-area">
       <div id="cm-assistant-input-wrapper">
-        <input type="text" id="cm-assistant-input" placeholder="Ask a question..." />
-        <button id="cm-assistant-send">${icons.send}</button>
+        <textarea id="cm-assistant-input" placeholder="Ask a question..." rows="1"></textarea>
+        <button id="cm-assistant-send">${icons.arrow}</button>
       </div>
-    </div>
-    <div id="cm-assistant-footer">
-      <span>Powered by your documentation</span>
     </div>
   `;
   document.body.appendChild(panel);

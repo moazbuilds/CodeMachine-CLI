@@ -17,8 +17,9 @@ export const styles = `
     --cm-text-tertiary: #9ca3af;
     --cm-border: #e5e7eb;
     --cm-border-light: #f3f4f6;
-    --cm-accent: #32bde3;
-    --cm-accent-bg: rgba(50, 189, 227, 0.08);
+    --cm-border-focus: #9ca3af;
+    --cm-accent: #111827;
+    --cm-accent-bg: rgba(17, 24, 39, 0.08);
   }
 
   /* Dark mode - when .dark class is on html or body */
@@ -34,6 +35,7 @@ export const styles = `
     --cm-text-tertiary: #71717a;
     --cm-border: #27272a;
     --cm-border-light: #1f1f23;
+    --cm-border-focus: #52525b;
     --cm-accent: #32bde3;
     --cm-accent-bg: rgba(50, 189, 227, 0.1);
   }
@@ -97,7 +99,7 @@ export const styles = `
   #cm-assistant-trigger:focus-within {
     transform: translateX(-50%);
     box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-    border-color: var(--cm-accent);
+    border-color: var(--cm-border-focus);
   }
   #cm-assistant-trigger.expanded {
     width: 420px;
@@ -253,7 +255,6 @@ export const styles = `
   /* Header */
   #cm-assistant-header {
     padding: 16px 20px;
-    border-bottom: 1px solid var(--cm-border);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -283,14 +284,6 @@ export const styles = `
     font-size: 14px;
     font-weight: 600;
     color: var(--cm-text-primary);
-    font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
-    word-break: normal;
-    overflow-wrap: normal;
-    white-space: nowrap;
-  }
-  #cm-assistant-header .subtitle {
-    font-size: 12px;
-    color: var(--cm-text-tertiary);
     font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
     word-break: normal;
     overflow-wrap: normal;
@@ -448,35 +441,10 @@ export const styles = `
     overflow-wrap: normal;
   }
   .cm-message.assistant {
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-  }
-  .cm-message.assistant .avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
-    background: var(--cm-accent-bg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  .cm-message.assistant .avatar svg {
-    width: 14px;
-    height: 14px;
-    color: var(--cm-accent);
+    display: block;
   }
   .cm-message.assistant .content {
-    flex: 1;
-    min-width: 100px;
-  }
-  .cm-message.assistant .bubble {
-    background: var(--cm-bg-secondary);
-    border: 1px solid var(--cm-border-light);
     color: var(--cm-text-primary);
-    padding: 10px 14px;
-    border-radius: 4px 12px 12px 12px;
     font-size: 13px;
     line-height: 1.6;
     font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -484,68 +452,30 @@ export const styles = `
     word-break: normal;
     overflow-wrap: normal;
   }
-  .cm-message.assistant .source {
-    margin-top: 8px;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    background: var(--cm-bg-secondary);
-    border: 1px solid var(--cm-border);
-    border-radius: 6px;
-    font-size: 12px;
-    color: var(--cm-text-secondary);
-    text-decoration: none;
-    transition: all 0.15s ease;
-    font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
-  }
-  .cm-message.assistant .source:hover {
-    border-color: var(--cm-accent);
-    color: var(--cm-accent);
-  }
-  .cm-message.assistant .source svg {
-    width: 12px;
-    height: 12px;
-  }
-
-  /* Source cards container */
-  .cm-source-cards {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 10px;
-  }
-  .cm-source-cards .source {
-    margin-top: 0;
-    max-width: calc(50% - 3px);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  @media (max-width: 768px) {
-    .cm-source-cards .source {
-      max-width: 100%;
-    }
-  }
-
   /* Markdown content styles */
-  .cm-message.assistant .bubble .cm-code-block {
-    background: var(--cm-bg-tertiary);
+  .cm-message.assistant .content .cm-code-block {
+    background: var(--cm-bg-tertiary) !important;
     border: 1px solid var(--cm-border);
     border-radius: 6px;
-    padding: 10px 12px;
-    margin: 8px 0;
+    padding: 10px 12px !important;
+    margin: 8px 0 !important;
     overflow-x: auto;
-    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-    font-size: 12px;
-    line-height: 1.5;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace !important;
+    font-size: 12px !important;
+    line-height: 1.5 !important;
   }
-  .cm-message.assistant .bubble .cm-code-block code {
-    background: none;
-    padding: 0;
-    color: var(--cm-text-primary);
+  .cm-message.assistant .content .cm-code-block code {
+    background: none !important;
+    padding: 0 !important;
+    font-family: inherit !important;
+    font-size: inherit !important;
+    line-height: inherit !important;
+    white-space: pre;
+    word-break: normal;
+    overflow-wrap: normal;
+    display: block;
   }
-  .cm-message.assistant .bubble .cm-inline-code {
+  .cm-message.assistant .content .cm-inline-code {
     background: var(--cm-bg-tertiary);
     border: 1px solid var(--cm-border-light);
     border-radius: 4px;
@@ -554,33 +484,33 @@ export const styles = `
     font-size: 12px;
     color: var(--cm-accent);
   }
-  .cm-message.assistant .bubble .cm-list {
+  .cm-message.assistant .content .cm-list {
     margin: 8px 0;
     padding-left: 20px;
   }
-  .cm-message.assistant .bubble .cm-list-item {
+  .cm-message.assistant .content .cm-list-item {
     margin: 4px 0;
     line-height: 1.5;
   }
-  .cm-message.assistant .bubble .cm-header {
+  .cm-message.assistant .content .cm-header {
     margin: 12px 0 6px;
     font-weight: 600;
     color: var(--cm-text-primary);
   }
-  .cm-message.assistant .bubble h3.cm-header {
+  .cm-message.assistant .content h3.cm-header {
     font-size: 14px;
   }
-  .cm-message.assistant .bubble h4.cm-header {
+  .cm-message.assistant .content h4.cm-header {
     font-size: 13px;
   }
-  .cm-message.assistant .bubble a {
+  .cm-message.assistant .content a {
     color: var(--cm-accent);
     text-decoration: none;
   }
-  .cm-message.assistant .bubble a:hover {
+  .cm-message.assistant .content a:hover {
     text-decoration: underline;
   }
-  .cm-message.assistant .bubble .cm-ref-link {
+  .cm-message.assistant .content .cm-ref-link {
     color: var(--cm-accent);
     font-size: 11px;
     font-weight: 500;
@@ -591,16 +521,16 @@ export const styles = `
     vertical-align: super;
     margin: 0 1px;
   }
-  .cm-message.assistant .bubble .cm-ref-link:hover {
+  .cm-message.assistant .content .cm-ref-link:hover {
     background: var(--cm-accent);
     color: white;
     text-decoration: none;
   }
-  .cm-message.assistant .bubble strong {
+  .cm-message.assistant .content strong {
     font-weight: 600;
     color: var(--cm-text-primary);
   }
-  .cm-message.assistant .bubble em {
+  .cm-message.assistant .content em {
     font-style: italic;
   }
 
@@ -647,71 +577,70 @@ export const styles = `
   /* Input area */
   #cm-assistant-input-area {
     padding: 12px 16px 16px;
-    border-top: 1px solid var(--cm-border);
     flex-shrink: 0;
   }
   #cm-assistant-input-wrapper {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
-    background: var(--cm-bg-secondary);
-    border: 1px solid var(--cm-border);
-    border-radius: 10px;
-    padding: 4px 4px 4px 14px;
+    background: var(--cm-bg-primary);
+    border: 1px solid var(--cm-border-light);
+    border-radius: 14px;
+    padding: 10px 10px 10px 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     transition: all 0.15s ease;
+    min-height: 56px;
+  }
+  #cm-assistant-input-wrapper:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    border-color: var(--cm-border);
   }
   #cm-assistant-input-wrapper:focus-within {
-    border-color: var(--cm-accent);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    border-color: var(--cm-border-focus);
   }
   #cm-assistant-input {
     flex: 1;
     background: transparent;
     border: none;
     outline: none;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--cm-text-primary);
-    padding: 8px 0;
+    padding: 6px 0;
     font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+    resize: none;
+    min-height: 36px;
+    max-height: 120px;
+    line-height: 1.5;
+    overflow-y: auto;
   }
   #cm-assistant-input::placeholder {
     color: var(--cm-text-tertiary);
   }
   #cm-assistant-send {
-    width: 32px;
-    height: 32px;
-    background: var(--cm-text-primary);
+    background: transparent;
     border: none;
-    border-radius: 8px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 4px;
     transition: all 0.15s ease;
     flex-shrink: 0;
+    align-self: flex-end;
+    margin-bottom: 6px;
   }
   #cm-assistant-send:hover {
-    opacity: 0.85;
+    opacity: 0.6;
   }
   #cm-assistant-send:disabled {
     opacity: 0.4;
     cursor: not-allowed;
   }
   #cm-assistant-send svg {
-    width: 14px;
-    height: 14px;
-    color: var(--cm-bg-primary);
-  }
-
-  /* Footer */
-  #cm-assistant-footer {
-    padding: 0 16px 12px;
-    text-align: center;
-    flex-shrink: 0;
-  }
-  #cm-assistant-footer span {
-    font-size: 11px;
+    width: 18px;
+    height: 18px;
     color: var(--cm-text-tertiary);
-    font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
   /* Navbar button */

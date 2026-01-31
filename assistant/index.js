@@ -2,10 +2,14 @@
 import { injectStyles } from "./styles.js";
 import { createOverlay, createTrigger, createPanel, createNavbarButton } from "./components.js";
 import { setupEvents } from "./events.js";
+import { loadPrism } from "./highlight.js";
 
 (function init() {
   // Inject styles
   injectStyles();
+
+  // Load syntax highlighting
+  loadPrism();
 
   // Create DOM elements
   const overlay = createOverlay();
