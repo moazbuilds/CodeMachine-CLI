@@ -213,8 +213,31 @@
   }
   @media (max-width: 768px) {
     #cm-assistant-panel {
-      width: 100%;
+      width: 100vw !important;
+      max-width: 100vw !important;
+      min-width: 100vw !important;
+      left: 0 !important;
+      right: 0 !important;
       box-shadow: none;
+      box-sizing: border-box;
+    }
+    #cm-assistant-panel.open {
+      transform: translateX(0);
+    }
+    #cm-panel-resize-handle {
+      display: none;
+    }
+    #cm-assistant-expand {
+      display: none;
+    }
+    #cm-assistant-header {
+      padding: 12px;
+    }
+    #cm-assistant-content {
+      padding: 12px;
+    }
+    #cm-assistant-input-area {
+      padding: 12px 12px 16px;
     }
     #cm-assistant-trigger {
       bottom: 16px;
