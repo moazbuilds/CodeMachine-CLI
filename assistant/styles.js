@@ -213,7 +213,16 @@ export const styles = `
   @media (max-width: 768px) {
     #cm-assistant-panel {
       width: 100%;
+      max-width: 100%;
+      left: 0;
+      right: 0;
       box-shadow: none;
+    }
+    #cm-assistant-panel.open {
+      transform: translateX(0);
+    }
+    #cm-panel-resize-handle {
+      display: none;
     }
     #cm-assistant-trigger {
       bottom: 16px;
