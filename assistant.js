@@ -47,7 +47,7 @@
     transition: margin-right 0.25s ease;
   }
   body.cm-panel-open {
-    margin-right: 400px;
+    /* margin-right is set dynamically by JS based on panel width */
   }
   /* Hide TOC when panel is open (center-like layout) */
   body.cm-panel-open #content-side-layout {
@@ -176,6 +176,39 @@
   #cm-assistant-panel.open {
     transform: translateX(0);
   }
+
+  /* Resize handle */
+  #cm-panel-resize-handle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: ew-resize;
+    background: transparent;
+    z-index: 10;
+    transition: background 0.15s ease;
+  }
+  #cm-panel-resize-handle:hover,
+  #cm-panel-resize-handle:active {
+    background: var(--cm-accent);
+  }
+  #cm-panel-resize-handle::before {
+    content: '';
+    position: absolute;
+    left: 1px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 40px;
+    background: var(--cm-border);
+    border-radius: 2px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  #cm-panel-resize-handle:hover::before {
+    opacity: 1;
+  }
   @media (max-width: 768px) {
     #cm-assistant-panel {
       width: 100%;
@@ -264,7 +297,14 @@
     overflow-wrap: normal;
     white-space: nowrap;
   }
-  #cm-assistant-close {
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  #cm-assistant-close,
+  #cm-assistant-expand,
+  #cm-assistant-clear {
     width: 28px;
     height: 28px;
     background: transparent;
@@ -277,11 +317,21 @@
     color: var(--cm-text-tertiary);
     transition: all 0.15s ease;
   }
-  #cm-assistant-close:hover {
+  #cm-assistant-close:hover,
+  #cm-assistant-expand:hover,
+  #cm-assistant-clear:hover {
     background: var(--cm-bg-secondary);
     color: var(--cm-text-primary);
   }
-  #cm-assistant-close svg {
+  #cm-assistant-clear:hover {
+    color: #ef4444;
+  }
+  #cm-assistant-expand.expanded {
+    color: var(--cm-accent);
+  }
+  #cm-assistant-close svg,
+  #cm-assistant-expand svg,
+  #cm-assistant-clear svg {
     width: 16px;
     height: 16px;
   }
@@ -457,6 +507,26 @@
   .cm-message.assistant .source svg {
     width: 12px;
     height: 12px;
+  }
+
+  /* Source cards container */
+  .cm-source-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .cm-source-cards .source {
+    margin-top: 0;
+    max-width: calc(50% - 3px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  @media (max-width: 768px) {
+    .cm-source-cards .source {
+      max-width: 100%;
+    }
   }
 
   /* Markdown content styles */
@@ -692,7 +762,10 @@
     close: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>`,
     send: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>`,
     arrow: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>`,
-    doc: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8"/></svg>`
+    doc: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8"/></svg>`,
+    expand: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>`,
+    shrink: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14h6v6M14 4h6v6M10 14l-7 7M21 3l-7 7"/></svg>`,
+    trash: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg>`
   };
 
   // assistant/components.js
@@ -719,6 +792,7 @@
     const panel = document.createElement("div");
     panel.id = "cm-assistant-panel";
     panel.innerHTML = `
+    <div id="cm-panel-resize-handle"></div>
     <div id="cm-assistant-header">
       <div class="title-group">
         <div class="ai-icon">${icons.sparkle}</div>
@@ -727,7 +801,11 @@
           <div class="subtitle">Search the docs</div>
         </div>
       </div>
-      <button id="cm-assistant-close">${icons.close}</button>
+      <div class="header-actions">
+        <button id="cm-assistant-clear" title="Clear chat">${icons.trash}</button>
+        <button id="cm-assistant-expand" title="Expand panel">${icons.expand}</button>
+        <button id="cm-assistant-close" title="Close">${icons.close}</button>
+      </div>
     </div>
     <div id="cm-assistant-content">
       <div class="cm-welcome">
@@ -747,18 +825,84 @@
     </div>
   `;
     document.body.appendChild(panel);
+    setupPanelResize(panel);
     return panel;
   }
-  function createNavbarButton(openAssistant) {
+  function setupPanelResize(panel) {
+    const handle = panel.querySelector("#cm-panel-resize-handle");
+    const MIN_WIDTH = 320;
+    const MAX_WIDTH = 800;
+    const STORAGE_KEY2 = "cm_panel_width";
+    const savedWidth = localStorage.getItem(STORAGE_KEY2);
+    if (savedWidth) {
+      const width = parseInt(savedWidth, 10);
+      if (width >= MIN_WIDTH && width <= MAX_WIDTH) {
+        panel.style.width = width + "px";
+      }
+    }
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+    handle.addEventListener("mousedown", (e) => {
+      isResizing = true;
+      startX = e.clientX;
+      startWidth = panel.offsetWidth;
+      document.body.style.cursor = "ew-resize";
+      document.body.style.userSelect = "none";
+      e.preventDefault();
+    });
+    document.addEventListener("mousemove", (e) => {
+      if (!isResizing)
+        return;
+      const diff = startX - e.clientX;
+      let newWidth = startWidth + diff;
+      newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, newWidth));
+      panel.style.width = newWidth + "px";
+      if (panel.classList.contains("open") && window.innerWidth > 768) {
+        document.body.style.marginRight = newWidth + "px";
+      }
+    });
+    document.addEventListener("mouseup", () => {
+      if (isResizing) {
+        isResizing = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        localStorage.setItem(STORAGE_KEY2, panel.offsetWidth);
+      }
+    });
+    handle.addEventListener("touchstart", (e) => {
+      isResizing = true;
+      startX = e.touches[0].clientX;
+      startWidth = panel.offsetWidth;
+      e.preventDefault();
+    }, { passive: false });
+    document.addEventListener("touchmove", (e) => {
+      if (!isResizing)
+        return;
+      const diff = startX - e.touches[0].clientX;
+      let newWidth = startWidth + diff;
+      newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, newWidth));
+      panel.style.width = newWidth + "px";
+      if (panel.classList.contains("open") && window.innerWidth > 768) {
+        document.body.style.marginRight = newWidth + "px";
+      }
+    }, { passive: false });
+    document.addEventListener("touchend", () => {
+      if (isResizing) {
+        isResizing = false;
+        localStorage.setItem(STORAGE_KEY2, panel.offsetWidth);
+      }
+    });
+  }
+  function injectNavbarButton(openAssistant) {
     if (document.getElementById("cm-navbar-ai-btn"))
-      return;
+      return true;
     const searchEntry = document.querySelector('[data-testid="search-bar-entry"]') || document.getElementById("search-bar-entry") || document.querySelector('[class*="search-bar-entry"]');
     const discordLink = document.querySelector('a[href*="discord.com"]');
     const githubLink = document.querySelector('a[href*="github.com"]');
     let insertTarget = searchEntry || discordLink || githubLink;
     if (!insertTarget) {
-      setTimeout(() => createNavbarButton(openAssistant), 500);
-      return;
+      return false;
     }
     const navBtn = document.createElement("button");
     navBtn.id = "cm-navbar-ai-btn";
@@ -772,7 +916,23 @@
     const parent = insertTarget.parentElement;
     if (parent) {
       insertTarget.insertAdjacentElement("afterend", navBtn);
+      return true;
     }
+    return false;
+  }
+  function createNavbarButton(openAssistant) {
+    if (!injectNavbarButton(openAssistant)) {
+      setTimeout(() => injectNavbarButton(openAssistant), 500);
+    }
+    const observer = new MutationObserver(() => {
+      if (!document.getElementById("cm-navbar-ai-btn")) {
+        injectNavbarButton(openAssistant);
+      }
+    });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
   }
 
   // assistant/messages.js
@@ -785,29 +945,42 @@
     });
     html = html.replace(/`([^`]+)`/g, '<code class="cm-inline-code">$1</code>');
     html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-    html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
-    html = html.replace(/_([^_]+)_/g, "<em>$1</em>");
-    html = html.replace(/\[(\d+)\](?:\([^)]*\))?|\(?\[(\d+)\]\)?/g, (match, num1, num2) => {
-      const num = num1 || num2;
-      const index = parseInt(num, 10);
-      const source = sources.find((s) => s.index === index);
-      if (source && source.url) {
-        return `<a href="${source.url}" class="cm-ref-link" target="_blank" rel="noopener" title="${source.title || "Source"}">[${num}]</a>`;
-      }
-      return match;
+    html = html.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "<em>$1</em>");
+    html = html.replace(/\[(\d+(?:\s*,\s*\d+)*)\]/g, (match, nums) => {
+      const numbers = nums.split(/\s*,\s*/);
+      const links = numbers.map((num) => {
+        const index = parseInt(num.trim(), 10);
+        const source = sources.find((s) => s.index === index);
+        if (source && source.url) {
+          return `<a href="${source.url}" class="cm-ref-link" target="_blank" rel="noopener" title="${source.title || "Source"}">[${num.trim()}]</a>`;
+        }
+        return `[${num.trim()}]`;
+      });
+      return links.join("");
     });
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
     html = html.replace(/^### (.+)$/gm, '<h4 class="cm-header">$1</h4>');
     html = html.replace(/^## (.+)$/gm, '<h3 class="cm-header">$1</h3>');
     html = html.replace(/^# (.+)$/gm, '<h3 class="cm-header">$1</h3>');
     html = html.replace(/^(\d+)\.\s+(.+)$/gm, '<li class="cm-list-item cm-numbered">$2</li>');
-    html = html.replace(/^[-*•]\s+(.+)$/gm, '<li class="cm-list-item">$1</li>');
-    html = html.replace(/((?:<li class="cm-list-item cm-numbered">.*<\/li>\n?)+)/g, '<ol class="cm-list">$1</ol>');
-    html = html.replace(/((?:<li class="cm-list-item">.*<\/li>\n?)+)/g, '<ul class="cm-list">$1</ul>');
+    html = html.replace(/^[\-\*•]\s+(.+)$/gm, '<li class="cm-list-item">$1</li>');
+    html = html.replace(/((?:<li class="cm-list-item cm-numbered">.*?<\/li>[\n\r]*)+)/g, '<ol class="cm-list">$1</ol>');
+    html = html.replace(/((?:<li class="cm-list-item">.*?<\/li>[\n\r]*)+)/g, '<ul class="cm-list">$1</ul>');
     html = html.replace(/\n/g, "<br>");
     html = html.replace(/<\/(pre|ol|ul|h[1-4])><br>/g, "</$1>");
     html = html.replace(/<br><(pre|ol|ul|h[1-4])/g, "<$1");
+    html = html.replace(/<br><li/g, "<li");
+    html = html.replace(/<\/li><br>/g, "</li>");
     return html;
+  }
+  function extractReferencedSources(text) {
+    const refs = /* @__PURE__ */ new Set();
+    const matches = text.matchAll(/\[(\d+(?:\s*,\s*\d+)*)\]/g);
+    for (const match of matches) {
+      const nums = match[1].split(/\s*,\s*/);
+      nums.forEach((n) => refs.add(parseInt(n.trim(), 10)));
+    }
+    return refs;
   }
   function addMessage(content, text, type, source = null, sources = []) {
     const welcome = content.querySelector(".cm-welcome");
@@ -820,15 +993,21 @@
       msg.innerHTML = `<div class="bubble">${safeText}</div>`;
     } else {
       const formattedText = parseMarkdown(text, sources);
-      let sourceHtml = "";
-      if (source && source.url) {
-        sourceHtml = `<a href="${source.url}" class="source" target="_blank" rel="noopener">${icons.doc} ${source.title || "Source"}</a>`;
+      const referencedNums = extractReferencedSources(text);
+      let sourcesHtml = "";
+      if (sources.length > 0 && referencedNums.size > 0) {
+        const referencedSources = sources.filter((s) => referencedNums.has(s.index)).slice(0, 3);
+        if (referencedSources.length > 0) {
+          sourcesHtml = `<div class="cm-source-cards">` + referencedSources.map(
+            (s) => `<a href="${s.url}" class="source" target="_blank" rel="noopener">${icons.doc} ${s.title || "Source"}</a>`
+          ).join("") + `</div>`;
+        }
       }
       msg.innerHTML = `
       <div class="avatar">${icons.sparkle}</div>
       <div class="content">
         <div class="bubble">${formattedText}</div>
-        ${sourceHtml}
+        ${sourcesHtml}
       </div>
     `;
     }
@@ -861,19 +1040,80 @@
   };
 
   // assistant/events.js
+  var STORAGE_KEY = "cm_chat_history";
+  var UI_STORAGE_KEY = "cm_chat_ui";
+  var PANEL_STATE_KEY = "cm_panel_open";
+  var conversationHistory = [];
+  function loadHistory() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      conversationHistory = saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      conversationHistory = [];
+    }
+  }
+  function saveHistory() {
+    try {
+      const toSave = conversationHistory.slice(-20);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+    } catch (e) {
+      console.warn("Could not save chat history:", e);
+    }
+  }
+  function saveUIMessages(messages) {
+    try {
+      const toSave = messages.slice(-20);
+      localStorage.setItem(UI_STORAGE_KEY, JSON.stringify(toSave));
+    } catch (e) {
+      console.warn("Could not save UI messages:", e);
+    }
+  }
+  function loadUIMessages() {
+    try {
+      const saved = localStorage.getItem(UI_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function clearHistory() {
+    conversationHistory = [];
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(UI_STORAGE_KEY);
+  }
   function setupEvents({ panel, trigger, overlay, input, sendBtn, content }) {
     const triggerInput = document.getElementById("cm-trigger-input");
     const triggerBtn = document.getElementById("cm-trigger-btn");
     const triggerShortcut = document.getElementById("cm-trigger-shortcut");
-    const openAssistant = (initialMessage = "") => {
+    let uiMessages = [];
+    loadHistory();
+    const savedUI = loadUIMessages();
+    if (savedUI.length > 0) {
+      uiMessages = savedUI;
+      savedUI.forEach((msg) => {
+        addMessage(content, msg.text, msg.type, null, msg.sources || []);
+      });
+    }
+    const savedPanelState = localStorage.getItem(PANEL_STATE_KEY);
+    if (savedPanelState === "open") {
+      setTimeout(() => openAssistant("", true), 100);
+    }
+    const openAssistant = (initialMessage = "", skipSave = false) => {
       panel.classList.add("open");
       if (window.innerWidth > 768) {
         document.body.classList.add("cm-panel-open");
+        document.body.style.marginRight = panel.offsetWidth + "px";
       } else {
         overlay.classList.add("active");
         setTimeout(() => overlay.classList.add("visible"), 10);
       }
       trigger.classList.add("hidden");
+      if (!skipSave) {
+        try {
+          localStorage.setItem(PANEL_STATE_KEY, "open");
+        } catch (e) {
+        }
+      }
       setTimeout(() => {
         if (initialMessage) {
           input.value = initialMessage;
@@ -886,6 +1126,7 @@
     const closeAssistant = () => {
       panel.classList.remove("open");
       document.body.classList.remove("cm-panel-open");
+      document.body.style.marginRight = "";
       overlay.classList.remove("visible");
       setTimeout(() => overlay.classList.remove("active"), 250);
       trigger.classList.remove("hidden", "expanded");
@@ -895,12 +1136,18 @@
       }
       if (triggerShortcut)
         triggerShortcut.style.display = "flex";
+      try {
+        localStorage.setItem(PANEL_STATE_KEY, "closed");
+      } catch (e) {
+      }
     };
     const handleSend = async () => {
       const question = input.value.trim();
       if (!question)
         return;
       addMessage(content, question, "user");
+      uiMessages.push({ type: "user", text: question, sources: [] });
+      saveUIMessages(uiMessages);
       input.value = "";
       sendBtn.disabled = true;
       showThinking(content);
@@ -908,18 +1155,31 @@
         const response = await fetch(config.apiUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: question })
+          body: JSON.stringify({
+            message: question,
+            history: conversationHistory
+          })
         });
         const data = await response.json();
         hideThinking();
         if (data.error) {
           addMessage(content, "Sorry, something went wrong. Please try again.", "assistant");
+          uiMessages.push({ type: "assistant", text: "Sorry, something went wrong. Please try again.", sources: [] });
         } else {
           addMessage(content, data.text, "assistant", data.source, data.sources || []);
+          uiMessages.push({ type: "assistant", text: data.text, sources: data.sources || [] });
+          conversationHistory.push(
+            { role: "user", content: question },
+            { role: "assistant", content: data.text }
+          );
+          saveHistory();
         }
+        saveUIMessages(uiMessages);
       } catch (err) {
         hideThinking();
         addMessage(content, "Sorry, could not connect to the server.", "assistant");
+        uiMessages.push({ type: "assistant", text: "Sorry, could not connect to the server.", sources: [] });
+        saveUIMessages(uiMessages);
       }
       sendBtn.disabled = false;
     };
@@ -965,6 +1225,49 @@
     triggerInput.addEventListener("input", resizeTriggerInput);
     const closeBtn = document.getElementById("cm-assistant-close");
     closeBtn.addEventListener("click", closeAssistant);
+    const clearBtn = document.getElementById("cm-assistant-clear");
+    clearBtn.addEventListener("click", () => {
+      clearHistory();
+      uiMessages = [];
+      content.innerHTML = `
+      <div class="cm-welcome">
+        <div class="icon-wrapper"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L14.5 9.5L23 12L14.5 14.5L12 23L9.5 14.5L1 12L9.5 9.5L12 1Z"/></svg></div>
+        <h4>How can I help?</h4>
+        <p>Ask anything about CodeMachine.</p>
+      </div>
+    `;
+    });
+    const expandBtn = document.getElementById("cm-assistant-expand");
+    const NORMAL_WIDTH = 400;
+    const EXPANDED_WIDTH = 600;
+    const EXPAND_STATE_KEY = "cm_panel_expanded";
+    const savedExpandState = localStorage.getItem(EXPAND_STATE_KEY);
+    if (savedExpandState === "expanded") {
+      panel.style.width = EXPANDED_WIDTH + "px";
+      expandBtn.classList.add("expanded");
+      expandBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14h6v6M14 4h6v6M10 14l-7 7M21 3l-7 7"/></svg>`;
+      expandBtn.title = "Shrink panel";
+    }
+    expandBtn.addEventListener("click", () => {
+      const isExpanded = expandBtn.classList.contains("expanded");
+      if (isExpanded) {
+        panel.style.width = NORMAL_WIDTH + "px";
+        expandBtn.classList.remove("expanded");
+        expandBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>`;
+        expandBtn.title = "Expand panel";
+        localStorage.setItem(EXPAND_STATE_KEY, "normal");
+      } else {
+        panel.style.width = EXPANDED_WIDTH + "px";
+        expandBtn.classList.add("expanded");
+        expandBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14h6v6M14 4h6v6M10 14l-7 7M21 3l-7 7"/></svg>`;
+        expandBtn.title = "Shrink panel";
+        localStorage.setItem(EXPAND_STATE_KEY, "expanded");
+      }
+      if (panel.classList.contains("open") && window.innerWidth > 768) {
+        document.body.style.marginRight = panel.offsetWidth + "px";
+      }
+      localStorage.setItem("cm_panel_width", panel.offsetWidth);
+    });
     sendBtn.addEventListener("click", handleSend);
     input.addEventListener("keypress", (e) => {
       if (e.key === "Enter")
@@ -992,7 +1295,18 @@
         triggerShortcut.style.display = "flex";
       }
     });
-    return { openAssistant, closeAssistant };
+    const clearChat = () => {
+      clearHistory();
+      uiMessages = [];
+      content.innerHTML = `
+      <div class="cm-welcome">
+        <div class="icon-wrapper"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L14.5 9.5L23 12L14.5 14.5L12 23L9.5 14.5L1 12L9.5 9.5L12 1Z"/></svg></div>
+        <h4>How can I help?</h4>
+        <p>Ask anything about CodeMachine.</p>
+      </div>
+    `;
+    };
+    return { openAssistant, closeAssistant, clearHistory: clearChat };
   }
 
   // assistant/index.js
