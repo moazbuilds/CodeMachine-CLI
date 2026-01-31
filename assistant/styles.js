@@ -227,7 +227,7 @@ export const styles = `
       display: none;
     }
     #cm-assistant-expand {
-      display: none;
+      display: none !important;
     }
     #cm-assistant-header {
       padding: 12px;

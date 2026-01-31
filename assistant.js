@@ -228,7 +228,7 @@
       display: none;
     }
     #cm-assistant-expand {
-      display: none;
+      display: none !important;
     }
     #cm-assistant-header {
       padding: 12px;
@@ -854,7 +854,7 @@
     const trigger = document.createElement("div");
     trigger.id = "cm-assistant-trigger";
     trigger.innerHTML = `
-    <textarea id="cm-trigger-input" placeholder="Ask a question.." rows="1"></textarea>
+    <textarea id="cm-trigger-input" placeholder="Ask a question.." rows="1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="true" enterkeyhint="send"></textarea>
     <span id="cm-trigger-shortcut">${shortcutKey} + I</span>
     <button id="cm-trigger-btn" aria-label="Open AI Assistant">${icons.arrow}</button>
   `;
@@ -896,7 +896,7 @@
     </div>
     <div id="cm-assistant-input-area">
       <div id="cm-assistant-input-wrapper">
-        <textarea id="cm-assistant-input" placeholder="Ask a question..." rows="1"></textarea>
+        <textarea id="cm-assistant-input" placeholder="Ask a question..." rows="1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="true" enterkeyhint="send"></textarea>
         <button id="cm-assistant-send">${icons.arrow}</button>
       </div>
     </div>
