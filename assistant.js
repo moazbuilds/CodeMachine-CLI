@@ -1218,7 +1218,7 @@
       });
     }
     const savedPanelState = localStorage.getItem(PANEL_STATE_KEY);
-    if (savedPanelState === "open") {
+    if (savedPanelState === "open" && window.innerWidth > 768) {
       setTimeout(() => openAssistant("", true), 100);
     }
     const openAssistant = (initialMessage = "", skipSave = false) => {

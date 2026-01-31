@@ -78,9 +78,9 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
     });
   }
 
-  // Restore panel state on init
+  // Restore panel state on init (only on desktop, not mobile)
   const savedPanelState = localStorage.getItem(PANEL_STATE_KEY);
-  if (savedPanelState === 'open') {
+  if (savedPanelState === 'open' && window.innerWidth > 768) {
     // Delay to let DOM settle
     setTimeout(() => openAssistant('', true), 100);
   }
