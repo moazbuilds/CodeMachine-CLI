@@ -320,11 +320,36 @@ export function createNavbarButton(openAssistant) {
     setTimeout(() => injectNavbarButton(openAssistant), 500);
   }
 
-  // Watch for DOM changes (client-side navigation)
-  const observer = new MutationObserver(() => {
-    // Re-inject if button is missing
+  // Watch for DOM changes (client-side navigation and mobile menu)
+  const observer = new MutationObserver((mutations) => {
+    // Re-inject navbar button if missing
     if (!document.getElementById("cm-navbar-ai-btn")) {
       injectNavbarButton(openAssistant);
+    }
+
+    // Check for mobile menu popover/dropdown appearing
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          // Look for Mintlify's mobile menu (popover with nav links)
+          const mobileMenu = node.querySelector ?
+            (node.querySelector('[role="menu"]') ||
+             node.querySelector('[data-radix-popper-content-wrapper]') ||
+             (node.matches && node.matches('[data-radix-popper-content-wrapper]') ? node : null)) : null;
+
+          const menuToCheck = mobileMenu || node;
+
+          // Check if this menu contains Discord/GitHub links (indicating it's the nav menu)
+          if (menuToCheck && menuToCheck.querySelector) {
+            const hasNavLinks = menuToCheck.querySelector('a[href*="discord.com"], a[href*="github.com"]');
+            const alreadyHasBtn = menuToCheck.querySelector('#cm-mobile-ai-btn');
+
+            if (hasNavLinks && !alreadyHasBtn) {
+              injectMobileMenuButton(menuToCheck, openAssistant);
+            }
+          }
+        }
+      }
     }
   });
 
@@ -333,4 +358,51 @@ export function createNavbarButton(openAssistant) {
     childList: true,
     subtree: true
   });
+}
+
+function injectMobileMenuButton(menuContainer, openAssistant) {
+  // Find the last link item in the menu
+  const links = menuContainer.querySelectorAll('a[href*="discord.com"], a[href*="github.com"]');
+  if (links.length === 0) return;
+
+  const lastLink = links[links.length - 1];
+  const linkContainer = lastLink.closest('div') || lastLink.parentElement;
+
+  if (!linkContainer) return;
+
+  // Create a button that matches Mintlify's menu item style
+  const menuItem = document.createElement("button");
+  menuItem.id = "cm-mobile-ai-btn";
+  menuItem.innerHTML = `<span style="font-family: monospace; margin-right: 6px;">${ALI_FACES.idle}</span>Ask Ali`;
+  menuItem.style.cssText = `
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: inherit;
+    text-align: left;
+    font-family: inherit;
+    border-radius: 6px;
+    transition: background 0.15s ease;
+  `;
+
+  menuItem.addEventListener("mouseenter", () => {
+    menuItem.style.background = "var(--cm-bg-secondary, rgba(0,0,0,0.05))";
+  });
+  menuItem.addEventListener("mouseleave", () => {
+    menuItem.style.background = "transparent";
+  });
+
+  menuItem.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openAssistant();
+  });
+
+  // Insert after the last link's container
+  linkContainer.insertAdjacentElement("afterend", menuItem);
 }

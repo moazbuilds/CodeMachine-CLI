@@ -1006,15 +1006,69 @@
     if (!injectNavbarButton(openAssistant)) {
       setTimeout(() => injectNavbarButton(openAssistant), 500);
     }
-    const observer = new MutationObserver(() => {
+    const observer = new MutationObserver((mutations) => {
       if (!document.getElementById("cm-navbar-ai-btn")) {
         injectNavbarButton(openAssistant);
+      }
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            const mobileMenu = node.querySelector ? node.querySelector('[role="menu"]') || node.querySelector("[data-radix-popper-content-wrapper]") || (node.matches && node.matches("[data-radix-popper-content-wrapper]") ? node : null) : null;
+            const menuToCheck = mobileMenu || node;
+            if (menuToCheck && menuToCheck.querySelector) {
+              const hasNavLinks = menuToCheck.querySelector('a[href*="discord.com"], a[href*="github.com"]');
+              const alreadyHasBtn = menuToCheck.querySelector("#cm-mobile-ai-btn");
+              if (hasNavLinks && !alreadyHasBtn) {
+                injectMobileMenuButton(menuToCheck, openAssistant);
+              }
+            }
+          }
+        }
       }
     });
     observer.observe(document.body, {
       childList: true,
       subtree: true
     });
+  }
+  function injectMobileMenuButton(menuContainer, openAssistant) {
+    const links = menuContainer.querySelectorAll('a[href*="discord.com"], a[href*="github.com"]');
+    if (links.length === 0)
+      return;
+    const lastLink = links[links.length - 1];
+    const linkContainer = lastLink.closest("div") || lastLink.parentElement;
+    if (!linkContainer)
+      return;
+    const menuItem = document.createElement("button");
+    menuItem.id = "cm-mobile-ai-btn";
+    menuItem.innerHTML = `<span style="font-family: monospace; margin-right: 6px;">${ALI_FACES.idle}</span>Ask Ali`;
+    menuItem.style.cssText = `
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: inherit;
+    text-align: left;
+    font-family: inherit;
+    border-radius: 6px;
+    transition: background 0.15s ease;
+  `;
+    menuItem.addEventListener("mouseenter", () => {
+      menuItem.style.background = "var(--cm-bg-secondary, rgba(0,0,0,0.05))";
+    });
+    menuItem.addEventListener("mouseleave", () => {
+      menuItem.style.background = "transparent";
+    });
+    menuItem.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openAssistant();
+    });
+    linkContainer.insertAdjacentElement("afterend", menuItem);
   }
 
   // assistant/highlight.js
