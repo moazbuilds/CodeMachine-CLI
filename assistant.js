@@ -1612,6 +1612,7 @@
           }
           const messageToHighlight = currentStreamingMessage;
           currentStreamingMessage.classList.remove("streaming");
+          currentStreamingMessage.removeAttribute("id");
           currentStreamingMessage = null;
           userHasScrolledUp = false;
           if (!userHasScrolledUp) {

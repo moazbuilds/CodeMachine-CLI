@@ -490,6 +490,7 @@ export function completeStreamingMessage(content) {
         const messageToHighlight = currentStreamingMessage;
 
         currentStreamingMessage.classList.remove('streaming');
+        currentStreamingMessage.removeAttribute('id'); // Remove ID so it won't be deleted on next message
         currentStreamingMessage = null;
         userHasScrolledUp = false;
 
