@@ -218,8 +218,12 @@
       min-width: 100vw !important;
       left: 0 !important;
       right: 0 !important;
+      bottom: 0;
+      top: auto;
+      height: 100dvh;
       box-shadow: none;
       box-sizing: border-box;
+      transition: transform 0.25s ease, height 0.15s ease;
     }
     #cm-assistant-panel.open {
       transform: translateX(0);
@@ -1326,6 +1330,18 @@
         }
       }
     });
+    if (window.visualViewport) {
+      const updateViewportHeight = () => {
+        if (window.innerWidth <= 768) {
+          const vh = window.visualViewport.height;
+          panel.style.height = vh + "px";
+        } else {
+          panel.style.height = "";
+        }
+      };
+      window.visualViewport.addEventListener("resize", updateViewportHeight);
+      window.visualViewport.addEventListener("scroll", updateViewportHeight);
+    }
     const handleTriggerSubmit = () => {
       const question = triggerInput.value.trim();
       openAssistant(question);

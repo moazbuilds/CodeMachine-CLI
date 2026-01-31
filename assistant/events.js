@@ -212,6 +212,21 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
     }
   });
 
+  // Handle mobile keyboard viewport resize
+  if (window.visualViewport) {
+    const updateViewportHeight = () => {
+      if (window.innerWidth <= 768) {
+        const vh = window.visualViewport.height;
+        panel.style.height = vh + 'px';
+      } else {
+        panel.style.height = '';
+      }
+    };
+
+    window.visualViewport.addEventListener('resize', updateViewportHeight);
+    window.visualViewport.addEventListener('scroll', updateViewportHeight);
+  }
+
   // Trigger input and button
   const handleTriggerSubmit = () => {
     const question = triggerInput.value.trim();
