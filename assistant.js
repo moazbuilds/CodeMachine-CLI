@@ -7,8 +7,9 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
-  /* CSS Variables for theming */
-  :root {
+  /* CSS Variables for theming - Light mode is default */
+  #cm-assistant-trigger,
+  #cm-assistant-panel {
     --cm-bg-primary: #ffffff;
     --cm-bg-secondary: #f9fafb;
     --cm-bg-tertiary: #f3f4f6;
@@ -21,22 +22,11 @@
     --cm-accent-bg: rgba(50, 189, 227, 0.08);
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --cm-bg-primary: #0a0a0b;
-      --cm-bg-secondary: #111113;
-      --cm-bg-tertiary: #18181b;
-      --cm-text-primary: #fafafa;
-      --cm-text-secondary: #a1a1aa;
-      --cm-text-tertiary: #71717a;
-      --cm-border: #27272a;
-      --cm-border-light: #1f1f23;
-      --cm-accent: #32bde3;
-      --cm-accent-bg: rgba(50, 189, 227, 0.1);
-    }
-  }
-
-  .dark {
+  /* Dark mode - when .dark class is on html or body */
+  .dark #cm-assistant-trigger,
+  .dark #cm-assistant-panel,
+  html.dark #cm-assistant-trigger,
+  html.dark #cm-assistant-panel {
     --cm-bg-primary: #0a0a0b;
     --cm-bg-secondary: #111113;
     --cm-bg-tertiary: #18181b;
