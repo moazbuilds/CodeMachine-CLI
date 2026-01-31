@@ -74,7 +74,12 @@ export async function loadPrism() {
   });
 }
 
-export function highlightCode(container) {
+export async function highlightCode(container) {
+  // Ensure Prism is loaded
+  if (!window.Prism) {
+    await loadPrism();
+  }
+
   if (!window.Prism) return;
 
   const codeBlocks = container.querySelectorAll('pre.cm-code-block');
@@ -83,7 +88,10 @@ export function highlightCode(container) {
     const lang = pre.dataset.lang || 'plaintext';
     const code = pre.querySelector('code');
 
-    if (code && !code.classList.contains('prism-highlighted')) {
+    if (code) {
+      // Remove old highlight class to force re-highlight
+      code.classList.remove('prism-highlighted');
+
       // Add language class for Prism
       code.className = `language-${lang}`;
       pre.className = `cm-code-block language-${lang}`;
