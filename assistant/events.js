@@ -94,6 +94,8 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
     } else {
       overlay.classList.add("active");
       setTimeout(() => overlay.classList.add("visible"), 10);
+      // Disable body scroll on mobile
+      document.body.style.overflow = 'hidden';
     }
     trigger.classList.add("hidden");
 
@@ -116,6 +118,7 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
     panel.classList.remove("open");
     document.body.classList.remove("cm-panel-open");
     document.body.style.marginRight = '';
+    document.body.style.overflow = '';
     overlay.classList.remove("visible");
     setTimeout(() => overlay.classList.remove("active"), 250);
     trigger.classList.remove("hidden", "expanded");

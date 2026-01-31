@@ -858,7 +858,7 @@
     const trigger = document.createElement("div");
     trigger.id = "cm-assistant-trigger";
     trigger.innerHTML = `
-    <textarea id="cm-trigger-input" placeholder="Ask a question.." rows="1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="true" enterkeyhint="send"></textarea>
+    <textarea id="cm-trigger-input" placeholder="Ask a question.." rows="1" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="true" enterkeyhint="send" data-form-type="other" data-lpignore="true"></textarea>
     <span id="cm-trigger-shortcut">${shortcutKey} + I</span>
     <button id="cm-trigger-btn" aria-label="Open AI Assistant">${icons.arrow}</button>
   `;
@@ -900,7 +900,7 @@
     </div>
     <div id="cm-assistant-input-area">
       <div id="cm-assistant-input-wrapper">
-        <textarea id="cm-assistant-input" placeholder="Ask a question..." rows="1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="true" enterkeyhint="send"></textarea>
+        <textarea id="cm-assistant-input" placeholder="Ask a question..." rows="1" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="true" enterkeyhint="send" data-form-type="other" data-lpignore="true"></textarea>
         <button id="cm-assistant-send">${icons.arrow}</button>
       </div>
     </div>
@@ -1229,6 +1229,7 @@
       } else {
         overlay.classList.add("active");
         setTimeout(() => overlay.classList.add("visible"), 10);
+        document.body.style.overflow = "hidden";
       }
       trigger.classList.add("hidden");
       if (!skipSave) {
@@ -1250,6 +1251,7 @@
       panel.classList.remove("open");
       document.body.classList.remove("cm-panel-open");
       document.body.style.marginRight = "";
+      document.body.style.overflow = "";
       overlay.classList.remove("visible");
       setTimeout(() => overlay.classList.remove("active"), 250);
       trigger.classList.remove("hidden", "expanded");
