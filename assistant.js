@@ -414,6 +414,9 @@
     flex-direction: column;
     gap: 12px;
   }
+  #cm-assistant-content > * {
+    flex-shrink: 0;
+  }
   #cm-assistant-content::-webkit-scrollbar {
     width: 4px;
   }
@@ -595,6 +598,53 @@
   .cm-message.assistant .content em {
     font-style: italic;
   }
+  /* Tables */
+  .cm-message.assistant .content .cm-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 12px;
+    border: 1px solid var(--cm-border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .cm-message.assistant .content .cm-table th,
+  .cm-message.assistant .content .cm-table td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--cm-border-light);
+  }
+  .cm-message.assistant .content .cm-table th {
+    background: var(--cm-bg-tertiary);
+    font-weight: 600;
+    color: var(--cm-text-primary);
+  }
+  .cm-message.assistant .content .cm-table tr:last-child td {
+    border-bottom: none;
+  }
+  .cm-message.assistant .content .cm-table tr:hover td {
+    background: var(--cm-bg-secondary);
+  }
+  /* Blockquotes */
+  .cm-message.assistant .content .cm-blockquote {
+    border-left: 3px solid var(--cm-accent);
+    padding: 8px 12px;
+    margin: 8px 0;
+    background: var(--cm-bg-secondary);
+    color: var(--cm-text-secondary);
+    border-radius: 0 6px 6px 0;
+    font-style: italic;
+  }
+  /* Horizontal rule */
+  .cm-message.assistant .content .cm-hr {
+    border: none;
+    border-top: 1px solid var(--cm-border);
+    margin: 16px 0;
+  }
+  /* Header levels */
+  .cm-message.assistant .content h5.cm-header.cm-h4 {
+    font-size: 12px;
+  }
 
   /* Thinking indicator */
   .cm-thinking {
@@ -621,6 +671,142 @@
   @keyframes dotPulse {
     0%, 100% { opacity: 0.3; }
     50% { opacity: 1; }
+  }
+
+  /* Streaming cursor */
+  .cm-message.streaming .cm-cursor {
+    animation: blink 0.7s step-end infinite;
+    color: var(--cm-accent);
+    font-weight: normal;
+  }
+  .cm-message.streaming {
+    position: relative;
+    z-index: 0;
+  }
+
+  /* Tool usage indicator */
+  .cm-tool-usage {
+    animation: fadeIn 0.2s ease;
+    margin: 8px 0 12px 0;
+    background: var(--cm-bg-secondary);
+    border: 1px solid var(--cm-border-light);
+    border-radius: 10px;
+    overflow: hidden;
+    font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+  }
+  .cm-tool-usage.completed {
+    opacity: 0.8;
+  }
+  .cm-tool-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .cm-tool-header:hover {
+    background: var(--cm-bg-tertiary);
+  }
+  .cm-tool-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+  .cm-tool-icon svg {
+    width: 14px;
+    height: 14px;
+    color: var(--cm-accent);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  .cm-tool-usage.completed .cm-tool-icon svg {
+    animation: none;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .cm-tool-message {
+    flex: 1;
+    font-size: 12px;
+    color: var(--cm-text-secondary);
+  }
+  .cm-tool-chevron {
+    width: 14px;
+    height: 14px;
+    color: var(--cm-text-tertiary);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+  }
+  .cm-tool-usage.expanded .cm-tool-chevron {
+    transform: rotate(180deg);
+  }
+  .cm-tool-details {
+    display: none;
+    padding: 0 12px 12px;
+    border-top: 1px solid var(--cm-border-light);
+  }
+  .cm-tool-usage.expanded .cm-tool-details {
+    display: block;
+  }
+  .cm-tool-queries {
+    padding: 8px 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .cm-tool-query {
+    font-size: 11px;
+    color: var(--cm-text-tertiary);
+    background: var(--cm-bg-tertiary);
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+  .cm-tool-pages {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 4px;
+  }
+  .cm-tool-page {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--cm-bg-primary);
+    border: 1px solid var(--cm-border-light);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--cm-text-primary);
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+  .cm-tool-page:hover {
+    border-color: var(--cm-accent);
+    background: var(--cm-accent-bg);
+  }
+  .cm-tool-page svg {
+    width: 14px;
+    height: 14px;
+    color: var(--cm-text-tertiary);
+    flex-shrink: 0;
+  }
+  .cm-tool-page span {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cm-tool-no-results {
+    font-size: 11px;
+    color: var(--cm-text-tertiary);
+    padding: 8px 0;
   }
 
   /* Input area */
@@ -1117,14 +1303,18 @@
       attributeFilter: ["class"]
     });
   }
-  function highlightCode(container) {
+  async function highlightCode(container) {
+    if (!window.Prism) {
+      await loadPrism();
+    }
     if (!window.Prism)
       return;
     const codeBlocks = container.querySelectorAll("pre.cm-code-block");
     codeBlocks.forEach((pre) => {
       const lang = pre.dataset.lang || "plaintext";
       const code = pre.querySelector("code");
-      if (code && !code.classList.contains("prism-highlighted")) {
+      if (code) {
+        code.classList.remove("prism-highlighted");
         code.className = `language-${lang}`;
         pre.className = `cm-code-block language-${lang}`;
         window.Prism.highlightElement(code);
@@ -1134,6 +1324,34 @@
   }
 
   // assistant/messages.js
+  var currentStreamingMessage = null;
+  var currentStreamingContent = "";
+  var pendingText = "";
+  var typewriterInterval2 = null;
+  var contentContainer = null;
+  var userHasScrolledUp = false;
+  var TYPEWRITER_SPEED = 3;
+  var CHARS_PER_TICK = 5;
+  function resetStreamingState(content) {
+    if (typewriterInterval2) {
+      clearInterval(typewriterInterval2);
+      typewriterInterval2 = null;
+    }
+    if (content && content._scrollHandler) {
+      content.removeEventListener("scroll", content._scrollHandler);
+      delete content._scrollHandler;
+    }
+    const existingStream = document.getElementById("cm-streaming-message");
+    if (existingStream)
+      existingStream.remove();
+    const toolDiv = document.getElementById("cm-tool-usage");
+    if (toolDiv)
+      toolDiv.remove();
+    currentStreamingMessage = null;
+    currentStreamingContent = "";
+    pendingText = "";
+    userHasScrolledUp = false;
+  }
   function parseMarkdown(text) {
     let html = text;
     const codeBlocks = [];
@@ -1142,29 +1360,80 @@
       codeBlocks.push({ lang, code: code.trim() });
       return `%%CODEBLOCK_${index}%%`;
     });
+    const tables = [];
+    html = html.replace(/(?:^|\n)((?:\|[^\n]+\|\n?)+)/g, (match, tableContent) => {
+      const index = tables.length;
+      tables.push(tableContent.trim());
+      return `
+%%TABLE_${index}%%
+`;
+    });
     html = html.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     html = html.replace(/`([^`]+)`/g, '<code class="cm-inline-code">$1</code>');
     html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
     html = html.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "<em>$1</em>");
-    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-    html = html.replace(/^### (.+)$/gm, '<h4 class="cm-header">$1</h4>');
-    html = html.replace(/^## (.+)$/gm, '<h3 class="cm-header">$1</h3>');
-    html = html.replace(/^# (.+)$/gm, '<h3 class="cm-header">$1</h3>');
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+    html = html.replace(/^([-*_]){3,}$/gm, '<hr class="cm-hr">');
+    html = html.replace(/^&gt;\s*(.+)$/gm, '<blockquote class="cm-blockquote">$1</blockquote>');
+    html = html.replace(/<\/blockquote>\n<blockquote class="cm-blockquote">/g, "<br>");
+    html = html.replace(/^#### (.+)$/gm, '<h5 class="cm-header cm-h4">$1</h5>');
+    html = html.replace(/^### (.+)$/gm, '<h4 class="cm-header cm-h3">$1</h4>');
+    html = html.replace(/^## (.+)$/gm, '<h3 class="cm-header cm-h2">$1</h3>');
+    html = html.replace(/^# (.+)$/gm, '<h3 class="cm-header cm-h1">$1</h3>');
     html = html.replace(/^(\d+)\.\s+(.+)$/gm, '<li class="cm-list-item cm-numbered">$2</li>');
     html = html.replace(/^[\-\*•]\s+(.+)$/gm, '<li class="cm-list-item">$1</li>');
     html = html.replace(/((?:<li class="cm-list-item cm-numbered">.*?<\/li>[\n\r]*)+)/g, '<ol class="cm-list">$1</ol>');
     html = html.replace(/((?:<li class="cm-list-item">.*?<\/li>[\n\r]*)+)/g, '<ul class="cm-list">$1</ul>');
     html = html.replace(/\n/g, "<br>");
-    html = html.replace(/<\/(pre|ol|ul|h[1-4])><br>/g, "</$1>");
-    html = html.replace(/<br><(pre|ol|ul|h[1-4])/g, "<$1");
+    html = html.replace(/<\/(pre|ol|ul|h[1-5]|blockquote|hr)><br>/g, "</$1>");
+    html = html.replace(/<br><(pre|ol|ul|h[1-5]|blockquote)/g, "<$1");
     html = html.replace(/<br><li/g, "<li");
     html = html.replace(/<\/li><br>/g, "</li>");
+    html = html.replace(/<hr class="cm-hr"><br>/g, '<hr class="cm-hr">');
+    html = html.replace(/<br><hr class="cm-hr">/g, '<hr class="cm-hr">');
+    html = html.replace(/%%TABLE_(\d+)%%/g, (match, index) => {
+      const tableContent = tables[parseInt(index, 10)];
+      return parseTable(tableContent);
+    });
     html = html.replace(/%%CODEBLOCK_(\d+)%%/g, (match, index) => {
       const block = codeBlocks[parseInt(index, 10)];
       const langAttr = block.lang ? ` data-lang="${block.lang}"` : "";
       const escapedCode = block.code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       return `<pre class="cm-code-block"${langAttr}><code>${escapedCode}</code></pre>`;
     });
+    return html;
+  }
+  function parseInlineMarkdown(text) {
+    let html = text.trim();
+    html = html.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    html = html.replace(/`([^`]+)`/g, '<code class="cm-inline-code">$1</code>');
+    html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    html = html.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "<em>$1</em>");
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+    return html;
+  }
+  function parseTable(tableContent) {
+    const rows = tableContent.split("\n").filter((row) => row.trim());
+    if (rows.length < 2)
+      return tableContent;
+    let html = '<table class="cm-table"><thead><tr>';
+    const headerCells = rows[0].split("|").filter((cell) => cell.trim() !== "");
+    headerCells.forEach((cell) => {
+      html += `<th>${parseInlineMarkdown(cell)}</th>`;
+    });
+    html += "</tr></thead><tbody>";
+    const startRow = rows[1].includes("---") ? 2 : 1;
+    for (let i = startRow; i < rows.length; i++) {
+      const cells = rows[i].split("|").filter((cell) => cell.trim() !== "");
+      if (cells.length > 0) {
+        html += "<tr>";
+        cells.forEach((cell) => {
+          html += `<td>${parseInlineMarkdown(cell)}</td>`;
+        });
+        html += "</tr>";
+      }
+    }
+    html += "</tbody></table>";
     return html;
   }
   function addMessage(content, text, type, source = null, sources = []) {
@@ -1184,26 +1453,200 @@
     content.appendChild(msg);
     content.scrollTop = content.scrollHeight;
   }
-  function showThinking(content) {
-    const thinking = document.createElement("div");
-    thinking.className = "cm-thinking";
-    thinking.id = "cm-thinking";
-    thinking.innerHTML = `
-    <div class="dots"><span></span><span></span><span></span></div>
-  `;
-    content.appendChild(thinking);
-    content.scrollTop = content.scrollHeight;
-  }
   function hideThinking() {
     const thinking = document.getElementById("cm-thinking");
     if (thinking)
       thinking.remove();
   }
+  function showToolUsage(content, tool, message, queries = []) {
+    let toolDiv = document.getElementById("cm-tool-usage");
+    if (!toolDiv) {
+      toolDiv = document.createElement("div");
+      toolDiv.className = "cm-tool-usage";
+      toolDiv.id = "cm-tool-usage";
+      content.appendChild(toolDiv);
+    }
+    const icon = tool === "search" ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>` : "";
+    toolDiv.innerHTML = `
+    <div class="cm-tool-header" onclick="this.parentElement.classList.toggle('expanded')">
+      <div class="cm-tool-icon">${icon}</div>
+      <span class="cm-tool-message">${message}</span>
+      <svg class="cm-tool-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+    </div>
+    <div class="cm-tool-details">
+      ${queries.length > 0 ? `
+        <div class="cm-tool-queries">
+          ${queries.map((q) => `<div class="cm-tool-query">${q}</div>`).join("")}
+        </div>
+      ` : ""}
+      <div class="cm-tool-pages" id="cm-tool-pages"></div>
+    </div>
+  `;
+    content.scrollTop = content.scrollHeight;
+  }
+  function updateToolResults(results) {
+    const toolDiv = document.getElementById("cm-tool-usage");
+    const pagesDiv = document.getElementById("cm-tool-pages");
+    if (!pagesDiv) {
+      console.warn("[AI Assistant] cm-tool-pages not found");
+      return;
+    }
+    console.log("[AI Assistant] Tool results:", results);
+    if (!results || !Array.isArray(results) || results.length === 0) {
+      pagesDiv.innerHTML = '<div class="cm-tool-no-results">No results found</div>';
+      return;
+    }
+    pagesDiv.innerHTML = results.map((r) => {
+      const url = r.url || r.link || r.href || "#";
+      const title = r.title || r.name || r.label || r.text || url;
+      return `
+      <a href="${url}" class="cm-tool-page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+        <span>${title}</span>
+      </a>
+    `;
+    }).join("");
+  }
+  function completeToolUsage(message) {
+    const toolDiv = document.getElementById("cm-tool-usage");
+    if (!toolDiv)
+      return;
+    const messageSpan = toolDiv.querySelector(".cm-tool-message");
+    if (messageSpan) {
+      messageSpan.textContent = message;
+    }
+    toolDiv.classList.add("completed");
+  }
+  function isNearBottom(container) {
+    const threshold = 100;
+    return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+  }
+  function startStreamingMessage(content) {
+    const welcome = content.querySelector(".cm-welcome");
+    if (welcome)
+      welcome.remove();
+    const existingStream = document.getElementById("cm-streaming-message");
+    if (existingStream)
+      existingStream.remove();
+    currentStreamingContent = "";
+    pendingText = "";
+    contentContainer = content;
+    userHasScrolledUp = false;
+    if (typewriterInterval2) {
+      clearInterval(typewriterInterval2);
+      typewriterInterval2 = null;
+    }
+    const msg = document.createElement("div");
+    msg.className = "cm-message assistant streaming";
+    msg.id = "cm-streaming-message";
+    msg.innerHTML = `<div class="content"><span class="cm-cursor">\u258B</span></div>`;
+    currentStreamingMessage = msg;
+    const scrollHandler = () => {
+      if (!isNearBottom(content)) {
+        userHasScrolledUp = true;
+      } else {
+        userHasScrolledUp = false;
+      }
+    };
+    content.addEventListener("scroll", scrollHandler);
+    content._scrollHandler = scrollHandler;
+    content.appendChild(msg);
+    content.scrollTop = content.scrollHeight;
+    typewriterInterval2 = setInterval(() => {
+      typewriterTick(content);
+    }, TYPEWRITER_SPEED);
+  }
+  function typewriterTick(content) {
+    if (!currentStreamingMessage || pendingText.length === 0)
+      return;
+    const charsToTake = Math.min(CHARS_PER_TICK, pendingText.length);
+    const chars = pendingText.slice(0, charsToTake);
+    pendingText = pendingText.slice(charsToTake);
+    currentStreamingContent += chars;
+    renderStreamingContent();
+    if (content && !userHasScrolledUp) {
+      content.scrollTop = content.scrollHeight;
+    }
+  }
+  var lastHighlightTime = 0;
+  var HIGHLIGHT_DEBOUNCE = 200;
+  function renderStreamingContent() {
+    if (!currentStreamingMessage)
+      return;
+    const contentDiv = currentStreamingMessage.querySelector(".content");
+    if (contentDiv) {
+      const formattedText = parseMarkdown(currentStreamingContent);
+      contentDiv.innerHTML = formattedText + '<span class="cm-cursor">\u258B</span>';
+      const now = Date.now();
+      if (now - lastHighlightTime > HIGHLIGHT_DEBOUNCE) {
+        lastHighlightTime = now;
+        highlightCode(currentStreamingMessage);
+      }
+    }
+  }
+  function appendStreamingText(content, text) {
+    if (!currentStreamingMessage)
+      return;
+    pendingText += text;
+  }
+  function completeStreamingMessage(content) {
+    return new Promise((resolve) => {
+      if (!currentStreamingMessage) {
+        resolve(currentStreamingContent);
+        return;
+      }
+      if (content._scrollHandler) {
+        content.removeEventListener("scroll", content._scrollHandler);
+        delete content._scrollHandler;
+      }
+      const checkComplete = () => {
+        if (pendingText.length === 0) {
+          if (typewriterInterval2) {
+            clearInterval(typewriterInterval2);
+            typewriterInterval2 = null;
+          }
+          const contentDiv = currentStreamingMessage.querySelector(".content");
+          if (contentDiv) {
+            const formattedText = parseMarkdown(currentStreamingContent);
+            contentDiv.innerHTML = formattedText;
+          }
+          const messageToHighlight = currentStreamingMessage;
+          currentStreamingMessage.classList.remove("streaming");
+          currentStreamingMessage = null;
+          userHasScrolledUp = false;
+          if (!userHasScrolledUp) {
+            content.scrollTop = content.scrollHeight;
+          }
+          setTimeout(() => {
+            if (messageToHighlight) {
+              highlightCode(messageToHighlight);
+            }
+          }, 50);
+          resolve(currentStreamingContent);
+        } else {
+          setTimeout(checkComplete, 30);
+        }
+      };
+      checkComplete();
+    });
+  }
+  function flushStreamingText() {
+    if (pendingText.length > 0) {
+      currentStreamingContent += pendingText;
+      pendingText = "";
+      renderStreamingContent();
+    }
+  }
+  function getStreamingContent() {
+    return currentStreamingContent + pendingText;
+  }
 
   // assistant/config.js
   var config = {
     // Backend API URL
-    apiUrl: "https://codemachine-backend-163276108650.us-central1.run.app/api/chat"
+    apiUrl: "https://codemachine-backend-163276108650.us-central1.run.app/api/chat",
+    // Streaming API URL
+    streamUrl: "https://codemachine-backend-163276108650.us-central1.run.app/api/chat/stream"
   };
 
   // assistant/events.js
@@ -1314,6 +1757,7 @@
       const question = input.value.trim();
       if (!question)
         return;
+      resetStreamingState(content);
       addMessage(content, question, "user");
       uiMessages.push({ type: "user", text: question, sources: [] });
       saveUIMessages(uiMessages);
@@ -1321,9 +1765,8 @@
       input.style.height = "auto";
       sendBtn.disabled = true;
       setAliFace("thinking");
-      showThinking(content);
       try {
-        const response = await fetch(config.apiUrl, {
+        const response = await fetch(config.streamUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1331,30 +1774,90 @@
             history: conversationHistory
           })
         });
-        const data = await response.json();
-        hideThinking();
-        if (data.error) {
-          setAliFace("error");
-          addMessage(content, "Sorry, something went wrong. Please try again.", "assistant");
-          uiMessages.push({ type: "assistant", text: "Sorry, something went wrong. Please try again.", sources: [] });
-          setTimeout(() => setAliFace("idle"), 2e3);
-        } else {
-          setAliFace("cool");
-          addMessage(content, data.text, "assistant", data.source, data.sources || []);
-          uiMessages.push({ type: "assistant", text: data.text, sources: data.sources || [] });
-          conversationHistory.push(
-            { role: "user", content: question },
-            { role: "assistant", content: data.text }
-          );
-          saveHistory();
-          setTimeout(() => setAliFace("idle"), 2e3);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
         }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let hasStartedStreaming = false;
+        let finalText = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done)
+            break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          let eventType = "";
+          for (const line of lines) {
+            if (line.startsWith("event: ")) {
+              eventType = line.slice(7);
+            } else if (line.startsWith("data: ")) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                switch (eventType) {
+                  case "status":
+                    if (data.type === "thinking") {
+                      setAliFace("thinking");
+                    } else if (data.type === "generating") {
+                      setAliFace("tool");
+                    }
+                    break;
+                  case "tool_start":
+                    setAliFace("tool");
+                    showToolUsage(content, data.tool, data.message);
+                    break;
+                  case "tool_progress":
+                    showToolUsage(content, data.tool, data.message, data.queries || []);
+                    break;
+                  case "tool_complete":
+                    completeToolUsage(data.message);
+                    updateToolResults(data.results || []);
+                    break;
+                  case "text":
+                    if (!hasStartedStreaming) {
+                      hasStartedStreaming = true;
+                      startStreamingMessage(content);
+                      setAliFace("cool");
+                    }
+                    appendStreamingText(content, data.content);
+                    break;
+                  case "done":
+                    break;
+                  case "error":
+                    flushStreamingText();
+                    throw new Error(data.message);
+                }
+              } catch (parseErr) {
+                if (parseErr.message !== "Unexpected end of JSON input") {
+                  console.warn("SSE parse error:", parseErr);
+                }
+              }
+            }
+          }
+        }
+        if (hasStartedStreaming) {
+          finalText = await completeStreamingMessage(content);
+        }
+        if (!finalText) {
+          finalText = getStreamingContent();
+        }
+        uiMessages.push({ type: "assistant", text: finalText, sources: [] });
+        conversationHistory.push(
+          { role: "user", content: question },
+          { role: "assistant", content: finalText }
+        );
+        saveHistory();
         saveUIMessages(uiMessages);
+        setTimeout(() => setAliFace("idle"), 2e3);
       } catch (err) {
+        flushStreamingText();
         hideThinking();
         setAliFace("error");
-        addMessage(content, "Sorry, could not connect to the server.", "assistant");
-        uiMessages.push({ type: "assistant", text: "Sorry, could not connect to the server.", sources: [] });
+        const errorMsg = err.message || "Sorry, could not connect to the server.";
+        addMessage(content, errorMsg, "assistant");
+        uiMessages.push({ type: "assistant", text: errorMsg, sources: [] });
         saveUIMessages(uiMessages);
         setTimeout(() => setAliFace("idle"), 2e3);
       }
@@ -1502,6 +2005,43 @@
       </div>
     `;
     };
+    content.addEventListener("click", (e) => {
+      const link = e.target.closest("a");
+      if (!link)
+        return;
+      const href = link.getAttribute("href");
+      if (!href || href.startsWith("mailto:") || href.startsWith("tel:"))
+        return;
+      let url;
+      try {
+        url = new URL(href, window.location.origin);
+      } catch {
+        return;
+      }
+      const isInternal = url.hostname === window.location.hostname;
+      if (isInternal) {
+        e.preventDefault();
+        e.stopPropagation();
+        const path = url.pathname + url.search + url.hash;
+        const navLink = document.querySelector(`a[href="${path}"], a[href="${href}"]`);
+        if (navLink && navLink !== link) {
+          navLink.click();
+          return;
+        }
+        if (window.__NEXT_ROUTER_READY__ || window.next?.router) {
+          const router = window.next?.router || window.__NEXT_ROUTER__;
+          if (router && router.push) {
+            router.push(path);
+            return;
+          }
+        }
+        history.pushState({}, "", path);
+        window.dispatchEvent(new PopStateEvent("popstate", { state: {} }));
+        window.dispatchEvent(new CustomEvent("cm-navigate", {
+          detail: { url: url.href, pathname: url.pathname }
+        }));
+      }
+    });
     return { openAssistant, closeAssistant, clearHistory: clearChat };
   }
 

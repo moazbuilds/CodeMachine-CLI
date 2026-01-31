@@ -1,5 +1,18 @@
 // CodeMachine AI Assistant - Event Handlers
-import { addMessage, showThinking, hideThinking } from "./messages.js";
+import {
+  addMessage,
+  showThinking,
+  hideThinking,
+  showToolUsage,
+  updateToolResults,
+  completeToolUsage,
+  startStreamingMessage,
+  appendStreamingText,
+  completeStreamingMessage,
+  flushStreamingText,
+  getStreamingContent,
+  resetStreamingState
+} from "./messages.js";
 import { setAliFace } from "./components.js";
 import { config } from "./config.js";
 
@@ -136,6 +149,9 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
     const question = input.value.trim();
     if (!question) return;
 
+    // Reset any previous streaming state before new message
+    resetStreamingState(content);
+
     addMessage(content, question, "user");
     // Track user message for UI persistence
     uiMessages.push({ type: 'user', text: question, sources: [] });
@@ -145,10 +161,10 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
     input.style.height = "auto";
     sendBtn.disabled = true;
     setAliFace('thinking');
-    showThinking(content);
 
     try {
-      const response = await fetch(config.apiUrl, {
+      // Use streaming endpoint
+      const response = await fetch(config.streamUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -157,36 +173,124 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
         })
       });
 
-      const data = await response.json();
-      hideThinking();
-
-      if (data.error) {
-        setAliFace('error');
-        addMessage(content, 'Sorry, something went wrong. Please try again.', "assistant");
-        uiMessages.push({ type: 'assistant', text: 'Sorry, something went wrong. Please try again.', sources: [] });
-        // Reset face after a delay
-        setTimeout(() => setAliFace('idle'), 2000);
-      } else {
-        setAliFace('cool');
-        addMessage(content, data.text, "assistant", data.source, data.sources || []);
-        // Track assistant message for UI persistence
-        uiMessages.push({ type: 'assistant', text: data.text, sources: data.sources || [] });
-
-        // Save to conversation history
-        conversationHistory.push(
-          { role: 'user', content: question },
-          { role: 'assistant', content: data.text }
-        );
-        saveHistory();
-        // Reset face after a delay
-        setTimeout(() => setAliFace('idle'), 2000);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
       }
+
+      // Process SSE stream
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let hasStartedStreaming = false;
+      let finalText = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete SSE events
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        let eventType = '';
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            eventType = line.slice(7);
+          } else if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              // Handle different event types
+              switch (eventType) {
+                case 'status':
+                  // Status updates (thinking, generating, etc.)
+                  if (data.type === 'thinking') {
+                    setAliFace('thinking');
+                  } else if (data.type === 'generating') {
+                    setAliFace('tool');
+                  }
+                  break;
+
+                case 'tool_start':
+                  // Tool started - show collapsed indicator
+                  setAliFace('tool');
+                  showToolUsage(content, data.tool, data.message);
+                  break;
+
+                case 'tool_progress':
+                  // Tool progress - update with queries
+                  showToolUsage(content, data.tool, data.message, data.queries || []);
+                  break;
+
+                case 'tool_complete':
+                  // Tool complete - show results
+                  completeToolUsage(data.message);
+                  updateToolResults(data.results || []);
+                  break;
+
+                case 'text':
+                  // Text chunk - append to streaming message
+                  if (!hasStartedStreaming) {
+                    hasStartedStreaming = true;
+                    startStreamingMessage(content);
+                    setAliFace('cool');
+                  }
+                  appendStreamingText(content, data.content);
+                  break;
+
+                case 'done':
+                  // Stream complete - will be handled after loop
+                  break;
+
+                case 'error':
+                  // Error occurred
+                  flushStreamingText();
+                  throw new Error(data.message);
+              }
+            } catch (parseErr) {
+              // Ignore JSON parse errors for incomplete data
+              if (parseErr.message !== 'Unexpected end of JSON input') {
+                console.warn('SSE parse error:', parseErr);
+              }
+            }
+          }
+        }
+      }
+
+      // Wait for typewriter to finish and get final text
+      if (hasStartedStreaming) {
+        finalText = await completeStreamingMessage(content);
+      }
+
+      // Get final text from streaming content if not set
+      if (!finalText) {
+        finalText = getStreamingContent();
+      }
+
+      // Track assistant message for UI persistence
+      uiMessages.push({ type: 'assistant', text: finalText, sources: [] });
+
+      // Save to conversation history
+      conversationHistory.push(
+        { role: 'user', content: question },
+        { role: 'assistant', content: finalText }
+      );
+      saveHistory();
       saveUIMessages(uiMessages);
+
+      // Reset face after a delay
+      setTimeout(() => setAliFace('idle'), 2000);
+
     } catch (err) {
+      // Flush any pending streaming text
+      flushStreamingText();
       hideThinking();
       setAliFace('error');
-      addMessage(content, 'Sorry, could not connect to the server.', "assistant");
-      uiMessages.push({ type: 'assistant', text: 'Sorry, could not connect to the server.', sources: [] });
+      const errorMsg = err.message || 'Sorry, could not connect to the server.';
+      addMessage(content, errorMsg, "assistant");
+      uiMessages.push({ type: 'assistant', text: errorMsg, sources: [] });
       saveUIMessages(uiMessages);
       // Reset face after a delay
       setTimeout(() => setAliFace('idle'), 2000);
@@ -377,6 +481,58 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
       </div>
     `;
   };
+
+  // Handle internal link clicks with client-side navigation
+  content.addEventListener('click', (e) => {
+    const link = e.target.closest('a');
+    if (!link) return;
+
+    const href = link.getAttribute('href');
+    if (!href || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+
+    // Parse the URL to check if it's internal
+    let url;
+    try {
+      url = new URL(href, window.location.origin);
+    } catch {
+      return; // Invalid URL, let browser handle it
+    }
+
+    // Check if it's an internal link (same hostname)
+    const isInternal = url.hostname === window.location.hostname;
+
+    if (isInternal) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const path = url.pathname + url.search + url.hash;
+
+      // Find and click matching link in the page navigation (Mintlify sidebar)
+      const navLink = document.querySelector(`a[href="${path}"], a[href="${href}"]`);
+      if (navLink && navLink !== link) {
+        navLink.click();
+        return;
+      }
+
+      // Try Next.js router methods
+      if (window.__NEXT_ROUTER_READY__ || window.next?.router) {
+        const router = window.next?.router || window.__NEXT_ROUTER__;
+        if (router && router.push) {
+          router.push(path);
+          return;
+        }
+      }
+
+      // Use History API and dispatch popstate (works with most SPA routers)
+      history.pushState({}, '', path);
+      window.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
+
+      // Dispatch custom navigation event for frameworks that listen for it
+      window.dispatchEvent(new CustomEvent('cm-navigate', {
+        detail: { url: url.href, pathname: url.pathname }
+      }));
+    }
+  });
 
   return { openAssistant, closeAssistant, clearHistory: clearChat };
 }
