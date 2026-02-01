@@ -27,7 +27,7 @@ codemachine import https://github.com/user/repo
 </Tab>
 </Tabs>
 
-After importing, your workflow appears in the selection menu when you run `codemachine` or `codemachine run`.
+After importing, your workflow appears in the selection menu when you run `codemachine`.
 
 ---
 
@@ -96,13 +96,13 @@ Import workflows directly from GitHub repositories.
 ### By Owner/Repo
 
 ```bash
-codemachine import moazbuilds/codemachine-one-codemachine
+codemachine import username/my-workflow-codemachine
 ```
 
 ### By Full URL
 
 ```bash
-codemachine import https://github.com/moazbuilds/bmad-codemachine
+codemachine import https://github.com/username/my-workflow-codemachine
 ```
 
 ### By Short Name
@@ -110,7 +110,7 @@ codemachine import https://github.com/moazbuilds/bmad-codemachine
 Search GitHub for packages by name:
 
 ```bash
-codemachine import codemachine-one
+codemachine import my-workflow
 ```
 
 <Note>
@@ -127,51 +127,11 @@ codemachine import git@github.com:user/repo.git
 
 ## Manifest Files
 
-Every importable package needs a manifest file. CodeMachine looks for these in order:
+Every importable package needs a manifest file (`codemachine.json` or `.codemachine.json`) at the root with `name` and `version` fields.
 
-1. `.codemachine.json` — hidden file, preferred for local development
-2. `codemachine.json` — standard for published packages
-
-Both have the same structure:
-
-```json codemachine.json
-{
-  "name": "my-package",
-  "version": "1.0.0",
-  "description": "Optional description",
-  "paths": {
-    "config": "config",
-    "workflows": "templates/workflows",
-    "prompts": "prompts",
-    "characters": "config/agent-characters.json"
-  }
-}
-```
-
-### Required Fields
-
-| Field | Description |
-|-------|-------------|
-| `name` | Package identifier (must be unique) |
-| `version` | Semantic version (e.g., `1.0.0`) |
-
-### Optional Fields
-
-| Field | Description |
-|-------|-------------|
-| `description` | Brief description of the workflow |
-| `paths` | Custom paths for package resources |
-
-### Custom Paths
-
-Override default resource locations:
-
-| Path | Default | Description |
-|------|---------|-------------|
-| `config` | `config/` | Configuration files directory |
-| `workflows` | `templates/workflows/` | Workflow definition files |
-| `prompts` | `prompts/` | Prompt templates |
-| `characters` | `config/agent-characters.json` | Agent character definitions |
+<Info>
+For details on creating and configuring manifest files, see [Publish Workflow](/build-workflows/publish-workflow#create-the-manifest).
+</Info>
 
 ---
 
@@ -242,13 +202,13 @@ codemachine import ~/my-workflow
 
 ```bash
 # By owner/repo
-codemachine import moazbuilds/codemachine-one
+codemachine import username/my-workflow-codemachine
 
 # By short name (searches GitHub)
-codemachine import codemachine-one
+codemachine import my-workflow
 
 # By full URL
-codemachine import https://github.com/moazbuilds/codemachine-one
+codemachine import https://github.com/username/my-workflow-codemachine
 ```
 
 ### Import Using TUI
@@ -257,7 +217,7 @@ Within CodeMachine, use the `/import` command:
 
 ```
 /import ./my-local-package
-/import moazbuilds/codemachine-one-codemachine
+/import username/my-workflow-codemachine
 ```
 
 ---

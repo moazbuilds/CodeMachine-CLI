@@ -80,11 +80,22 @@
             "group": "Resources",
             "pages": [
               "resources/advanced-setup",
+              "resources/workflow-library",
               "resources/faq",
-              "resources/data-usage",
-              "resources/license",
-              "resources/engine-compliance",
+              "resources/data-usage"
+            ]
+          },
+          {
+            "group": "Docs",
+            "pages": [
               "resources/mcp"
+            ]
+          },
+          {
+            "group": "Legal",
+            "pages": [
+              "resources/license",
+              "resources/engine-compliance"
             ]
           }
         ]

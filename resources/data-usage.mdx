@@ -4,4 +4,27 @@ description: "Understanding CodeMachine's telemetry and data practices."
 sidebarTitle: "Data Usage"
 ---
 
-{/* TODO: Add content */}
+## Context Window Display
+
+CodeMachine displays the context window size for each engine in the TUI, sourced from each engine's realtime session data. You can see:
+
+- **Controller Agent Context Window** - The context usage for the controller agent
+- **Step Agent Context Window** - The context usage for individual step agents
+
+<Note>
+The context window displayed does not equal your actual token spend. It represents the current context size being used by each agent during the session.
+</Note>
+
+## Token Spending
+
+CodeMachine does not spend any extra tokens on its own. It acts purely as a wrapping layer for the underlying engine services.
+
+## Costs and Calculations
+
+All cost calculations and token accounting are handled directly by each engine service provider, not by CodeMachine. This means:
+
+- Billing is determined by the engine you're using (e.g., Anthropic, OpenAI)
+- Token counts and pricing follow each provider's standard rates
+- CodeMachine passes through requests without adding overhead
+
+For accurate cost tracking, refer to your engine provider's dashboard and billing documentation.

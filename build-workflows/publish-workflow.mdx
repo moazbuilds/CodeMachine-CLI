@@ -4,3 +4,222 @@ description: "Share your workflow with others via the import system."
 sidebarTitle: "Publish Workflow"
 ---
 
+Share your workflow package by publishing it to a public GitHub repository. Others can then import it using the `codemachine import` command.
+
+---
+
+## Prerequisites
+
+Before publishing, ensure your workflow package has:
+
+- A valid manifest file (`codemachine.json`)
+- At least one agent definition in `config/main.agents.js`
+- At least one workflow file in your workflows directory
+
+---
+
+## Create the Manifest
+
+Every publishable package needs a `codemachine.json` file at the repository root.
+
+### Minimal Manifest
+
+For packages using the default directory structure:
+
+```json codemachine.json
+{
+  "name": "my-workflow",
+  "version": "1.0.0"
+}
+```
+
+### Full Manifest
+
+For packages with custom directory layouts or additional metadata:
+
+```json codemachine.json
+{
+  "name": "my-workflow",
+  "version": "1.0.0",
+  "description": "A workflow for building React applications",
+  "paths": {
+    "config": "config",
+    "workflows": "templates/workflows",
+    "prompts": "prompts",
+    "characters": "config/agent-characters.json"
+  }
+}
+```
+
+### Required Fields
+
+| Field | Description |
+|-------|-------------|
+| `name` | Package identifier (must be unique) |
+| `version` | Semantic version (e.g., `1.0.0`) |
+
+### Optional Fields
+
+| Field | Description |
+|-------|-------------|
+| `description` | Brief description of the workflow |
+| `paths` | Custom paths for package resources |
+
+---
+
+## Custom Paths
+
+If your repository has an existing structure that doesn't match the defaults, use the `paths` field to map your directories.
+
+### Default Paths
+
+When `paths` is omitted, CodeMachine uses these defaults:
+
+| Resource | Default Path |
+|----------|--------------|
+| Config | `config/` |
+| Workflows | `templates/workflows/` |
+| Prompts | `prompts/` |
+| Characters | `config/agent-characters.json` |
+
+### When to Use Custom Paths
+
+<Tabs>
+<Tab title="New Repository">
+If you're creating a new repository for your workflow, use the default structure—no `paths` configuration needed.
+
+```
+my-workflow/
+├── codemachine.json
+├── config/
+│   └── main.agents.js
+├── templates/
+│   └── workflows/
+│       └── my-workflow.workflow.js
+└── prompts/
+    └── ...
+```
+</Tab>
+<Tab title="Existing Repository">
+If you're adding a workflow to an existing repository with its own structure, define custom paths:
+
+```json codemachine.json
+{
+  "name": "my-workflow",
+  "version": "1.0.0",
+  "paths": {
+    "config": "src/codemachine/config",
+    "workflows": "src/codemachine/workflows",
+    "prompts": "src/codemachine/prompts"
+  }
+}
+```
+</Tab>
+</Tabs>
+
+---
+
+## Publish to GitHub
+
+<Steps>
+<Step title="Initialize Repository">
+Create a new GitHub repository or use an existing one.
+
+```bash
+# New repository
+mkdir my-workflow-codemachine
+cd my-workflow-codemachine
+git init
+```
+</Step>
+<Step title="Add Manifest">
+Create your `codemachine.json` at the repository root.
+
+```bash
+echo '{
+  "name": "my-workflow",
+  "version": "1.0.0"
+}' > codemachine.json
+```
+</Step>
+<Step title="Add Required Files">
+Ensure you have the required configuration and workflow files.
+
+```bash
+mkdir -p config templates/workflows prompts
+# Add your main.agents.js, workflow files, and prompts
+```
+</Step>
+<Step title="Push to GitHub">
+Commit and push to a public repository.
+
+```bash
+git add .
+git commit -m "Initial workflow package"
+git remote add origin https://github.com/username/my-workflow-codemachine.git
+git push -u origin main
+```
+</Step>
+</Steps>
+
+<Warning>
+Your repository **must be public** for others to import it. GitHub private repositories cannot be fetched by the import system.
+</Warning>
+
+---
+
+## After Publishing
+
+Once published, users can import your workflow using any of these formats:
+
+<Tabs>
+<Tab title="CLI">
+```bash
+# By owner/repo
+codemachine import username/my-workflow-codemachine
+
+# By full URL
+codemachine import https://github.com/username/my-workflow-codemachine
+
+# By short name (if using -codemachine suffix)
+codemachine import my-workflow
+```
+</Tab>
+<Tab title="TUI">
+```
+/import username/my-workflow-codemachine
+/import https://github.com/username/my-workflow-codemachine
+/import my-workflow
+```
+</Tab>
+</Tabs>
+
+The imported workflow will be available in the workflow selection menu when running `codemachine`.
+
+---
+
+## Private Workflows
+
+If you prefer to keep your workflow private, you can share it via local import instead of publishing to a public repository.
+
+<Info>
+For private workflows, share the package directory directly and have users import it locally. See [Import Workflows - Local Imports](/build-workflows/import-workflows#local-imports) for details.
+</Info>
+
+---
+
+## Naming Conventions
+
+For discoverability, consider using the `-codemachine` suffix in your repository name:
+
+- `my-workflow-codemachine`
+- `react-builder-codemachine`
+- `api-generator-codemachine`
+
+This allows users to import by short name:
+
+```bash
+codemachine import my-workflow
+```
+
+CodeMachine searches GitHub for repositories matching `{name}-codemachine` when using short name imports.
