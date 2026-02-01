@@ -1,7 +1,262 @@
 ---
 title: "Interactive Mode"
-description: "Reference for CodeMachine's interactive TUI mode and keyboard shortcuts."
+description: "Reference for CodeMachine's interactive TUI mode, keyboard shortcuts, and screen elements."
 sidebarTitle: "Interactive Mode"
 ---
 
-{/* TODO: Add content - includes keyboard shortcuts */}
+**The TUI is your command center for running and monitoring workflows.**
+
+Launch it by running `codemachine` without subcommands. From here you can start workflows, monitor agents, and control execution.
+
+---
+
+## Slash Commands
+
+Type `/` to see autocomplete suggestions. Use `↑↓` to navigate and `Tab` to complete.
+
+| Command | Description |
+| :------ | :---------- |
+| `/start` | Start workflow with current template |
+| `/templates` | Select and configure workflow templates |
+| `/login` | Authenticate with AI providers |
+| `/logout` | Sign out of AI providers |
+| `/import` | Import templates from GitHub (`owner/repo`) or local path |
+| `/export` | Show imports folder location |
+| `/exit` | Exit the application |
+
+---
+
+## Keyboard Shortcuts
+
+<Tabs>
+  <Tab title="Global" icon="globe">
+    Shortcuts available in all views.
+
+    | Key | Action |
+    | :-- | :----- |
+    | `Ctrl+T` | Toggle dark/light theme |
+    | `Ctrl+C` | Copy selection or exit (press twice to exit) |
+  </Tab>
+  <Tab title="Home" icon="house">
+    The starting screen where you enter commands.
+
+    | Key | Action |
+    | :-- | :----- |
+    | `Enter` | Submit command |
+    | `↑/↓` | Navigate autocomplete |
+    | `Tab` | Complete selected command |
+    | `Escape` | Close autocomplete |
+  </Tab>
+  <Tab title="Onboarding" icon="list-check">
+    Track and condition selection screens.
+
+    | Key | Action |
+    | :-- | :----- |
+    | `↑/↓` | Navigate options |
+    | `1-9` | Quick select option |
+    | `Enter` | Select/submit |
+    | `Tab` | Confirm multi-select |
+    | `Escape` | Cancel onboarding |
+  </Tab>
+  <Tab title="Workflow" icon="diagram-project">
+    The main workflow monitoring screen.
+
+    | Key | Action |
+    | :-- | :----- |
+    | `↑/↓` | Navigate timeline |
+    | `Enter` | Expand agent / Open log viewer |
+    | `Space` | Toggle expand sub-agents |
+    | `Tab` | Toggle timeline panel |
+    | `H` | Open history view |
+    | `P` | Pause workflow |
+    | `R` | Return to controller (if available) |
+    | `Ctrl+S` | Skip current agent/prompts |
+    | `Shift+Tab` | Toggle autonomous mode |
+    | `→` | Focus prompt input |
+    | `Escape` | Show stop confirmation |
+  </Tab>
+  <Tab title="Prompt Input" icon="keyboard">
+    When the input field is focused.
+
+    | Key | Action |
+    | :-- | :----- |
+    | `Enter` | Submit input / Confirm chained step |
+    | `← (at start)` | Exit focus, return to timeline |
+    | `Escape` | Exit focus |
+  </Tab>
+  <Tab title="Modals" icon="window-maximize">
+    Confirmation dialogs and popups.
+
+    | Key | Action |
+    | :-- | :----- |
+    | `←/→` | Navigate buttons |
+    | `Enter` | Confirm selection |
+    | `Y` | Yes/Confirm |
+    | `N` | No/Cancel |
+    | `Escape` | Cancel/Close |
+    | `C` | Continue (checkpoint) |
+    | `Q` | Quit (checkpoint) |
+  </Tab>
+  <Tab title="History/Logs" icon="clock-rotate-left">
+    History view and log viewer.
+
+    | Key | Action |
+    | :-- | :----- |
+    | `↑/↓` | Navigate entries |
+    | `PageUp/PageDown` | Scroll pages |
+    | `g` | Go to top |
+    | `G (Shift+g)` | Go to bottom |
+    | `Enter` | Open log viewer |
+    | `H` or `Escape` | Close history |
+    | `Ctrl+D` | Clear history |
+  </Tab>
+</Tabs>
+
+---
+
+## Chained Prompts
+
+Chained prompts are multi-step workflows where you confirm each step before proceeding.
+
+### Prompt Line States
+
+| Symbol | State | Meaning |
+| :----- | :---- | :------ |
+| `·` | Disabled | Workflow not running |
+| `❯` | Passive | Agent working (watch only) |
+| `‖` | Active (paused) | Waiting for your input |
+| `❯` | Chained | Ready for next step confirmation |
+
+### How to Proceed
+
+<Steps>
+  <Step title="See the prompt">
+    The prompt shows: `Next: "Validation" (2/4)` with hint `Step 2/4: Validation`
+  </Step>
+  <Step title="Confirm or steer">
+    - Press `Enter` with empty input → Confirmation modal appears
+    - Or type a message then `Enter` → Sends steering input (no confirmation needed)
+  </Step>
+  <Step title="Confirm the modal">
+    Press `Y` or select "Yes, Proceed" to continue to the next step.
+  </Step>
+</Steps>
+
+<Accordion title="Confirmation Modal Example" icon="window-maximize">
+  ```
+  ▲ Confirm Step Transition
+
+  Are you sure you want to proceed to step 2/4?
+  Validation - Validate the output
+
+  You cannot return to the previous step once you proceed.
+
+  [Yes, Proceed]  [Cancel]
+  ```
+</Accordion>
+
+<Tip>
+  Press `Ctrl+S` to skip all remaining chained prompts.
+</Tip>
+
+---
+
+## Screen Elements
+
+### Telemetry Bar
+
+The bottom bar shows workflow status:
+
+```
+Runtime: 00:05:23                    My Workflow • Awaiting • AUTO
+```
+
+| Element | Description |
+| :------ | :---------- |
+| `Runtime: HH:MM:SS` | Active execution time (only counts while agents run) |
+| Workflow Name | Current workflow |
+| `Awaiting` | Waiting for input (yellow) |
+| `Paused` | Workflow paused (yellow) |
+| `Stopped` | Workflow stopped (red) |
+| `AUTO` | Autonomous mode enabled (blue) |
+
+### Agent Status Icons
+
+| Icon | Status | Color |
+| :--- | :----- | :---- |
+| `◐◓◑◒` | Running | Blue (animated) |
+| `○` | Pending | White |
+| `●` | Completed | Green |
+| `✗` | Failed | Red |
+| `●` | Skipped | Gray |
+| `⟳` | Retrying | White |
+| `◉` | Awaiting | Yellow |
+| `◈` | Delegated | Blue |
+| `॥` | Paused | Yellow |
+
+### Timeline Display
+
+```
+Workflow Pipeline (5 items)
+
+> ● Agent Name (claude) • 00:01:23
+    ▶ Sub-agents: 3 done, 1 running
+  ○ Next Agent (gpt-4) • pending
+```
+
+| Symbol | Meaning |
+| :----- | :------ |
+| `>` | Selected agent |
+| `▶` | Collapsed sub-agents (press `Space` or `Enter` to expand) |
+| `▼` | Expanded sub-agents |
+
+### Output Window Header
+
+```
+╭─
+│  [emoji] Agent Name     claude claude-3-5-sonnet ● running
+│  ↳ Analyzing code structure...     context: 12.5K
+╰─
+```
+
+| Element | Description |
+| :------ | :---------- |
+| Face/emoji | Agent character |
+| Agent Name | Current agent (bold) |
+| Engine | AI provider (e.g., `claude`) |
+| Model | Specific model |
+| Status | Running state with icon |
+| Phrase | Current activity (animated) |
+| `context: 12.5K` | Token usage |
+
+<Note>
+  **Token display format:** Under 1000 shows exact number (`123`), 1K-999K shows decimal (`1.2K`), 1M+ shows millions (`1.2M`).
+</Note>
+
+### Toast Notifications
+
+Appear in the top-right corner.
+
+| Variant | Icon | Color |
+| :------ | :--- | :---- |
+| Success | `✓` | Green |
+| Error | `✗` | Red |
+| Info | `ℹ` | Blue |
+| Warning | `▲` | Yellow |
+
+---
+
+## Quick Reference
+
+| Commands | Workflow | Navigation |
+| :------- | :------- | :--------- |
+| `/start` | `P` = Pause | `↑↓` = Move |
+| `/templates` | `H` = History | `Enter` = Select |
+| `/login` | `R` = Controller | `Space` = Expand |
+| `/logout` | `Ctrl+S` = Skip | `Tab` = Toggle panel |
+| `/import` | `Shift+Tab` = Auto | `Esc` = Stop/Back |
+| `/exit` | `Ctrl+T` = Theme | `→` = Focus input |
+
+**Chained Prompts:** `Enter` = Confirm step | Type + `Enter` = Steer
+
+**Modals:** `Y/N` = Quick select | `←→` = Navigate | `Enter` = Confirm
