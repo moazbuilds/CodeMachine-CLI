@@ -1,0 +1,52 @@
+---
+title: "MCP Server"
+description: "Connect CodeMachine documentation to your AI tools via MCP."
+sidebarTitle: "MCP Server"
+---
+
+Use the Model Context Protocol (MCP) to search CodeMachine documentation directly from your AI tools.
+
+## Claude Code
+
+Run this command in your terminal:
+
+```bash
+claude mcp add --transport http CodeMachine https://codemachine.mintlify.app/mcp
+```
+
+Then use the `SearchDocumentation` tool in Claude Code to search these docs.
+
+## Cursor
+
+Use the contextual menu on any page and select **Connect to Cursor**, or manually add to your Cursor MCP settings:
+
+```json
+{
+  "mcpServers": {
+    "CodeMachine": {
+      "url": "https://codemachine.mintlify.app/mcp"
+    }
+  }
+}
+```
+
+## VS Code
+
+Use the contextual menu on any page and select **Connect to VS Code**, or create `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "CodeMachine": {
+      "type": "http",
+      "url": "https://codemachine.mintlify.app/mcp"
+    }
+  }
+}
+```
+
+## Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `SearchDocumentation` | Search the CodeMachine knowledge base for guides, examples, and API references |

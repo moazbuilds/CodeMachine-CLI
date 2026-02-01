@@ -82,7 +82,8 @@
               "resources/faq",
               "resources/data-usage",
               "resources/license",
-              "resources/third-party"
+              "resources/engine-compliance",
+              "resources/mcp"
             ]
           }
         ]
@@ -141,7 +142,7 @@
           },
           {
             "label": "Engine Compliance",
-            "href": "/resources/third-party"
+            "href": "/resources/engine-compliance"
           },
           {
             "label": "FAQ",
@@ -175,6 +176,20 @@
     ]
   },
   "contextual": {
-    "options": ["copy", "view", "claude", "chatgpt"]
+    "options": [
+      "copy",
+      "view",
+      "claude",
+      "chatgpt",
+      "mcp",
+      "cursor",
+      "vscode",
+      {
+        "title": "Connect to Claude Code",
+        "description": "Add MCP server to Claude Code CLI",
+        "icon": "terminal",
+        "href": "/resources/mcp"
+      }
+    ]
   }
 }

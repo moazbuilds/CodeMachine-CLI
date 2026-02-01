@@ -1453,6 +1453,16 @@
     content.appendChild(msg);
     content.scrollTop = content.scrollHeight;
   }
+  function showThinking(content) {
+    const thinking = document.createElement("div");
+    thinking.className = "cm-thinking";
+    thinking.id = "cm-thinking";
+    thinking.innerHTML = `
+    <div class="dots"><span></span><span></span><span></span></div>
+  `;
+    content.appendChild(thinking);
+    content.scrollTop = content.scrollHeight;
+  }
   function hideThinking() {
     const thinking = document.getElementById("cm-thinking");
     if (thinking)
@@ -1766,6 +1776,7 @@
       input.style.height = "auto";
       sendBtn.disabled = true;
       setAliFace("thinking");
+      showThinking(content);
       try {
         const response = await fetch(config.streamUrl, {
           method: "POST",
@@ -1806,6 +1817,7 @@
                     }
                     break;
                   case "tool_start":
+                    hideThinking();
                     setAliFace("tool");
                     showToolUsage(content, data.tool, data.message);
                     break;
@@ -1819,6 +1831,7 @@
                   case "text":
                     if (!hasStartedStreaming) {
                       hasStartedStreaming = true;
+                      hideThinking();
                       startStreamingMessage(content);
                       setAliFace("cool");
                     }

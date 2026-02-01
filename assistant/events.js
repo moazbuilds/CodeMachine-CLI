@@ -161,6 +161,7 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
     input.style.height = "auto";
     sendBtn.disabled = true;
     setAliFace('thinking');
+    showThinking(content);
 
     try {
       // Use streaming endpoint
@@ -215,6 +216,7 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
 
                 case 'tool_start':
                   // Tool started - show collapsed indicator
+                  hideThinking();
                   setAliFace('tool');
                   showToolUsage(content, data.tool, data.message);
                   break;
@@ -234,6 +236,7 @@ export function setupEvents({ panel, trigger, overlay, input, sendBtn, content }
                   // Text chunk - append to streaming message
                   if (!hasStartedStreaming) {
                     hasStartedStreaming = true;
+                    hideThinking();
                     startStreamingMessage(content);
                     setAliFace('cool');
                   }
