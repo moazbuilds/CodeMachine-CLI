@@ -4,4 +4,321 @@ description: "Configure and override AI models in your workflows."
 sidebarTitle: "Model Configuration"
 ---
 
-{/* TODO: Add content */}
+CodeMachine uses a hierarchical configuration system for engine and model selection. Each layer can override the previous, giving you fine-grained control.
+
+<Steps>
+  <Step title="Engine Registry" icon="database">
+    [Default engines and models](#default-engine-&-model)
+  </Step>
+  <Step title="Agent Config" icon="file-code">
+    Override in `main.agents.js`
+  </Step>
+  <Step title="Workflow Step" icon="route">
+    Override in `workflow.js`
+  </Step>
+  <Step title="Runtime Execution" icon="play">
+    Final resolution with [auth fallback](#engine-fallback-system)
+  </Step>
+</Steps>
+
+## Available Engines
+
+| Engine ID  | Name               | Default Model         | Reasoning Effort |
+|------------|--------------------|-----------------------|------------------|
+| `claude`   | Claude Code        | `opus`                | No               |
+| `ccr`      | Claude Code Router | `sonnet`              | No               |
+| `codex`    | Codex              | `gpt-5.2-codex`       | Yes (`medium`)   |
+| `opencode` | OpenCode           | `opencode/big-pickle` | No               |
+| `cursor`   | Cursor             | `auto`                | No               |
+| `mistral`  | Mistral Vibe       | `devstral-2`          | No               |
+| `auggie`   | Auggie CLI         | `auto`                | No               |
+
+<Warning>
+  Engines other than `claude`, `codex`, and `opencode` are experimental and might not be stable.
+</Warning>
+
+## Agent Configuration
+
+Configure engine and model in `config/main.agents.js` for individual agents.
+
+### Agent Schema
+
+```javascript
+{
+  id: string,                       // Unique agent identifier (required)
+  name: string,                     // Display name shown in UI (required)
+  description: string,              // Brief description (required)
+  promptPath: string | string[],    // Path to prompt file(s) (required)
+  promptPath: string[],     // Chained prompt paths (optional)
+  engine: string,                   // Engine to use (optional)
+  model: string,                    // Model to use (optional)
+  modelReasoningEffort: string,     // 'low' | 'medium' | 'high' (optional)
+}
+```
+
+### Examples
+
+**Engine + Model:**
+
+```javascript
+// config/main.agents.js
+export const mainAgents = {
+  'my-code-generator': {
+    id: 'my-code-generator',
+    promptPath: 'agents/code-generator/main.prompt.md',
+    engine: 'claude',
+    model: 'opus',
+  },
+};
+```
+
+**With Reasoning Effort (Codex only):**
+
+```javascript
+'my-analyzer': {
+  id: 'my-analyzer',
+  promptPath: 'agents/analyzer/main.prompt.md',
+  engine: 'codex',
+  model: 'gpt-5.2-codex',
+  modelReasoningEffort: 'high',
+},
+```
+
+**Engine Only (uses engine's default model):**
+
+```javascript
+'my-agent': {
+  id: 'my-agent',
+  promptPath: 'agents/my-agent/main.prompt.md',
+  engine: 'claude',  // Uses 'opus' (Claude's default)
+}
+```
+
+## Workflow Step Overrides
+
+Override engine and model per step in your `workflow.js` files.
+
+### Override Schema
+
+```javascript
+{
+  engine: string,                // Override engine
+  model: string,                 // Override model
+  modelReasoningEffort: string,  // 'low' | 'medium' | 'high'
+}
+```
+
+### Using `resolveStep()`
+
+```javascript
+// templates/workflows/my.workflow.js
+import { resolveStep } from '#src/workflows/utils/resolvers/index.js';
+
+export default {
+  id: 'my-workflow',
+  name: 'My Custom Workflow',
+  steps: [
+    // No overrides - uses agent's config
+    resolveStep('my-agent'),
+
+    // Engine override
+    resolveStep('code-generator', {
+      engine: 'claude',
+    }),
+
+    // Engine + model + reasoning
+    resolveStep('complex-analysis', {
+      engine: 'codex',
+      model: 'gpt-5.2-codex',
+      modelReasoningEffort: 'high',
+    }),
+  ],
+};
+```
+
+### Using `resolveFolder()`
+
+Apply overrides to all steps from a folder:
+
+```javascript
+import { resolveFolder } from '#src/workflows/utils/resolvers/index.js';
+
+export default {
+  id: 'spec-workflow',
+  steps: [
+    // All steps in 'spec-kit' folder use these settings
+    ...resolveFolder('spec-kit', {
+      engine: 'codex',
+      model: 'gpt-5',
+      modelReasoningEffort: 'medium',
+    }),
+  ],
+};
+```
+
+### Using `resolveModule()`
+
+```javascript
+import { resolveModule } from '#src/workflows/utils/resolvers/index.js';
+
+export default {
+  id: 'module-workflow',
+  steps: [
+    resolveModule('spec-module', {
+      engine: 'claude',
+      model: 'opus',
+    }),
+  ],
+};
+```
+
+## Model Reasoning Effort
+
+Only supported by certain engines (currently Codex).
+
+| Value    | Description                               |
+|----------|-------------------------------------------|
+| `low`    | Minimal reasoning, fastest response       |
+| `medium` | Balanced reasoning (default for Codex)    |
+| `high`   | Maximum reasoning, best for complex tasks |
+
+```javascript
+resolveStep('complex-analysis', {
+  engine: 'codex',
+  modelReasoningEffort: 'high',
+});
+```
+
+## Practical Examples
+
+### Fast Prototyping
+
+Use faster, cheaper models:
+
+```javascript
+export default {
+  id: 'prototype',
+  name: 'Fast Prototyping',
+  steps: [
+    resolveStep('scaffold-generator', {
+      engine: 'ccr',
+      model: 'sonnet',
+    }),
+    resolveStep('quick-test', {
+      engine: 'ccr',
+      model: 'haiku',
+    }),
+  ],
+};
+```
+
+### Production Quality
+
+Use powerful models:
+
+```javascript
+export default {
+  id: 'production',
+  name: 'Production Quality',
+  steps: [
+    resolveStep('architecture-design', {
+      engine: 'claude',
+      model: 'opus',
+    }),
+    resolveStep('code-generation', {
+      engine: 'codex',
+      model: 'gpt-5.2-codex',
+      modelReasoningEffort: 'high',
+    }),
+    resolveStep('security-review', {
+      engine: 'claude',
+      model: 'opus',
+    }),
+  ],
+};
+```
+
+### Mixed Engine Workflow
+
+Leverage different engines for their strengths:
+
+```javascript
+export default {
+  id: 'mixed',
+  name: 'Mixed Engine Workflow',
+  steps: [
+    // Claude for creative tasks
+    resolveStep('brainstorm', {
+      engine: 'claude',
+      model: 'opus',
+    }),
+
+    // Codex for complex reasoning
+    resolveStep('algorithm-design', {
+      engine: 'codex',
+      modelReasoningEffort: 'high',
+    }),
+
+    // Fast model for simple tasks
+    resolveStep('format-code', {
+      engine: 'ccr',
+      model: 'haiku',
+    }),
+  ],
+};
+```
+
+## Engine Fallback System
+
+When running a workflow, CodeMachine resolves the engine and model through a fallback system.
+
+### How It Works
+
+<Steps>
+  <Step title="Pick Engine">
+    - Use step/CLI override if specified
+    - Else use agent config (`engine` field)
+    - Else find first authenticated engine by order
+  </Step>
+  <Step title="Check Authentication">
+    - If selected engine is not authenticated → try next authenticated engine
+    - If none authenticated → use registry default (first by order)
+  </Step>
+  <Step title="Select Model">
+    - If engine fell back, agent's model is ignored (uses engine's default)
+    - Otherwise: step override → agent config → engine default
+  </Step>
+</Steps>
+
+### Default Engine & Model
+
+<Info>
+  **Default engine:** `opencode` (order: 1)
+  **Default model:** `opencode/big-pickle`
+</Info>
+
+### Engine Fallback Order
+
+Engines are tried in this order when falling back:
+
+| Order | Engine     | Default Model         |
+|-------|------------|-----------------------|
+| 1     | `opencode` | `opencode/big-pickle` |
+| 2     | `claude`   | `opus`                |
+| 3     | `codex`    | `gpt-5.2-codex`       |
+| 4     | `cursor`   | `auto`                |
+| 7     | `ccr`      | `sonnet`              |
+
+<Note>
+  If no engine is specified and `opencode` is authenticated, it's used. If `opencode` isn't authenticated, it tries `claude`, then `codex`, and so on.
+</Note>
+
+## Validation
+
+The workflow validator checks:
+
+- `model` must be a string (if provided)
+- `modelReasoningEffort` must be `'low'`, `'medium'`, or `'high'`
+- `engine` must be a valid engine ID from the registry
+
+Invalid configurations produce descriptive error messages during workflow loading.

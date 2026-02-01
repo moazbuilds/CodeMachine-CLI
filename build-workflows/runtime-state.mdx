@@ -1,7 +1,303 @@
 ---
 title: "Runtime State"
-description: "Understanding template.json and workflow state tracking."
+description: "How CodeMachine tracks your workflow progress and enables recovery."
 sidebarTitle: "Runtime State"
 ---
 
-{/* TODO: Add content */}
+When you run a workflow, CodeMachine creates a `.codemachine` folder in your project. This folder tracks everything about your workflow session—what's running, what's finished, and how to pick up where you left off.
+
+## The .codemachine Folder
+
+<Tree>
+  <Tree.Folder name=".codemachine" defaultOpen>
+    <Tree.Folder name="agents" defaultOpen>
+      <Tree.File name="agent-config.json" />
+      <Tree.File name="planner.md" />
+      <Tree.File name="coder.md" />
+      <Tree.File name="reviewer.md" />
+    </Tree.Folder>
+    <Tree.Folder name="inputs" defaultOpen>
+      <Tree.File name="specification.md" />
+    </Tree.Folder>
+    <Tree.Folder name="artifacts" />
+    <Tree.Folder name="prompts" />
+    <Tree.Folder name="memory" defaultOpen>
+      <Tree.File name="directive.json" />
+    </Tree.Folder>
+    <Tree.Folder name="logs" />
+    <Tree.File name="template.json" />
+  </Tree.Folder>
+</Tree>
+
+---
+
+<Accordion title="What each folder and file contains" icon="folder-open">
+  | Path | Description |
+  |------|-------------|
+  | `agents/agent-config.json` | Subagents registered for this workflow |
+  | `inputs/specification.md` | User specifications (if workflow requires them) |
+  | `artifacts/` | Optional folder for planning files (must be defined in prompts) |
+  | `prompts/` | Optional folder for cached prompts (must be defined in prompts) |
+  | `memory/directive.json` | Action that determines what the workflow does next |
+  | `logs/` | Database of agent history and running states |
+  | `template.json` | Single source of truth for runtime data. Deleting this resets the workflow from zero |
+</Accordion>
+
+---
+
+## How Progress is Tracked
+
+The `template.json` file is the heart of workflow tracking. It remembers:
+
+<CardGroup cols={2}>
+  <Card title="Current Position" icon="location-dot">
+    Which step is running and which steps are done
+  </Card>
+  <Card title="Session Info" icon="key">
+    IDs needed to resume interrupted steps
+  </Card>
+  <Card title="Your Choices" icon="list-check">
+    Selected track and conditions from onboarding
+  </Card>
+  <Card title="Recovery Data" icon="rotate-left">
+    Everything needed to continue after a crash
+  </Card>
+</CardGroup>
+
+---
+
+## template.json Schema
+
+```typescript
+interface TemplateTracking {
+  // === Required ===
+  activeTemplate: string;        // Running template filename (e.g., "bug-fixer.workflow.js")
+  lastUpdated: string;           // ISO 8601 timestamp (UTC)
+
+  // === Step Tracking ===
+  completedSteps?: Record<string, StepData>;  // Map of step index → execution data
+  notCompletedSteps?: number[];               // Steps started but not finished (for crash recovery)
+  resumeFromLastStep?: boolean;               // Enable resume capability (default: true)
+
+  // === Workflow Configuration ===
+  selectedTrack?: string;                     // Selected track (e.g., 'quick', 'enterprise')
+  selectedConditions?: string[];              // Selected condition IDs
+  projectName?: string;                       // User-provided project name
+  autonomousMode?: string;                    // 'true' | 'false' | 'never' | 'always'
+
+  // === Controller Mode ===
+  controllerConfig?: {
+    agentId: string;
+    sessionId: string;
+    monitoringId: number;
+  };
+  controllerView?: boolean;                   // Recovery opens controller vs workflow view
+}
+
+interface StepData {
+  sessionId: string;           // Engine session ID for resume
+  monitoringId: number;        // Database ID in registry.db
+  completedChains?: number[];  // Completed chained prompt indices
+  completedAt?: string;        // ISO timestamp when step finished
+}
+```
+
+### State Transitions
+
+| Phase | What Changes in template.json |
+|-------|-------------------------------|
+| **Onboarding** | `selectedTrack`, `selectedConditions` set |
+| **Workflow Start** | `activeTemplate` set, `completedSteps: {}`, `notCompletedSteps: []` |
+| **Step Starts** | `notCompletedSteps: [0]` added |
+| **Session Init** | `completedSteps["0"] = { sessionId, monitoringId }` |
+| **Chain Complete** | `completedSteps["0"].completedChains = [0, 1, ...]` |
+| **Step Complete** | `completedSteps["0"].completedAt` set, `notCompletedSteps` cleaned |
+| **Loop Triggered** | `notCompletedSteps` updated to loop-back index |
+| **Crash Occurs** | `notCompletedSteps` preserved for recovery |
+
+---
+
+## Manipulating Workflow Progress
+
+You can manually control workflow execution by editing `template.json`. This is useful for:
+
+- Re-running a specific step
+- Resetting the workflow to an earlier point
+- Skipping steps that already completed
+
+### Revert to a Previous Step
+
+The `completedSteps` object tracks finished steps by index. To go back to a step, remove it (and all steps after it) from `completedSteps`.
+
+**Example:** You have steps 0, 1, 2 completed and want to re-run step 2:
+
+```json
+// Before - all steps complete
+{
+  "completedSteps": {
+    "0": { "sessionId": "abc", "monitoringId": 1, "completedAt": "..." },
+    "1": { "sessionId": "def", "monitoringId": 2, "completedAt": "..." },
+    "2": { "sessionId": "ghi", "monitoringId": 3, "completedAt": "..." }
+  }
+}
+
+// After - remove step 2 to re-run it
+{
+  "completedSteps": {
+    "0": { "sessionId": "abc", "monitoringId": 1, "completedAt": "..." },
+    "1": { "sessionId": "def", "monitoringId": 2, "completedAt": "..." }
+  }
+}
+```
+
+### Reset Entire Workflow
+
+To start from the beginning, clear `completedSteps`:
+
+```json
+{
+  "completedSteps": {},
+  "notCompletedSteps": []
+}
+```
+
+Or simply delete the entire `template.json` file to reset everything.
+
+---
+
+## Workflow Lifecycle
+
+Here's what happens as your workflow runs:
+
+<Steps>
+  <Step title="Workflow Starts" icon="play">
+    CodeMachine creates the `.codemachine` folder and initializes `template.json` with your selected options.
+  </Step>
+  <Step title="Step Begins" icon="circle-dot">
+    The current step is marked as "in progress" so CodeMachine knows where you are.
+  </Step>
+  <Step title="Agent Runs" icon="robot">
+    The agent executes with its prompts. Session info is saved for potential recovery.
+  </Step>
+  <Step title="Step Completes" icon="circle-check">
+    The step is marked complete with a timestamp, and CodeMachine moves to the next step.
+  </Step>
+  <Step title="Workflow Ends" icon="flag-checkered">
+    All steps are marked complete. The workflow is finished.
+  </Step>
+</Steps>
+
+---
+
+## What Happens If Something Goes Wrong?
+
+<Info>
+  CodeMachine automatically saves your progress. If your workflow crashes or you close the terminal, you can pick up right where you left off.
+</Info>
+
+When you restart after an interruption:
+
+1. CodeMachine finds the `.codemachine` folder
+2. It reads `template.json` to see which step was running
+3. It offers to resume from that step (or the last completed one)
+
+---
+
+## Agent Directives
+
+Agents can control what happens next by writing to `directive.json`. This is how agents communicate with the workflow.
+
+<Tabs>
+  <Tab title="Continue" icon="arrow-right">
+    ```json
+    { "action": "continue" }
+    ```
+    Move to the next step normally. This is the default.
+  </Tab>
+  <Tab title="Loop Back" icon="rotate">
+    ```json
+    { "action": "loop", "reason": "Tests failed, need another pass" }
+    ```
+    Go back to an earlier step and try again.
+  </Tab>
+  <Tab title="Wait for User" icon="pause">
+    ```json
+    { "action": "checkpoint", "reason": "Review changes before continuing" }
+    ```
+    Pause and wait for user confirmation.
+  </Tab>
+  <Tab title="Call Another Agent" icon="user-plus">
+    ```json
+    { "action": "trigger", "triggerAgentId": "code-reviewer" }
+    ```
+    Spawn a sub-agent to help with a specific task.
+  </Tab>
+  <Tab title="Stop" icon="stop">
+    ```json
+    { "action": "stop", "reason": "Task completed successfully" }
+    ```
+    End the workflow early.
+  </Tab>
+  <Tab title="Error" icon="circle-exclamation">
+    ```json
+    { "action": "error", "reason": "Something went wrong" }
+    ```
+    Terminate the workflow with an error.
+  </Tab>
+</Tabs>
+
+---
+
+## User Controls
+
+You can control workflow execution with keyboard shortcuts:
+
+| Action | Shortcut | What Happens |
+|--------|----------|--------------|
+| **Skip Step** | `Ctrl+S` | Mark current step as done and move on |
+| **Quit** | `Ctrl+C` | Save progress and exit (can resume later) |
+| **Advance** | `Enter` | Complete step and continue to next |
+
+<Tip>
+  When a workflow pauses at a checkpoint, you'll see a prompt. Choose to continue or quit—your progress is saved either way.
+</Tip>
+
+---
+
+## Execution Logs
+
+The `logs/` folder contains detailed records of every agent run:
+
+<Accordion title="registry.db - Execution History" icon="database">
+  A SQLite database tracking every agent execution:
+
+  - Agent name and engine used
+  - Start time, end time, and duration
+  - Status (running, completed, failed, skipped)
+  - Token usage and cost estimates
+  - Error messages if something went wrong
+</Accordion>
+
+<Accordion title="Agent Log Files" icon="file-lines">
+  Each agent gets its own log file (`agent-*.log`) containing:
+
+  - The full prompt sent to the agent
+  - The agent's complete response
+  - Any errors or warnings during execution
+</Accordion>
+
+---
+
+## Cleaning Up
+
+<Warning>
+  The `.codemachine` folder contains your workflow state. Deleting it will remove your ability to resume an interrupted workflow.
+</Warning>
+
+To start fresh, you can safely delete the `.codemachine` folder:
+
+```bash
+rm -rf .codemachine
+```
+
+A new folder will be created the next time you run a workflow.

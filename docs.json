@@ -23,10 +23,10 @@
             "group": "Core Concepts",
             "pages": [
               "core-concepts/what-is-codemachine",
-              "core-concepts/workflow/definition",
-              "core-concepts/workflow/patterns",
+              "core-concepts/workflow/basics",
+              "core-concepts/workflow/orchestration-patterns",
               "core-concepts/workflow/controls",
-              "core-concepts/agents"
+              "core-concepts/agent-basics"
             ]
           }
         ]

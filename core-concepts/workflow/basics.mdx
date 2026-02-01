@@ -1,0 +1,238 @@
+---
+title: "Workflow Basics"
+description: "Understand what a workflow is and how it orchestrates agents to accomplish tasks."
+sidebarTitle: "Workflow Basics"
+---
+
+**A workflow is a configured execution plan.**
+
+It defines which agents run, in what order, with what controls, and how context flows between them.
+
+---
+
+## What Makes Up a Workflow
+
+Every workflow has:
+
+- <Icon icon="tag" /> **[Name](#name)** - Defines the objective of the overall workflow
+- <Icon icon="list-ol" /> **[Steps](#steps)** - Agents set in sequence
+
+Optionally, workflows can also include:
+
+- <Icon icon="code-branch" /> **[Tracks](#tracks)** - Different workflow paths users can choose from
+- <Icon icon="toggle-on" /> **[Condition Groups](#condition-groups)** - Questions to customize which steps run
+- <Icon icon="share-nodes" /> **[Sub-agents](#sub-agents)** - Additional agents the workflow can use
+- <Icon icon="gamepad" /> **[Controller](#controller)** - An agent that guides users before the workflow starts
+- <Icon icon="rotate" /> **[Modules](#modules)** - Main agents with loop ability
+- <Icon icon="file-lines" /> **[Specification](#specification)** - A project brief needed before starting
+- <Icon icon="robot" /> **[Autonomous Mode](#autonomous-mode)** - Who drives the workflow (you or the system)
+
+---
+
+## How Workflows Execute
+
+Workflows run step by step. Each step contains an agent that performs work, produces output, and passes context to the next step.
+
+<Steps>
+  <Step title="Onboarding">
+    If tracks or conditions are defined, user answers questions to configure the workflow path.
+  </Step>
+  <Step title="Step Execution">
+    Each step runs its agent. The agent receives prompts, uses tools, and produces output.
+  </Step>
+  <Step title="Context Passing">
+    Files, outputs, and user choices flow to the next step as placeholders.
+  </Step>
+  <Step title="Completion">
+    All steps finish. Final outputs are available in the project directory.
+  </Step>
+</Steps>
+
+---
+
+## Workflow vs Agent
+
+| Concept | What It Is | Scope |
+|---------|-----------|-------|
+| **Workflow** | Execution plan | Orchestrates multiple agents |
+| **Agent** | Engine session | Executes a single step |
+
+A workflow coordinates agents. An agent does the actual work.
+
+<Info>
+  One workflow can have many agents. One agent belongs to one step.
+</Info>
+
+---
+
+## Components
+
+### Name
+
+The workflow name defines the objective of the overall workflow. It's what users see when selecting which workflow to run.
+
+A clear name helps users understand what the workflow will accomplish before they start.
+
+<Card title="See Names in Action" icon="arrow-right" href="/build-workflows/workflow-examples">
+  View real workflow examples with descriptive names
+</Card>
+
+### Steps
+
+Steps are agents set in sequence. The arrangement matters for execution because each step receives context from previous steps.
+
+Every workflow requires at least one step. Each step runs an agent that performs work and passes output to the next.
+
+<Tip>
+  Think of steps like an assembly line. Each station (agent) does its job and hands off to the next. The order determines the flow of work and context.
+</Tip>
+
+<Card title="See Steps in Action" icon="arrow-right" href="/build-workflows/workflow-examples">
+  View real workflow examples with step sequences
+</Card>
+
+### Tracks
+
+A track is a workflow variant, a path that determines which version of the workflow runs.
+
+- Users pick one track (like choosing a route on a map)
+- Each step can belong to specific tracks
+- If a step doesn't belong to the selected track, it's skipped
+
+<Tip>
+  Think of tracks like choosing between "Quick", "Standard", or "Enterprise" versions of the same workflow. Selecting "Quick" runs only the steps meant for that simpler path.
+</Tip>
+
+<Card title="See Tracks in Action" icon="arrow-right" href="/workflow-examples#tracks">
+  View real workflow examples using tracks
+</Card>
+
+### Condition Groups
+
+Conditions are feature flags, options that control which steps run based on what's needed.
+
+- Users can select multiple conditions (like checkboxes)
+- Steps can require all selected conditions to match
+- Steps can also run if at least one condition matches
+
+<Tip>
+  Imagine conditions like "Include UI", "Include API", or "Include Database". A step tagged with "Include UI" only runs if the user selected that option.
+</Tip>
+
+<Card title="See Conditions in Action" icon="arrow-right" href="/workflow-examples#conditions">
+  View real workflow examples using conditions
+</Card>
+
+### Sub-Agents
+
+Sub-agents are specialized helpers that main workflow agents can call upon to handle specific tasks.
+
+Think of it like a manager delegating work to team members with different expertise:
+
+- **Main Agent:** "Project Manager"
+  - **Sub-Agent:** "Frontend Developer" (builds UI)
+  - **Sub-Agent:** "Backend Developer" (builds API)
+  - **Sub-Agent:** "QA Engineer" (writes tests)
+
+<Tip>
+  Sub-agents let you break complex work into specialized roles. Each sub-agent focuses on what it does best.
+</Tip>
+
+<Card title="See Sub-Agents in Action" icon="arrow-right" href="/workflow-examples#sub-agents">
+  View real workflow examples using sub-agents
+</Card>
+
+### Controller
+
+A controller is a conversational guide, an agent that talks to the user before the main workflow starts.
+
+It's like a project intake meeting: the controller asks questions, gathers requirements, and plans before the automated work begins.
+
+**How it works:**
+
+1. Controller starts and begins a conversation
+2. User chats with controller (asks questions, provides context)
+3. User presses Enter with no input to signal they're ready
+4. Workflow steps execute
+
+<Tip>
+  Controllers let you have a planning conversation before any automated work begins. The controller remembers the conversation, so it can be resumed later.
+</Tip>
+
+<Card title="See Controllers in Action" icon="arrow-right" href="/workflow-examples#controller">
+  View real workflow examples using controllers
+</Card>
+
+### Modules
+
+Modules are main agents with loop ability. They can repeat their work until a goal is reached.
+
+Unlike regular agents that run once and finish, modules can cycle back and refine their output based on feedback or changing conditions.
+
+<Tip>
+  Think of modules as persistent workers. They keep going until the job is done right, not just done once.
+</Tip>
+
+<Card title="See Modules in Action" icon="arrow-right" href="/workflow-examples#modules">
+  View real workflow examples using modules
+</Card>
+
+### Specification
+
+A spec is a plain text document (markdown) that describes what you want to build: your project's goals, requirements, and context.
+
+It's like a project brief you hand to a team before they start working.
+
+You can set a workflow to never start without a spec, ensuring the agents always have clear direction.
+
+<Tip>
+  Specs keep everyone (and every agent) on the same page. No guessing what needs to be built.
+</Tip>
+
+<Card title="See Specifications in Action" icon="arrow-right" href="/workflow-examples#specification">
+  View real workflow examples using specifications
+</Card>
+
+### Autonomous Mode
+
+Autonomous mode controls who drives the workflow: you or the system.
+
+- **Always autonomous** - The system runs everything automatically. You can't pause or intervene.
+- **Never autonomous** - You stay in control. The system won't proceed without your input.
+- **Toggle** - You can pause anytime to orchestrate manually, then hand control back to the system.
+
+<Tip>
+  Choose based on how much oversight you need. Critical workflows might need human control. Routine tasks can run on autopilot.
+</Tip>
+
+<Card title="See Autonomous Mode in Action" icon="arrow-right" href="/workflow-examples#autonomous-mode">
+  View real workflow examples using autonomous mode
+</Card>
+
+---
+
+## Import Workflows
+
+Imports are external workflows built by the CodeMachine team or community.
+
+- <Icon icon="globe" /> Shared via external repos
+- <Icon icon="box" /> Contains workflows, agents, prompts, and config
+- <Icon icon="download" /> Install via TUI or CLI
+- <Icon icon="users" /> Anyone can share, anyone can install
+
+<Tip>
+  **Built-in workflows** come with the CodeMachine package. **Imports** are installed separately.
+</Tip>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Orchestration Patterns" icon="shuffle" href="./orchestration-patterns">
+    See how workflows take different shapes
+  </Card>
+  <Card title="Workflow Controls" icon="sliders" href="./controls">
+    Learn how to control workflow execution
+  </Card>
+</CardGroup>

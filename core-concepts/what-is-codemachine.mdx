@@ -4,7 +4,7 @@ description: "Understand the philosophy behind CodeMachine and why workflows wor
 sidebarTitle: "What is CodeMachine?"
 ---
 
-**CodeMachine runs AI workflows in your terminal.**
+**CodeMachine is an opensource tool that runs AI workflows in your terminal.**
 
 <iframe
   className="w-full aspect-video rounded-xl"
@@ -30,16 +30,21 @@ Define the steps once. Choose which agents handle what. Add an agent that always
 
 ## The Conceptual Layer
 
-CodeMachine is built on two ideas:
+CodeMachine is built on three ideas:
 
-<CardGroup cols={2}>
+<CardGroup cols={3}>
   <Card title="Workflows" icon="diagram-project">
     The structure. What happens, in what order, with what controls. You define this once and reuse it.
   </Card>
   <Card title="Context Management" icon="brain">
     What each agent knows. You control the data, the focus, the specialization. Instead of one agent knowing everything, each agent knows exactly what it needs.
   </Card>
+  <Card title="Orchestration" icon="shuffle" href="./workflow/orchestration-patterns">
+    No limits on complexity. Interactive, autonomous, continuous, or any combination — CodeMachine handles agent coordination.
+  </Card>
 </CardGroup>
+
+No limits on how complex your workflows can get. CodeMachine handles orchestration and agent coordination — interactive, autonomous, continuous, or any combination. [See orchestration patterns →](./workflow/orchestration-patterns)
 
 ## How CodeMachine Runs Engines
 
@@ -52,8 +57,24 @@ CodeMachine is an orchestration layer that runs AI coding CLIs through structure
 </Accordion>
 
 <Note>
-  Have questions about compliance or engine usage policies? [Read our FAQ →](#)
+  Have questions about compliance or engine usage policies? [Read our FAQ →](/resources/faq)
 </Note>
+
+## Origin
+
+CodeMachine started as a single hardcoded workflow, a proof of concept for orchestrating AI coding agents. That workflow was used to build the next iteration, validating the core premise: workflows should build workflows.
+
+<Frame caption="Version one: single workflow, single engine">
+  <img src="/images/demo.legacy.v1.gif" alt="CodeMachine first version demo" />
+</Frame>
+
+Originally called CodexMachine (Codex-only), it was a personal tool. But conversations with teams revealed a pattern: everyone was building their own orchestration layer. The same problems kept surfacing: context management, agent coordination, execution visibility. The market needed what CodeMachine was becoming.
+
+That feedback shaped the architecture. Engine-agnostic. Open source. Built for production autonomy with full transparency into how agents run.
+
+**Open source, always.** Enterprise and hosted versions are in development for teams that need managed infrastructure. Contact [moaz@codemachine.co](mailto:moaz@codemachine.co).
+
+---
 
 ## Next Steps
 
@@ -61,8 +82,8 @@ CodeMachine is an orchestration layer that runs AI coding CLIs through structure
   <Card title="Workflow Basics" icon="route" href="./workflow/definition">
     Learn the building blocks of workflows
   </Card>
-  <Card title="Workflow Patterns" icon="shuffle" href="./workflow/patterns">
-    See the different shapes workflows can take
+  <Card title="Orchestration Patterns" icon="shuffle" href="./workflow/orchestration-patterns">
+    See the different orchestration patterns
   </Card>
   <Card title="Workflow Controls" icon="sliders" href="./workflow/controls">
     Understand how to control execution
