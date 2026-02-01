@@ -588,9 +588,10 @@ Your workflow has a controller agent (\{controller.name\}). Press **Shift+Tab** 
 \{if placeholders\}- `config/placeholders.js` (+\{count\} placeholders)\{end if\}
 
 **To run your workflow:**
-```bash
-codemachine workflow \{workflow_name\}
-```
+
+Your new workflow **\{workflow_name\}** has been created. Here’s how to run it:
+- First, run `codemachine templates` and choose **\{workflow_name\}**.
+- Then, run `codemachine`, type `/start` and hit enter (return) to start the workflow.
 
 **Congratulations! Your '\{workflow_name\}' workflow is ready to use.**"
 
