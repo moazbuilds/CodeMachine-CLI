@@ -1,0 +1,135 @@
+---
+title: "Advanced Setup"
+description: "System requirements, development setup, and building CodeMachine from source."
+sidebarTitle: "Advanced Setup"
+---
+
+## System Requirements
+
+### For Users (Binary Installation)
+
+The CodeMachine binary bundles the Bun runtime, so no additional tooling is required.
+
+| Requirement | Details |
+|-------------|---------|
+| **OS** | Linux (x64, arm64), macOS (x64, arm64), Windows (x64) |
+| **RAM** | 4GB minimum, 8GB+ recommended for parallel agents |
+| **Disk** | 100MB for binary + space for logs |
+| **AI Engine** | At least one supported engine installed (Claude Code, Codex, etc.) |
+
+### For Developers (Building from Source)
+
+| Requirement | Version |
+|-------------|---------|
+| **Bun** | >= 1.3.3 |
+| **Node.js** | >= 20.10.0 (for tooling) |
+| **Git** | Latest |
+
+---
+
+## Resource Scaling Guide
+
+Running multiple parallel agents requires additional system resources. Use this table to plan your infrastructure:
+
+| Workload | RAM | CPU | Notes |
+|----------|-----|-----|-------|
+| Single agent | 2 GB | 1 core | Light tasks |
+| 5 parallel agents | 4 GB | 2 cores | Small workflows |
+| 10-20 parallel agents | 8-16 GB | 4+ cores | Production workflows |
+| 20+ parallel agents | 32 GB+ | 8+ cores | Heavy swarms |
+
+<Note>
+These requirements are for running multiple AI engine processes simultaneously, not for build tooling.
+</Note>
+
+---
+
+## Building from Source
+
+<Steps>
+  <Step title="Clone the Repository">
+    ```bash
+    git clone https://github.com/moazbuilds/CodeMachine-CLI.git
+    cd CodeMachine-CLI
+    ```
+  </Step>
+  <Step title="Install Dependencies">
+    ```bash
+    bun install
+    ```
+  </Step>
+  <Step title="Run in Development Mode">
+    ```bash
+    bun dev
+    ```
+  </Step>
+  <Step title="Build for Production">
+    ```bash
+    bun run build
+    ```
+  </Step>
+</Steps>
+
+<Accordion title="Optional: Link bun globally" icon="link" defaultOpen={true}>
+  To use `cm` as a global command while developing, link the package:
+
+  ```bash
+  bun link
+  ```
+
+  Now you can run `cm` from anywhere on your system. To unlink:
+
+  ```bash
+  bun unlink codemachine
+  ```
+</Accordion>
+
+---
+
+## Manual Installation
+
+If you prefer not to use a package manager, you can download the binary directly from the [GitHub Releases](https://github.com/moazbuilds/CodeMachine-CLI/releases) page.
+
+<Tabs>
+  <Tab title="Linux/macOS">
+    ```bash
+    # Download the binary for your platform
+    curl -fsSL https://github.com/moazbuilds/CodeMachine-CLI/releases/latest/download/codemachine-linux-x64 -o codemachine
+
+    # Make it executable
+    chmod +x codemachine
+
+    # Move to your PATH
+    sudo mv codemachine /usr/local/bin/
+    ```
+  </Tab>
+  <Tab title="Windows">
+    Download `codemachine-win-x64.exe` from the releases page and add it to your system PATH.
+  </Tab>
+</Tabs>
+
+---
+
+## Uninstallation
+
+<Tabs>
+  <Tab title="npm">
+    ```bash
+    npm uninstall -g codemachine
+    ```
+  </Tab>
+  <Tab title="bun">
+    ```bash
+    bun remove -g codemachine
+    ```
+  </Tab>
+  <Tab title="Manual">
+    ```bash
+    rm /usr/local/bin/codemachine
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+Configuration files are stored in `~/.codemachine/`. Remove this directory to completely clean up. Also remove `./.codemachine` in your project to delete runtime data and reset CodeMachine.
+</Tip>

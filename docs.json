@@ -79,6 +79,7 @@
           {
             "group": "Resources",
             "pages": [
+              "resources/advanced-setup",
               "resources/faq",
               "resources/data-usage",
               "resources/license",
