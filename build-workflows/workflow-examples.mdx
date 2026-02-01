@@ -1,344 +1,618 @@
 ---
 title: "Workflow Examples"
-description: "Real-world workflow examples from simple to complex."
+description: "Complete workflow examples for each orchestration pattern."
 sidebarTitle: "Workflow Examples"
 ---
 
-Learn from complete, production-ready workflow examples ranging from simple sequential flows to complex autonomous systems.
+Learn from complete workflow examples. Each example shows the logical flow and technical implementation for a specific [orchestration pattern](/core-concepts/workflow/orchestration-patterns).
 
 ---
 
-## Simple: API Forge
+## Interactive: Technical Design Review
 
-A straightforward sequential workflow for generating APIs. No tracks or conditions—just a linear progression of agents.
-
-<Accordion title="api-forge.workflow.js" defaultOpen>
-```javascript api-forge.workflow.js
-export default {
-  name: 'API Forge',
-  autonomousMode: 'never',
-
-  steps: [
-    separator('Requirements Gathering'),
-
-    resolveStep('api-architect', {
-      // Interactive - asks clarifying questions
-    }),
-
-    separator('Code Generation'),
-
-    resolveStep('schema-generator', {
-      interactive: false,
-    }),
-
-    resolveStep('endpoint-builder', {
-      interactive: false,
-    }),
-
-    resolveStep('database-migrator', {
-      interactive: false,
-    }),
-
-    separator('Documentation'),
-
-    resolveStep('docs-writer', {
-      interactive: false,
-    }),
-  ],
-};
-```
-</Accordion>
-
-**Key patterns:**
-- Linear step progression with `separator()` for visual organization
-- First step is interactive for requirements gathering
-- Subsequent steps run non-interactively
-- No tracks or conditions needed for simple workflows
-
----
-
-## Intermediate: BMAD Method
-
-A business-driven development workflow with tracks, conditions, controller, and a review loop.
-
-<Accordion title="bmad.workflow.js" defaultOpen>
-```javascript bmad.workflow.js
-export default {
-  name: 'BMAD Method',
-  controller: controller('bmad-po'),
-
-  tracks: {
-    question: 'What is your project size?',
-    options: {
-      medium: {
-        label: 'Medium Project',
-        description: 'Balanced approach for greenfield projects'
-      },
-    },
-  },
-
-  conditionGroups: [
-    {
-      id: 'features',
-      question: 'What features does your project have?',
-      multiSelect: true,
-      conditions: {
-        has_ui: {
-          label: 'Has UI',
-          description: 'Project includes a user interface'
-        },
-      },
-    },
-  ],
-
-  steps: [
-    separator("∴ Planning Phase ∴"),
-    resolveStep('bmad-pm', {}),
-    resolveStep('bmad-ux', { conditions: ['has_ui'] }),
-
-    separator("∴ Solutioning Phase ∴"),
-    resolveStep('bmad-architect', {}),
-    resolveStep('bmad-epics', {}),
-
-    separator("∴ Implementation Phase ∴"),
-    resolveStep('bmad-sprints', {}),
-
-    separator("⟲ Story Loop ⟲"),
-    resolveStep('bmad-stories', { interactive: false }),
-    resolveStep('bmad-dev', { interactive: false }),
-    resolveModule('bmad-review', { interactive: false, loopSteps: 2 }),
-  ],
-};
-```
-</Accordion>
-
-**Key patterns:**
-- Controller for autonomous orchestration
-- Tracks for project size selection
-- Conditions to enable/disable UX designer based on UI requirement
-- Phase separators for clear workflow organization
-- `resolveModule` with `loopSteps: 2` creates a review cycle (loops back to stories → dev → review)
-
----
-
-## Advanced: CodeMachine-One
-
-A fully autonomous development workflow with sub-agents, specification mode, and a complex task loop.
-
-<Accordion title="codemachine-one.workflow.js" defaultOpen>
-```javascript codemachine-one.workflow.js
-export default {
-  name: 'CodeMachine-One Workflow',
-  specification: true,
-  autonomousMode: 'always',
-
-  steps: [
-    resolveStep('init', { interactive: false }),
-    resolveStep('principal-analyst', { interactive: false }),
-
-    separator("∴ Planning Phase ∴"),
-    resolveStep('blueprint-orchestrator', { interactive: false }),
-    resolveStep('plan-agent', { interactive: false }),
-    resolveStep('task-breakdown', { interactive: false }),
-    resolveStep('git-commit', { interactive: false }),
-
-    separator("⟲ Development Cycle ⟲"),
-    resolveStep('context-manager', { interactive: false }),
-    resolveStep('code-generation', { interactive: false }),
-    resolveStep('runtime-prep', { interactive: false }),
-    resolveStep('task-sanity-check', { interactive: false }),
-    resolveStep('git-commit', { interactive: false }),
-
-    separator("◈◈ Iteration Gate ◈◈"),
-    resolveModule('check-task', {
-      loopSteps: 6,
-      loopMaxIterations: 20,
-      loopSkip: ['runtime-prep'],
-      interactive: false
-    }),
-  ],
-
-  subAgentIds: [
-    'founder-architect',
-    'structural-data-architect',
-    'behavior-architect',
-    'ui-ux-architect',
-    'operational-architect',
-    'file-assembler'
-  ],
-};
-```
-</Accordion>
-
-**Key patterns:**
-- `specification: true` requires a spec file at start
-- `autonomousMode: 'always'` runs without manual intervention
-- All steps are non-interactive for fully autonomous execution
-- `blueprint-orchestrator` coordinates sub-agents via MCP
-- `subAgentIds` declares available sub-agents for orchestration
-- Complex loop module:
-  - `loopSteps: 6` goes back through the entire development cycle
-  - `loopMaxIterations: 20` prevents infinite loops
-  - `loopSkip: ['runtime-prep']` skips redundant steps on loop
-
----
-
-## Module Configuration
-
-Modules require configuration in `config/modules.js`. Here are examples from the workflows above:
+You respond at every step. Each agent asks questions, gathers insights, and produces output for the next agent.
 
 <Tabs>
-<Tab title="BMAD Review Module">
-```javascript modules.js
-const path = require('node:path');
-const promptsDir = path.join(__dirname, '..', 'prompts');
+  <Tab title="Logical Flow">
+    <Steps>
+      <Step title="Architect">
+        Asks you about requirements, constraints, and tradeoffs.
 
-module.exports = [
-  {
-    id: 'bmad-review',
-    name: 'Amelia [Dev: Review]',
-    description: 'BMAD Developer for code review',
-    promptPath: [
-      path.join(promptsDir, 'templates', 'bmad', 'shared', 'system-files-protection.md'),
-      path.join(promptsDir, 'templates', 'bmad', '07-dev', 'amelia.md'),
-      path.join(promptsDir, 'templates', 'bmad', '07-dev', '02-code-review', 'instructions.xml'),
-      path.join(promptsDir, 'templates', 'bmad', '07-dev', '02-code-review', 'checklist.md'),
-    ],
-    engine: 'claude',
-    chainedPromptsPath: [
-      path.join(promptsDir, 'templates', 'bmad', '07-dev', '02-code-review', 'next-state.xml'),
-      path.join(promptsDir, 'templates', 'bmad', '07-dev', '02-code-review', 'ensure-loop.xml'),
-    ],
-    behavior: {
-      type: 'loop',
-      action: 'stepBack',
-    },
-  },
-];
-```
-</Tab>
-<Tab title="CodeMachine Task Checker">
-```javascript modules.js
-const path = require('node:path');
-const promptsDir = path.join(__dirname, '..', 'prompts');
+        <Card title="Input" icon="file-import">
+          User Answers + Project context
+        </Card>
+        <Card title="Steps (Chained Prompts)" icon="list-check">
+          Deep-dive analysis through Q&A → User → Complete system architecture design
+        </Card>
+        <Card title="Output" icon="file-export">
+          `architecture.md` = `{architecture}`
+        </Card>
+      </Step>
+      <Step title="User">
+        Review the architecture analysis. Answer follow-up questions.
+      </Step>
+      <Step title="Security Expert">
+        Asks you about security concerns and compliance needs.
 
-module.exports = [
-  {
-    id: 'check-task',
-    name: 'Task Loop Checker',
-    description: 'Validates that all tasks are completed and signals whether to repeat workflow steps.',
-    promptPath: path.join(promptsDir, 'templates', 'codemachine', 'workflows', 'task-verification-workflow.md'),
-    behavior: {
-      type: 'loop',
-      action: 'stepBack',
-    },
-    engine: 'codex'
-  },
-];
-```
-</Tab>
+        <Card title="Input" icon="file-import">
+          `{architecture}`
+        </Card>
+        <Card title="Steps (Chained Prompts)" icon="list-check">
+          Threat modeling and attack surface analysis → User → Security controls and mitigation strategy
+        </Card>
+        <Card title="Output" icon="file-export">
+          `security-review.md` = `{security_review}`
+        </Card>
+      </Step>
+      <Step title="User">
+        Review the security assessment. Answer follow-up questions.
+      </Step>
+      <Step title="Senior Engineer">
+        Asks you about implementation preferences and team constraints.
+
+        <Card title="Input" icon="file-import">
+          `{architecture}` + `{security_review}`
+        </Card>
+        <Card title="Steps (Chained Prompts)" icon="list-check">
+          Feasibility analysis → User → Final design incorporating all feedback
+        </Card>
+        <Card title="Output" icon="file-export">
+          `final-design.md`
+        </Card>
+      </Step>
+      <Step title="User">
+        Review the final design. Confirm everything looks good or request changes.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Technical Implementation">
+    ```javascript technical-design-review.workflow.js
+    export default {
+      name: 'Technical Design Review',
+      autonomousMode: 'never',
+
+      steps: [
+        separator('Architecture'),
+        resolveStep('architect', { interactive: true }),
+
+        separator('Security Review'),
+        resolveStep('security-expert', { interactive: true }),
+
+        separator('Final Design'),
+        resolveStep('senior-engineer', { interactive: true }),
+      ],
+    };
+    ```
+
+    **Key patterns:**
+    - `autonomousMode: 'never'` - User controls every step, can't toggle to auto
+    - `interactive: true` - Each agent waits for user input before proceeding
+
+    <Note>
+      `interactive: true` is the default. If not specified, steps are interactive automatically.
+    </Note>
+  </Tab>
 </Tabs>
 
-<Info>
-  The `behavior.type: 'loop'` and `behavior.action: 'stepBack'` are required for modules to loop back. The `loopSteps` in the workflow definition controls how far back to go.
-</Info>
-
 ---
 
-## Main Agents Configuration
+## Autonomous: Greenfield Project Build
 
-Here's an example `main.agents.js` from CodeMachine-One:
+Controller agent runs agents on your behalf. You brief the controller, then review results instead of managing the process.
 
-<Accordion title="main.agents.js">
-```javascript main.agents.js
-const path = require('node:path');
-const promptsDir = path.join(__dirname, '..', 'prompts', 'templates');
+<Warning>
+  Autonomous mode is in beta. Behavior may change as we refine controller-agent coordination.
+</Warning>
 
-module.exports = [
-  {
-    id: 'init',
-    name: 'Init',
-    description: 'Initializes development environment',
-    promptPath: path.join(promptsDir, 'codemachine', 'main-agents', '00-init.md'),
-    engine: 'codex'
-  },
-  {
-    id: 'principal-analyst',
-    name: 'Analyst Checkpoint',
-    description: 'Reviews specifications and identifies ambiguities',
-    promptPath: path.join(promptsDir, 'codemachine', 'main-agents', '01-principal-analyst.md'),
-    engine: 'codex'
-  },
-  {
-    id: 'blueprint-orchestrator',
-    name: 'Blueprint Orchestrator',
-    description: 'Orchestrates architecture sub-agents',
-    promptPath: path.join(promptsDir, 'codemachine', 'main-agents', '02-blueprint-orchestrator.md'),
-    mcp: [
+<Tabs>
+  <Tab title="Logical Flow">
+    <Steps>
+      <Step title="User → Controller">
+        Brief the controller with your project idea, constraints, goals, and the full workflow structure.
+      </Step>
+      <Step title="PM">
+        Refines requirements and creates product specification.
+
+        <Card title="Input" icon="file-import">
+          Controller's project brief + Constraints
+        </Card>
+        <Card title="Steps (Chained Prompts)" icon="list-check">
+          Requirements gathering → Controller → Product specification
+        </Card>
+        <Card title="Output" icon="file-export">
+          `prd.md` = `{prd}`
+        </Card>
+      </Step>
+      <Step title="Controller">
+        Reviews PRD. Proceeds or adjusts.
+      </Step>
+      <Step title="Architect">
+        Designs system architecture based on requirements.
+
+        <Card title="Input" icon="file-import">
+          `{prd}` + Controller's Instructions
+        </Card>
+        <Card title="Steps (Chained Prompts)" icon="list-check">
+          System design → Controller → Architecture decisions
+        </Card>
+        <Card title="Output" icon="file-export">
+          `architecture.md` = `{architecture}`
+        </Card>
+      </Step>
+      <Step title="Controller">
+        Reviews architecture. Proceeds or adjusts.
+      </Step>
+      <Step title="Developer">
+        Implements the code based on architecture.
+
+        <Card title="Input" icon="file-import">
+          `{prd}` + `{architecture}` + Controller's Instructions
+        </Card>
+        <Card title="Steps (Chained Prompts)" icon="list-check">
+          Implementation → Controller → Code review
+        </Card>
+        <Card title="Output" icon="file-export">
+          `src/*`
+        </Card>
+      </Step>
+      <Step title="Controller">
+        Reviews implementation. Proceeds or adjusts.
+      </Step>
+      <Step title="Tester">
+        Writes tests for the implementation. Examines codebase using tools.
+
+        <Card title="Input" icon="file-import">
+          `{prd}` + `{architecture}`
+        </Card>
+        <Card title="Steps (Chained Prompts)" icon="list-check">
+          Test planning → Controller → Test implementation
+        </Card>
+        <Card title="Output" icon="file-export">
+          `tests/*`
+        </Card>
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Technical Implementation">
+    ```javascript greenfield-project.workflow.js
+    export default {
+      name: 'Greenfield Project Build',
+      controller: controller('project-controller'),
+      autonomousMode: 'always',
+
+      steps: [
+        separator('Requirements'),
+        resolveStep('pm', { interactive: false }),
+
+        separator('Architecture'),
+        resolveStep('architect', { interactive: false }),
+
+        separator('Implementation'),
+        resolveStep('developer', { interactive: false }),
+
+        separator('Testing'),
+        resolveStep('tester', { interactive: false }),
+      ],
+    };
+    ```
+
+    **Key patterns:**
+    - `controller()` - Defines the controller agent that orchestrates the workflow
+    - `autonomousMode: 'always'` - Controller drives everything, user can't toggle to manual
+    - All steps are `interactive: false` - Controller approves transitions, not user
+
+    <Warning>
+      Both controller and step agents must have MCP configured for `workflow-signals`. Step agents propose completion, controller approves or rejects.
+    </Warning>
+
+    **Agent MCP configuration:**
+
+    ```javascript main.agents.js
+    module.exports = [
+      // Controller - Approves/rejects step transitions
       {
-        server: 'agent-coordination',
-        targets: [
-          'founder-architect',
-          'structural-data-architect',
-          'behavior-architect',
-          'operational-architect',
-          'ui-ux-architect'
-        ]
-      }
-    ]
-  },
-  {
-    id: 'code-generation',
-    name: 'Code Generation Agent',
-    description: 'Generates code based on task specifications',
-    promptPath: path.join(promptsDir, 'codemachine', 'main-agents', '06-code-generation-agent.md'),
-    engine: 'codex'
-  },
-];
-```
-</Accordion>
+        id: 'project-controller',
+        name: 'Project Controller',
+        role: 'controller',
+        promptPath: path.join(promptsDir, 'controller', 'main.md'),
+        mcp: [
+          {
+            server: 'workflow-signals',
+            only: ['approve_step_transition', 'get_pending_proposal'],
+          },
+        ],
+      },
+
+      // Step agents - Propose completion
+      {
+        id: 'pm',
+        name: 'Product Manager',
+        promptPath: path.join(promptsDir, 'pm', 'main.md'),
+        mcp: [
+          {
+            server: 'workflow-signals',
+            only: ['propose_step_completion'],
+          },
+        ],
+      },
+
+      // ... other step agents with same MCP config
+    ];
+    ```
+  </Tab>
+</Tabs>
 
 ---
 
-## Comparison Table
+## Continuous: Adding APIs
 
-| Feature | API Forge | BMAD | CodeMachine-One |
-|---------|-----------|------|-----------------|
-| Complexity | Simple | Intermediate | Advanced |
-| Autonomous Mode | `never` | With controller | `always` |
-| Tracks | No | Yes | No |
-| Conditions | No | Yes | No |
-| Modules (Loops) | No | Yes (2 steps) | Yes (6 steps) |
-| Sub-Agents | No | No | Yes (6 agents) |
-| Specification | No | No | Yes |
-| Interactive Steps | Mixed | Mixed | None |
+Auto-advance with zero interaction. You provide a specification file upfront, then agents run to completion.
+
+<Tabs>
+  <Tab title="Logical Flow">
+    <Steps>
+      <Step title="Specification File">
+        Define the APIs you need: endpoints, methods, schemas, validation rules.
+
+        <Note>
+          Workflows with `specification: true` won't start until this file is provided.
+        </Note>
+        <Card title="Input" icon="file-import">
+          `specification.md` = `{specification}`
+        </Card>
+      </Step>
+      <Step title="API Designer">
+        Designs endpoint contracts and schemas from spec.
+
+        <Card title="Input" icon="file-import">
+          `{specification}`
+        </Card>
+        <Card title="Steps (Chained Prompts)" icon="list-check">
+          Parse spec → Design contracts → Generate schemas
+        </Card>
+        <Card title="Output" icon="file-export">
+          `api-design.md` = `{api_design}`
+        </Card>
+      </Step>
+      <Step title="Developer">
+        Implements the API endpoints. Examines codebase using tools.
+
+        <Card title="Input" icon="file-import">
+          `{specification}` + `{api_design}`
+        </Card>
+        <Card title="Steps (Chained Prompts)" icon="list-check">
+          Implement endpoints → Add validation → Wire routes
+        </Card>
+        <Card title="Output" icon="file-export">
+          `src/api/*`
+        </Card>
+      </Step>
+      <Step title="Tester">
+        Writes tests for the API. Examines codebase using tools.
+
+        <Card title="Input" icon="file-import">
+          `{specification}` + `{api_design}`
+        </Card>
+        <Card title="Steps (Chained Prompts)" icon="list-check">
+          Test planning → Write unit tests → Write integration tests
+        </Card>
+        <Card title="Output" icon="file-export">
+          `tests/api/*`
+        </Card>
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Technical Implementation">
+    ```javascript api-forge.workflow.js
+    export default {
+      name: 'API Forge',
+      specification: true,
+      autonomousMode: true,
+
+      steps: [
+        separator('Design'),
+        resolveStep('api-designer', { interactive: false }),
+
+        separator('Implementation'),
+        resolveStep('developer', { interactive: false }),
+
+        separator('Testing'),
+        resolveStep('tester', { interactive: false }),
+      ],
+    };
+    ```
+
+    **Key patterns:**
+    - `specification: true` - Requires a spec file before starting
+    - `autonomousMode: true` - Defaults to auto, but user can toggle to manual with `Shift+Tab`
+    - All steps are `interactive: false` - Auto-advances through all steps
+    - No controller needed - spec file provides all the context
+  </Tab>
+</Tabs>
 
 ---
 
-## When to Use Each Pattern
+## Hybrid: Bug Fix Pipeline
 
-<AccordionGroup>
-<Accordion title="Simple Sequential (like API Forge)">
-Use when:
-- Steps always run in the same order
-- No branching logic needed
-- Single-purpose workflow
-- Getting started with CodeMachine
-</Accordion>
+Mix interactive and auto-advance agents in the same workflow. Key decisions need you, routine steps don't.
 
-<Accordion title="Tracks & Conditions (like BMAD)">
-Use when:
-- Different project types need different paths
-- Optional features that enable/disable steps
-- User choice affects workflow behavior
-- Building flexible, reusable workflows
-</Accordion>
+<Tabs>
+  <Tab title="Logical Flow">
+    <Steps>
+      <Step title="Triage (Interactive)">
+        Asks you about the bug: What's the issue? Which device? Steps to reproduce?
 
-<Accordion title="Autonomous with Sub-Agents (like CodeMachine-One)">
-Use when:
-- Complex tasks requiring specialized sub-agents
-- Fully autonomous execution is desired
-- Iterative development cycles
-- Production-grade development workflows
-</Accordion>
-</AccordionGroup>
+        <Card title="Input" icon="file-import">
+          User Answers
+        </Card>
+        <Card title="Steps (Chained Prompts)" icon="list-check">
+          Gather symptoms → User → Reproduction steps → User → Environment details
+        </Card>
+        <Card title="Output" icon="file-export">
+          `bug-report.md` = `{bug_report}`
+        </Card>
+      </Step>
+      <Step title="User">
+        Review bug report. Confirm details are correct.
+      </Step>
+      <Step title="Reproducer (Auto)">
+        Reproduces the bug with gathered insights. Examines codebase using tools.
+
+        <Card title="Input" icon="file-import">
+          `{bug_report}`
+        </Card>
+        <Card title="Steps (Chained Prompts)" icon="list-check">
+          Set up environment → Reproduce steps → Confirm bug exists
+        </Card>
+        <Card title="Output" icon="file-export">
+          `reproduction.md` = `{reproduction}`
+        </Card>
+      </Step>
+      <Step title="Investigator (Auto)">
+        Finds root cause. Examines codebase using tools.
+
+        <Card title="Input" icon="file-import">
+          `{bug_report}` + `{reproduction}`
+        </Card>
+        <Card title="Steps (Chained Prompts)" icon="list-check">
+          Trace execution → Identify root cause → Document findings
+        </Card>
+        <Card title="Output" icon="file-export">
+          `investigation.md` = `{investigation}`
+        </Card>
+      </Step>
+      <Step title="Discuss & Plan (Interactive)">
+        Discusses findings with you. Plans the fix together.
+
+        <Card title="Input" icon="file-import">
+          `{bug_report}` + `{reproduction}` + `{investigation}`
+        </Card>
+        <Card title="Steps (Chained Prompts)" icon="list-check">
+          Present findings → User → Discuss options → User → Agree on approach
+        </Card>
+        <Card title="Output" icon="file-export">
+          `fix-plan.md` = `{fix_plan}`
+        </Card>
+      </Step>
+      <Step title="User">
+        Review the plan. Approve or request changes.
+      </Step>
+      <Step title="Developer (Auto)">
+        Implements the fix. Examines codebase using tools.
+
+        <Card title="Input" icon="file-import">
+          `{investigation}` + `{fix_plan}`
+        </Card>
+        <Card title="Steps (Chained Prompts)" icon="list-check">
+          Implement fix → Self-review → Refine
+        </Card>
+        <Card title="Output" icon="file-export">
+          `src/*`
+        </Card>
+      </Step>
+      <Step title="Tester (Auto)">
+        Writes tests for the fix. Examines codebase using tools.
+
+        <Card title="Input" icon="file-import">
+          `{bug_report}` + `{fix_plan}`
+        </Card>
+        <Card title="Steps (Chained Prompts)" icon="list-check">
+          Write regression test → Write edge case tests → Verify fix
+        </Card>
+        <Card title="Output" icon="file-export">
+          `tests/*`
+        </Card>
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Technical Implementation">
+    ```javascript bug-fix-pipeline.workflow.js
+    export default {
+      name: 'Bug Fix Pipeline',
+      autonomousMode: true,
+
+      steps: [
+        separator('Triage'),
+        resolveStep('triage'),  // Interactive - gathers bug details
+
+        separator('Investigation'),
+        resolveStep('reproducer', { interactive: false }),
+        resolveStep('investigator', { interactive: false }),
+
+        separator('Planning'),
+        resolveStep('planner'),  // Interactive - discuss fix approach
+
+        separator('Implementation'),
+        resolveStep('developer', { interactive: false }),
+        resolveStep('tester', { interactive: false }),
+      ],
+    };
+    ```
+
+    **Key patterns:**
+    - `autonomousMode: true` - Defaults to auto, but user can toggle to manual with `Shift+Tab`
+    - Mix of interactive and non-interactive steps
+    - Interactive steps: `triage`, `planner` - where decisions matter
+    - Auto steps: `reproducer`, `investigator`, `developer`, `tester` - routine work
+    - User can take control anytime by toggling to manual mode
+  </Tab>
+</Tabs>
+
+---
+
+## Sub-Agents: Blueprint Orchestration
+
+Main agents can delegate specialized tasks to sub-agents. The orchestrator coordinates multiple sub-agents to build a complete solution.
+
+<Tabs>
+  <Tab title="Logical Flow">
+    <Steps>
+      <Step title="Analyst">
+        Analyzes requirements and creates a specification.
+
+        <Card title="Input" icon="file-import">
+          User requirements + Project context
+        </Card>
+        <Card title="Output" icon="file-export">
+          `specification.md` = `{specification}`
+        </Card>
+      </Step>
+      <Step title="Blueprint Orchestrator">
+        Coordinates sub-agents to design the architecture. Runs sub-agents in parallel for different domains.
+
+        <Card title="Input" icon="file-import">
+          `{specification}`
+        </Card>
+        <Card title="Sub-Agents" icon="share-nodes">
+          `data-architect` → Database schema design
+
+          `api-architect` → API contract design
+
+          `ui-architect` → Component structure design
+        </Card>
+        <Card title="Output" icon="file-export">
+          `blueprint.md` = `{blueprint}` (merged from all sub-agents)
+        </Card>
+      </Step>
+      <Step title="Developer">
+        Implements the code based on the blueprint.
+
+        <Card title="Input" icon="file-import">
+          `{specification}` + `{blueprint}`
+        </Card>
+        <Card title="Output" icon="file-export">
+          `src/*`
+        </Card>
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Technical Implementation">
+    **Workflow file:**
+
+    ```javascript blueprint-orchestration.workflow.js
+    export default {
+      name: 'Blueprint Orchestration',
+      autonomousMode: true,
+
+      steps: [
+        separator('Analysis'),
+        resolveStep('analyst', { interactive: true }),
+
+        separator('Architecture'),
+        resolveStep('blueprint-orchestrator', { interactive: false }),
+
+        separator('Implementation'),
+        resolveStep('developer', { interactive: false }),
+      ],
+
+      subAgentIds: [
+        'data-architect',
+        'api-architect',
+        'ui-architect',
+      ],
+    };
+    ```
+
+    <Warning>
+      Both `agent-coordination` MCP on the main agent and `subAgentIds` in the workflow must be configured for sub-agent orchestration to work.
+    </Warning>
+
+    **Main agent with agent-coordination MCP:**
+
+    ```javascript main.agents.js
+    {
+      id: 'blueprint-orchestrator',
+      name: 'Blueprint Orchestrator',
+      description: 'Coordinates architecture sub-agents',
+      promptPath: path.join(promptsDir, 'orchestrator', 'main.md'),
+      mcp: [
+        {
+          server: 'agent-coordination',
+          only: ['run_agents', 'get_agent_status', 'list_available_agents'],
+          targets: ['data-architect', 'api-architect', 'ui-architect'],
+        },
+      ],
+    }
+    ```
+
+    **Sub-agents definition:**
+
+    ```javascript sub.agents.js
+    module.exports = [
+      {
+        id: 'data-architect',
+        name: 'Data Architect',
+        description: 'Designs database schema and data models',
+        mirrorPath: path.join(promptsDir, 'sub-agents', 'data-architect.md'),
+      },
+      {
+        id: 'api-architect',
+        name: 'API Architect',
+        description: 'Designs API contracts and endpoints',
+        mirrorPath: path.join(promptsDir, 'sub-agents', 'api-architect.md'),
+      },
+      {
+        id: 'ui-architect',
+        name: 'UI Architect',
+        description: 'Designs component structure and UI patterns',
+        mirrorPath: path.join(promptsDir, 'sub-agents', 'ui-architect.md'),
+      },
+    ];
+    ```
+
+    **Key patterns:**
+    - `subAgentIds` in workflow - Declares which sub-agents are available
+    - `agent-coordination` MCP - Enables the orchestrator to run sub-agents
+    - `targets` - Restricts which sub-agents can be invoked (security)
+    - `only` - Limits MCP tools available to the agent
+    - Sub-agents run in parallel for faster execution
+  </Tab>
+</Tabs>
+
+---
+
+## Choosing a Pattern
+
+| Pattern | User Involvement | Best For |
+|---------|------------------|----------|
+| **Interactive** | Every step | Tasks needing judgment, exploration, Q&A |
+| **Autonomous** | Brief controller, review results | Long-running tasks, clear objectives |
+| **Continuous** | None (spec upfront) | Repeatable, proven workflows |
+| **Hybrid** | Key decisions only | Most real-world workflows |
+
+<Tip>
+  Most workflows end up being **Hybrid** — you want control where it matters and speed everywhere else.
+</Tip>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Build Your First Workflow" icon="hammer" href="./your-first-workflow">
+    Start building with the basics
+  </Card>
+  <Card title="Advanced Workflows" icon="wand-magic-sparkles" href="./advanced-workflows">
+    Add tracks, conditions, modules, and controllers
+  </Card>
+</CardGroup>

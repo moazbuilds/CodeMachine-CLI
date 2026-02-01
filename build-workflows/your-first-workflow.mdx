@@ -44,7 +44,33 @@ export default {
 };
 ```
 
-That's it - three agents running in sequence. The `resolveStep()` function loads an agent from your `config/main.agents.js`.
+### Name
+
+Names should be short and descriptive. They define the objective of your workflow and help users understand what it accomplishes.
+
+```javascript
+name: 'Code Review Pipeline'
+```
+
+**Example names:**
+- `Code Review Pipeline`
+- `API Generator`
+- `Documentation Writer`
+- `Bug Fixer`
+
+### Steps
+
+Steps are agents set in sequence. The `resolveStep()` function loads an agent from your `config/main.agents.js`.
+
+**Arrangement matters.** Each step receives context from previous steps, so the order determines how information flows through your workflow.
+
+```javascript
+steps: [
+  resolveStep('planner'),    // Runs first
+  resolveStep('developer'),  // Receives planner's output
+  resolveStep('reviewer'),   // Receives both outputs
+],
+```
 
 ---
 

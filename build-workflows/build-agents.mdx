@@ -373,6 +373,45 @@ Main agents can invoke sub-agents using MCP tools or CLI commands.
   Include MCP tools documentation in your main agent's prompt if it needs to call sub-agents.
 </Warning>
 
+### Agent Coordination MCP
+
+Main agents or controllers that orchestrate sub-agents need the `agent-coordination` MCP configured.
+
+```javascript
+{
+  id: 'orchestrator',
+  name: 'Orchestrator',
+  description: 'Coordinates sub-agents for specialized tasks',
+  promptPath: path.join(promptsDir, 'orchestrator', 'main.md'),
+  mcp: [
+    {
+      server: 'agent-coordination',
+      only: ['run_agents', 'get_agent_status'],  // Limit available tools
+      targets: ['code-generator', 'test-runner', 'doc-writer'],  // Allowed sub-agents
+    },
+  ],
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `server` | Must be `'agent-coordination'` |
+| `only` | Limit which MCP tools the agent can use |
+| `targets` | Restrict which sub-agents can be invoked |
+
+**Available tools:**
+
+| Tool | Description |
+|------|-------------|
+| `list_available_agents` | Discover available sub-agents |
+| `run_agents` | Execute sub-agent scripts |
+| `get_agent_status` | Check execution status |
+| `list_active_agents` | See currently running agents |
+
+<Card title="See Sub-Agent Example" icon="book-open" href="/build-workflows/workflow-examples#sub-agents-blueprint-orchestration">
+  View a complete workflow using sub-agents with agent-coordination MCP
+</Card>
+
 ---
 
 ## Controllers
@@ -422,9 +461,62 @@ export default {
 | `true` | Same as 'always' |
 | `false` | Same as 'never' |
 
-<Info>
-  Controllers require a signals MCP to communicate with agents. The controller sees agent outputs and decides whether to approve, request changes, or move forward.
-</Info>
+### Workflow Signals MCP
+
+Controllers and step agents communicate through the `workflow-signals` MCP. Step agents propose completion, and the controller approves or rejects.
+
+<Tabs>
+  <Tab title="Controller Agent" icon="gamepad">
+    The controller approves or rejects step transitions.
+
+    ```javascript
+    {
+      id: 'project-controller',
+      name: 'Project Controller',
+      description: 'Orchestrates workflow and approves transitions',
+      role: 'controller',
+      promptPath: path.join(promptsDir, 'controller', 'main.md'),
+      mcp: [
+        {
+          server: 'workflow-signals',
+          only: ['approve_step_transition', 'get_pending_proposal'],
+        },
+      ],
+    }
+    ```
+
+    | Tool | Description |
+    |------|-------------|
+    | `approve_step_transition` | Accept or reject a step's completion proposal |
+    | `get_pending_proposal` | Read the current pending proposal from a step |
+  </Tab>
+  <Tab title="Step Agents" icon="list-ol">
+    Step agents propose when they're done.
+
+    ```javascript
+    {
+      id: 'pm',
+      name: 'Product Manager',
+      description: 'Creates product requirements',
+      promptPath: path.join(promptsDir, 'pm', 'main.md'),
+      mcp: [
+        {
+          server: 'workflow-signals',
+          only: ['propose_step_completion'],
+        },
+      ],
+    }
+    ```
+
+    | Tool | Description |
+    |------|-------------|
+    | `propose_step_completion` | Signal that the step is ready for review |
+  </Tab>
+</Tabs>
+
+<Warning>
+  Both controller and all step agents must have `workflow-signals` MCP configured for autonomous mode to work. Without it, the controller can't approve transitions.
+</Warning>
 
 ---
 

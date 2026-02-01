@@ -19,6 +19,7 @@ Every workflow has:
 
 Optionally, workflows can also include:
 
+- <Icon icon="minus" /> **[Separators](#separators)** - Visual dividers between workflow phases
 - <Icon icon="code-branch" /> **[Tracks](#tracks)** - Different workflow paths users can choose from
 - <Icon icon="toggle-on" /> **[Condition Groups](#condition-groups)** - Questions to customize which steps run
 - <Icon icon="share-nodes" /> **[Sub-agents](#sub-agents)** - Additional agents the workflow can use
@@ -73,8 +74,8 @@ The workflow name defines the objective of the overall workflow. It's what users
 
 A clear name helps users understand what the workflow will accomplish before they start.
 
-<Card title="See Names in Action" icon="arrow-right" href="/build-workflows/workflow-examples">
-  View real workflow examples with descriptive names
+<Card title="Define Your Workflow Name" icon="arrow-right" href="/build-workflows/your-first-workflow#name">
+  See how to name your workflow
 </Card>
 
 ### Steps
@@ -87,8 +88,20 @@ Every workflow requires at least one step. Each step runs an agent that performs
   Think of steps like an assembly line. Each station (agent) does its job and hands off to the next. The order determines the flow of work and context.
 </Tip>
 
-<Card title="See Steps in Action" icon="arrow-right" href="/build-workflows/workflow-examples">
-  View real workflow examples with step sequences
+<Card title="Configure Your Steps" icon="arrow-right" href="/build-workflows/your-first-workflow#steps">
+  Learn how to set up workflow steps
+</Card>
+
+### Separators
+
+Separators are visual dividers that organize your workflow into phases. They appear in the TUI timeline to help users understand workflow progress.
+
+<Tip>
+  Use separators to group related steps together, like "Analysis Phase", "Implementation Phase", and "Review Phase".
+</Tip>
+
+<Card title="Add Separators" icon="arrow-right" href="/build-workflows/your-first-workflow#adding-separators">
+  Learn how to add visual dividers to your workflow
 </Card>
 
 ### Tracks
@@ -103,8 +116,8 @@ A track is a workflow variant, a path that determines which version of the workf
   Think of tracks like choosing between "Quick", "Standard", or "Enterprise" versions of the same workflow. Selecting "Quick" runs only the steps meant for that simpler path.
 </Tip>
 
-<Card title="See Tracks in Action" icon="arrow-right" href="/workflow-examples#tracks">
-  View real workflow examples using tracks
+<Card title="Configure Tracks" icon="arrow-right" href="/build-workflows/advanced-workflows#tracks">
+  Learn how to set up workflow tracks
 </Card>
 
 ### Condition Groups
@@ -119,8 +132,8 @@ Conditions are feature flags, options that control which steps run based on what
   Imagine conditions like "Include UI", "Include API", or "Include Database". A step tagged with "Include UI" only runs if the user selected that option.
 </Tip>
 
-<Card title="See Conditions in Action" icon="arrow-right" href="/workflow-examples#conditions">
-  View real workflow examples using conditions
+<Card title="Configure Condition Groups" icon="arrow-right" href="/build-workflows/advanced-workflows#condition-groups">
+  Learn how to set up workflow conditions
 </Card>
 
 ### Sub-Agents
@@ -138,8 +151,8 @@ Think of it like a manager delegating work to team members with different expert
   Sub-agents let you break complex work into specialized roles. Each sub-agent focuses on what it does best.
 </Tip>
 
-<Card title="See Sub-Agents in Action" icon="arrow-right" href="/workflow-examples#sub-agents">
-  View real workflow examples using sub-agents
+<Card title="Configure Sub-Agents" icon="arrow-right" href="/build-workflows/advanced-workflows#sub-agents">
+  Learn how to set up workflow sub-agents
 </Card>
 
 ### Controller
@@ -159,8 +172,8 @@ It's like a project intake meeting: the controller asks questions, gathers requi
   Controllers let you have a planning conversation before any automated work begins. The controller remembers the conversation, so it can be resumed later.
 </Tip>
 
-<Card title="See Controllers in Action" icon="arrow-right" href="/workflow-examples#controller">
-  View real workflow examples using controllers
+<Card title="Configure Controllers" icon="arrow-right" href="/build-workflows/advanced-workflows#controllers">
+  Learn how to set up workflow controllers
 </Card>
 
 ### Modules
@@ -189,8 +202,8 @@ You can set a workflow to never start without a spec, ensuring the agents always
   Specs keep everyone (and every agent) on the same page. No guessing what needs to be built.
 </Tip>
 
-<Card title="See Specifications in Action" icon="arrow-right" href="/workflow-examples#specification">
-  View real workflow examples using specifications
+<Card title="Configure Specification Mode" icon="arrow-right" href="/build-workflows/advanced-workflows#specification-mode">
+  Learn how to require specifications
 </Card>
 
 ### Autonomous Mode
@@ -205,8 +218,8 @@ Autonomous mode controls who drives the workflow: you or the system.
   Choose based on how much oversight you need. Critical workflows might need human control. Routine tasks can run on autopilot.
 </Tip>
 
-<Card title="See Autonomous Mode in Action" icon="arrow-right" href="/workflow-examples#autonomous-mode">
-  View real workflow examples using autonomous mode
+<Card title="Configure Autonomous Mode" icon="arrow-right" href="/build-workflows/advanced-workflows#autonomous-mode">
+  Learn how to set up autonomous mode
 </Card>
 
 ---

@@ -303,11 +303,60 @@ export default {
 };
 ```
 
-The controller agent needs access to workflow signals via MCP to approve transitions.
-
 <Warning>
   Controllers are in beta. The workflow can still run without a controller in manual mode.
 </Warning>
+
+### Workflow Signals MCP
+
+Controllers and step agents communicate through the `workflow-signals` MCP. **Both must be configured** for autonomous mode to work.
+
+<Tabs>
+  <Tab title="Controller Agent">
+    The controller approves or rejects step transitions.
+
+    ```javascript main.agents.js
+    {
+      id: 'my-controller-agent',
+      name: 'Project Controller',
+      role: 'controller',
+      promptPath: path.join(promptsDir, 'controller', 'main.md'),
+      mcp: [
+        {
+          server: 'workflow-signals',
+          only: ['approve_step_transition', 'get_pending_proposal'],
+        },
+      ],
+    }
+    ```
+  </Tab>
+  <Tab title="Step Agents">
+    Step agents propose when they're done.
+
+    ```javascript main.agents.js
+    {
+      id: 'developer',
+      name: 'Developer',
+      promptPath: path.join(promptsDir, 'developer', 'main.md'),
+      mcp: [
+        {
+          server: 'workflow-signals',
+          only: ['propose_step_completion'],
+        },
+      ],
+    }
+    ```
+  </Tab>
+</Tabs>
+
+| Agent Type | MCP Tools |
+|------------|-----------|
+| Controller | `approve_step_transition`, `get_pending_proposal` |
+| Step Agents | `propose_step_completion` |
+
+<Card title="See Autonomous Example" icon="book-open" href="./workflow-examples#autonomous-greenfield-project-build">
+  View a complete autonomous workflow with controller and step agents
+</Card>
 
 ---
 
@@ -315,51 +364,84 @@ The controller agent needs access to workflow signals via MCP to approve transit
 
 Control how the workflow runs:
 
-| Value | Behavior |
-|-------|----------|
-| `'never'` | Always manual - user controls each step |
-| `'always'` | Always autonomous - controller drives everything |
-| `true` | Same as `'always'` |
-| `false` | Same as `'never'` |
+| Value | Behavior | Toggle |
+|-------|----------|--------|
+| `'never'` | Always manual - user controls each step | Locked - can't switch to auto |
+| `'always'` | Always autonomous - controller drives everything | Locked - can't switch to manual |
+| `true` | Defaults to autonomous mode | User can toggle to manual with `Shift+Tab` |
+| `false` | Defaults to manual mode | User can toggle to auto with `Shift+Tab` |
 
 ```javascript
 export default {
   name: 'My Workflow',
-  autonomousMode: 'never',
+  autonomousMode: true,  // Defaults to auto, user can toggle
   // ...
 };
 ```
 
 <Tip>
-  Users can toggle autonomous mode during workflow execution with `Shift+Tab`.
+  Use `true` or `false` for most workflows - this gives users flexibility to switch modes. Use `'always'` or `'never'` only when you want to lock the mode.
 </Tip>
 
 ---
 
 ## Sub-Agents
 
-Define sub-agents that can be invoked by main agents through MCP:
+Sub-agents are helper agents that main agents can invoke for specialized tasks. **Both the workflow and main agent must be configured.**
 
-```javascript
+### Workflow Configuration
+
+Declare available sub-agents in your workflow file:
+
+```javascript example.workflow.js
 export default {
   name: 'My Workflow',
   steps: [
-    resolveStep('orchestrator', {
-      mcp: [{
-        server: 'agent-coordination',
-        targets: ['sub-agent-1', 'sub-agent-2']
-      }]
-    }),
+    resolveStep('orchestrator', { interactive: false }),
   ],
   subAgentIds: [
-    'sub-agent-1',
-    'sub-agent-2',
-    'sub-agent-3',
+    'code-generator',
+    'test-runner',
+    'doc-writer',
   ],
 };
 ```
 
-Sub-agents are defined in `config/sub.agents.js` and can be called by orchestrator agents.
+### Agent Coordination MCP
+
+The main agent that orchestrates sub-agents needs the `agent-coordination` MCP:
+
+```javascript main.agents.js
+{
+  id: 'orchestrator',
+  name: 'Orchestrator',
+  description: 'Coordinates sub-agents for specialized tasks',
+  promptPath: path.join(promptsDir, 'orchestrator', 'main.md'),
+  mcp: [
+    {
+      server: 'agent-coordination',
+      only: ['run_agents', 'get_agent_status', 'list_available_agents'],
+      targets: ['code-generator', 'test-runner', 'doc-writer'],
+    },
+  ],
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `server` | Must be `'agent-coordination'` |
+| `only` | Limit which MCP tools the agent can use |
+| `targets` | Restrict which sub-agents can be invoked |
+
+<Warning>
+  Both `subAgentIds` in the workflow and `agent-coordination` MCP on the main agent must be configured for sub-agent orchestration to work.
+</Warning>
+
+Sub-agents are defined in `config/sub.agents.js`.
+
+<Card title="See Sub-Agent Example" icon="book-open" href="./workflow-examples#sub-agents-blueprint-orchestration">
+  View a complete workflow using sub-agents
+</Card>
 
 ---
 
