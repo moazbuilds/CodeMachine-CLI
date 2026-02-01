@@ -1,0 +1,176 @@
+---
+title: "Workflow Library"
+description: "Browse and discover workflows for CodeMachine"
+---
+
+Explore workflows available for CodeMachine. Each workflow provides specialized agents, prompts, and orchestration patterns for different use cases.
+
+---
+
+## Available Workflows
+
+<CardGroup cols={3}>
+  <Card title="Ali Workflow Builder" icon="wand-magic-sparkles" href="#ali-workflow-builder">
+    Built-in workflow for creating your own workflows
+  </Card>
+  <Card title="CodeMachine One" icon="rocket" href="#codemachine-one">
+    The first community CodeMachine workflow
+  </Card>
+  <Card title="BMAD Method" icon="users" href="#bmad-method">
+    AI-driven agile development framework
+  </Card>
+</CardGroup>
+
+---
+
+## Ali Workflow Builder
+
+<Badge color="green">Built-in</Badge> <Badge color="blue">Stable</Badge>
+
+Ali is the built-in workflow that helps you create your own CodeMachine workflows. It guides you through defining agents, prompts, tracks, conditions, and workflow configuration.
+
+### When to Use
+
+- Building a new workflow from scratch
+- Modifying or updating an existing workflow
+- Learning how CodeMachine workflows work
+- Getting help with workflow development
+
+### Modes
+
+<Tabs>
+  <Tab title="Expert Mode">
+    A guided 5-step process for complex or custom workflows:
+
+    <Steps>
+      <Step title="Brainstorming">
+        Optional creative exploration and idea generation for your workflow concept.
+      </Step>
+      <Step title="Workflow Definition">
+        Define workflow name, tracks, conditions, and autonomous mode.
+      </Step>
+      <Step title="Agents">
+        Configure main agents, sub-agents, modules, and controller.
+      </Step>
+      <Step title="Prompts">
+        Create and configure agent prompts and placeholders.
+      </Step>
+      <Step title="Workflow Generation">
+        Generate final workflow files and validate configuration.
+      </Step>
+    </Steps>
+
+    You can also select specific phases to focus on instead of the full workflow.
+  </Tab>
+  <Tab title="Quick Mode">
+    One-step build with all requirements gathered upfront. Best when you prioritize speed over customization.
+  </Tab>
+</Tabs>
+
+### Actions
+
+Ali can help you with three main actions:
+
+| Action | Description |
+|--------|-------------|
+| **Create Workflow** | Build a new workflow from scratch |
+| **Modify Workflow** | Edit or update an existing workflow |
+| **Have Questions** | Ask questions about workflows or get help |
+
+### Usage
+
+Ali is built into CodeMachine and available by default. Select it from the workflow menu when you run `codemachine`.
+
+---
+
+## External Workflows
+
+External workflows are community-created packages that extend CodeMachine with new capabilities. Import them using the `import` command.
+
+<Warning>
+  External workflows are experimental and may not be stable. They are separate projects from the CodeMachine orchestration platform.
+</Warning>
+
+For detailed import instructions, see [Import Workflows](/build-workflows/import-workflows).
+
+---
+
+## CodeMachine One
+
+<Badge color="yellow">External</Badge> <Badge color="orange">Experimental</Badge>
+
+The first community workflow built for CodeMachine. This workflow serves as a reference implementation and starting point for workflow developers.
+
+### When to Use
+
+- Exploring how external workflows are structured
+- Learning workflow development patterns
+- Starting point for your own workflow modifications
+
+### Import
+
+<Tabs>
+  <Tab title="CLI">
+    ```bash
+    codemachine import moazbuilds/codemachine-one-codemachine
+    ```
+  </Tab>
+  <Tab title="TUI">
+    ```
+    /import moazbuilds/codemachine-one-codemachine
+    ```
+  </Tab>
+</Tabs>
+
+### Repository
+
+[github.com/moazbuilds/codemachine-one-codemachine](https://github.com/moazbuilds/codemachine-one-codemachine)
+
+---
+
+## BMAD Method
+
+<Badge color="yellow">External</Badge> <Badge color="orange">Experimental</Badge>
+
+A partial adaptation of the BMAD Method for CodeMachine. The original BMAD is an AI-driven agile development framework featuring 21 specialized agents, 50+ guided workflows, and scale-adaptive intelligence—this workflow includes a subset of those capabilities.
+
+### About BMAD
+
+The BMAD Method was created by **BMad Code, LLC** and is designed as a collaborative AI partner that guides developers through structured processes. It uses expert agents (PM, Architect, Developer, UX specialist, Scrum Master, etc.) to enhance human thinking rather than replace it.
+
+### When to Use
+
+- Agile software development projects
+- Projects requiring structured planning and architecture
+- Teams wanting AI-assisted project management
+- Enterprise system development
+
+### Import
+
+<Tabs>
+  <Tab title="CLI">
+    ```bash
+    codemachine import moazbuilds/bmad-codemachine
+    ```
+  </Tab>
+  <Tab title="TUI">
+    ```
+    /import moazbuilds/bmad-codemachine
+    ```
+  </Tab>
+</Tabs>
+
+### Repositories
+
+- CodeMachine Workflow: [github.com/moazbuilds/bmad-codemachine](https://github.com/moazbuilds/bmad-codemachine)
+- Original BMAD Method: [github.com/bmad-code-org/BMAD-METHOD](https://github.com/bmad-code-org/BMAD-METHOD)
+
+<Info>
+  We respect the original author's license (MIT). This workflow adaptation is experimental and we are in contact with the BMAD team. This workflow may be removed upon author request.
+</Info>
+
+---
+
+## Contributing Workflows
+
+Want to share your workflow with the community? See [Publish Workflow](/build-workflows/publish-workflow) for instructions on packaging and publishing your workflows, and [join our Discord](https://discord.com/invite/vS3A5UDNSq) to connect with us.

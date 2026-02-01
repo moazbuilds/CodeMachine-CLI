@@ -136,7 +136,7 @@ flowchart LR
 
 Modules are special agents that can loop the workflow back. Their prompts must include **directive writing instructions**.
 
-```markdown prompts/templates/my-workflow/quality-gate/prompt.md
+````md prompts/templates/my-workflow/quality-gate/prompt.md
 ---
 name: "Quality Gate"
 description: "Validates work and decides whether to loop or continue"
@@ -188,63 +188,50 @@ Validate the developer's work against quality standards. Decide whether to:
 ```
 
 **If validation PASSES**, no action is needed. The workflow continues to the next step by default.
-```
-
-<Warning>
-  Module prompts **must** include directive writing instructions. Without the directive file, the workflow cannot proceed.
-</Warning>
+````
 
 ---
 
 ## Sub-Agent Prompts
 
-Sub-agents are helpers that main agents can invoke. Static sub-agents have pre-defined prompts (mirror files).
+When writing prompts for agents that orchestrate sub-agents, you must include instructions for using MCP tools to spawn and delegate work.
 
-```markdown prompts/templates/my-workflow/sub-agents/test-writer.md
----
-name: "Test Writer"
-description: "Writes unit tests for given code"
-parent: "developer"
-type: "sub-agent"
----
+```md prompts/templates/my-workflow/orchestrator/main.md
+# Blueprint Orchestrator
 
-# Test Writer
+## ROLE
 
-## PERSONA
+You are the blueprint orchestrator. You coordinate specialized sub-agents to design the architecture.
 
-You are a testing specialist who writes comprehensive unit tests.
+## MCP TOOLS
 
-## EXPECTED INPUT
+You have access to the `agent-coordination` MCP server with these tools:
 
-Source code files that need test coverage.
+- `list_available_agents` - Discover available sub-agents
+- `run_agents` - Execute sub-agent scripts
+- `get_agent_status` - Check execution status
 
 ## INSTRUCTIONS
 
-- Analyze the code structure
-- Identify testable functions and edge cases
-- Write tests using the project's testing framework
-- Ensure good coverage of happy paths and error cases
+1. Use `list_available_agents` to see available sub-agents
+2. Delegate tasks using `run_agents` with specific instructions for each sub-agent
+3. Monitor progress with `get_agent_status`
+4. Merge outputs into a unified blueprint
 
-## EXPECTED OUTPUT
+## AVAILABLE SUB-AGENTS
 
-Test files written to the appropriate `__tests__` or `test/` directory.
-
-## SUCCESS INDICATORS
-
-- Tests cover all public functions
-- Edge cases are tested
-- Tests are readable and maintainable
-
-## FAILURE INDICATORS
-
-- Missing test coverage
-- Tests that don't actually test anything
-- Brittle tests that break easily
+- `data-architect` - Database schema design
+- `api-architect` - API contract design
+- `ui-architect` - Component structure design
 ```
 
 <Note>
-  Dynamic sub-agents don't have pre-defined prompts. The parent agent generates their prompt at runtime in `.codemachine/agents/`.
+  Your prompt must instruct the agent to use the `agent-coordination` MCP tools to spawn sub-agents and delegate specific roles to them.
 </Note>
+
+<Card title="Configure Agent Coordination MCP" icon="arrow-right" href="/build-workflows/build-agents#agent-coordination">
+  Learn how to set up the agent-coordination MCP for sub-agent orchestration
+</Card>
 
 ---
 

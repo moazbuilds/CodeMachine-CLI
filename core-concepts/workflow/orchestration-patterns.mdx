@@ -35,7 +35,7 @@ You respond at every step. Each agent asks questions, gathers insights, and prod
   - Multiple perspectives improve the outcome
 </Accordion>
 
-<Card title="See Interactive Example" icon="book-open" href="/build-workflows/workflow-examples#interactive-technical-design-review">
+<Card title="See Interactive Example" icon="book-open" href="/build-workflows/workflow-examples#interactive:-technical-design-review">
   View a complete interactive workflow with logical flow and technical implementation
 </Card>
 
@@ -72,7 +72,7 @@ Both controller and step agents see input prefixes: `{USER (username):}` or `{ag
   Both step agents and controller agent must be configured to use the signals MCP. Step agents propose proceeding to the next step, and the controller accepts or rejects. This replaces user interaction.
 </Note>
 
-<Card title="See Autonomous Example" icon="book-open" href="/build-workflows/workflow-examples#autonomous-greenfield-project-build">
+<Card title="See Autonomous Example" icon="book-open" href="/build-workflows/workflow-examples#autonomous:-greenfield-project-build">
   View a complete autonomous workflow with logical flow and technical implementation
 </Card>
 
@@ -90,7 +90,7 @@ You provide a specification file upfront. Agents iterate on it following a well-
   - Same objective, different inputs each time
 </Accordion>
 
-<Card title="See Continuous Example" icon="book-open" href="/build-workflows/workflow-examples#continuous-adding-apis">
+<Card title="See Continuous Example" icon="book-open" href="/build-workflows/workflow-examples#continuous:-adding-apis">
   View a complete continuous workflow with logical flow and technical implementation
 </Card>
 
@@ -110,7 +110,7 @@ This is possible because interactivity is set at the agent level, not the workfl
   - Most workflows fit this pattern
 </Accordion>
 
-<Card title="See Hybrid Example" icon="book-open" href="/build-workflows/workflow-examples#hybrid-bug-fix-pipeline">
+<Card title="See Hybrid Example" icon="book-open" href="/build-workflows/workflow-examples#hybrid:-bug-fix-pipeline">
   View a complete hybrid workflow with logical flow and technical implementation
 </Card>
 
@@ -149,6 +149,11 @@ This is possible because interactivity is set at the agent level, not the workfl
 
 ## Next Steps
 
-<Card title="Workflow Controls" icon="sliders" href="./controls">
-  Learn how to control execution at runtime
-</Card>
+<CardGroup cols={2}>
+  <Card title="Workflow Controls" icon="sliders" href="./controls">
+    Learn how to control execution at runtime
+  </Card>
+  <Card title="Agent Basics" icon="users" href="../agent-basics">
+    Understand multi-agent orchestration
+  </Card>
+</CardGroup>

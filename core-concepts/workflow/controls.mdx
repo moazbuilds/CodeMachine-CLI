@@ -26,7 +26,7 @@ Signals are user-initiated events that interrupt or redirect workflow execution.
 </AccordionGroup>
 
 <Tip>
-  Want to know the keyboard shortcuts for signals? [Check the shortcuts reference →](#)
+  Want to know the keyboard shortcuts for signals? [Check the shortcuts reference →](/reference/interactive-mode#keyboard-shortcuts)
 </Tip>
 
 <Note>
@@ -64,9 +64,9 @@ You can switch modes at any time during execution.
 
 The actual behavior depends on three factors:
 
-- **Mode** — Manual or Auto
-- **Paused** — Whether you've paused execution
-- **Agent Interactivity** — Whether the agent is configured to wait for input
+- **Mode** - Manual or [Auto](/build-workflows/advanced-workflows#autonomous-mode)
+- **Paused** - Whether you've paused execution
+- **[Agent Interactivity](/build-workflows/your-first-workflow#interactive-vs-non-interactive-steps)** - Whether the agent is configured to wait for input
 
 | Auto Mode | Paused | Agent Interactive | Who Drives |
 |-----------|--------|-------------------|------------|
@@ -112,6 +112,10 @@ Workflows move through defined states during execution. State determines what ac
 | <Badge color="green">completed</Badge> | All steps finished successfully |
 | <Badge color="gray">stopped</Badge> | User exited the workflow view |
 | <Badge color="red">error</Badge> | Agent directive stopped the workflow or a fatal error occurred |
+
+<Tip>
+  Want to see how states look in the TUI? Check the [Agent Status Icons](/reference/interactive-mode#agent-status-icons).
+</Tip>
 
 ### How State Changes
 
@@ -206,17 +210,20 @@ Both influence workflow execution, but they serve different purposes:
   </Card>
 </Columns>
 
-Signals let you take control. Directives let agents request what should happen next.
+Signals let you take control. [Directives](/core-concepts/agent-basics#directives) let agents request what should happen next.
 
 ---
 
 ## Next Steps
 
-<CardGroup cols={2}>
-  <Card title="Building Your First Workflow" icon="hammer" href="#">
-    Create a custom workflow from scratch.
+<CardGroup cols={3}>
+  <Card title="Agent Basics" icon="users" href="/core-concepts/agent-basics">
+    Understand multi-agent orchestration
   </Card>
-  <Card title="Keyboard Shortcuts" icon="keyboard" href="#">
-    All available shortcuts reference.
+  <Card title="Package Structure" icon="folder-tree" href="/build-workflows/package-structure">
+    Create a custom workflow from scratch
+  </Card>
+  <Card title="Keyboard Shortcuts" icon="keyboard" href="/reference/interactive-mode#keyboard-shortcuts">
+    All available shortcuts reference
   </Card>
 </CardGroup>

@@ -14,11 +14,11 @@ One agent equals one engine session with a unique ID. Each agent has its own eng
 
 Every agent consists of:
 
-- <Icon icon="message" /> **Prompts** - The instructions sent to the agent
-- <Icon icon="microchip" /> **Engine** - The AI coding CLI that powers the agent
-- <Icon icon="brain" /> **Model** - The AI model the engine uses
-- <Icon icon="hand" /> **Interactivity** - Whether the agent waits for input or runs automatically
-- <Icon icon="plug" /> **MCP** - External tools and integrations available to the agent
+- <Icon icon="message" /> **[Prompts](#prompts)** - The instructions sent to the agent
+- <Icon icon="microchip" /> **[Engine](#engines)** - The AI coding CLI that powers the agent
+- <Icon icon="brain" /> **[Model](#engines)** - The AI model the engine uses
+- <Icon icon="hand" /> **[Interactivity](#interactivity)** - Whether the agent waits for input or runs automatically
+- <Icon icon="plug" /> **[MCP](#mcp)** - External tools and integrations available to the agent
 
 ---
 
@@ -53,8 +53,8 @@ Use for standard workflow steps that run once and pass output forward.
   - Most workflow steps
 </Accordion>
 
-<Card title="See Main Agents in Action" icon="arrow-right" href="/build-workflows/workflow-examples">
-  View real workflow examples using main agents
+<Card title="Configure Main Agents" icon="arrow-right" href="/build-workflows/build-agents#main-agents">
+  Learn how to set up main agents
 </Card>
 
 ### Module
@@ -67,8 +67,8 @@ Use when a step needs to loop back based on results.
   - Quality gates that may require rework
 </Accordion>
 
-<Card title="See Modules in Action" icon="arrow-right" href="/build-workflows/workflow-examples#modules">
-  View real workflow examples using modules
+<Card title="Configure Modules" icon="arrow-right" href="/build-workflows/build-agents#modules">
+  Learn how to set up modules
 </Card>
 
 ### Sub-agent
@@ -85,8 +85,8 @@ Use to break complex work into delegated tasks within a single step.
   Sub-agents are not steps. They are a context management tool for delegating work between agents.
 </Note>
 
-<Card title="See Sub-agents in Action" icon="arrow-right" href="/build-workflows/workflow-examples#sub-agents">
-  View real workflow examples using sub-agents
+<Card title="Configure Sub-agents" icon="arrow-right" href="/build-workflows/build-agents#sub-agents">
+  Learn how to set up sub-agents
 </Card>
 
 ### Controller
@@ -99,8 +99,8 @@ Use for autonomous workflows where you want an agent to make decisions between s
   - Complex multi-step operations with clear objectives
 </Accordion>
 
-<Card title="See Controllers in Action" icon="arrow-right" href="/build-workflows/workflow-examples#controller">
-  View real workflow examples using controllers
+<Card title="Configure Controllers" icon="arrow-right" href="/build-workflows/build-agents#controllers">
+  Learn how to set up controllers
 </Card>
 
 ---
@@ -153,7 +153,7 @@ Interactivity determines whether an agent waits for input or proceeds automatica
   This is how hybrid workflows work - some agents wait for you, others run automatically.
 </Info>
 
-<Card title="Configure Interactivity" icon="arrow-right" href="/build-workflows/build-agents#interactivity">
+<Card title="Configure Interactivity" icon="arrow-right" href="/build-workflows/your-first-workflow#interactive-vs-non-interactive-steps">
   Learn how to set interactive or non-interactive mode per agent
 </Card>
 
@@ -173,7 +173,7 @@ MCP (Model Context Protocol) servers extend agent capabilities with additional t
   The signals MCP is required for autonomous workflows where agents need to communicate with the controller. It's also required when using sub-agents, since agent coordination works through MCP.
 </Note>
 
-<Card title="Configure MCP" icon="arrow-right" href="/build-workflows/build-agents#mcp">
+<Card title="Configure MCP" icon="arrow-right" href="/build-workflows/build-agents#built-in-mcp-servers">
   Learn how to add MCP servers to your agents
 </Card>
 
@@ -198,7 +198,7 @@ Multiple prompts injected into the same agent session, one after another. Instea
   Same agent, same session. Prompts run in sequence. Common in interactive Q&A workflows.
 </Info>
 
-<Card title="Configure Chained Prompts" icon="arrow-right" href="/build-workflows/write-prompts#chained-prompts">
+<Card title="Configure Chained Prompts" icon="arrow-right" href="/build-workflows/write-prompts">
   Learn how to set up sequential prompts for an agent
 </Card>
 
@@ -234,7 +234,7 @@ Directives allow agents to control the workflow by writing to a JSON file. The w
   Directives come from agents. Signals come from users. Both control execution, but from different sources.
 </Note>
 
-<Card title="Configure Directives" icon="arrow-right" href="/build-workflows/write-prompts#directives">
+<Card title="Configure Directives" icon="arrow-right" href="/build-workflows/write-prompts#module-prompts">
   Learn how to enable agents to control workflow execution
 </Card>
 
@@ -243,10 +243,10 @@ Directives allow agents to control the workflow by writing to a JSON file. The w
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Workflow Basics" icon="route" href="./workflow/definition">
-    Learn how workflows orchestrate agents
+  <Card title="Your First Workflow" icon="rocket" href="/build-workflows/your-first-workflow">
+    Build a complete workflow from scratch
   </Card>
-  <Card title="Workflow Patterns" icon="shuffle" href="./workflow/patterns">
-    See how agents work together in different patterns
+  <Card title="Build Agents" icon="robot" href="/build-workflows/build-agents">
+    Configure agents for your workflow
   </Card>
 </CardGroup>
