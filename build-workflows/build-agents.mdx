@@ -4,6 +4,8 @@ description: "Configure main agents, sub-agents, modules, and controllers for yo
 sidebarTitle: "Build Agents"
 ---
 
+This is the first step to create a workflow: defining **who**. Agents are the actors that execute each step of your workflow.
+
 Agents are configured in JavaScript files inside the `config/` folder. Each agent type has its own configuration file.
 
 | File | Agent Type | Purpose |
@@ -47,10 +49,12 @@ module.exports = [
 | `description` | Yes | Brief description of what the agent does |
 | `promptPath` | Yes | Path or array of paths to prompt files |
 | `chainedPromptsPath` | No | Array of chained prompt paths (multi-step agents) |
+| `role` | No | Set to `'controller'` for controller agents only |
 | `engine` | No | AI engine to use (defaults to workflow default) |
 | `model` | No | AI model to use (defaults to engine default) |
 | `tracks` | No | Array of track IDs this agent runs for |
-| `conditions` | No | Array of condition IDs this agent runs for |
+| `conditions` | No | Array of condition IDs (runs when ALL are selected) |
+| `conditionsAny` | No | Array of condition IDs (runs when ANY is selected) |
 
 ---
 
@@ -149,6 +153,10 @@ Agents can be single-step or multi-step based on whether they have chained promp
       ],
     }
     ```
+
+    <Card title="Writing Chained Prompts" icon="link" href="/build-workflows/write-prompts#chained-step-files">
+      Learn how to write chained step files
+    </Card>
   </Tab>
 </Tabs>
 
@@ -200,16 +208,29 @@ In addition to standard agent fields, modules have:
 
 ### How Modules Control Flow
 
-Modules communicate with the workflow by writing to a directive file:
+Modules communicate with the workflow by writing to a directive file when validation **fails**:
 
 ```
 .codemachine/memory/directive.json
 ```
 
-| Directive | Action |
-|-----------|--------|
-| `action: 'loop'` | Go back N steps and re-run |
-| `action: 'stop'` | Continue forward (validation passed) |
+```json
+{
+  "action": "loop",
+  "reason": "Validation failed: 3 tests failing, missing error handling",
+  "target": "developer"
+}
+```
+
+If validation **passes**, no action is needed. The workflow continues to the next step by default.
+
+<Warning>
+  Your module's prompt **must** include instructions on how to validate and how to write the directive file. Without these instructions, the agent won't know how to trigger the loop.
+</Warning>
+
+<Card title="Writing Module Prompts" icon="pen" href="/build-workflows/write-prompts#module-prompts">
+  Learn how to write prompts that instruct modules to validate and write directives
+</Card>
 
 ### Common Module Patterns
 
@@ -303,11 +324,21 @@ Sub-agents are helper agents that main agents can spawn during execution. They r
       id: 'specialist',
       name: 'Dynamic Specialist',
       description: 'Specialized agent generated at runtime',
-      // No mirrorPath - prompt generated in .codemachine/agents/
+      // No mirrorPath - empty .md file created in .codemachine/agents/
     }
     ```
   </Tab>
 </Tabs>
+
+### Why Sub-Agent Prompts Live in `.codemachine/`
+
+Unlike main agents whose prompts are in the `prompts/` folder, sub-agent prompts live in the runtime `.codemachine/agents/` folder. This design enables:
+
+- **Dynamic prompt generation** - A main agent (like an `agent-builder`) can write prompts for sub-agents at runtime
+- **Cross-agent access** - Other agents can read and modify sub-agent prompts during workflow execution
+- **Flexibility** - Use static prompts via `mirrorPath`, or leave it empty for fully dynamic sub-agents that receive instructions when invoked
+
+Sub-agents are also accessible via the `codemachine run` command for direct execution.
 
 ### Sub-Agent Fields
 
@@ -320,97 +351,41 @@ Sub-agents are helper agents that main agents can spawn during execution. They r
 
 ### Invoking Sub-Agents
 
-Main agents can invoke sub-agents using MCP tools or CLI commands.
+Sub-agents must be invoked via MCP tools or CLI commands.
 
-<Tabs>
-  <Tab title="MCP Tools" icon="plug">
-    Available MCP tools for sub-agent management:
+**Example orchestrator with agent-coordination MCP:**
 
-    | Tool | Description |
-    |------|-------------|
-    | `list_available_agents` | Discover available agents |
-    | `run_agents` | Execute agent scripts |
-    | `get_agent_status` | Check execution status |
-    | `list_active_agents` | See running agents |
-
-    **Workflow:**
-    1. `list_available_agents` - see what's available
-    2. `run_agents { "script": "agent-id 'task'" }` - execute
-    3. `get_agent_status { "name": "agent-id" }` - check results
-  </Tab>
-  <Tab title="CLI Commands" icon="terminal">
-    ```bash
-    # Single agent
-    codemachine run "code-generator 'Build login feature'"
-
-    # With input file
-    codemachine run "analyst[input:requirements.md] 'analyze'"
-
-    # Parallel execution
-    codemachine run "frontend 'UI' & backend 'API'"
-
-    # Sequential then parallel
-    codemachine run "db 'setup' && frontend & backend"
-    ```
-
-    **Options:**
-    | Option | Description |
-    |--------|-------------|
-    | `input:file.md` | Pass file content to agent |
-    | `input:f1.md;f2.md` | Multiple input files |
-    | `tail:100` | Limit output lines |
-
-    **Orchestration:**
-    | Pattern | Syntax | Description |
-    |---------|--------|-------------|
-    | Parallel | `&` | Independent tasks run simultaneously |
-    | Sequential | `&&` | Tasks run in order |
-    | Mixed | `a && b & c` | a first, then b and c in parallel |
-  </Tab>
-</Tabs>
-
-<Warning>
-  Include MCP tools documentation in your main agent's prompt if it needs to call sub-agents.
-</Warning>
-
-### Agent Coordination MCP
-
-Main agents or controllers that orchestrate sub-agents need the `agent-coordination` MCP configured.
-
-```javascript
+```javascript main.agents.js
 {
-  id: 'orchestrator',
-  name: 'Orchestrator',
-  description: 'Coordinates sub-agents for specialized tasks',
+  id: 'blueprint-orchestrator',
+  name: 'Blueprint Orchestrator',
+  description: 'Coordinates architecture sub-agents',
   promptPath: path.join(promptsDir, 'orchestrator', 'main.md'),
   mcp: [
     {
       server: 'agent-coordination',
-      only: ['run_agents', 'get_agent_status'],  // Limit available tools
-      targets: ['code-generator', 'test-runner', 'doc-writer'],  // Allowed sub-agents
+      only: ['run_agents', 'get_agent_status', 'list_available_agents'],
+      targets: ['data-architect', 'api-architect', 'ui-architect'],
     },
   ],
 }
 ```
 
-| Field | Description |
-|-------|-------------|
-| `server` | Must be `'agent-coordination'` |
-| `only` | Limit which MCP tools the agent can use |
-| `targets` | Restrict which sub-agents can be invoked |
+<Warning>
+  Include MCP tools documentation in your main agent's prompt if it needs to call sub-agents.
+</Warning>
 
-**Available tools:**
-
-| Tool | Description |
-|------|-------------|
-| `list_available_agents` | Discover available sub-agents |
-| `run_agents` | Execute sub-agent scripts |
-| `get_agent_status` | Check execution status |
-| `list_active_agents` | See currently running agents |
-
-<Card title="See Sub-Agent Example" icon="book-open" href="/build-workflows/workflow-examples#sub-agents-blueprint-orchestration">
-  View a complete workflow using sub-agents with agent-coordination MCP
-</Card>
+<CardGroup cols={3}>
+  <Card title="Agent Coordination MCP" icon="plug" href="#agent-coordination">
+    Configure MCP for sub-agents
+  </Card>
+  <Card title="CLI Reference" icon="terminal" href="/reference/cli-reference">
+    Run sub-agents via CLI
+  </Card>
+  <Card title="Full Example" icon="book-open" href="/build-workflows/workflow-examples#technical-implementation-3">
+    See complete workflow
+  </Card>
+</CardGroup>
 
 ---
 
@@ -418,52 +393,79 @@ Main agents or controllers that orchestrate sub-agents need the `agent-coordinat
 
 Controllers are special agents that orchestrate autonomous workflows. They respond on behalf of the user, driving the entire workflow.
 
-### Controller Structure
+Controllers require `role: 'controller'` and must be configured with the `workflow-signals` MCP to approve step transitions.
 
-```javascript config/main.agents.js
-{
-  id: 'project-controller',
-  name: 'Project Owner',
-  description: 'Orchestrates workflow and makes decisions',
-  role: 'controller',
-  promptPath: path.join(promptsDir, 'controller', 'project-controller.md'),
-  engine: 'claude',
-  model: 'opus',
-}
+**Example controller and step agent with workflow-signals MCP:**
+
+```javascript main.agents.js
+module.exports = [
+  // Controller - Approves/rejects step transitions
+  {
+    id: 'project-controller',
+    name: 'Project Controller',
+    role: 'controller',
+    promptPath: path.join(promptsDir, 'controller', 'main.md'),
+    mcp: [
+      {
+        server: 'workflow-signals',
+        only: ['approve_step_transition', 'get_pending_proposal'],
+      },
+    ],
+  },
+
+  // Step agents - Propose completion
+  {
+    id: 'pm',
+    name: 'Product Manager',
+    promptPath: path.join(promptsDir, 'pm', 'main.md'),
+    mcp: [
+      {
+        server: 'workflow-signals',
+        only: ['propose_step_completion'],
+      },
+    ],
+  },
+
+  // ... other step agents with same MCP config
+];
 ```
 
-### Controller Fields
+<Warning>
+  Both controller and all step agents must have `workflow-signals` MCP configured for autonomous mode to work.
+</Warning>
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `role` | Yes | Must be `'controller'` |
-| All standard fields | Yes | id, name, description, promptPath |
+<CardGroup cols={2}>
+  <Card title="Workflow Signals MCP" icon="plug" href="#workflow-signals">
+    Configure MCP for autonomous mode
+  </Card>
+  <Card title="Full Example" icon="book-open" href="/build-workflows/workflow-examples#autonomous%3A-greenfield-project-build">
+    See complete autonomous workflow
+  </Card>
+</CardGroup>
 
-### Workflow Configuration
+---
 
-Enable the controller in your workflow file:
+## Built-in MCP Servers
 
-```javascript example.workflow.js
-export default {
-  name: 'My Workflow',
-  controller: controller('project-controller', { engine: 'claude', model: 'opus' }),
-  autonomousMode: 'always', // 'never' | 'always' | true | false
-  // ... steps
-};
-```
+CodeMachine provides built-in MCP servers for agent coordination and workflow control. Configure these on your agents using the `mcp` field.
 
-### Autonomous Mode Options
+### MCP Configuration Fields
 
-| Value | Behavior |
-|-------|----------|
-| `'never'` | Controller never activates automatically |
-| `'always'` | Controller always runs in autonomous mode |
-| `true` | Same as 'always' |
-| `false` | Same as 'never' |
+| Field | Description |
+|-------|-------------|
+| `server` | The MCP server name (`'workflow-signals'` or `'agent-coordination'`) |
+| `only` | Array of tool names to expose (limits available tools) |
+| `targets` | Array of sub-agent IDs that can be invoked (agent-coordination only) |
 
-### Workflow Signals MCP
+---
+
+### Workflow Signals
 
 Controllers and step agents communicate through the `workflow-signals` MCP. Step agents propose completion, and the controller approves or rejects.
+
+<Warning>
+  Both controller and all step agents must have `workflow-signals` MCP configured for autonomous mode to work.
+</Warning>
 
 <Tabs>
   <Tab title="Controller Agent" icon="gamepad">
@@ -514,9 +516,42 @@ Controllers and step agents communicate through the `workflow-signals` MCP. Step
   </Tab>
 </Tabs>
 
-<Warning>
-  Both controller and all step agents must have `workflow-signals` MCP configured for autonomous mode to work. Without it, the controller can't approve transitions.
-</Warning>
+<Card title="See Autonomous Example" icon="book-open" href="/build-workflows/workflow-examples#autonomous%3A-greenfield-project-build">
+  View a complete autonomous workflow with controller and step agents
+</Card>
+
+---
+
+### Agent Coordination
+
+Main agents or controllers that orchestrate sub-agents need the `agent-coordination` MCP configured.
+
+```javascript
+{
+  id: 'orchestrator',
+  name: 'Orchestrator',
+  description: 'Coordinates sub-agents for specialized tasks',
+  promptPath: path.join(promptsDir, 'orchestrator', 'main.md'),
+  mcp: [
+    {
+      server: 'agent-coordination',
+      only: ['run_agents', 'get_agent_status'],
+      targets: ['code-generator', 'test-runner', 'doc-writer'],
+    },
+  ],
+}
+```
+
+| Tool | Description |
+|------|-------------|
+| `list_available_agents` | Discover available sub-agents |
+| `run_agents` | Execute sub-agent scripts |
+| `get_agent_status` | Check execution status |
+| `list_active_agents` | See currently running agents |
+
+<Card title="See Sub-Agent Example" icon="book-open" href="/build-workflows/workflow-examples#technical-implementation-3">
+  View a complete workflow using sub-agents with agent-coordination MCP
+</Card>
 
 ---
 
@@ -590,62 +625,19 @@ Create custom characters by defining all expressions and phrases:
 }
 ```
 
+<Note>
+  If no character is defined for an agent, it falls back to the `swagger` character.
+</Note>
+
 ---
 
 ## Engine & Model
 
-Each agent can use a different AI engine and model. Configure these to optimize for your use case.
+Each agent can use a different AI engine and model. Configure `engine` and `model` fields to optimize for your use case.
 
-### Available Engines
-
-| Engine ID | Name | Default Model | Status |
-|-----------|------|---------------|--------|
-| `claude` | Claude Code | opus | Stable - Best tested |
-| `codex` | Codex | gpt-5.2-codex | Stable - Fastest |
-| `ccr` | Claude Code Router | sonnet | Stable (needs config) |
-| `opencode` | OpenCode | opencode/glm-4.7-free | Stable (free fallback) |
-| `auggie` | Auggie CLI | (provider default) | Unstable |
-| `mistral` | Mistral Vibe | devstral-2 | Unstable |
-| `cursor` | Cursor | auto | Experimental |
-
-<Note>
-  If no engine is set or authentication fails, CodeMachine falls back to `opencode` free plan.
-</Note>
-
-### Configuration
-
-```javascript
-{
-  id: 'planner',
-  name: 'Project Planner',
-  description: 'Creates implementation plans',
-  promptPath: path.join(promptsDir, 'planner', 'main.md'),
-  engine: 'claude',
-  model: 'opus',
-}
-```
-
-### Codex Reasoning Effort
-
-Codex supports reasoning effort control:
-
-```javascript
-{
-  id: 'complex-analyzer',
-  name: 'Complex Analyzer',
-  description: 'Deep analysis of complex systems',
-  promptPath: path.join(promptsDir, 'analyzer', 'main.md'),
-  engine: 'codex',
-  model: 'gpt-5.2-codex',
-  modelReasoningEffort: 'high', // 'low' | 'medium' | 'high'
-}
-```
-
-| Level | Use Case |
-|-------|----------|
-| `low` | Fast responses, simple tasks |
-| `medium` | Balanced (default) |
-| `high` | Complex reasoning, thorough analysis |
+<Card title="Model Configuration" icon="microchip" href="/build-workflows/model-configuration">
+  See available engines, model options, reasoning effort, and fallback system
+</Card>
 
 ---
 
