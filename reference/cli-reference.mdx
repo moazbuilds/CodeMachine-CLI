@@ -1,7 +1,321 @@
 ---
 title: "CLI Reference"
-description: "Complete reference for all CodeMachine CLI commands."
+description: "Complete reference for all CodeMachine CLI commands, flags, and environment variables."
 sidebarTitle: "CLI Reference"
 ---
 
-{/* TODO: Add content */}
+## Main Command
+
+```bash
+codemachine [options]
+```
+
+Launches the interactive TUI when run without subcommands.
+
+<Warning>
+  Cannot run from home directory. Use `--dir` or `cd` into a project first.
+</Warning>
+
+### Global Options
+
+| Flag | Description | Default |
+| :--- | :---------- | :------ |
+| `-d, --dir <path>` | Target workspace directory | Current directory |
+| `--spec <path>` | Path to planning specification file | `.codemachine/inputs/specifications.md` |
+| `-V, --version` | Display version | - |
+| `-h, --help` | Display help | - |
+
+---
+
+## Commands
+
+### version
+
+```bash
+codemachine version
+```
+
+Display CLI version.
+
+---
+
+### run
+
+```bash
+codemachine run <script>
+```
+
+Run agent(s) with enhanced syntax.
+
+#### Options
+
+| Flag | Description | Default |
+| :--- | :---------- | :------ |
+| `-d, --dir <directory>` | Working directory | Current directory |
+
+<Note>
+  The `run` command uses the default engine (first authenticated engine).
+</Note>
+
+#### Script Syntax
+
+<CodeGroup>
+```bash Single agent
+# Runs the code-generator agent with the prompt "Build login feature"
+codemachine run "code-generator 'Build login feature'"
+```
+
+```bash With input files
+# Runs system-analyst with spec.md as input, including the last 100 lines
+codemachine run "system-analyst[input:spec.md,tail:100] 'analyze'"
+```
+
+```bash Multiple inputs
+# Runs arch-writer with two input files: file1.md and file2.md
+codemachine run "arch-writer[input:file1.md;file2.md]"
+```
+
+```bash Parallel execution (&)
+# Runs frontend and backend agents simultaneously in parallel
+codemachine run "frontend 'UI' & backend 'API'"
+```
+
+```bash Sequential execution (&&)
+# Runs db first, then backend only after db completes successfully
+codemachine run "db 'setup' && backend 'models'"
+```
+
+```bash Mixed execution
+# Runs db first, then frontend and backend in parallel after db completes
+codemachine run "db 'setup' && frontend & backend"
+```
+</CodeGroup>
+
+#### Agent Options
+
+Agent options are specified in brackets after the agent name:
+
+| Option | Description | Example |
+| :----- | :---------- | :------ |
+| `input:<file>` | Single input file | `agent[input:spec.md]` |
+| `input:<file1>;<file2>` | Multiple input files | `agent[input:a.md;b.md]` |
+| `tail:<n>` | Tail lines to include | `agent[tail:100]` |
+
+---
+
+### templates
+
+```bash
+codemachine templates
+```
+
+Interactive workflow template selection. Saves selection to `.codemachine/template.json` and regenerates agents folder.
+
+```bash
+codemachine templates list
+```
+
+List available template names (non-interactive).
+
+---
+
+### auth
+
+```bash
+codemachine auth login
+```
+
+Authenticate with an AI engine (interactive provider selection).
+
+```bash
+codemachine auth logout
+```
+
+Sign out from an AI engine (interactive provider selection).
+
+---
+
+### agents
+
+```bash
+codemachine agents
+```
+
+List all active and offline agents in tree view.
+
+```bash
+codemachine agents logs <id>
+```
+
+View logs for a specific agent by numeric ID.
+
+```bash
+codemachine agents export
+```
+
+Export agent registry to `.codemachine/logs/registry-export.json`.
+
+---
+
+### import
+
+```bash
+codemachine import [source]
+```
+
+Import external workflow packages.
+
+#### Options
+
+| Flag | Description |
+| :--- | :---------- |
+| `-l, --list` | List installed imports |
+| `-r, --remove` | Remove an import |
+| `-v, --verbose` | Verbose output |
+
+#### Source Formats
+
+| Format | Example |
+| :----- | :------ |
+| Package name | `codemachine-pack-rust` |
+| GitHub owner/repo | `moazbuilds/codemachine-pack-rust` |
+| GitHub URL | `https://github.com/user/repo` |
+| Git SSH | `git@github.com:user/repo.git` |
+| Local path | `/path/to/folder` or `./relative` |
+
+#### Examples
+
+```bash
+codemachine import moazbuilds/pack-rust
+codemachine import ./my-pack
+codemachine import --list
+codemachine import --remove pack-rust
+```
+
+---
+
+### export
+
+```bash
+codemachine export
+```
+
+Show the imports folder path.
+
+---
+
+### mcp router
+
+```bash
+codemachine mcp router
+```
+
+Start MCP router server (stdio mode). This command is for internal agent use only.
+
+---
+
+## Environment Variables
+
+| Variable | Description | Default |
+| :------- | :---------- | :------ |
+| `LOG_LEVEL` | Log level: `debug`, `info`, `warn`, `error` | `info` |
+
+### Engine Configuration
+
+<Tabs>
+  <Tab title="Claude (Anthropic)">
+    | Variable | Description |
+    | :------- | :---------- |
+    | `CODEMACHINE_CLAUDE_HOME` | Claude configuration directory |
+    | `CODEMACHINE_ANTHROPIC_BASE_URL` | Custom API base URL |
+    | `CODEMACHINE_ANTHROPIC_AUTH_TOKEN` | Anthropic auth token |
+    | `CODEMACHINE_ANTHROPIC_API_KEY` | Anthropic API key |
+    | `CODEMACHINE_CLAUDE_OAUTH_TOKEN` | Claude Code OAuth token |
+  </Tab>
+  <Tab title="OpenCode">
+    | Variable | Description |
+    | :------- | :---------- |
+    | `CODEMACHINE_OPENCODE_HOME` | OpenCode configuration directory |
+  </Tab>
+  <Tab title="Mistral">
+    | Variable | Description |
+    | :------- | :---------- |
+    | `CODEMACHINE_MISTRAL_HOME` | Mistral configuration directory |
+  </Tab>
+  <Tab title="Cursor">
+    | Variable | Description |
+    | :------- | :---------- |
+    | `CODEMACHINE_CURSOR_HOME` | Cursor configuration directory |
+  </Tab>
+  <Tab title="Auggie">
+    | Variable | Description |
+    | :------- | :---------- |
+    | `CODEMACHINE_AUGGIE_HOME` | Auggie configuration directory |
+  </Tab>
+  <Tab title="Codex">
+    | Variable | Description |
+    | :------- | :---------- |
+    | `CODEMACHINE_CODEX_HOME` | Codex configuration directory |
+  </Tab>
+  <Tab title="CCR">
+    | Variable | Description |
+    | :------- | :---------- |
+    | `CODEMACHINE_CCR_HOME` | CCR configuration directory |
+  </Tab>
+</Tabs>
+
+---
+
+## Examples
+
+<CodeGroup>
+```bash Debug mode
+DEBUG=1 codemachine
+```
+
+```bash Verbose logging
+LOG_LEVEL=debug codemachine
+```
+
+```bash Custom working directory
+CODEMACHINE_CWD=/path/to/project codemachine
+```
+
+```bash Custom spec file
+CODEMACHINE_SPEC_PATH=./my-spec.md codemachine
+```
+
+```bash Agent timeout (30s)
+CODEMACHINE_AGENT_TIMEOUT=30000 codemachine run "agent 'task'"
+```
+
+```bash Disable updates
+CODEMACHINE_NO_UPDATE_CHECK=1 codemachine
+```
+
+```bash Custom Anthropic endpoint
+CODEMACHINE_ANTHROPIC_BASE_URL=https://proxy.example.com/v1 codemachine
+```
+</CodeGroup>
+
+---
+
+## Quick Reference
+
+| Command | Description |
+| :------ | :---------- |
+| `codemachine` | Launch TUI |
+| `codemachine version` | Show version |
+| `codemachine run <script>` | Run agents |
+| `codemachine templates` | Select template |
+| `codemachine templates list` | List templates |
+| `codemachine auth login` | Login |
+| `codemachine auth logout` | Logout |
+| `codemachine agents` | List agents |
+| `codemachine agents logs <id>` | View agent logs |
+| `codemachine agents export` | Export registry |
+| `codemachine import <source>` | Install package |
+| `codemachine import --list` | List imports |
+| `codemachine import --remove <name>` | Remove import |
+| `codemachine export` | Show imports path |
+| `codemachine mcp router` | Start MCP server |
