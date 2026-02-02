@@ -3,4 +3,5 @@ node_modules/
 binaries/
 package-lock.json
 .*
+!.github
 _*

@@ -12,9 +12,8 @@ on:
         required: false
         default: false
         type: boolean
-  push:
-    tags:
-      - 'v*'
+  release:
+    types: [published]
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
