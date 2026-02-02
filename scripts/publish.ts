@@ -70,10 +70,6 @@ log(`tag: ${tag}`);
 log(`dry run: ${dryRun ? 'yes' : 'no'}`);
 log(`build: ${skipBuild ? 'skip' : 'run'}`);
 
-// Always ensure the embedded archive is fresh before any build/publish step.
-// This avoids stale templates/resources in platform binaries produced during tagging.
-await run('bun scripts/generate-embedded-resources.mjs --quiet || bun scripts/generate-embedded-resources.mjs');
-
 if (!skipBuild) {
   // Build all targets so we can publish all platform packages from a single runner.
   await run('bun run build -- --all');
