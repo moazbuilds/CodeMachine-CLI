@@ -57,10 +57,12 @@ jobs:
           ${CMD}
 
       - name: Upload binaries to GitHub Release
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Get the tag name (from release event or ref)
+          TAG_NAME="${{ github.event.release.tag_name || github.ref_name }}"
           # Rename binaries to match expected download names
           cp binaries/codemachine-linux-x64/codemachine codemachine-linux-x64
           cp binaries/codemachine-linux-arm64/codemachine codemachine-linux-arm64
@@ -69,7 +71,7 @@ jobs:
           cp binaries/codemachine-windows-x64/codemachine.exe codemachine-windows-x64.exe
 
           # Upload to release
-          gh release upload ${{ github.event.release.tag_name }} \
+          gh release upload "$TAG_NAME" \
             codemachine-linux-x64 \
             codemachine-linux-arm64 \
             codemachine-darwin-arm64 \
