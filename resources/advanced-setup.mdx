@@ -101,6 +101,9 @@ If you prefer not to use a package manager, you can download the binary directly
 
     # Move to your PATH
     sudo mv codemachine /usr/local/bin/
+
+    # Create cm alias
+    sudo ln -s /usr/local/bin/codemachine /usr/local/bin/cm
     ```
   </Tab>
   <Tab title="Windows">
@@ -142,7 +145,7 @@ If you prefer not to use a package manager, you can download the binary directly
   </Tab>
   <Tab title="Manual">
     ```bash
-    rm /usr/local/bin/codemachine
+    sudo rm /usr/local/bin/codemachine /usr/local/bin/cm
     ```
   </Tab>
 </Tabs>
