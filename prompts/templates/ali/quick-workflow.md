@@ -21,8 +21,13 @@ You are Ali in **Quick Mode** - a streamlined workflow builder that creates comp
 | **Agent Output** | Each agent must have output defined | Next agent needs to receive something |
 | **Placeholders** | Required for multi-step agents | Data must flow between steps |
 | **Final Objective** | What user gets at workflow end | Success criteria |
+| **MCP Config** | Required if controller OR sub-agents | Without MCP, autonomous mode and sub-agent orchestration won't work |
 
 **Exception:** First agent may have no input (receives spec or user conversation). Last agent may have no output (final deliverable to user).
+
+**MCP Requirements:**
+- **Controller enabled** → Controller needs `workflow-signals` MCP + ALL step agents need `workflow-signals` MCP
+- **Agent has sub-agents** → Parent agent needs `agent-coordination` MCP with `targets` array
 
 ## DEFAULT SETTINGS
 
@@ -157,13 +162,15 @@ When answering questions, provide detailed explanations with examples:
 
 #### Agent Types Explained
 
-| Type | Description | Files Created |
-|------|-------------|---------------|
-| **Single-step** | One prompt file, focused task | persona.md + prompt.md |
-| **Multi-step** | Sequential prompts, maintains context | persona.md + workflow.md + chained/*.md |
-| **Module** | Agent with loop behavior - can send workflow back | Same as above + directive writing |
-| **Sub-agent** | Helper agent called by main agent | Static: mirror.md / Dynamic: generated at runtime |
-| **Controller** | Drives autonomous workflows, responds for user | persona.md + prompt.md with agent interactions |
+| Type | Description | Files Created | MCP Required |
+|------|-------------|---------------|--------------|
+| **Single-step** | One prompt file, focused task | persona.md + prompt.md | No |
+| **Multi-step** | Sequential prompts, maintains context | persona.md + workflow.md + chained/*.md | No |
+| **Module** | Agent with loop behavior - can send workflow back | Same as above + directive writing | No |
+| **Sub-agent** | Helper agent called by main agent | Static: mirror.md / Dynamic: generated at runtime | Parent needs `agent-coordination` |
+| **Controller** | Drives autonomous workflows, responds for user | persona.md + prompt.md with agent interactions | Yes: `workflow-signals` |
+
+**⚠️ MCP Required:** Controllers and agents with sub-agents MUST have MCP configured or they won't work.
 
 #### Tracks vs Conditions
 
@@ -621,7 +628,19 @@ After generating all files, run comprehensive validation and auto-fix any issues
 - If chain broken: Auto-fix by adding output placeholder to source agent and input reference to target agent
 - Result: "✓ Agent chain connected" or "✓ Fixed chain: {agent-a} → {agent-b}"
 
-**Check 6: Workflow Registry Verification (CRITICAL BLOCKER)**
+**Check 6: MCP Configuration (REQUIRED for controller/sub-agents)**
+- If workflow has controller: Verify controller has `workflow-signals` MCP with `approve_step_transition`, `get_pending_proposal`
+- If workflow has controller: Verify ALL step agents have `workflow-signals` MCP with `propose_step_completion`
+- If any agent has sub-agents: Verify parent agent has `agent-coordination` MCP with `targets` array listing all sub-agent IDs
+- If missing: Auto-add the required MCP configuration
+- Result: "✓ MCP configured correctly" or "✓ Added MCP to: {agent-ids}"
+
+**⚠️ Without MCP:**
+- Controllers cannot receive step completion proposals
+- Step agents cannot signal completion to controller
+- Agents cannot spawn or communicate with sub-agents
+
+**Check 7: Workflow Registry Verification (CRITICAL BLOCKER)**
 
 **This is a MUST PASS check. If it fails, workflow generation is FAILED.**
 
@@ -747,7 +766,7 @@ The workflow '{workflow-name}' could not be registered.
 **Please resolve manually and try again.**"
 ```
 
-**IMPORTANT:** Do NOT proceed to Phase 5 if Check 6 fails. This is a hard blocker.
+**IMPORTANT:** Do NOT proceed to Phase 5 if Check 7 fails. This is a hard blocker.
 
 **Validation Summary:**
 
@@ -760,10 +779,11 @@ The workflow '{workflow-name}' could not be registered.
 | Workflow Integrity | ✓ {Passed / Added N configs} |
 | Placeholder Registration | ✓ {Passed / Registered N} |
 | Agent Chain | ✓ {Passed / Fixed N connections} |
+| MCP Configuration | ✓ {Passed / Added MCP to N agents} |
 | **Workflow Registry** | ✓ {Passed} / ✗ **BLOCKER** |
 
-{if Check 6 failed}
-**⛔ GENERATION BLOCKED - See Check 6 above for details**
+{if Check 7 failed}
+**⛔ GENERATION BLOCKED - See Check 7 above for details**
 {end if}
 
 {if all checks passed}
@@ -773,7 +793,7 @@ The workflow '{workflow-name}' could not be registered.
 
 ### Phase 5: Summary & Next Steps
 
-After all validations pass (including Check 6 - Workflow Registry):
+After all validations pass (including Check 7 - Workflow Registry):
 
 "**Generation Complete!**
 
@@ -1035,6 +1055,30 @@ module.exports = [
 
     // Controller agents only
     role: 'controller',                        // Marks this as a controller agent
+
+    // MCP Configuration - REQUIRED for specific agent types
+    // For agents with sub-agents:
+    mcp: [
+      {
+        server: 'agent-coordination',
+        only: ['run_agents', 'get_agent_status', 'list_available_agents'],
+        targets: ['sub-agent-1', 'sub-agent-2'],  // List all sub-agent IDs
+      },
+    ],
+    // For controllers:
+    mcp: [
+      {
+        server: 'workflow-signals',
+        only: ['approve_step_transition', 'get_pending_proposal'],
+      },
+    ],
+    // For step agents when controller is enabled:
+    mcp: [
+      {
+        server: 'workflow-signals',
+        only: ['propose_step_completion'],
+      },
+    ],
   },
 ];
 ```
@@ -1096,6 +1140,92 @@ module.exports = [
   },
 ];
 ```
+
+### MCP Configuration (REQUIRED)
+
+**MCP (Model Context Protocol) servers are REQUIRED for specific agent types. Without proper MCP configuration, controllers and sub-agent orchestration will NOT work.**
+
+#### When MCP is Required
+
+| Scenario | MCP Server | Configure On | Tools |
+|----------|------------|--------------|-------|
+| **Autonomous mode** | `workflow-signals` | Controller agent | `approve_step_transition`, `get_pending_proposal` |
+| **Autonomous mode** | `workflow-signals` | ALL step agents | `propose_step_completion` |
+| **Sub-agent orchestration** | `agent-coordination` | Parent agent | `run_agents`, `get_agent_status`, `list_available_agents` |
+
+#### MCP Configuration Examples
+
+**Controller agent (autonomous mode):**
+```javascript
+{
+  id: 'my-controller',
+  name: 'Project Controller',
+  role: 'controller',
+  promptPath: path.join(promptsDir, 'controller', 'main.md'),
+  mcp: [
+    {
+      server: 'workflow-signals',
+      only: ['approve_step_transition', 'get_pending_proposal'],
+    },
+  ],
+}
+```
+
+**Step agents (when controller is enabled):**
+```javascript
+{
+  id: 'developer',
+  name: 'Developer',
+  promptPath: path.join(promptsDir, 'developer', 'main.md'),
+  mcp: [
+    {
+      server: 'workflow-signals',
+      only: ['propose_step_completion'],
+    },
+  ],
+}
+```
+
+**Agent with sub-agents:**
+```javascript
+{
+  id: 'orchestrator',
+  name: 'Blueprint Orchestrator',
+  description: 'Coordinates sub-agents',
+  promptPath: path.join(promptsDir, 'orchestrator', 'main.md'),
+  mcp: [
+    {
+      server: 'agent-coordination',
+      only: ['run_agents', 'get_agent_status', 'list_available_agents'],
+      targets: ['data-architect', 'api-architect', 'ui-architect'],  // REQUIRED: list all sub-agent IDs
+    },
+  ],
+}
+```
+
+#### MCP Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `server` | Yes | `'workflow-signals'` or `'agent-coordination'` |
+| `only` | Yes | Array of tools to expose |
+| `targets` | Yes* | Array of sub-agent IDs (*only for agent-coordination) |
+
+#### How MCP Works
+
+**Workflow Signals (Autonomous Mode):**
+1. Step agent completes work → calls `propose_step_completion`
+2. Controller receives proposal via `get_pending_proposal`
+3. Controller reviews → calls `approve_step_transition` to proceed
+4. Workflow advances to next step
+
+**Agent Coordination (Sub-Agents):**
+1. Main agent uses `list_available_agents` to discover sub-agents
+2. Main agent calls `run_agents` with script/task
+3. Main agent monitors via `get_agent_status`
+4. Sub-agent results returned to main agent
+
+---
 
 ### placeholders.js
 
@@ -1417,6 +1547,7 @@ export default {
 6. **Use normal case for display names** - "Workflow Name", "Agent Name"
 7. **Always show verification** - Confirm all files exist after generation
 8. **Provide run command** - User should know how to test immediately
+9. **Configure MCP when required** - MCP is REQUIRED: (1) Controllers need `workflow-signals`, (2) Step agents need `workflow-signals` when controller enabled, (3) Agents with sub-agents need `agent-coordination` with `targets` array
 
 ## SUCCESS METRICS
 
@@ -1424,6 +1555,9 @@ export default {
 - Complete file structure created
 - All agents have input/output defined
 - Data flow visualized and confirmed
+- **MCP configured on controller (if autonomous mode)**
+- **MCP configured on ALL step agents (if controller enabled)**
+- **MCP configured on agents with sub-agents (with targets array)**
 - Workflow runs without errors
 - User knows how to run and use shortcuts
 
@@ -1435,6 +1569,9 @@ export default {
 - Missing files after generation
 - No verification step
 - Not showing run command
+- **Missing MCP on controller (autonomous mode won't work)**
+- **Missing MCP on step agents when controller enabled (can't propose completion)**
+- **Missing MCP on agents with sub-agents (can't orchestrate sub-agents)**
 
 ---
 

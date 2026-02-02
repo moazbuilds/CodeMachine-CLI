@@ -147,6 +147,77 @@ Mode selection happens in Step 0 (`step-00-setup.md`), along with gathering the 
 | Sub-Agents | NO | Only if user needs them |
 | Modules | NO | Only if loop behavior needed |
 
+## MCP Configuration (REQUIRED)
+
+MCP (Model Context Protocol) servers extend agent capabilities. CodeMachine provides two built-in MCP servers that are **REQUIRED** in specific scenarios:
+
+### When MCP is Required
+
+| Scenario | MCP Server | Required On | Tools |
+|----------|------------|-------------|-------|
+| **Autonomous mode** | `workflow-signals` | Controller | `approve_step_transition`, `get_pending_proposal` |
+| **Autonomous mode** | `workflow-signals` | All step agents | `propose_step_completion` |
+| **Sub-agent orchestration** | `agent-coordination` | Parent agent | `run_agents`, `get_agent_status`, `list_available_agents` |
+
+### MCP Configuration Structure
+
+**Controller (autonomous mode):**
+```javascript
+mcp: [
+  {
+    server: 'workflow-signals',
+    only: ['approve_step_transition', 'get_pending_proposal'],
+  },
+]
+```
+
+**Step agents (autonomous mode):**
+```javascript
+mcp: [
+  {
+    server: 'workflow-signals',
+    only: ['propose_step_completion'],
+  },
+]
+```
+
+**Agent with sub-agents:**
+```javascript
+mcp: [
+  {
+    server: 'agent-coordination',
+    only: ['run_agents', 'get_agent_status', 'list_available_agents'],
+    targets: ['sub-agent-1', 'sub-agent-2'], // REQUIRED: list all sub-agent IDs
+  },
+]
+```
+
+### MCP Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `server` | Yes | `'workflow-signals'` or `'agent-coordination'` |
+| `only` | Yes | Array of tools to expose |
+| `targets` | Yes* | Array of sub-agent IDs (*only for agent-coordination) |
+
+### How It Works
+
+**Workflow Signals (Autonomous Mode):**
+1. Step agent completes work → calls `propose_step_completion`
+2. Controller receives proposal via `get_pending_proposal`
+3. Controller reviews → calls `approve_step_transition` to proceed (or rejects)
+4. Workflow advances to next step
+
+**Agent Coordination (Sub-Agents):**
+1. Main agent uses `list_available_agents` to discover sub-agents
+2. Main agent calls `run_agents` with script/task
+3. Main agent monitors via `get_agent_status`
+4. Sub-agent results returned to main agent
+
+**⚠️ Important:** Without proper MCP configuration:
+- Autonomous mode will NOT function
+- Sub-agents cannot be spawned or monitored
+
 ## Validation Checklist (Final Step)
 
 - [ ] All agent IDs are unique (not in existing configs)
@@ -157,6 +228,9 @@ Mode selection happens in Step 0 (`step-00-setup.md`), along with gathering the 
 - [ ] step-completion.md created if chained prompts used
 - [ ] agent-characters.json has all agents mapped
 - [ ] All character styles have valid expressions and phrases
+- [ ] **MCP configured on controller if autonomous mode (workflow-signals)**
+- [ ] **MCP configured on ALL step agents if controller enabled (workflow-signals)**
+- [ ] **MCP configured on agents with sub-agents (agent-coordination with targets)**
 - [ ] User confirmed final structure
 
 ## State Tracking
@@ -173,6 +247,8 @@ Throughout the workflow, track:
 - **has_modules**: Boolean
 - **existing_ids**: Collected from sanity check to prevent duplicates
 - **agent_characters**: Map of agent IDs to character styles/custom configs
+- **mcp_required**: Boolean - true if controller enabled OR sub-agents exist
+- **agents_with_mcp**: Array of agent IDs that need MCP configuration
 
 ## How Chained Prompts Work
 
@@ -267,6 +343,7 @@ Step 04 collects input/output definitions. Step 05 validates placeholders are pr
 8. **Use TodoWrite** - Track progress through steps with the todo list
 9. **Guide user to correct step** - You don't have full context until you reach the right step. If user asks about something that belongs to a later step, guide them to proceed step-by-step. Process selected conditions in order. Example: if user selected `agents` + `prompts` and asks about prompts, say "Before we talk about prompts, let's handle agents first since it's earlier in your journey. Press Enter to proceed to agents."
 10. **Define input/output for agents** - Each agent needs to know where its context comes from (input) and what it produces (output). This enables placeholder chaining between agents.
+11. **Configure MCP when required** - MCP is REQUIRED in two scenarios: (1) If controller enabled → configure `workflow-signals` on controller AND all step agents. (2) If agent has sub-agents → configure `agent-coordination` with `targets` array on parent agent. Without MCP, autonomous mode and sub-agent orchestration will NOT work.
 
 ## Workflow Plan File
 

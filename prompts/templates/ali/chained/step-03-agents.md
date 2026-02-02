@@ -430,6 +430,41 @@ codemachine run \"db 'setup' && frontend & backend\"
 
 ---
 
+#### Sub-Agent MCP Configuration (REQUIRED)
+
+"**⚠️ REQUIRED: Agent Coordination MCP**
+
+Any main agent that has sub-agents **MUST** have the `agent-coordination` MCP configured. Without this, the agent cannot spawn or communicate with sub-agents.
+
+**MCP Configuration for '\{agent.name\}':**
+
+```javascript
+mcp: [
+  \{
+    server: 'agent-coordination',
+    only: ['run_agents', 'get_agent_status', 'list_available_agents'],
+    targets: ['\{subAgent1.id\}', '\{subAgent2.id\}', ...],
+  \},
+]
+```
+
+**MCP Fields:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `server` | Yes | Must be `'agent-coordination'` |
+| `only` | Yes | Tools to expose: `run_agents`, `get_agent_status`, `list_available_agents` |
+| `targets` | Yes | Array of sub-agent IDs this agent can invoke |
+
+**Important:**
+- The `targets` array must list ALL sub-agent IDs this agent can call
+- Both `subAgentIds` in workflow AND `mcp` on the agent must be configured
+- Sub-agents are defined in `config/sub.agents.js`"
+
+Store MCP config as `agents[n].mcp`.
+
+---
+
 ### 4d. Controller Agent (If Autonomous Mode)
 
 *[Skip this section entirely if `controller = false` from Step 02]*
@@ -440,7 +475,9 @@ codemachine run \"db 'setup' && frontend & backend\"
 
 You enabled autonomous mode with a controller in Step 02. The controller is the brain of autonomous execution - it responds on behalf of the user and drives the entire workflow.
 
-**⚠️ This configuration is critical.** A poorly configured controller will cause workflow failures, wasted tokens, and endless loops. Let's design it carefully."
+**⚠️ This configuration is critical.** A poorly configured controller will cause workflow failures, wasted tokens, and endless loops. Let's design it carefully.
+
+**⚠️ MCP REQUIRED:** Both the controller AND all step agents must have `workflow-signals` MCP configured for autonomous mode to work. Step agents propose completion, controller approves or rejects. We'll configure this automatically."
 
 ---
 
@@ -681,6 +718,69 @@ Wait. Store as `controller.pacing`.
 Enter **1**, **2**, or **3**:"
 
 Wait. Store as `controller.loopDepth`.
+
+---
+
+#### 4c.5b Workflow Signals MCP Configuration (REQUIRED)
+
+"**⚠️ REQUIRED: Workflow Signals MCP**
+
+For autonomous mode to work, both the controller AND all step agents must have the `workflow-signals` MCP configured. This is how they communicate.
+
+**How it works:**
+1. Step agent completes work → proposes completion via MCP
+2. Controller receives proposal → approves or rejects
+3. If approved → workflow advances to next step
+4. If rejected → step agent continues or retries
+
+**Controller MCP Configuration:**
+
+```javascript
+mcp: [
+  \{
+    server: 'workflow-signals',
+    only: ['approve_step_transition', 'get_pending_proposal'],
+  \},
+]
+```
+
+**Step Agent MCP Configuration (for ALL step agents):**
+
+```javascript
+mcp: [
+  \{
+    server: 'workflow-signals',
+    only: ['propose_step_completion'],
+  \},
+]
+```
+
+**MCP Fields:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `server` | Yes | Must be `'workflow-signals'` |
+| `only` | Yes | Tools to expose (different for controller vs step agents) |
+
+**Controller Tools:**
+| Tool | Description |
+|------|-------------|
+| `approve_step_transition` | Approve step completion and advance workflow |
+| `get_pending_proposal` | Check if a step agent has proposed completion |
+
+**Step Agent Tools:**
+| Tool | Description |
+|------|-------------|
+| `propose_step_completion` | Signal that step work is done, request controller approval |
+
+**Important:**
+- WITHOUT this MCP, autonomous mode will not function
+- Controller cannot receive proposals without `workflow-signals`
+- Step agents cannot signal completion without `workflow-signals`
+- This is configured automatically when you confirm the controller"
+
+Store controller MCP as `controller.mcp`.
+Mark all step agents to receive workflow-signals MCP: `agents[*].mcp = workflow-signals-step`.
 
 ---
 
@@ -1225,6 +1325,22 @@ module.exports = [
     engine: '\{agent.engine\}',
     model: '\{agent.model\}',
     modelReasoningEffort: '\{agent.modelReasoningEffort\}', // Only for codex
+    // MCP Configuration - REQUIRED if agent has sub-agents
+    mcp: [
+      \{
+        server: 'agent-coordination',
+        only: ['run_agents', 'get_agent_status', 'list_available_agents'],
+        targets: ['\{subAgent1.id\}', '\{subAgent2.id\}'],
+      \},
+    ],
+    // MCP Configuration - REQUIRED if controller enabled (autonomous mode)
+    // Add to ALL step agents when controller is enabled:
+    mcp: [
+      \{
+        server: 'workflow-signals',
+        only: ['propose_step_completion'],
+      \},
+    ],
   \},
 ];
 ```
@@ -1305,6 +1421,13 @@ module.exports = [
     // Only if non-default engine
     engine: '\{controller.engine\}',
     model: '\{controller.model\}',
+    // MCP Configuration - REQUIRED for controller
+    mcp: [
+      \{
+        server: 'workflow-signals',
+        only: ['approve_step_transition', 'get_pending_proposal'],
+      \},
+    ],
   \},
 ```
 
@@ -1567,6 +1690,19 @@ module.exports = [
       <model>\{model or null if using default\}</model>
       <model-reasoning-effort>\{low|medium|high\}</model-reasoning-effort> <!-- Only for codex -->
 
+      <!-- MCP Configuration (REQUIRED if agent has sub-agents OR if controller enabled) -->
+      <mcp>
+        <!-- For agents with sub-agents: agent-coordination -->
+        <server name="agent-coordination">
+          <tools>run_agents, get_agent_status, list_available_agents</tools>
+          <targets>\{sub-agent-id-1\}, \{sub-agent-id-2\}</targets>
+        </server>
+        <!-- For step agents when controller enabled: workflow-signals -->
+        <server name="workflow-signals">
+          <tools>propose_step_completion</tools>
+        </server>
+      </mcp>
+
       <!-- Character Configuration -->
       <character style="\{style-name or 'custom'\}">
         <base-face>\{baseFace\}</base-face>
@@ -1674,6 +1810,13 @@ module.exports = [
     <engine>\{controller.engine\}</engine>
     <model>\{controller.model or null\}</model>
 
+    <!-- MCP Configuration - REQUIRED for controller -->
+    <mcp>
+      <server name="workflow-signals">
+        <tools>approve_step_transition, get_pending_proposal</tools>
+      </server>
+    </mcp>
+
     <!-- Communication Efficiency -->
     <communication
       response-length="\{minimal|brief|detailed\}"
@@ -1745,6 +1888,7 @@ Press **Enter** to proceed to the next step."
   - Static: persona, instructions, expected input/output, success/failure indicators
   - Dynamic: generation instructions, trigger condition
   - MCP/CLI invocation documented in Expert mode
+  - **Agent-coordination MCP configured on parent agent (REQUIRED)**
 - **Engine configured for each agent**
 - **Model configured (or default used) for each agent**
 - **Reasoning effort configured for codex agents**
@@ -1766,6 +1910,8 @@ Press **Enter** to proceed to the next step."
     - Failure indicators (signals to retry/reject)
   - Communication efficiency configured (response length, total turn limit)
   - Behavior configured (pacing, loop depth)
+  - **Workflow-signals MCP configured on controller (REQUIRED)**
+  - **Workflow-signals MCP configured on ALL step agents (REQUIRED)**
 - Summary reviewed and confirmed
 - **Config files generated:**
   - `config/main.agents.js` updated for regular agents
@@ -1786,6 +1932,7 @@ Press **Enter** to proceed to the next step."
 - **Missing module config fields for modules (loopSteps, loopMaxIterations)**
 - **Not asking about sub-agents for agents that may need them**
 - **Missing sub-agent configuration (static: persona, instructions; dynamic: generation instructions)**
+- **Not configuring agent-coordination MCP on agents with sub-agents (REQUIRED)**
 - **Not explaining MCP/CLI invocation in Expert mode**
 - **Not asking about engine for each agent**
 - **Not asking about reasoning effort for codex agents**
@@ -1800,6 +1947,8 @@ Press **Enter** to proceed to the next step."
 - **Not showing full workflow context (tracks, conditions, agents) to user during controller setup**
 - **Not defining agent interactions for EACH main agent**
 - **Missing critical controller fields (max turns, approval criteria, expected output, expected behavior, success/failure indicators)**
+- **Not configuring workflow-signals MCP on controller (REQUIRED - autonomous mode will not work)**
+- **Not configuring workflow-signals MCP on step agents when controller enabled (REQUIRED)**
 - **Not configuring communication efficiency (allows token waste)**
 - **Not generating config files after user confirmation**
 - Proceeding without user confirmation
