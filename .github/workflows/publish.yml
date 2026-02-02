@@ -55,3 +55,24 @@ jobs:
           fi
           echo "Running: ${CMD}"
           ${CMD}
+
+      - name: Upload binaries to GitHub Release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Rename binaries to match expected download names
+          cp binaries/codemachine-linux-x64/codemachine codemachine-linux-x64
+          cp binaries/codemachine-linux-arm64/codemachine codemachine-linux-arm64
+          cp binaries/codemachine-darwin-arm64/codemachine codemachine-darwin-arm64
+          cp binaries/codemachine-darwin-x64/codemachine codemachine-darwin-x64
+          cp binaries/codemachine-windows-x64/codemachine.exe codemachine-windows-x64.exe
+
+          # Upload to release
+          gh release upload ${{ github.event.release.tag_name }} \
+            codemachine-linux-x64 \
+            codemachine-linux-arm64 \
+            codemachine-darwin-arm64 \
+            codemachine-darwin-x64 \
+            codemachine-windows-x64.exe \
+            --clobber
