@@ -1,37 +1,6 @@
-node_modules/
-dist/
-binaries/
-coverage/
-.DS_Store
-reports/
-
-package-lock.json
-
-# Ignore specific dotfiles/folders
-.codemachine
-.codemachine.bk*
-.codemachine/memory
-.env
-.env.example
-.npmrc
-.npmrc.publish
-.*
-
-# Ignore folders starting with .tmp
-.tmp*
-.vscode
-
-# Generated resource manifest for bundling
 src/shared/runtime/resource-manifest.ts
-.codemachine/logs
-.codemachine/prompts
-.codemachine/agents
-.codemachine/template.json
-
-# MkDocs build output
-site/
-_bmad
-_bmad-*
-
-.idea
-*_try
+node_modules/
+binaries/
+package-lock.json
+.*
+_*
