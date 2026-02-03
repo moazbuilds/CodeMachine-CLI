@@ -1,8 +1,9 @@
 /** @jsxImportSource solid-js */
 import { createStore } from "solid-js/store"
 import { createSimpleContext } from "./helper"
-import { getActiveTemplate } from "../../../../shared/workflows/template.js"
+import { getActiveTemplate, getTemplatePathFromTracking } from "../../../../shared/workflows/template.js"
 import { onMount } from "solid-js"
+import { existsSync } from "node:fs"
 import * as path from "node:path"
 
 export const { use: useSession, provider: SessionProvider } = createSimpleContext({
@@ -27,6 +28,12 @@ export const { use: useSession, provider: SessionProvider } = createSimpleContex
           .map(word => word.charAt(0).toUpperCase() + word.slice(1))
           .join(" ")
         setStore("templateName", displayName)
+      } else {
+        // No tracking file — check if the default template actually exists
+        const templatePath = await getTemplatePathFromTracking(cmRoot)
+        if (!existsSync(templatePath)) {
+          setStore("templateName", "")
+        }
       }
     })
 

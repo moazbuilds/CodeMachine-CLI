@@ -392,7 +392,13 @@ export function App(props: { initialToast?: InitialToast }) {
             </box>
             <box flexDirection="row">
               <text fg={themeCtx.theme.textMuted}>Template: </text>
-              <text fg={themeCtx.theme.primary} attributes={TextAttributes.BOLD}>{String(session.templateName).toUpperCase()}</text>
+              <Show when={session.templateName} fallback={
+                <text fg={themeCtx.theme.textMuted}>No Templates</text>
+              }>
+                <text fg={themeCtx.theme.primary} attributes={TextAttributes.BOLD}>
+                  {String(session.templateName).toUpperCase()}
+                </text>
+              </Show>
             </box>
           </box>
         </box>

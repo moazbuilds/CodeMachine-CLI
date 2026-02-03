@@ -73,6 +73,22 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
   }
 
   const handleStartCommand = async () => {
+    // Quick check: does a loadable template exist?
+    const { existsSync } = await import("node:fs")
+    const { getTemplatePathFromTracking } = await import("../../../../../shared/workflows/template.js")
+    const cwd = process.env.CODEMACHINE_CWD || process.cwd()
+    const cmRoot = path.join(cwd, ".codemachine")
+    const templatePath = await getTemplatePathFromTracking(cmRoot)
+
+    if (!existsSync(templatePath)) {
+      toast.show({
+        variant: "warning",
+        message: "No workflow templates available. Use /import to add a workflow package.",
+        duration: 8000,
+      })
+      return
+    }
+
     try {
       // Pre-flight check - validates specification if required by template
       const { checkSpecificationRequired } = await import("../../../../../workflows/preflight.js")
