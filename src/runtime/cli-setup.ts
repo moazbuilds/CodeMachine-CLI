@@ -14,28 +14,11 @@ if (earlyDebugEnabled) {
 }
 appDebug('[Boot] CLI module loading started');
 
-// ENSURE EMBEDDED RESOURCES EARLY (BEFORE IMPORTS)
-// This must run before any modules that might resolve the package root
-appDebug('[Boot] Importing embed module');
-import { ensure as ensureResources } from '../shared/runtime/embed.js';
-
-appDebug('[Boot] Ensuring embedded resources');
-const embeddedRoot = await ensureResources();
-appDebug('[Boot] embeddedRoot=%s', embeddedRoot);
-
-if (!embeddedRoot && !process.env.CODEMACHINE_INSTALL_DIR) {
-  // Fallback to normal resolution if not embedded
-  appDebug('[Boot] Resolving package root (fallback)');
-  const { resolvePackageRoot } = await import('../shared/runtime/root.js');
-  try {
-    const packageRoot = resolvePackageRoot(import.meta.url, 'cli-setup');
-    process.env.CODEMACHINE_INSTALL_DIR = packageRoot;
-    appDebug('[Boot] CODEMACHINE_INSTALL_DIR=%s', packageRoot);
-  } catch (err) {
-    appDebug('[Boot] Failed to resolve package root: %s', err);
-    // Continue without setting
-  }
-}
+// ENSURE DEFAULT PACKAGES (fast sync check — no I/O if already installed)
+appDebug('[Boot] Checking default packages');
+import { ensureDefaultPackagesSync } from '../shared/imports/auto-import.js';
+const allDefaultsPresent = ensureDefaultPackagesSync();
+appDebug('[Boot] Default packages present: %s', allDefaultsPresent);
 
 // IMMEDIATE SPLASH - Only show for main TUI session
 // Skip splash for: subcommands, help flags, or version flags
@@ -117,7 +100,13 @@ const DEFAULT_SPEC_PATH = '.codemachine/inputs/specifications.md';
  * Note: .codemachine folder initialization is handled by workflow run, not here
  */
 async function initializeInBackground(cwd: string): Promise<void> {
-  // Check for updates (writes to ~/.codemachine/resources/updates.json)
+  // Ensure default packages are installed (async — will clone if missing)
+  appDebug('[Init] Ensuring default packages');
+  const { ensureDefaultPackages, checkDefaultPackageUpdates } = await import('../shared/imports/auto-import.js');
+  await ensureDefaultPackages();
+  checkDefaultPackageUpdates().catch(err => appDebug('[Init] Default package update check error: %s', err));
+
+  // Check for CLI updates
   appDebug('[Init] Checking for updates');
   const { check } = await import('../shared/updates/index.js');
   check().catch(err => appDebug('[Init] Update check error: %s', err));

@@ -7,7 +7,7 @@ import { resolveAgentsModulePath } from '../config/paths.js';
 import { collectAgentsFromWorkflows } from './steps.js';
 import type { AgentDefinition } from '../config/types.js';
 import { AGENT_MODULE_FILENAMES } from '../config/types.js';
-import { resolvePackageRoot } from '../../runtime/root.js';
+import { getDevRoot } from '../../runtime/dev.js';
 import { debug } from '../../logging/logger.js';
 import { getImportRoots } from '../../imports/index.js';
 
@@ -15,16 +15,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const require = createRequire(import.meta.url);
 
-// Resolve package root using centralized logic
 const CLI_BUNDLE_DIR = path.resolve(__dirname);
-const CLI_PACKAGE_ROOT = (() => {
-  try {
-    return resolvePackageRoot(import.meta.url, 'agents discovery catalog');
-  } catch {
-    // If resolution fails, return undefined (legacy behavior)
-    return undefined;
-  }
-})();
+const CLI_PACKAGE_ROOT = getDevRoot() ?? undefined;
 
 const envRootCandidates = [
   CLI_PACKAGE_ROOT,

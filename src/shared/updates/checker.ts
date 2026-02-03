@@ -1,8 +1,7 @@
 import { homedir } from "os"
 import { join } from "path"
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "fs"
-import { createRequire } from "node:module"
-import { resolvePackageJson } from "../runtime/root.js"
+import { VERSION } from "../../runtime/version.js"
 import { appDebug } from "../logging/logger.js"
 import type { UpdateCache } from "./types.js"
 
@@ -10,14 +9,12 @@ function debug(message: string, ...args: unknown[]) {
   appDebug(`[UpdateChecker] ${message}`, ...args)
 }
 
-const CACHE_DIR = join(homedir(), ".codemachine", "resources")
+const CACHE_DIR = join(homedir(), ".codemachine", "cache")
 const CACHE_PATH = join(CACHE_DIR, "updates.json")
 const CHECK_INTERVAL = 1000 * 60 * 60 * 24 // 24 hours
 
 function getPackageInfo(): { name: string; version: string } {
-  const require = createRequire(import.meta.url)
-  const packageJsonPath = resolvePackageJson(import.meta.url, "update checker")
-  return require(packageJsonPath) as { name: string; version: string }
+  return { name: "codemachine", version: VERSION }
 }
 
 function readCache(): UpdateCache | null {

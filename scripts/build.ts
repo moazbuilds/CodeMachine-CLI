@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import '../src/shared/runtime/suppress-baseline-warning.js';
-import { mkdirSync, rmSync, cpSync, readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
-import { join, dirname, resolve, relative } from 'node:path';
+import { mkdirSync, rmSync, cpSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { platform, arch, homedir } from 'node:os';
+import { platform, arch } from 'node:os';
 import { $ } from 'bun';
 
 // Simple ANSI colors
@@ -43,58 +43,7 @@ console.log(`\n${bold}${cyan}╭────────────────
 console.log(`${bold}${cyan}│${reset}  Building ${bold}CodeMachine${reset} v${mainVersion}  ${bold}${cyan}│${reset}`);
 console.log(`${bold}${cyan}╰────────────────────────────────────────╯${reset}\n`);
 
-// Clean cached resources for this version to ensure fresh extraction on next run
-const cachedResourcesDir = join(homedir(), '.codemachine', 'resources', mainVersion);
-if (existsSync(cachedResourcesDir)) {
-  rmSync(cachedResourcesDir, { recursive: true, force: true });
-  console.log(`${green}✓${reset} ${dim}Cleaned cached resources at ${cachedResourcesDir}${reset}`);
-}
-
-// Collect resource files for embedding and generate a manifest that imports them.
-function collectFiles(dir: string): string[] {
-  const results: string[] = [];
-  const stack: string[] = [dir];
-
-  while (stack.length > 0) {
-    const current = stack.pop()!;
-    const absPath = join(repoRoot, current);
-    const entries = readdirSync(absPath, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const relPath = join(current, entry.name);
-      const absEntry = join(repoRoot, relPath);
-
-      if (entry.isDirectory()) {
-        stack.push(relPath);
-      } else if (entry.isFile()) {
-        results.push(absEntry);
-      }
-    }
-  }
-
-  return results;
-}
-
-const resourceFiles = [
-  ...collectFiles('config'),
-  ...collectFiles('prompts'),
-  ...collectFiles('templates'),
-  join(repoRoot, 'package.json'),
-];
-
-// Generate simple imports file (no exports/mapping needed with --asset-naming)
-const manifestDir = join(repoRoot, 'src', 'shared', 'runtime');
-const imports = resourceFiles.map((abs) => {
-  // Use path.relative for cross-platform compatibility, then normalize to forward slashes
-  const rel = relative(manifestDir, abs).replace(/\\/g, '/');
-  return `import "${rel}" with { type: "file" };`;
-});
-
-const manifestContent = `// Auto-generated: tells Bun which files to embed\n${imports.join('\n')}\n`;
-const manifestPath = join(repoRoot, 'src', 'shared', 'runtime', 'resource-manifest.ts');
-writeFileSync(manifestPath, manifestContent);
-
-console.log(`${green}✓${reset} ${dim}Collected ${resourceFiles.length} resource files for embedding${reset}`);
+console.log(`${green}✓${reset} ${dim}No resource embedding needed (imports-only architecture)${reset}`);
 
 // Auto-sync platform package versions before building
 if (mainPackage.optionalDependencies) {
@@ -225,7 +174,7 @@ try {
         target: target as 'bun-linux-x64' | 'bun-linux-arm64' | 'bun-darwin-arm64' | 'bun-darwin-x64' | 'bun-windows-x64',
         outfile: binaryPath,
       },
-      entrypoints: ['./src/runtime/index.ts', manifestPath],
+      entrypoints: ['./src/runtime/index.ts'],
     });
 
     if (!result.success) {

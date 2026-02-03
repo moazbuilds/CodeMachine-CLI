@@ -2,18 +2,14 @@ import * as path from 'node:path';
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import type { PlaceholdersConfig } from './types.js';
-import { resolvePackageRoot } from '../../runtime/root.js';
+import { getDevRoot } from '../../runtime/dev.js';
 import { debug } from '../../logging/logger.js';
 import { getAllInstalledImports } from '../../imports/index.js';
 
 const require = createRequire(import.meta.url);
 
 function getPackageRoot(): string | null {
-  try {
-    return resolvePackageRoot(import.meta.url, 'prompts config loader');
-  } catch {
-    return null;
-  }
+  return getDevRoot();
 }
 
 /**

@@ -15,9 +15,9 @@ import { execute, type ChainedPrompt } from '../../agents/execution/index.js';
 import type { WorkflowEventEmitter } from '../events/emitter.js';
 import { debug } from '../../shared/logging/logger.js';
 import { resolvePromptPath } from '../../shared/imports/index.js';
-import { resolvePackageRoot } from '../../shared/runtime/root.js';
+import { getDevRoot } from '../../shared/runtime/dev.js';
 
-const packageRoot = resolvePackageRoot(import.meta.url, 'step executor');
+const localRoot = getDevRoot() || '';
 
 export type { ChainedPrompt } from '../../agents/execution/index.js';
 
@@ -99,7 +99,7 @@ export async function executeStep(
   // Load and process the prompt template(s) - check imports first, then local
   const resolvedPromptPaths = promptSources.map(p => {
     // Try to resolve (handles imports)
-    const resolved = resolvePromptPath(p, packageRoot);
+    const resolved = resolvePromptPath(p, localRoot);
     if (resolved) {
       return resolved;
     }

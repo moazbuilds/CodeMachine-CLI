@@ -4,9 +4,9 @@ import * as path from 'node:path';
 import { collectAgentDefinitions, resolveProjectRoot } from '../../shared/agents/index.js';
 import type { AgentDefinition } from '../../shared/agents/config/types.js';
 import { resolvePromptPath } from '../../shared/imports/index.js';
-import { resolvePackageRoot } from '../../shared/runtime/root.js';
+import { getDevRoot } from '../../shared/runtime/dev.js';
 
-const packageRoot = resolvePackageRoot(import.meta.url, 'agent runner config');
+const localRoot = getDevRoot() || '';
 
 export type AgentConfig = AgentDefinition & {
   name: string;
@@ -74,7 +74,7 @@ export async function loadAgentTemplate(agentId: string, projectRoot?: string): 
     if (path.isAbsolute(p)) return p;
 
     // Try to resolve from imports first
-    const importResolved = resolvePromptPath(p, packageRoot);
+    const importResolved = resolvePromptPath(p, localRoot);
     if (importResolved) return importResolved;
 
     // Fall back to project root
