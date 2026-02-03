@@ -94,6 +94,8 @@ Create folder structure and empty files:
 
 ```
 prompts/templates/\{workflow_name\}/
+├── shared/
+│   └── system-rules.md           ← REQUIRED: Always created first
 ├── \{agent-id\}/
 │   ├── persona.md
 │   ├── prompt.md                 (if single-step)
@@ -590,16 +592,26 @@ Wait. Collect final instructions.
 
 "**Generated workflow.md:**
 
+**CRITICAL: workflow.md is loaded at agent start via `promptPath` array (alongside persona.md). It is NOT a chained step. NEVER put workflow.md in `chainedPromptsPath`.**
+
 ```markdown
 ---
 name: '\{agent.name\} Workflow'
 description: '\{agent.description\}'
 ---
 
-# \{agent.name\} - Workflow
+\{system_rules\}
+
+# \{agent.name\} Workflow
+
+## YOUR MISSION
+
+\{agent's mission in the pipeline\}
 
 \{if receives from previous agent\}
-## CONTEXT
+## INPUT
+
+You receive output from the previous agent:
 
 \{\{\{prev_agent\}_output\}\}
 \{end if\}
@@ -610,11 +622,33 @@ description: '\{agent.description\}'
 \{end for\}
 \{end if\}
 
-## GOAL
+## STEP 0: GREET AND WAIT
 
-\{goal from description/expectedBehavior\}
+This is your Step 0. You have NOT received your first working step yet.
 
-## INSTRUCTIONS (All Steps)
+**DISPLAY THIS MESSAGE:**
+
+"\{greeting - introduce yourself, explain your role in the pipeline, list your steps in a table\}
+
+Press **Enter** to start."
+
+**THEN STOP. Do not start working. Wait for Enter.**
+
+## WORKFLOW OVERVIEW
+
+| Step | Name | Purpose |
+|------|------|---------|
+\{for each step\}
+| \{n\} | \{step.name\} | \{step.purpose\} |
+\{end for\}
+
+## OUTPUT
+
+\{if outputs to next agent\}
+At the end of Step \{lastStep\}, write output to `.codemachine/artifacts/\{agent.id\}-output.md`
+\{end if\}
+
+## RULES
 
 \{for each instruction\}
 - \{instruction\}
@@ -624,28 +658,6 @@ description: '\{agent.description\}'
 ## SUB-AGENT COORDINATION
 
 \{sub-agent details from step 03\}
-\{end if\}
-
-## STEPS OVERVIEW
-
-| Step | Purpose |
-|------|---------|
-\{for each step\}
-| \{n\} | \{step.purpose\} |
-\{end for\}
-
-## SUCCESS CRITERIA
-
-\{agent.successIndicators\}
-
-## AVOID (Failure Indicators)
-
-\{agent.failureIndicators\}
-
-\{if outputs to next agent\}
-## FINAL OUTPUT
-
-Write final output to `.codemachine/artifacts/\{agent.id\}-output-*.md`
 \{end if\}
 ```
 
@@ -712,6 +724,8 @@ Wait. Store completion criteria.
 
 "**Generated step-\{nn\}-\{purpose\}.md:**
 
+**CRITICAL: Every step must have scripted messages (exact text to display) and end with "Press Enter to continue" + STOP, except the last step of the agent.**
+
 ```markdown
 ---
 name: 'Step \{n\} - \{step.purpose\}'
@@ -724,25 +738,41 @@ description: '\{step.purpose\}'
 
 \{step.goal\}
 
-## INSTRUCTIONS
+## DISPLAY THIS MESSAGE FIRST:
 
-\{for each instruction\}
-- \{instruction\}
-\{end for\}
+"\{exact scripted message to show the user - not generic, specific to this step\}"
 
-## COMPLETION CRITERIA
+## AFTER USER RESPONDS:
 
-\{step.completionCriteria\}
+\{exact logic for processing user response\}
+\{validation rules - when to push back, when to accept\}
+\{follow-up question rules - exact questions to ask in specific situations\}
+
+## WHEN STEP IS COMPLETE:
 
 \{if not last step\}
-\{\{\{workflow_name\}_step_completion\}\}
+DISPLAY: "\{transition message summarizing what was captured\}
+
+Press **Enter** to continue."
+
+**THEN STOP COMPLETELY. Do not continue. Do not start next step's work. Wait for the system to inject the next step.**
 \{end if\}
 
 \{if last step and outputs to next agent\}
-## FINAL OUTPUT
+\{write output file instructions\}
 
-Write output to `.codemachine/artifacts/\{agent.id\}-output-*.md`
+DISPLAY: "\{completion summary\}
+
+\{agent.name\} complete. Handing off to the next phase."
 \{end if\}
+
+\{if last step and last agent\}
+\{deliver final output to user\}
+\{end if\}
+
+## DO NOT:
+
+\{step-specific forbidden behaviors\}
 ```
 
 **Does this look good?** [y/n]"
@@ -1310,17 +1340,102 @@ Proceed to section 4.
 
 ### 4. Shared Files & Placeholders
 
-"**Shared Files**
+"**System Rules File (Required)**
 
-Do you need any shared content that multiple prompts will use?
+Every workflow needs a `system-rules.md` that teaches agents how the workflow system works. I'm generating this automatically."
+
+**ALWAYS generate `shared/system-rules.md` - this is NOT optional:**
+
+Write to `prompts/templates/\{workflow_name\}/shared/system-rules.md`:
+
+```markdown
+---
+name: 'System Rules'
+description: 'Mandatory system rules for all agents in the \{Workflow Name\} workflow.'
+---
+
+# SYSTEM RULES (READ BEFORE ANYTHING ELSE)
+
+You are an agent inside the **CodeMachine Workflow System**. You do NOT control the flow. The system does.
+
+## HOW THE SYSTEM WORKS
+
+1. You are **one agent** in a pipeline of \{N\} agents: **\{Agent1\} → \{Agent2\} → ... → \{AgentN\}**
+2. Each agent has **multiple steps** (chained prompts). You receive them one at a time
+3. **You do NOT advance steps yourself.** The system injects the next step when the user presses Enter
+4. **You do NOT decide when to move on.** You complete your current step, tell the user to press Enter, and STOP
+
+## YOUR STEPS
+
+When you start, you are on **Step 0** (this prompt). You have NOT received your first step yet.
+
+| What You See | What It Means |
+|-------------|---------------|
+| This prompt (persona + workflow) | **Step 0** - You just arrived. Greet the user and explain what you'll do |
+| A new prompt injected after user presses Enter | **Step 1, 2, 3...** - The system gave you your next step. Execute it |
+
+## STEP 0: WHAT TO DO RIGHT NOW
+
+Your first action is to introduce yourself and explain your role in the pipeline.
+Then say "Press **Enter** to start." and STOP. Do not do anything else.
+
+## CRITICAL RULES FOR EVERY STEP
+
+### Rule 1: One Step at a Time
+- Complete ONLY what that step asks for
+- Do NOT do work from future steps
+- Do NOT combine steps
+
+### Rule 2: You Do NOT Control Step Transitions
+- When a step is complete, tell the user: **"Press Enter to continue."**
+- Then **STOP COMPLETELY**
+- The system will inject the next step's prompt
+
+### Rule 3: Stay In Your Lane
+- You are ONE agent. Do not do another agent's job
+\{list each agent and their lane\}
+
+### Rule 4: The Prompt IS Your Instructions
+- Follow the prompt's instructions exactly as written
+- Display the exact messages it tells you to display
+- Do NOT improvise or add your own messages
+
+### Rule 5: Output Files Are Sacred
+- Write output files EXACTLY as specified in the step
+- Use the EXACT file path and format given
+- Do NOT write output before the step tells you to
+
+## FORBIDDEN BEHAVIORS
+- Starting work before your first step prompt arrives
+- Doing multiple steps in one response
+- Skipping the "press Enter" instruction at the end of a step
+- Working on things outside your agent's scope
+- Improvising messages instead of following the script
+```
+
+Register placeholder in `config/placeholders.js`:
+```javascript
+packageDir: \{
+  system_rules: path.join('prompts', 'templates', '\{workflow_name\}', 'shared', 'system-rules.md'),
+\}
+```
+
+Confirm: "✓ Created: `shared/system-rules.md` → placeholder: `\{system_rules\}`
+
+All agents will receive this via `\{system_rules\}` in their workflow.md or prompt.md."
+
+---
+
+"**Additional Shared Files**
+
+Do you need any OTHER shared content that multiple prompts will use?
 
 Common examples:
-- Step completion instructions (like pressing Enter to proceed)
 - Output format templates
-- Common rules all agents follow
 - Reference documentation
+- Domain-specific knowledge
 
-Would you like to create shared files? **[y/n]**"
+Would you like to create additional shared files? **[y/n]**"
 
 **If YES:**
 

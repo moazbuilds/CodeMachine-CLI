@@ -399,6 +399,10 @@ After writing:
 
 **Append to `config/main.agents.js`:**
 
+**CRITICAL RULE: `workflow.md` ALWAYS goes in `promptPath`, NEVER in `chainedPromptsPath`.**
+- `promptPath` (array) = loaded at agent start as initial context (persona + workflow.md with system rules + placeholders)
+- `chainedPromptsPath` = ONLY the actual step files (`step-XX-*.md`) the user navigates with Enter
+
 ```javascript
 // ========================================
 // \{workflow_name\} Workflow
@@ -408,8 +412,10 @@ After writing:
   id: '\{agent.id\}',
   name: '\{agent.name\}',
   description: '\{agent.description\}',
-  promptPath: \{promptPath or array\},
-  \{if chained\}chainedPromptsPath: [\{chainedPaths\}],\{end if\}
+  // Multi-step: promptPath is array with persona + workflow, chainedPromptsPath has ONLY step files
+  // Single-step: promptPath is array with persona + prompt, NO chainedPromptsPath
+  promptPath: \{promptPath array - always includes persona.md, plus workflow.md or prompt.md\},
+  \{if chained\}chainedPromptsPath: [\{ONLY step-XX files - NEVER workflow.md\}],\{end if\}
 },
 \{end for\}
 
