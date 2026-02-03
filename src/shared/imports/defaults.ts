@@ -16,12 +16,12 @@ export interface DefaultPackage {
 }
 
 export const DEFAULT_PACKAGES: DefaultPackage[] = [
-  {
-    name: 'ali-workflow',
-    source: 'codemachine-ai/ali-workflow',
-    required: true,
-    manifestUrl:
-      'https://raw.githubusercontent.com/codemachine-ai/ali-workflow/main/codemachine.json',
-  },
+  // {
+  //   name: 'ali-workflow',
+  //   source: 'codemachine-ai/ali-workflow',
+  //   required: true,
+  //   manifestUrl:
+  //     'https://raw.githubusercontent.com/codemachine-ai/ali-workflow/main/codemachine.json',
+  // },
   // Add more default packages here as needed
 ];

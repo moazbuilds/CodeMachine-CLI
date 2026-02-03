@@ -44,10 +44,10 @@ export async function ensureDefaultPackages(): Promise<void> {
       if (result.success) {
         appDebug('[AutoImport] Installed %s@%s', result.name, result.version);
       } else {
-        const message = result.errorDetails || result.error || 'unknown error';
+        const message = result.error || 'unknown error';
         if (pkg.required) {
           appDebug('[AutoImport] WARN: Failed to install required package %s: %s', pkg.name, message);
-          console.warn(`[CodeMachine] Could not install required package "${pkg.name}": ${message}`);
+          console.warn(`Warning: "${pkg.name}" package could not be installed.`);
         } else {
           appDebug('[AutoImport] Skipped optional package %s: %s', pkg.name, message);
         }
@@ -56,7 +56,7 @@ export async function ensureDefaultPackages(): Promise<void> {
       const message = err instanceof Error ? err.message : String(err);
       if (pkg.required) {
         appDebug('[AutoImport] WARN: Exception installing required package %s: %s', pkg.name, message);
-        console.warn(`[CodeMachine] Could not install required package "${pkg.name}": ${message}`);
+        console.warn(`Warning: "${pkg.name}" package could not be installed.`);
       } else {
         appDebug('[AutoImport] Skipped optional package %s (exception): %s', pkg.name, message);
       }
@@ -82,7 +82,13 @@ export async function checkDefaultPackageUpdates(): Promise<void> {
         continue;
       }
 
-      const remoteManifest = (await response.json()) as { version?: string };
+      let remoteManifest: { version?: string };
+      try {
+        remoteManifest = (await response.json()) as { version?: string };
+      } catch {
+        appDebug('[AutoImport] Invalid JSON in manifest for %s', pkg.name);
+        continue;
+      }
       const remoteVersion = remoteManifest?.version;
 
       if (!remoteVersion) {

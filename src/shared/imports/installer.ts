@@ -146,29 +146,46 @@ export async function installPackage(source: string): Promise<InstallResult> {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
 
+    // Network / DNS
+    if (
+      msg.includes('Could not resolve host') ||
+      msg.includes('getaddrinfo') ||
+      msg.includes('ENETUNREACH') ||
+      msg.includes('Network is unreachable') ||
+      msg.includes('ENOTFOUND')
+    ) {
+      return { success: false, error: 'Network unreachable' };
+    }
+    // Timeout
+    if (msg.includes('timed out') || msg.includes('Timeout')) {
+      return { success: false, error: 'Connection timed out' };
+    }
+    // Git not installed
+    if (
+      msg.includes('spawn git ENOENT') ||
+      (msg.includes('Failed to run git') && msg.includes('ENOENT'))
+    ) {
+      return { success: false, error: 'Git is not installed' };
+    }
+    // Rate limiting / access denied
+    if (msg.includes('403') && (msg.includes('rate') || msg.includes('limit'))) {
+      return { success: false, error: 'Access denied' };
+    }
+    // Repository not found
     if (msg.includes('Could not find repository')) {
-      return { success: false, error: 'Repository not found', errorDetails: msg };
+      return { success: false, error: 'Repository not found' };
     }
+    // Clone failure (generic)
     if (msg.includes('git clone failed')) {
-      return {
-        success: false,
-        error: 'Failed to clone repository',
-        errorDetails: 'Check that the URL is correct and the repository is accessible.',
-      };
+      return { success: false, error: 'Failed to clone repository' };
     }
+    // Local path not found
     if (msg.includes('ENOENT') || msg.includes('no such file')) {
-      return {
-        success: false,
-        error: 'Local folder not found',
-        errorDetails: 'Check that the path exists and is accessible.',
-      };
+      return { success: false, error: 'Local folder not found' };
     }
+    // Permission denied
     if (msg.includes('EACCES') || msg.includes('permission denied')) {
-      return {
-        success: false,
-        error: 'Permission denied',
-        errorDetails: 'Check that you have read access to the folder.',
-      };
+      return { success: false, error: 'Permission denied' };
     }
 
     return { success: false, error: msg };
