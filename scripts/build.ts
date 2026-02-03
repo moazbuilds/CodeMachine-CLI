@@ -164,6 +164,7 @@ try {
       tsconfig: './tsconfig.json',
       plugins: [solidPlugin], // SolidJS transform for TUI
       minify: true,
+      root: repoRoot, // Pin root so asset [dir] paths stay stable regardless of entrypoints
       define: {
         __CODEMACHINE_VERSION__: JSON.stringify(mainVersion),
       },
