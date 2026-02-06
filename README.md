@@ -121,3 +121,18 @@ The text types out character by character. `{1}` inserts a 1-second pause mid-se
 |-----|--------|
 | `r` | Restart playback |
 | `Ctrl+C` | Exit |
+
+## Recording & Timestamps
+
+Capture narration sessions as video and extract per-word timestamps for audio sync.
+
+Requires [VHS](https://github.com/charmbracelet/vhs) and [ImageMagick](https://imagemagick.org/).
+
+
+| Command | Description |
+|---------|-------------|
+| `bun run record <name>` | Run VHS, match frames, generate timestamps |
+| `bun run match <name>` | Re-run frame matching only |
+| `bun run clean` | Empty all output folders |
+
+The pipeline records the narration with VHS, captures a screenshot at each word via `Wait+Screen`, then matches screenshots to frames using downscaled RMSE comparison to produce a timestamp JSON mapping each word to its appearance time in seconds.
