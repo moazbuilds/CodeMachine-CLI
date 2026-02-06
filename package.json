@@ -8,7 +8,9 @@
     "typecheck": "tsc --noEmit",
     "record": "bun recordings/tools/pipeline.ts",
     "match": "bun recordings/tools/match.ts",
-    "clean": "bun recordings/tools/clean.ts"
+    "clean": "bun recordings/tools/clean.ts",
+    "audio": "bun recordings/tools/audio.ts",
+    "transcribe": "bun recordings/comps/transcribe.ts"
   },
   "dependencies": {
     "@opentui/core": "0.1.73",
