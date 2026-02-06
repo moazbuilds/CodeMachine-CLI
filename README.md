@@ -122,17 +122,42 @@ The text types out character by character. `{1}` inserts a 1-second pause mid-se
 | `r` | Restart playback |
 | `Ctrl+C` | Exit |
 
-## Recording & Timestamps
+## Recording Pipeline
 
-Capture narration sessions as video and extract per-word timestamps for audio sync.
+End-to-end pipeline: subtitle → audio → terminal recording → transcription → synced video export.
 
-Requires [VHS](https://github.com/charmbracelet/vhs) and [ImageMagick](https://imagemagick.org/).
-
+Requires [VHS](https://github.com/charmbracelet/vhs), [ImageMagick](https://imagemagick.org/), [ffmpeg](https://ffmpeg.org/), and an `ELEVENLABS_API_KEY` in `.env`.
 
 | Command | Description |
 |---------|-------------|
-| `bun run record <name>` | Run VHS, match frames, generate timestamps |
+| `bun run audio <name>` | Generate TTS audio from `recordings/subtitles/{name}.txt` via ElevenLabs |
+| `bun run record <name>` | Run VHS tape, match frames, generate per-word timestamps |
 | `bun run match <name>` | Re-run frame matching only |
+| `bun run transcribe <name>` | Transcribe audio to word-level captions (Whisper.cpp) |
 | `bun run clean` | Empty all output folders |
 
-The pipeline records the narration with VHS, captures a screenshot at each word via `Wait+Screen`, then matches screenshots to frames using downscaled RMSE comparison to produce a timestamp JSON mapping each word to its appearance time in seconds.
+### Workflow
+
+```
+subtitles/{name}.txt → bun audio → output/audio/{name}.mp3
+                        bun record → output/video/{name}.mp4 + output/timestamps/{name}.json
+                        bun transcribe → output/captions/{name}.json
+                        cd recordings/comps && npx remotion render Sync → output/video/{name}-final.mp4
+```
+
+1. Write clean narration text in `recordings/subtitles/{name}.txt`
+2. `bun audio {name}` — generates MP3 via ElevenLabs (model: `eleven_v3`, voice: Adam)
+3. `bun record {name}` — records terminal via VHS, matches per-word screenshots to frames
+4. `bun transcribe {name}` — runs Whisper.cpp on the audio, outputs Remotion `Caption[]` JSON
+5. Copy `recordings/output/` to `recordings/comps/public/output/`, then render with Remotion
+
+The Remotion composition cuts the audio into sentence segments and places each at the video timestamp where that sentence appears on screen.
+
+### Remotion export
+
+```bash
+cd recordings/comps
+npx remotion render Sync --output ../output/video/{name}-final.mp4
+```
+
+Export settings in `remotion.config.ts`: PNG frames, CRF 18, H.264. Uses `OffthreadVideo` (not `<Video>` from `@remotion/media` — VHS H.264 output triggers WebCodecs decoding errors).
