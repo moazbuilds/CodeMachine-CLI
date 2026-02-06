@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "DEBUG=true bun --conditions=browser src/runtime/cli-setup.ts",
     "start": "bun --conditions=browser src/runtime/cli-setup.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "record": "bun recordings/tools/pipeline.ts",
+    "match": "bun recordings/tools/match.ts",
+    "clean": "bun recordings/tools/clean.ts"
   },
   "dependencies": {
     "@opentui/core": "0.1.73",

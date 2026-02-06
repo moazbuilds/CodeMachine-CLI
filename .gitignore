@@ -35,3 +35,6 @@ _bmad-*
 
 .idea
 *_try
+recordings/output
+recordings/tapes
+recordings/scripts
