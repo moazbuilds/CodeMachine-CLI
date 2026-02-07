@@ -81,9 +81,14 @@ export function NarratorView(props: NarratorViewProps) {
     return maxLen
   }
 
-  // Fixed frame width: border(3) + arrow(2) + text + padding(2)
-  // Minimum width to fit "Ali | The CM Guy" header
-  const frameWidth = () => Math.max(40, maxTextLength() + 10)
+  // Fixed frame width: border + arrow + text + padding.
+  // Clamp to terminal width so centered layout never overflows/crops.
+  const frameWidth = () => {
+    const terminalWidth = dimensions()?.width ?? 80
+    const desiredWidth = Math.max(40, maxTextLength() + 10)
+    const maxAllowedWidth = Math.max(10, terminalWidth - 2)
+    return Math.min(desiredWidth, maxAllowedWidth)
+  }
 
   // Calculate vertical centering
   const topPadding = () => Math.max(0, Math.floor(((dimensions()?.height ?? 24) - 6) / 2))

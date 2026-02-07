@@ -27,6 +27,10 @@ export interface AliFrameProps {
  */
 export function AliFrame(props: AliFrameProps) {
   const themeCtx = useTheme()
+  const frameWidth = () => props.width ?? 40
+  const compact = () => frameWidth() < 36
+  const nameLabel = () => (compact() ? 'Ali' : 'Ali | The CM Guy')
+  const nameSpacing = () => (compact() ? ' ' : '    ')
 
   return (
     <box flexDirection="column" paddingLeft={1} width={props.width}>
@@ -37,8 +41,8 @@ export function AliFrame(props: AliFrameProps) {
       <box flexDirection="row">
         <text fg={themeCtx.theme.border}>│  </text>
         <text fg={themeCtx.theme.text}>{props.face}</text>
-        <text>    </text>
-        <text fg={themeCtx.theme.text} bold>Ali | The CM Guy</text>
+        <text>{nameSpacing()}</text>
+        <text fg={themeCtx.theme.text}>{nameLabel()}</text>
       </box>
 
       {/* Text content line with arrow */}

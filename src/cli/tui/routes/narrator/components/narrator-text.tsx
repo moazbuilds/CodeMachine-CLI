@@ -105,7 +105,7 @@ export function NarratorText(props: NarratorTextProps) {
   const cursorChar = () => (isTyping() ? '_' : '')
 
   return (
-    <text fg={themeCtx.theme.warning} bold>
+    <text fg={themeCtx.theme.warning}>
       {displayedText()}
       {cursorChar()}
     </text>
