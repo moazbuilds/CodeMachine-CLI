@@ -15,6 +15,7 @@ import { SelectMenu } from "@tui/shared/components/select-menu"
 import { ImportDialog } from "../dialogs/import-dialog"
 import * as path from "node:path"
 import { HOME_COMMANDS } from "../config/commands"
+import { exitTUI } from "../../../exit"
 
 export interface UseHomeCommandsOptions {
   onStartWorkflow?: () => void
@@ -508,7 +509,7 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
       process.stdout.write('\x1b[2J\x1b[H\x1b[?25h')
     }
 
-    process.exit(0)
+    exitTUI(0)
   }
 
   return { handleCommand }

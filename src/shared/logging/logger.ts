@@ -1,6 +1,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { format as formatMessage } from 'node:util';
+import {format as formatMessage} from 'node:util';
+
+import { SeverityNumber, emitOTelLog, isOTelLoggingEnabled, LOGGER_NAMES } from './otel-logger.js';
 
 /**
  * Logger utility that respects LOG_LEVEL environment variable
@@ -77,8 +79,8 @@ export function setDebugLogFile(filePath: string | null): void {
     return;
   }
 
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  debugLogStream = fs.createWriteStream(filePath, { flags: 'a' });
+  fs.mkdirSync(path.dirname(filePath), {recursive: true});
+  debugLogStream = fs.createWriteStream(filePath, {flags: 'a'});
 }
 
 /**
@@ -122,8 +124,8 @@ export function setAppLogFile(filePath: string | null): void {
     return;
   }
 
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  appLogStream = fs.createWriteStream(filePath, { flags: 'a' });
+  fs.mkdirSync(path.dirname(filePath), {recursive: true});
+  appLogStream = fs.createWriteStream(filePath, {flags: 'a'});
 }
 
 function writeAppLog(message: string, ...args: unknown[]): void {
@@ -136,11 +138,26 @@ function writeAppLog(message: string, ...args: unknown[]): void {
   appLogStream.write(`${timestamp} ${formatted}\n`);
 }
 
+
+export function otel_log(logger_name: (typeof LOGGER_NAMES)[keyof typeof LOGGER_NAMES],
+                         level: SeverityNumber, message: string, args: unknown[]): void {
+  if (isOTelLoggingEnabled()) {
+    const formatted = formatMessage(message, ...args);
+    emitOTelLog(logger_name, level, formatted);
+  }
+}
+
 export function appDebug(message: string, ...args: unknown[]): void {
   if (shouldLog('debug')) {
     writeAppLog(`[DEBUG] ${message}`, ...args);
   }
 }
+
+export function otel_appDebug(logger_name: (typeof LOGGER_NAMES)[keyof typeof LOGGER_NAMES],
+                              message: string, args: unknown[]): void {
+  otel_log(logger_name, SeverityNumber.DEBUG, message, args);
+}
+
 
 export function debug(message: string, ...args: unknown[]): void {
   if (shouldLog('debug')) {
@@ -148,11 +165,21 @@ export function debug(message: string, ...args: unknown[]): void {
   }
 }
 
+export function otel_debug(logger_name: (typeof LOGGER_NAMES)[keyof typeof LOGGER_NAMES],
+                           message: string, args: unknown[]): void {
+  otel_log(logger_name, SeverityNumber.DEBUG, message, args);
+}
+
 export function info(message: string, ...args: unknown[]): void {
   if (shouldLog('info')) {
     // Write to debug log file only (not to UI)
     writeDebugLog(message, ...args);
   }
+}
+
+export function otel_info(logger_name: (typeof LOGGER_NAMES)[keyof typeof LOGGER_NAMES],
+                          message: string, args: unknown[]): void {
+  otel_log(logger_name, SeverityNumber.INFO, message, args);
 }
 
 export function warn(message: string, ...args: unknown[]): void {
@@ -164,6 +191,11 @@ export function warn(message: string, ...args: unknown[]): void {
   }
 }
 
+export function otel_warn(logger_name: (typeof LOGGER_NAMES)[keyof typeof LOGGER_NAMES],
+                          message: string, args: unknown[]): void {
+  otel_log(logger_name, SeverityNumber.WARN, message, args);
+}
+
 export function error(message: string, ...args: unknown[]): void {
   if (isShuttingDown) return; // Suppress during graceful shutdown
   if (shouldLog('error')) {
@@ -171,4 +203,9 @@ export function error(message: string, ...args: unknown[]): void {
     const formatted = formatMessage(`[ERROR] ${message}`, ...args);
     process.stderr.write(formatted + '\n');
   }
+}
+
+export function otel_error(logger_name: (typeof LOGGER_NAMES)[keyof typeof LOGGER_NAMES],
+                           message: string, args: unknown[]): void {
+  otel_log(logger_name, SeverityNumber.ERROR, message, args);
 }
