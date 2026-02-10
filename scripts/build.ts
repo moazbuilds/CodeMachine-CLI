@@ -43,8 +43,6 @@ console.log(`\n${bold}${cyan}╭────────────────
 console.log(`${bold}${cyan}│${reset}  Building ${bold}CodeMachine${reset} v${mainVersion}  ${bold}${cyan}│${reset}`);
 console.log(`${bold}${cyan}╰────────────────────────────────────────╯${reset}\n`);
 
-console.log(`${green}✓${reset} ${dim}No resource embedding needed (imports-only architecture)${reset}`);
-
 // Auto-sync platform package versions before building
 if (mainPackage.optionalDependencies) {
   let needsSync = false;
@@ -81,12 +79,10 @@ const solidPlugin = (await import(solidPluginPath)).default;
 // Ensure platform-specific deps are installed for all targets (mirrors opencode flow)
 const coreVersion = mainPackage.dependencies?.['@opentui/core'];
 if (coreVersion) {
-  console.log(`${cyan}→${reset} Installing cross-platform @opentui/core (${coreVersion})`);
   await $`bun install --os="*" --cpu="*" --ignore-scripts --silent @opentui/core@${coreVersion}`;
 }
 const watcherVersion = mainPackage.dependencies?.['@parcel/watcher'];
 if (watcherVersion) {
-  console.log(`${cyan}→${reset} Installing cross-platform @parcel/watcher (${watcherVersion})`);
   await $`bun install --os="*" --cpu="*" --ignore-scripts --silent @parcel/watcher@${watcherVersion}`;
 }
 

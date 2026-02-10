@@ -17,87 +17,57 @@ if (earlyDebugEnabled) {
   setAppLogFile(appDebugLogPath);
 }
 
-// OTEL LOGGING INITIALIZATION - Initialize early to capture all boot logs
-const { initOTelLogging, shutdownOTelLogging } = await import('../shared/logging/otel-init.js');
-await initOTelLogging();
+// TELEMETRY INITIALIZATION — skip entirely when CODEMACHINE_TRACE is not set
+const traceEnv = (process.env.CODEMACHINE_TRACE || '').trim();
+const telemetryRequested = traceEnv !== '' && traceEnv !== '0' && traceEnv !== 'false';
 
-const otelInitTime = performance.now();
-otel_info(LOGGER_NAMES.BOOT, 'CLI boot started', []);
+const noop = async () => {};
+let shutdownOTelLogging = noop;
+let shutdownTracing = noop;
+let shutdownMetrics = noop;
+let tracingConfig: Awaited<ReturnType<typeof import('../shared/tracing/index.js').initTracing>> | null = null;
+let metricsEnabled = false;
+let otelInitTime = bootStartTime;
+let tracingInitTime = bootStartTime;
+let metricsInitTime = bootStartTime;
 
-// TRACING INITIALIZATION
-otel_info(LOGGER_NAMES.BOOT, 'Initializing tracing...', []);
-const { initTracing, shutdownTracing } = await import('../shared/tracing/index.js');
-const tracingConfig = await initTracing();
-const tracingInitTime = performance.now();
-otel_info(LOGGER_NAMES.BOOT, 'Tracing initialized in %dms, enabled: %s, level: %s, exporter: %s',
-  [Math.round(tracingInitTime - otelInitTime), !!tracingConfig, tracingConfig?.level ?? 'n/a', tracingConfig?.exporter ?? 'n/a']);
+if (telemetryRequested) {
+  const otelMod = await import('../shared/logging/otel-init.js');
+  await otelMod.initOTelLogging();
+  shutdownOTelLogging = otelMod.shutdownOTelLogging;
 
-// METRICS INITIALIZATION
-otel_info(LOGGER_NAMES.BOOT, 'Initializing metrics...', []);
-const { initMetrics, shutdownMetrics } = await import('../shared/metrics/index.js');
-const metricsEnabled = await initMetrics();
-const metricsInitTime = performance.now();
-otel_info(LOGGER_NAMES.BOOT, 'Metrics initialized in %dms, enabled: %s',
-  [Math.round(metricsInitTime - tracingInitTime), metricsEnabled]);
+  otelInitTime = performance.now();
+  otel_info(LOGGER_NAMES.BOOT, 'CLI boot started', []);
 
-// Import tracer helpers after tracing is initialized
+  otel_info(LOGGER_NAMES.BOOT, 'Initializing tracing...', []);
+  const tracingMod = await import('../shared/tracing/index.js');
+  tracingConfig = await tracingMod.initTracing();
+  shutdownTracing = tracingMod.shutdownTracing;
+  tracingInitTime = performance.now();
+  otel_info(LOGGER_NAMES.BOOT, 'Tracing initialized in %dms, enabled: %s, level: %s, exporter: %s',
+    [Math.round(tracingInitTime - otelInitTime), !!tracingConfig, tracingConfig?.level ?? 'n/a', tracingConfig?.exporter ?? 'n/a']);
+
+  otel_info(LOGGER_NAMES.BOOT, 'Initializing metrics...', []);
+  const metricsMod = await import('../shared/metrics/index.js');
+  metricsEnabled = await metricsMod.initMetrics();
+  shutdownMetrics = metricsMod.shutdownMetrics;
+  metricsInitTime = performance.now();
+  otel_info(LOGGER_NAMES.BOOT, 'Metrics initialized in %dms, enabled: %s',
+    [Math.round(metricsInitTime - tracingInitTime), metricsEnabled]);
+}
+
+// Import tracer helpers — these are always safe (no-op when tracing not initialized)
 const { getCliTracer, withSpan, withSpanSync, withRootSpan, startManualSpanAsync } = await import('../shared/tracing/index.js');
 const cliTracer = getCliTracer();
 
 // PRE-BOOT PHASE - parent span for all pre-boot operations
-import { ensureDefaultPackagesSync } from '../shared/imports/auto-import.js';
+import { ensureDefaultPackagesSync, ensureDefaultPackages } from '../shared/imports/auto-import.js';
 
 const { defaultPkgsTime, cliDepsEndTime, bootHistogram, splashShown, Command, realpathSync, existsSync, fileURLToPath } = await withSpan(
   cliTracer,
   'cli.preBoot',
   async (preBootSpan) => {
-    // ENSURE DEFAULT PACKAGES (fast sync check)
-    const defaultPkgsTime = await withSpan(cliTracer, 'cli.preBoot.default_packages', async (span) => {
-      const allDefaultsPresent = ensureDefaultPackagesSync();
-      const time = performance.now();
-      otel_info(LOGGER_NAMES.BOOT, 'Default packages present: %s', [allDefaultsPresent]);
-      span.setAttribute('cli.preBoot.default_packages.present', allDefaultsPresent);
-      return time;
-    });
-
-    // Create boot timing histogram after metrics are initialized
-    let bootHistogram: import('@opentelemetry/api').Histogram | null = null;
-    if (metricsEnabled) {
-      const { getProcessMeter } = await import('../shared/metrics/index.js');
-      const meter = getProcessMeter();
-      bootHistogram = meter.createHistogram('boot.phase_duration', {
-        description: 'Duration of boot phases in milliseconds',
-        unit: 'ms',
-      });
-
-      // Record early boot phases
-      bootHistogram.record(otelInitTime - bootStartTime, { 'boot.phase': 'cli.preBoot.otel_logging' });
-      bootHistogram.record(tracingInitTime - otelInitTime, { 'boot.phase': 'cli.preBoot.tracing' });
-      bootHistogram.record(metricsInitTime - tracingInitTime, { 'boot.phase': 'cli.preBoot.metrics' });
-      bootHistogram.record(defaultPkgsTime - metricsInitTime, { 'boot.phase': 'cli.preBoot.default_packages' });
-    }
-
-    if (tracingConfig) {
-      process.on('beforeExit', async () => {
-        await shutdownOTelLogging();
-        await shutdownMetrics();
-        await shutdownTracing();
-      });
-
-      const handleSignal = (signal: string) => {
-        otel_info(LOGGER_NAMES.BOOT, 'Received %s, shutting down telemetry', [signal]);
-        shutdownOTelLogging()
-          .then(() => shutdownMetrics())
-          .then(() => shutdownTracing())
-          .finally(() => {
-            process.exit(0);
-          });
-      };
-      process.on('SIGINT', () => handleSignal('SIGINT'));
-      process.on('SIGTERM', () => handleSignal('SIGTERM'));
-    }
-
-    // EARLY HOME DIRECTORY BLOCKER - Check before splash screen
+    // 1. HOME DIRECTORY BLOCKER
     const args = process.argv.slice(2);
     const dirArgIndex = args.findIndex((arg: string) => arg === '--dir' || arg === '-d');
     const explicitDir = dirArgIndex !== -1 ? args[dirArgIndex + 1] : null;
@@ -139,7 +109,7 @@ const { defaultPkgsTime, cliDepsEndTime, bootHistogram, splashShown, Command, re
       // Continue - directory might not exist yet
     }
 
-    // SPLASH SCREEN
+    // 2. SPLASH SCREEN
     const hasSubcommand = args.length > 0 && !args[0].startsWith('-');
     const hasHelpOrVersion = args.some(arg =>
       arg === '--help' || arg === '-h' || arg === '--version' || arg === '-V'
@@ -160,6 +130,100 @@ const { defaultPkgsTime, cliDepsEndTime, bootHistogram, splashShown, Command, re
     } else {
       otel_info(LOGGER_NAMES.BOOT, 'Splash screen skipped (subcommand=%s, help/version=%s, tty=%s)',
         [hasSubcommand, hasHelpOrVersion, process.stdout.isTTY]);
+    }
+
+    // 3. ENSURE DEFAULT PACKAGES (fast sync check)
+    const { defaultPkgsTime, allDefaultsPresent } = await withSpan(cliTracer, 'cli.preBoot.default_packages', async (span) => {
+      const allDefaultsPresent = ensureDefaultPackagesSync();
+      const time = performance.now();
+      otel_info(LOGGER_NAMES.BOOT, 'Default packages present: %s', [allDefaultsPresent]);
+      span.setAttribute('cli.preBoot.default_packages.present', allDefaultsPresent);
+      return { defaultPkgsTime: time, allDefaultsPresent };
+    });
+
+    // Create boot timing histogram after metrics are initialized
+    let bootHistogram: import('@opentelemetry/api').Histogram | null = null;
+    if (metricsEnabled) {
+      const { getProcessMeter } = await import('../shared/metrics/index.js');
+      const meter = getProcessMeter();
+      bootHistogram = meter.createHistogram('boot.phase_duration', {
+        description: 'Duration of boot phases in milliseconds',
+        unit: 'ms',
+      });
+
+      // Record early boot phases
+      bootHistogram.record(otelInitTime - bootStartTime, { 'boot.phase': 'cli.preBoot.otel_logging' });
+      bootHistogram.record(tracingInitTime - otelInitTime, { 'boot.phase': 'cli.preBoot.tracing' });
+      bootHistogram.record(metricsInitTime - tracingInitTime, { 'boot.phase': 'cli.preBoot.metrics' });
+      bootHistogram.record(defaultPkgsTime - metricsInitTime, { 'boot.phase': 'cli.preBoot.default_packages' });
+    }
+
+    if (tracingConfig) {
+      process.on('beforeExit', async () => {
+        await shutdownOTelLogging();
+        await shutdownMetrics();
+        await shutdownTracing();
+      });
+
+      const handleSignal = (signal: string) => {
+        otel_info(LOGGER_NAMES.BOOT, 'Received %s, shutting down telemetry', [signal]);
+        shutdownOTelLogging()
+          .then(() => shutdownMetrics())
+          .then(() => shutdownTracing())
+          .finally(() => {
+            process.exit(0);
+          });
+      };
+      process.on('SIGINT', () => handleSignal('SIGINT'));
+      process.on('SIGTERM', () => handleSignal('SIGTERM'));
+    }
+
+    // BLOCKING INSTALL — if sync check found missing packages, install them now
+    if (!allDefaultsPresent) {
+      await withSpan(cliTracer, 'cli.preBoot.default_packages_install', async (installSpan) => {
+        const { rows = 24, columns = 80 } = process.stdout;
+        const centerY = Math.floor(rows / 2);
+        const centerX = Math.floor(columns / 2);
+
+        const barFull = '━━━━━━━━━━━━';
+        const progressFrames = [
+          barFull.slice(0, 3),
+          barFull.slice(0, 6),
+          barFull.slice(0, 9),
+          barFull,
+        ];
+        let frameIdx = 0;
+        let currentMsg = '';
+        let spinnerInterval: ReturnType<typeof setInterval> | undefined;
+
+        if (splashShown) {
+          const drawLine = () => {
+            const frame = progressFrames[frameIdx % progressFrames.length];
+            const msgX = Math.max(1, centerX - Math.floor(currentMsg.length / 2));
+            const barX = Math.max(1, centerX - Math.floor(frame.length / 2));
+            process.stdout.write(`\x1b[${centerY + 3};1H\x1b[2K\x1b[${centerY + 3};${msgX}H\x1b[2m${currentMsg}\x1b[0m`);
+            process.stdout.write(`\x1b[${centerY + 4};1H\x1b[2K\x1b[${centerY + 4};${barX}H\x1b[38;2;0;217;255m${frame}\x1b[0m`);
+            frameIdx++;
+          };
+          drawLine();
+          spinnerInterval = setInterval(drawLine, 200);
+        }
+
+        otel_info(LOGGER_NAMES.BOOT, 'Blocking install of missing default packages...', []);
+        await ensureDefaultPackages((name) => {
+          otel_info(LOGGER_NAMES.BOOT, 'Downloading default package: %s', [name]);
+          currentMsg = `Downloading ${name} package...`;
+        });
+
+        if (spinnerInterval) clearInterval(spinnerInterval);
+        if (splashShown) {
+          process.stdout.write(`\x1b[${centerY + 3};1H\x1b[2K`);
+          process.stdout.write(`\x1b[${centerY + 4};1H\x1b[2K`);
+        }
+
+        installSpan.setAttribute('cli.preBoot.default_packages_install.done', true);
+        otel_info(LOGGER_NAMES.BOOT, 'Default packages installed', []);
+      });
     }
 
     // CLI DEPENDENCIES - dynamic imports with span
@@ -204,15 +268,10 @@ async function initializeLazy(cwd: string): Promise<void> {
     span.setAttribute('cli.lazy.workspace.path', cwd);
     const lazyStartTime = performance.now();
 
-    // 0. Ensure default packages are installed (async — will clone if missing)
-    await withSpan(cliTracer, 'cli.lazy.default_packages', async (pkgSpan) => {
-      otel_info(LOGGER_NAMES.CLI, 'Ensuring default packages...', []);
-      const { ensureDefaultPackages, checkDefaultPackageUpdates } = await import('../shared/imports/auto-import.js');
-      await ensureDefaultPackages();
-      checkDefaultPackageUpdates().catch(err => {
-        otel_warn(LOGGER_NAMES.CLI, 'Default package update check error: %s', [err]);
-        pkgSpan.setAttribute('cli.lazy.default_packages.update_error', String(err));
-      });
+    // 0. Check default packages for updates (install already happened in pre-boot)
+    const { checkDefaultPackageUpdates } = await import('../shared/imports/auto-import.js');
+    checkDefaultPackageUpdates().catch(err => {
+      otel_warn(LOGGER_NAMES.CLI, 'Default package update check error: %s', [err]);
     });
 
     // 1. Check for updates

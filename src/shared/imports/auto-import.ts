@@ -30,7 +30,7 @@ export function ensureDefaultPackagesSync(): boolean {
  * Install any missing default packages.
  * Each package is independent — one failure does not block others.
  */
-export async function ensureDefaultPackages(): Promise<void> {
+export async function ensureDefaultPackages(onInstalling?: (name: string) => void): Promise<void> {
   for (const pkg of DEFAULT_PACKAGES) {
     const existing = getInstalledImport(pkg.name);
     if (existing) {
@@ -39,6 +39,7 @@ export async function ensureDefaultPackages(): Promise<void> {
     }
 
     appDebug('[AutoImport] Installing missing default package: %s from %s', pkg.name, pkg.source);
+    onInstalling?.(pkg.name);
     try {
       const result = await installPackage(pkg.source);
       if (result.success) {
