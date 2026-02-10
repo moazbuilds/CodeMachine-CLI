@@ -1,3 +1,6 @@
+import { otel_info } from '../logging/logger.js';
+import { LOGGER_NAMES } from '../logging/otel-logger.js';
+
 const BASELINE_WARNING_PREFIX =
   '[baseline-browser-mapping] The data in this module is over two months old.';
 
@@ -15,4 +18,6 @@ if (!globalWithFlag.__CODEMACHINE_BASELINE_BBM_WARN_FILTER__) {
     }
     originalWarn(...args);
   };
+
+  otel_info(LOGGER_NAMES.BOOT, 'Baseline warning filter installed', []);
 }
