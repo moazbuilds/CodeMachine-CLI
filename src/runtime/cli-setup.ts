@@ -45,35 +45,18 @@ const { getCliTracer, withSpan, withSpanSync, withRootSpan, startManualSpanAsync
 const cliTracer = getCliTracer();
 
 // PRE-BOOT PHASE - parent span for all pre-boot operations
-import { ensure as ensureResources } from '../shared/runtime/embed.js';
+import { ensureDefaultPackagesSync } from '../shared/imports/auto-import.js';
 
-const { embedTime, cliDepsEndTime, bootHistogram, splashShown, Command, realpathSync, existsSync, fileURLToPath } = await withSpan(
+const { defaultPkgsTime, cliDepsEndTime, bootHistogram, splashShown, Command, realpathSync, existsSync, fileURLToPath } = await withSpan(
   cliTracer,
   'cli.preBoot',
   async (preBootSpan) => {
-    // ENSURE EMBEDDED RESOURCES
-    const embedTime = await withSpan(cliTracer, 'cli.preBoot.embed_resources', async (span) => {
-      const embeddedRoot = await ensureResources();
+    // ENSURE DEFAULT PACKAGES (fast sync check)
+    const defaultPkgsTime = await withSpan(cliTracer, 'cli.preBoot.default_packages', async (span) => {
+      const allDefaultsPresent = ensureDefaultPackagesSync();
       const time = performance.now();
-
-      if (embeddedRoot) {
-        otel_info(LOGGER_NAMES.BOOT, 'Running from embedded binary: %s', [embeddedRoot]);
-        process.env.CODEMACHINE_INSTALL_DIR = embeddedRoot;
-        span.setAttribute('cli.preBoot.embed.mode', 'binary');
-        span.setAttribute('cli.preBoot.embed.root', embeddedRoot);
-      } else if (!process.env.CODEMACHINE_INSTALL_DIR) {
-        const { resolvePackageRoot } = await import('../shared/runtime/root.js');
-        try {
-          const packageRoot = resolvePackageRoot(import.meta.url, 'cli-setup');
-          process.env.CODEMACHINE_INSTALL_DIR = packageRoot;
-          otel_info(LOGGER_NAMES.BOOT, 'Running from source, install directory: %s', [packageRoot]);
-          span.setAttribute('cli.preBoot.embed.mode', 'source');
-          span.setAttribute('cli.preBoot.embed.root', packageRoot);
-        } catch (err) {
-          otel_warn(LOGGER_NAMES.BOOT, 'Failed to resolve package root: %s', [err]);
-          span.setAttribute('cli.preBoot.embed.mode', 'fallback');
-        }
-      }
+      otel_info(LOGGER_NAMES.BOOT, 'Default packages present: %s', [allDefaultsPresent]);
+      span.setAttribute('cli.preBoot.default_packages.present', allDefaultsPresent);
       return time;
     });
 
@@ -91,7 +74,7 @@ const { embedTime, cliDepsEndTime, bootHistogram, splashShown, Command, realpath
       bootHistogram.record(otelInitTime - bootStartTime, { 'boot.phase': 'cli.preBoot.otel_logging' });
       bootHistogram.record(tracingInitTime - otelInitTime, { 'boot.phase': 'cli.preBoot.tracing' });
       bootHistogram.record(metricsInitTime - tracingInitTime, { 'boot.phase': 'cli.preBoot.metrics' });
-      bootHistogram.record(embedTime - metricsInitTime, { 'boot.phase': 'cli.preBoot.embed_resources' });
+      bootHistogram.record(defaultPkgsTime - metricsInitTime, { 'boot.phase': 'cli.preBoot.default_packages' });
     }
 
     if (tracingConfig) {
@@ -188,7 +171,7 @@ const { embedTime, cliDepsEndTime, bootHistogram, splashShown, Command, realpath
         const { realpathSync: rps, existsSync: es } = await import('node:fs');
         const { fileURLToPath: fup } = await import('node:url');
 
-        const duration = Math.round(performance.now() - embedTime);
+        const duration = Math.round(performance.now() - defaultPkgsTime);
         span.setAttribute('cli.preBoot.cli_deps.duration_ms', duration);
         otel_info(LOGGER_NAMES.BOOT, 'CLI dependencies loaded in %dms (commander, node:fs, node:url)', [duration]);
 
@@ -196,11 +179,11 @@ const { embedTime, cliDepsEndTime, bootHistogram, splashShown, Command, realpath
       }
     );
     const cliDepsEndTime = performance.now();
-    bootHistogram?.record(cliDepsEndTime - embedTime, { 'boot.phase': 'cli.preBoot.cli_deps_import' });
+    bootHistogram?.record(cliDepsEndTime - defaultPkgsTime, { 'boot.phase': 'cli.preBoot.cli_deps_import' });
 
     preBootSpan.setAttribute('cli.preBoot.duration_ms', Math.round(cliDepsEndTime - metricsInitTime));
 
-    return { embedTime, cliDepsEndTime, bootHistogram, splashShown, Command, realpathSync, existsSync, fileURLToPath };
+    return { defaultPkgsTime, cliDepsEndTime, bootHistogram, splashShown, Command, realpathSync, existsSync, fileURLToPath };
   }
 );
 
@@ -220,6 +203,17 @@ async function initializeLazy(cwd: string): Promise<void> {
   return withRootSpan(cliTracer, 'cli.lazy', async (span) => {
     span.setAttribute('cli.lazy.workspace.path', cwd);
     const lazyStartTime = performance.now();
+
+    // 0. Ensure default packages are installed (async — will clone if missing)
+    await withSpan(cliTracer, 'cli.lazy.default_packages', async (pkgSpan) => {
+      otel_info(LOGGER_NAMES.CLI, 'Ensuring default packages...', []);
+      const { ensureDefaultPackages, checkDefaultPackageUpdates } = await import('../shared/imports/auto-import.js');
+      await ensureDefaultPackages();
+      checkDefaultPackageUpdates().catch(err => {
+        otel_warn(LOGGER_NAMES.CLI, 'Default package update check error: %s', [err]);
+        pkgSpan.setAttribute('cli.lazy.default_packages.update_error', String(err));
+      });
+    });
 
     // 1. Check for updates
     await withSpan(cliTracer, 'cli.lazy.updates', async (updateSpan) => {

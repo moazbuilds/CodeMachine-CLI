@@ -15,9 +15,9 @@ import { processPromptString } from '../../shared/prompts/index.js';
 import { debug } from '../../shared/logging/logger.js';
 import { saveControllerConfig } from './config.js';
 import { resolvePromptPath } from '../../shared/imports/index.js';
-import { resolvePackageRoot } from '../../shared/runtime/root.js';
+import { getDevRoot } from '../../shared/runtime/dev.js';
 
-const packageRoot = resolvePackageRoot(import.meta.url, 'controller init');
+const localRoot = getDevRoot() || '';
 
 /**
  * Initialize controller agent session
@@ -47,7 +47,7 @@ export async function initControllerAgent(
       resolvedPath = p;
     } else {
       // Try to resolve from imports first
-      const importResolved = resolvePromptPath(p, packageRoot);
+      const importResolved = resolvePromptPath(p, localRoot);
       resolvedPath = importResolved ?? path.resolve(cwd, p);
     }
     debug('[Controller] Resolved prompt path: %s', resolvedPath);

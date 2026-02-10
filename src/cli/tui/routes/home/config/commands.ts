@@ -4,18 +4,14 @@
  * Command definitions and utility functions for the home view.
  */
 
-import { createRequire } from "node:module"
 import * as path from "node:path"
-import { resolvePackageJson } from "../../../../../shared/runtime/root.js"
+import { VERSION } from "../../../../../runtime/version.js"
 
 /**
- * Get the application version from package.json
+ * Get the application version
  */
 export function getVersion(): string {
-  const require = createRequire(import.meta.url)
-  const packageJsonPath = resolvePackageJson(import.meta.url, "home route")
-  const pkg = require(packageJsonPath) as { version: string }
-  return pkg.version
+  return VERSION
 }
 
 /**

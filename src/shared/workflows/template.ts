@@ -1,15 +1,11 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import * as path from 'node:path';
-import { resolvePackageRoot } from '../runtime/root.js';
 import { debug } from '../logging/logger.js';
-import { getAllInstalledImports } from '../imports/index.js';
+import { getAllInstalledImports, resolveWorkflowTemplate } from '../imports/index.js';
+import { getDevRoot } from '../runtime/dev.js';
 
 const TEMPLATE_TRACKING_FILE = 'template.json';
-
-const packageRoot = resolvePackageRoot(import.meta.url, 'workflows template tracking');
-
-const templatesDir = path.resolve(packageRoot, 'templates', 'workflows');
 
 /**
  * Data stored for each workflow step
@@ -171,29 +167,38 @@ export async function hasTemplateChanged(cmRoot: string, templateName: string): 
 export async function getTemplatePathFromTracking(cmRoot: string): Promise<string> {
   const activeTemplate = await getActiveTemplate(cmRoot);
 
-  if (!activeTemplate) {
-    // No template tracked, return default
-    return path.join(templatesDir, 'ali.workflow.js');
+  const templateName = activeTemplate || 'ali.workflow.js';
+
+  // Try imports first
+  const importResolved = resolveWorkflowTemplate(templateName, getDevRoot() || '');
+  if (importResolved && existsSync(importResolved)) {
+    debug('[Template] Resolved template via imports: %s', importResolved);
+    return importResolved;
   }
 
-  // First check local templates directory
-  const localPath = path.join(templatesDir, activeTemplate);
-  if (existsSync(localPath)) {
-    return localPath;
-  }
-
-  // Search in imported packages' workflow directories
+  // Search imported packages' workflow directories
   const imports = getAllInstalledImports();
   for (const imp of imports) {
-    const importedPath = path.join(imp.resolvedPaths.workflows, activeTemplate);
+    const importedPath = path.join(imp.resolvedPaths.workflows, templateName);
     if (existsSync(importedPath)) {
       debug('[Template] Found template in imported package %s: %s', imp.name, importedPath);
       return importedPath;
     }
   }
 
-  // Fallback to local path (will fail with proper error message)
-  return localPath;
+  // Dev root fallback
+  const devRoot = getDevRoot();
+  if (devRoot) {
+    const localPath = path.join(devRoot, 'templates', 'workflows', templateName);
+    if (existsSync(localPath)) {
+      return localPath;
+    }
+    // Return local path even if missing — will give a meaningful error
+    return localPath;
+  }
+
+  // Last resort — return the template name; callers will get a clear error
+  return templateName;
 }
 
 /**

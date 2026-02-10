@@ -4,12 +4,12 @@ import { pathToFileURL } from 'node:url';
 import type { WorkflowTemplate } from './types.js';
 import { validateWorkflowTemplate } from './validator.js';
 import { ensureTemplateGlobals } from './globals.js';
-import { resolvePackageRoot } from '../../shared/runtime/root.js';
+import { getDevRoot } from '../../shared/runtime/dev.js';
+import { resolveWorkflowTemplate } from '../../shared/imports/index.js';
 import { appDebug } from '../../shared/logging/logger.js';
 
-// Package root resolution
-export const packageRoot = resolvePackageRoot(import.meta.url, 'workflow templates loader');
-appDebug('[TemplateLoader] packageRoot resolved to: %s', packageRoot);
+const localRoot = getDevRoot() || '';
+appDebug('[TemplateLoader] localRoot resolved to: %s', localRoot || '(none — compiled binary)');
 
 // Module loading
 export async function loadWorkflowModule(modPath: string): Promise<unknown> {
@@ -36,12 +36,16 @@ export async function loadWorkflowModule(modPath: string): Promise<unknown> {
 export async function loadTemplate(cwd: string, templatePath: string): Promise<WorkflowTemplate> {
   appDebug('[TemplateLoader] loadTemplate called');
   appDebug('[TemplateLoader] templatePath input: %s', templatePath);
-  appDebug('[TemplateLoader] packageRoot: %s', packageRoot);
+  appDebug('[TemplateLoader] localRoot: %s', localRoot);
   appDebug('[TemplateLoader] isAbsolute: %s', path.isAbsolute(templatePath));
 
-  const resolvedPath = path.isAbsolute(templatePath)
-    ? templatePath
-    : path.resolve(packageRoot, templatePath);
+  let resolvedPath: string;
+  if (path.isAbsolute(templatePath)) {
+    resolvedPath = templatePath;
+  } else {
+    const importResolved = resolveWorkflowTemplate(templatePath, localRoot);
+    resolvedPath = importResolved ?? (localRoot ? path.resolve(localRoot, templatePath) : templatePath);
+  }
 
   appDebug('[TemplateLoader] resolvedPath: %s', resolvedPath);
 
@@ -68,11 +72,15 @@ export async function loadTemplate(cwd: string, templatePath: string): Promise<W
 export async function loadTemplateWithPath(cwd: string, templatePath: string): Promise<{ template: WorkflowTemplate; resolvedPath: string }> {
   appDebug('[TemplateLoader] loadTemplateWithPath called');
   appDebug('[TemplateLoader] templatePath input: %s', templatePath);
-  appDebug('[TemplateLoader] packageRoot: %s', packageRoot);
+  appDebug('[TemplateLoader] localRoot: %s', localRoot);
 
-  const resolvedPath = path.isAbsolute(templatePath)
-    ? templatePath
-    : path.resolve(packageRoot, templatePath);
+  let resolvedPath: string;
+  if (path.isAbsolute(templatePath)) {
+    resolvedPath = templatePath;
+  } else {
+    const importResolved = resolveWorkflowTemplate(templatePath, localRoot);
+    resolvedPath = importResolved ?? (localRoot ? path.resolve(localRoot, templatePath) : templatePath);
+  }
 
   appDebug('[TemplateLoader] resolvedPath: %s', resolvedPath);
 

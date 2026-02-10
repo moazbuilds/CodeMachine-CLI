@@ -21,29 +21,7 @@ let cachedVersion: string | null = null;
 
 function getVersionFromPackageJson(): string {
   try {
-    // Try to resolve package.json using environment variables first
-    const envCandidates = [
-      process.env.CODEMACHINE_PACKAGE_JSON,
-      process.env.CODEMACHINE_PACKAGE_ROOT
-        ? join(process.env.CODEMACHINE_PACKAGE_ROOT, 'package.json')
-        : undefined,
-      process.env.CODEMACHINE_INSTALL_DIR
-        ? join(process.env.CODEMACHINE_INSTALL_DIR, 'package.json')
-        : undefined,
-    ];
-
-    for (const candidate of envCandidates) {
-      if (candidate) {
-        try {
-          const pkg = JSON.parse(readFileSync(candidate, 'utf8'));
-          if (pkg?.version) return pkg.version;
-        } catch {
-          // Try next candidate
-        }
-      }
-    }
-
-    // Fallback: traverse up from this file location
+    // Traverse up from this file location looking for codemachine package.json
     let currentDir = join(import.meta.dir || __dirname, '..');
     for (let i = 0; i < 10; i++) {
       const pkgPath = join(currentDir, 'package.json');

@@ -74,6 +74,22 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
   }
 
   const handleStartCommand = async () => {
+    // Quick check: does a loadable template exist?
+    const { existsSync } = await import("node:fs")
+    const { getTemplatePathFromTracking } = await import("../../../../../shared/workflows/template.js")
+    const cwd = process.env.CODEMACHINE_CWD || process.cwd()
+    const cmRoot = path.join(cwd, ".codemachine")
+    const templatePath = await getTemplatePathFromTracking(cmRoot)
+
+    if (!existsSync(templatePath)) {
+      toast.show({
+        variant: "warning",
+        message: "No workflow templates available. Use /import to add a workflow package.",
+        duration: 8000,
+      })
+      return
+    }
+
     try {
       // Pre-flight check - validates specification if required by template
       const { checkSpecificationRequired } = await import("../../../../../workflows/preflight.js")
@@ -105,7 +121,6 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
         title: t.title,
         value: index + 1,
         description: `${t.stepCount} steps`,
-        category: t.category === 'imported' ? "Imported" : "Builtin",
       }
     })
 
@@ -314,171 +329,10 @@ export function useHomeCommands(options: UseHomeCommandsOptions) {
   }
 
   const handleImportCommand = async () => {
-    const {
-      resolveSource,
-      validateImport,
-      parseManifest,
-      registerImport,
-      getImportInstallPath,
-      isImportInstalled,
-      ensureImportsDir,
-    } = await import("../../../../../shared/imports/index.js")
-    const { existsSync, rmSync, cpSync } = await import("node:fs")
-    const { spawn } = await import("node:child_process")
-
-    const cloneRepo = (url: string, destPath: string): Promise<void> => {
-      return new Promise((resolve, reject) => {
-        const args = ["clone", "--depth", "1", url, destPath]
-        const proc = spawn("git", args, { stdio: "pipe" })
-
-        let stderr = ""
-        if (proc.stderr) {
-          proc.stderr.on("data", (data: Buffer) => {
-            stderr += data.toString()
-          })
-        }
-
-        proc.on("close", (code: number | null) => {
-          if (code === 0) {
-            resolve()
-          } else {
-            reject(new Error(`git clone failed: ${stderr}`))
-          }
-        })
-
-        proc.on("error", (err: Error) => {
-          reject(new Error(`Failed to run git: ${err.message}`))
-        })
-      })
-    }
-
-    const copyLocalFolder = (sourcePath: string, destPath: string): void => {
-      cpSync(sourcePath, destPath, { recursive: true })
-    }
-
-    const removeGitDir = (repoPath: string): void => {
-      const { join } = require("node:path")
-      const gitDir = join(repoPath, ".git")
-      if (existsSync(gitDir)) {
-        rmSync(gitDir, { recursive: true, force: true })
-      }
-    }
+    const { installPackage } = await import("../../../../../shared/imports/installer.js")
 
     const performInstall = async (source: string) => {
-      try {
-        // Resolve the source to a clone URL or local path
-        const resolved = await resolveSource(source)
-        const installPath = getImportInstallPath(resolved.repoName)
-
-        // Check if already installed and remove
-        if (isImportInstalled(resolved.repoName)) {
-          rmSync(installPath, { recursive: true, force: true })
-        }
-
-        // Ensure imports directory exists
-        ensureImportsDir()
-
-        // Handle local paths vs git URLs
-        if (resolved.type === "local-path") {
-          copyLocalFolder(resolved.url, installPath)
-        } else {
-          // Clone the repository
-          await cloneRepo(resolved.url, installPath)
-        }
-
-        // Remove .git directory (in case local folder had one)
-        removeGitDir(installPath)
-
-        // Validate the import
-        const validation = validateImport(installPath)
-
-        if (!validation.valid) {
-          // Invalid import, remove it
-          rmSync(installPath, { recursive: true, force: true })
-
-          // Determine specific error reason
-          const hasMissingManifest = validation.errors.some((e) =>
-            e.includes("codemachine.json")
-          )
-
-          if (hasMissingManifest) {
-            return {
-              success: false,
-              error: "Missing manifest file",
-              errorDetails:
-                resolved.type === "local-path"
-                  ? "The folder must contain a .codemachine.json or codemachine.json manifest file."
-                  : "The repository must contain a codemachine.json manifest file in the root directory.",
-            }
-          }
-
-          return {
-            success: false,
-            error: "Validation failed",
-            errorDetails: validation.errors.join("\n"),
-          }
-        }
-
-        // Register the import
-        const manifest = parseManifest(installPath)
-        if (!manifest) {
-          rmSync(installPath, { recursive: true, force: true })
-          return {
-            success: false,
-            error: "Failed to parse manifest",
-            errorDetails: "The codemachine.json file could not be parsed.",
-          }
-        }
-
-        registerImport(resolved.repoName, manifest, source)
-
-        return {
-          success: true,
-          name: manifest.name,
-          version: manifest.version,
-          location: installPath,
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error)
-
-        // Check for specific error types
-        if (errorMessage.includes("Could not find repository")) {
-          return {
-            success: false,
-            error: "Repository not found",
-            errorDetails: errorMessage,
-          }
-        }
-
-        if (errorMessage.includes("git clone failed")) {
-          return {
-            success: false,
-            error: "Failed to clone repository",
-            errorDetails: "Check that the URL is correct and the repository is accessible.",
-          }
-        }
-
-        if (errorMessage.includes("ENOENT") || errorMessage.includes("no such file")) {
-          return {
-            success: false,
-            error: "Local folder not found",
-            errorDetails: "Check that the path exists and is accessible.",
-          }
-        }
-
-        if (errorMessage.includes("EACCES") || errorMessage.includes("permission denied")) {
-          return {
-            success: false,
-            error: "Permission denied",
-            errorDetails: "Check that you have read access to the folder.",
-          }
-        }
-
-        return {
-          success: false,
-          error: errorMessage,
-        }
-      }
+      return installPackage(source)
     }
 
     dialog.show(() => (

@@ -1,8 +1,9 @@
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import * as path from 'node:path';
 import type { StepOverrides, WorkflowStep } from '../types.js';
-import { mainAgents, packageRoot } from '../config.js';
+import { mainAgents } from '../config.js';
 import { resolvePromptFolder } from '../../../shared/imports/index.js';
+import { getDevRoot } from '../../../shared/runtime/dev.js';
 
 function extractOrderPrefix(filename: string): number | null {
   const match = filename.match(/^(\d+)\s*-/);
@@ -18,7 +19,7 @@ export function resolveFolder(folderName: string, overrides: StepOverrides = {})
   }
 
   // Check imported packages first, then local
-  const promptsDir = resolvePromptFolder(folderName, packageRoot);
+  const promptsDir = resolvePromptFolder(folderName, getDevRoot() || '');
 
   if (!promptsDir || !existsSync(promptsDir) || !statSync(promptsDir).isDirectory()) {
     throw new Error(`Folder not found: prompts/templates/${folderName} (checked imports and local)`);

@@ -4,7 +4,8 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { collectAgentsFromWorkflows } from '../../../shared/agents/index.js';
-import { resolvePackageRoot } from '../../../shared/runtime/root.js';
+import { getDevRoot } from '../../../shared/runtime/dev.js';
+import { getImportRoots } from '../../../shared/imports/index.js';
 import { appDebug } from '../../../shared/logging/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -12,20 +13,14 @@ const __dirname = path.dirname(__filename);
 const require = createRequire(import.meta.url);
 
 export const CLI_BUNDLE_DIR = path.resolve(__dirname);
-export const CLI_PACKAGE_ROOT = (() => {
-  try {
-    return resolvePackageRoot(import.meta.url, 'workspace discovery');
-  } catch {
-    // If resolution fails, return undefined (legacy behavior)
-    return undefined;
-  }
-})();
+export const CLI_PACKAGE_ROOT = getDevRoot() ?? undefined;
 
 export const CLI_ROOT_CANDIDATES = Array.from(
   new Set([
     CLI_BUNDLE_DIR,
     CLI_PACKAGE_ROOT,
-    CLI_PACKAGE_ROOT ? path.join(CLI_PACKAGE_ROOT, 'dist') : undefined
+    CLI_PACKAGE_ROOT ? path.join(CLI_PACKAGE_ROOT, 'dist') : undefined,
+    ...getImportRoots(),
   ].filter((root): root is string => Boolean(root)))
 );
 

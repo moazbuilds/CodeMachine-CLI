@@ -4,9 +4,9 @@ import * as path from 'node:path';
 import { debug } from '../../shared/logging/logger.js';
 import type { ChainedPathEntry, ConditionalChainedPath } from '../../shared/agents/config/types.js';
 import { resolvePathWithImports } from '../../shared/imports/index.js';
-import { resolvePackageRoot } from '../../shared/runtime/root.js';
+import { getDevRoot } from '../../shared/runtime/dev.js';
 
-const packageRoot = resolvePackageRoot(import.meta.url, 'chained prompts');
+const localRoot = getDevRoot() || '';
 
 /**
  * Represents a chained prompt loaded from a .md file
@@ -104,7 +104,7 @@ async function loadPromptFromFile(
     absolutePath = filePath;
   } else {
     // Try to resolve from imports first, then fall back to project root
-    const importResolved = resolvePathWithImports(filePath, packageRoot, [projectRoot]);
+    const importResolved = resolvePathWithImports(filePath, localRoot, [projectRoot]);
     absolutePath = importResolved ?? path.resolve(projectRoot, filePath);
   }
 
@@ -138,7 +138,7 @@ async function loadPromptsFromFolder(
   if (path.isAbsolute(folderPath)) {
     absolutePath = folderPath;
   } else {
-    const importResolved = resolvePathWithImports(folderPath, packageRoot, [projectRoot]);
+    const importResolved = resolvePathWithImports(folderPath, localRoot, [projectRoot]);
     absolutePath = importResolved ?? path.resolve(projectRoot, folderPath);
   }
 
@@ -199,7 +199,7 @@ async function loadPromptsFromPath(
   if (path.isAbsolute(inputPath)) {
     absolutePath = inputPath;
   } else {
-    const importResolved = resolvePathWithImports(inputPath, packageRoot, [projectRoot]);
+    const importResolved = resolvePathWithImports(inputPath, localRoot, [projectRoot]);
     absolutePath = importResolved ?? path.resolve(projectRoot, inputPath);
   }
 

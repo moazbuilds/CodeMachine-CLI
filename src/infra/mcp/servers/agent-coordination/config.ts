@@ -8,6 +8,7 @@
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { debug } from '../../../../shared/logging/logger.js';
+import { getDevRoot } from '../../../../shared/runtime/dev.js';
 import { MCPPathError } from '../../errors.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -28,7 +29,7 @@ export const SERVER_NAME = 'Agent Coordination';
  *
  * When running from a compiled binary, __dirname resolves to Bun's virtual
  * filesystem (/$bunfs/...) which doesn't exist on disk. In that case, we
- * must use CODEMACHINE_PACKAGE_ROOT to get the real filesystem path.
+ * fall back to getDevRoot().
  */
 export function getServerPath(): string {
   const isCompiledBinary = __dirname.startsWith('/$bunfs');
@@ -36,14 +37,14 @@ export function getServerPath(): string {
   debug('[MCP:agent-coordination] Resolving server path (compiled: %s)', isCompiledBinary);
 
   if (isCompiledBinary) {
-    const packageRoot = process.env.CODEMACHINE_PACKAGE_ROOT;
-    if (!packageRoot) {
+    const devRoot = getDevRoot();
+    if (!devRoot) {
       throw new MCPPathError(
-        'CODEMACHINE_PACKAGE_ROOT must be set when running from compiled binary'
+        'Cannot resolve MCP server path from compiled binary without dev root'
       );
     }
     const serverPath = path.join(
-      packageRoot,
+      devRoot,
       'src',
       'infra',
       'mcp',
@@ -51,7 +52,7 @@ export function getServerPath(): string {
       'agent-coordination',
       'index.ts'
     );
-    debug('[MCP:agent-coordination] Using compiled binary path: %s', serverPath);
+    debug('[MCP:agent-coordination] Using dev root path: %s', serverPath);
     return serverPath;
   }
 

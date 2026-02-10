@@ -22,8 +22,7 @@ import { WorkflowEventBus, OnboardingService } from "../../workflows/events/inde
 import { debug, setDebugLogFile, appDebug } from "../../shared/logging/logger.js"
 import { MonitoringCleanup } from "../../agents/monitoring/index.js"
 import path from "path"
-import { createRequire } from "node:module"
-import { resolvePackageJson } from "../../shared/runtime/root.js"
+import { VERSION } from "../../runtime/version.js"
 import { setSelectedTrack, setSelectedConditions, setProjectName } from "../../shared/workflows/index.js"
 import { checkOnboardingRequired, needsOnboarding } from "../../workflows/preflight.js"
 import type { TracksConfig, ConditionGroup } from "../../workflows/templates/types"
@@ -346,10 +345,7 @@ export function App(props: { initialToast?: InitialToast }) {
   })
 
   const getVersion = () => {
-    const require = createRequire(import.meta.url)
-    const packageJsonPath = resolvePackageJson(import.meta.url, "app component")
-    const pkg = require(packageJsonPath) as { version: string }
-    return pkg.version
+    return VERSION
   }
 
   const cwd = () => {
@@ -397,7 +393,13 @@ export function App(props: { initialToast?: InitialToast }) {
             </box>
             <box flexDirection="row">
               <text fg={themeCtx.theme.textMuted}>Template: </text>
-              <text fg={themeCtx.theme.primary} attributes={TextAttributes.BOLD}>{String(session.templateName).toUpperCase()}</text>
+              <Show when={session.templateName} fallback={
+                <text fg={themeCtx.theme.textMuted}>No Templates</text>
+              }>
+                <text fg={themeCtx.theme.primary} attributes={TextAttributes.BOLD}>
+                  {String(session.templateName).toUpperCase()}
+                </text>
+              </Show>
             </box>
           </box>
         </box>

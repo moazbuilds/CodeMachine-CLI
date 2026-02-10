@@ -62,3 +62,17 @@ export {
   getAllWorkflowDirectories,
   getAllPromptDirectories,
 } from './resolve.js';
+
+// Default packages
+export { DEFAULT_PACKAGES } from './defaults.js';
+
+// Auto-import / auto-update
+export {
+  ensureDefaultPackagesSync,
+  ensureDefaultPackages,
+  checkDefaultPackageUpdates,
+} from './auto-import.js';
+
+// Shared installer
+export { installPackage, updatePackage } from './installer.js';
+export type { InstallResult } from './installer.js';

@@ -8,20 +8,15 @@ import { hasTemplateChanged, setActiveTemplate } from '../../shared/workflows/in
 import { ensureWorkspaceStructure, mirrorSubAgents } from '../../runtime/services/workspace/index.js';
 import type { SelectionChoice } from '../utils/selection-menu.js';
 import { isModuleStep } from '../../workflows/templates/types.js';
-import { resolvePackageRoot } from '../../shared/runtime/root.js';
 import { getAllInstalledImports } from '../../shared/imports/index.js';
 import { registerImportedAgents, clearImportedAgents } from '../../workflows/utils/config.js';
-
-const packageRoot = resolvePackageRoot(import.meta.url, 'templates command');
-
-const templatesDir = path.resolve(packageRoot, 'templates', 'workflows');
+import { getDevRoot } from '../../shared/runtime/dev.js';
 
 export function printAvailableWorkflowTemplatesHeading(): void {
   console.log('\nAvailable workflow templates:\n');
 }
 
 export interface TemplateChoice extends SelectionChoice<string> {
-  category: 'builtin' | 'imported';
   source?: string; // Import package name for imported templates
   stepCount: number;
 }
@@ -77,8 +72,7 @@ async function handleTemplateSelectionSuccess(template: WorkflowTemplate, templa
 }
 
 export async function getAvailableTemplates(): Promise<TemplateChoice[]> {
-  const builtinTemplates: TemplateChoice[] = [];
-  const importedTemplates: TemplateChoice[] = [];
+  const templates: TemplateChoice[] = [];
 
   // Clear any previously registered imported agents
   clearImportedAgents();
@@ -93,7 +87,6 @@ export async function getAvailableTemplates(): Promise<TemplateChoice[]> {
   // Helper to load templates from a directory
   async function loadFromDir(
     dir: string,
-    category: 'builtin' | 'imported',
     source?: string
   ): Promise<TemplateChoice[]> {
     const results: TemplateChoice[] = [];
@@ -121,7 +114,6 @@ export async function getAvailableTemplates(): Promise<TemplateChoice[]> {
             title: template.name,
             value: filePath,
             description,
-            category,
             source,
             stepCount,
           });
@@ -135,19 +127,22 @@ export async function getAvailableTemplates(): Promise<TemplateChoice[]> {
     return results;
   }
 
-  // Load core templates
-  builtinTemplates.push(...await loadFromDir(templatesDir, 'builtin'));
-
   // Load templates from imported packages
   for (const imp of importedPackages) {
-    importedTemplates.push(...await loadFromDir(imp.resolvedPaths.workflows, 'imported', imp.name));
+    templates.push(...await loadFromDir(imp.resolvedPaths.workflows, imp.name));
   }
 
-  // Sort each category alphabetically, then return builtin first, imported second
-  builtinTemplates.sort((a, b) => a.title.localeCompare(b.title));
-  importedTemplates.sort((a, b) => a.title.localeCompare(b.title));
+  // Load dev root templates (if running from source)
+  const devRoot = getDevRoot();
+  if (devRoot) {
+    const devTemplatesDir = path.resolve(devRoot, 'templates', 'workflows');
+    templates.push(...await loadFromDir(devTemplatesDir));
+  }
 
-  return [...builtinTemplates, ...importedTemplates];
+  // Sort alphabetically — flat list, no categories
+  templates.sort((a, b) => a.title.localeCompare(b.title));
+
+  return templates;
 }
 
 export async function selectTemplateByNumber(templateNumber: number): Promise<void> {
@@ -197,12 +192,11 @@ export async function runTemplatesCommand(inSession: boolean = false): Promise<v
       return;
     }
 
-    // Build options with category shown in hint
     const options = templates.map(t => ({
       value: t.value,
       label: t.title,
-      hint: t.category === 'imported'
-        ? `${t.stepCount} steps · ${t.source} [imported]`
+      hint: t.source
+        ? `${t.stepCount} steps · ${t.source}`
         : `${t.stepCount} steps`,
     }));
 

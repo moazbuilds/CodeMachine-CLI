@@ -10,7 +10,7 @@
 
 import * as path from "node:path"
 import { existsSync, readFileSync } from "node:fs"
-import { resolvePackageRoot } from "../../../../shared/runtime/root.js"
+import { getDevRoot } from "../../../../shared/runtime/dev.js"
 import { getAllInstalledImports } from "../../../../shared/imports/registry.js"
 import { debug } from "../../../../shared/logging/logger.js"
 import type { ActivityType, AgentCharactersConfig, Persona } from "./agent-characters.types.js"
@@ -21,11 +21,7 @@ let cachedConfig: AgentCharactersConfig | null = null
  * Gets the package root directory
  */
 function getPackageRoot(): string | null {
-  try {
-    return resolvePackageRoot(import.meta.url, "agent-characters config")
-  } catch {
-    return null
-  }
+  return getDevRoot()
 }
 
 /**

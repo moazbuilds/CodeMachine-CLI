@@ -1,8 +1,6 @@
 import * as path from 'node:path';
 import { createRequire } from 'node:module';
-import { resolvePackageRoot } from '../../shared/runtime/root.js';
-
-export const packageRoot = resolvePackageRoot(import.meta.url, 'workflow config');
+import { getDevRoot } from '../../shared/runtime/dev.js';
 
 // Config types
 export interface AgentConfig {
@@ -43,14 +41,24 @@ let _importedModules: ModuleConfig[] = [];
 
 export function getMainAgents(): AgentConfig[] {
   if (!_mainAgents) {
-    _mainAgents = require(path.resolve(packageRoot, 'config', 'main.agents.js')) as AgentConfig[];
+    const devRoot = getDevRoot();
+    if (devRoot) {
+      _mainAgents = require(path.resolve(devRoot, 'config', 'main.agents.js')) as AgentConfig[];
+    } else {
+      _mainAgents = [];
+    }
   }
   return _mainAgents;
 }
 
 export function getModuleCatalog(): ModuleConfig[] {
   if (!_moduleCatalog) {
-    _moduleCatalog = require(path.resolve(packageRoot, 'config', 'modules.js')) as ModuleConfig[];
+    const devRoot = getDevRoot();
+    if (devRoot) {
+      _moduleCatalog = require(path.resolve(devRoot, 'config', 'modules.js')) as ModuleConfig[];
+    } else {
+      _moduleCatalog = [];
+    }
   }
   return _moduleCatalog;
 }
