@@ -5,8 +5,26 @@
  * Each tracer is scoped to a specific domain for better organization.
  */
 
-import { trace, Tracer, Span, SpanStatusCode, context, SpanKind, ROOT_CONTEXT } from '@opentelemetry/api';
+import { trace, Tracer, Span, SpanStatusCode, context, SpanKind, ROOT_CONTEXT, INVALID_SPAN_CONTEXT } from '@opentelemetry/api';
 import type { Attributes } from '@opentelemetry/api';
+import { isTracingEnabled } from './init.js';
+
+/**
+ * Lightweight no-op span used when tracing is disabled.
+ * Avoids all OpenTelemetry context/span machinery.
+ */
+const NOOP_SPAN: Span = {
+  spanContext: () => INVALID_SPAN_CONTEXT,
+  setAttribute: () => NOOP_SPAN,
+  setAttributes: () => NOOP_SPAN,
+  addEvent: () => NOOP_SPAN,
+  addLink: () => NOOP_SPAN,
+  setStatus: () => NOOP_SPAN,
+  updateName: () => NOOP_SPAN,
+  end: () => {},
+  isRecording: () => false,
+  recordException: () => {},
+};
 
 /**
  * Tracer names for different subsystems
@@ -74,6 +92,9 @@ export async function withSpan<T>(
     kind?: SpanKind;
   }
 ): Promise<T> {
+  if (!isTracingEnabled()) {
+    return fn(NOOP_SPAN);
+  }
   return tracer.startActiveSpan(
     spanName,
     {
@@ -112,6 +133,9 @@ export function withSpanSync<T>(
     kind?: SpanKind;
   }
 ): T {
+  if (!isTracingEnabled()) {
+    return fn(NOOP_SPAN);
+  }
   const span = tracer.startSpan(spanName, {
     attributes: options?.attributes,
     kind: options?.kind ?? SpanKind.INTERNAL,
@@ -192,6 +216,9 @@ export async function withRootSpan<T>(
     kind?: SpanKind;
   }
 ): Promise<T> {
+  if (!isTracingEnabled()) {
+    return fn(NOOP_SPAN);
+  }
   // Start span with ROOT_CONTEXT to break the parent chain
   const span = tracer.startSpan(
     spanName,
@@ -240,6 +267,10 @@ export function startManualSpan<T>(
     kind?: SpanKind;
   }
 ): { result: T; span: Span } {
+  if (!isTracingEnabled()) {
+    const result = fn(NOOP_SPAN);
+    return { result, span: NOOP_SPAN };
+  }
   const span = tracer.startSpan(spanName, {
     attributes: options?.attributes,
     kind: options?.kind ?? SpanKind.INTERNAL,
@@ -265,6 +296,10 @@ export async function startManualSpanAsync<T>(
     kind?: SpanKind;
   }
 ): Promise<{ result: T; span: Span }> {
+  if (!isTracingEnabled()) {
+    const result = await fn(NOOP_SPAN);
+    return { result, span: NOOP_SPAN };
+  }
   const span = tracer.startSpan(spanName, {
     attributes: options?.attributes,
     kind: options?.kind ?? SpanKind.INTERNAL,
