@@ -114,8 +114,49 @@ const { embedTime, cliDepsEndTime, bootHistogram, splashShown, Command, realpath
       process.on('SIGTERM', () => handleSignal('SIGTERM'));
     }
 
-    // SPLASH SCREEN
+    // EARLY HOME DIRECTORY BLOCKER - Check before splash screen
     const args = process.argv.slice(2);
+    const dirArgIndex = args.findIndex((arg: string) => arg === '--dir' || arg === '-d');
+    const explicitDir = dirArgIndex !== -1 ? args[dirArgIndex + 1] : null;
+    const targetCwd = explicitDir || earlyCwd;
+    const { homedir } = await import('node:os');
+    const home = homedir();
+    otel_info(LOGGER_NAMES.BOOT, 'Home directory check: targetCwd=%s, home=%s', [targetCwd, home]);
+
+    try {
+      const { realpathSync: rps2 } = await import('node:fs');
+      const resolvedTarget = rps2(targetCwd);
+      const resolvedHome = rps2(home);
+      if (resolvedTarget === resolvedHome) {
+        otel_info(LOGGER_NAMES.BOOT, 'Blocked: attempted to run from home directory', []);
+        const cyan = '\x1b[36m';
+        const dim = '\x1b[2m';
+        const reset = '\x1b[0m';
+        const bold = '\x1b[1m';
+
+        console.error('');
+        console.error(`${dim}───────────────────────────────────────────────${reset}`);
+        console.error(`${bold}  Cannot run from home directory${reset}`);
+        console.error(`${dim}───────────────────────────────────────────────${reset}`);
+        console.error('');
+        console.error('  CodeMachine needs to run in a project directory,');
+        console.error('  not directly in your home folder.');
+        console.error('');
+        console.error(`  ${dim}Try:${reset}`);
+        console.error(`    ${cyan}cd ~/your-project${reset}`);
+        console.error(`    ${cyan}codemachine${reset}`);
+        console.error('');
+        console.error(`  ${dim}Or specify a directory:${reset}`);
+        console.error(`    ${cyan}codemachine --dir ~/your-project${reset}`);
+        console.error('');
+        process.exit(1);
+      }
+    } catch (err) {
+      otel_info(LOGGER_NAMES.BOOT, 'Home directory check failed: %s', [err]);
+      // Continue - directory might not exist yet
+    }
+
+    // SPLASH SCREEN
     const hasSubcommand = args.length > 0 && !args[0].startsWith('-');
     const hasHelpOrVersion = args.some(arg =>
       arg === '--help' || arg === '-h' || arg === '--version' || arg === '-V'
@@ -162,66 +203,6 @@ const { embedTime, cliDepsEndTime, bootHistogram, splashShown, Command, realpath
     return { embedTime, cliDepsEndTime, bootHistogram, splashShown, Command, realpathSync, existsSync, fileURLToPath };
   }
 );
-
-// EARLY HOME DIRECTORY BLOCKER - Check before splash screen
-// Parse --dir/-d manually since commander hasn't run yet
-const dirArgIndex = args.findIndex(arg => arg === '--dir' || arg === '-d');
-const explicitDir = dirArgIndex !== -1 ? args[dirArgIndex + 1] : null;
-const targetCwd = explicitDir || earlyCwd;
-const home = homedir();
-appDebug('[Boot] Home directory check: targetCwd=%s, home=%s', targetCwd, home);
-
-try {
-  const resolvedTarget = realpathSync(targetCwd);
-  const resolvedHome = realpathSync(home);
-  if (resolvedTarget === resolvedHome) {
-    appDebug('[Boot] Blocked: attempted to run from home directory');
-    const cyan = '\x1b[36m';
-    const dim = '\x1b[2m';
-    const reset = '\x1b[0m';
-    const bold = '\x1b[1m';
-
-    console.error('');
-    console.error(`${dim}───────────────────────────────────────────────${reset}`);
-    console.error(`${bold}  Cannot run from home directory${reset}`);
-    console.error(`${dim}───────────────────────────────────────────────${reset}`);
-    console.error('');
-    console.error('  CodeMachine needs to run in a project directory,');
-    console.error('  not directly in your home folder.');
-    console.error('');
-    console.error(`  ${dim}Try:${reset}`);
-    console.error(`    ${cyan}cd ~/your-project${reset}`);
-    console.error(`    ${cyan}codemachine${reset}`);
-    console.error('');
-    console.error(`  ${dim}Or specify a directory:${reset}`);
-    console.error(`    ${cyan}codemachine --dir ~/your-project${reset}`);
-    console.error('');
-    process.exit(1);
-  }
-} catch (err) {
-  appDebug('[Boot] Home directory check failed: %s', err);
-  // Continue - directory might not exist yet
-}
-
-if (process.stdout.isTTY && !shouldSkipSplash) {
-  appDebug('[Boot] Showing splash screen');
-  const { rows = 24, columns = 80 } = process.stdout;
-  const centerY = Math.floor(rows / 2);
-  const centerX = Math.floor(columns / 2);
-  process.stdout.write('\x1b[2J\x1b[H\x1b[?25l'); // Clear, home, hide cursor
-  process.stdout.write(`\x1b[${centerY};${centerX - 6}H`);
-  process.stdout.write('\x1b[38;2;224;230;240mCode\x1b[1mMachine\x1b[0m');
-  process.stdout.write(`\x1b[${centerY + 1};${centerX - 6}H`);
-  process.stdout.write('\x1b[38;2;0;217;255m━━━━━━━━━━━━\x1b[0m');
-  appDebug('[Boot] Splash screen displayed');
-}
-
-appDebug('[Boot] Importing remaining modules');
-import { Command } from 'commander';
-import { realpathSync, existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { homedir } from 'node:os';
-appDebug('[Boot] Imports complete');
 
 // TODO: Move spec path handling to template level, not cli-setup level
 // const DEFAULT_SPEC_PATH = '.codemachine/inputs/specifications.md';
