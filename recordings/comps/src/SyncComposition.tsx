@@ -450,6 +450,7 @@ const VideoSync: React.FC<{ name: string }> = ({ name }) => {
 
   return (
     <>
+      <OffthreadVideo src={staticFile(`output/video/${name}.mp4`)} muted />
       {segments.map((s, i) => {
         const sourceStartSec = s.sourceVideoStartSec ?? s.videoStartSec;
         const sourceEndSec = s.sourceVideoEndSec ?? s.videoEndSec;
