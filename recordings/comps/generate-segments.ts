@@ -271,6 +271,34 @@ function findNearestBoundary(
   return best;
 }
 
+function snapCutOutOfWord(
+  cutSec: number,
+  minSec: number,
+  maxSec: number,
+  audioWords: AudioWord[],
+  boundaries: number[],
+): number {
+  const EPS = 1e-6;
+  const containing = audioWords.find(
+    (w) => cutSec > w.startSec + EPS && cutSec < w.endSec - EPS,
+  );
+  if (!containing) return cutSec;
+
+  const lo = Math.min(minSec, maxSec);
+  const hi = Math.max(minSec, maxSec);
+  const inRangeWordEdges = [containing.startSec, containing.endSec].filter(
+    (edge) => edge >= lo && edge <= hi,
+  );
+
+  if (inRangeWordEdges.length > 0) {
+    return inRangeWordEdges.reduce((best, edge) =>
+      Math.abs(edge - cutSec) < Math.abs(best - cutSec) ? edge : best,
+    );
+  }
+
+  return findNearestBoundary(cutSec, boundaries, minSec, maxSec);
+}
+
 // ---------------------------------------------------------------------------
 // Step 2 – Reassemble Whisper caption tokens into complete words
 // ---------------------------------------------------------------------------
@@ -475,12 +503,16 @@ function buildPhraseMatches(
 function buildWaveformAwareSegments(
   phraseMatches: PhraseMatch[],
   silenceRegions: SilenceRegion[],
+  audioWords: AudioWord[],
   wordBoundaries: number[],
 ): WordSegment[] {
   const resolveCut = (minSec: number, maxSec: number, fallbackSec: number): number => {
     const silenceCut = findCutInRange(minSec, maxSec, fallbackSec, silenceRegions);
-    if (silenceCut !== null) return silenceCut;
-    return findNearestBoundary(fallbackSec, wordBoundaries, minSec, maxSec);
+    const baseCut =
+      silenceCut !== null
+        ? silenceCut
+        : findNearestBoundary(fallbackSec, wordBoundaries, minSec, maxSec);
+    return snapCutOutOfWord(baseCut, minSec, maxSec, audioWords, wordBoundaries);
   };
 
   // First compute a single cut point between each pair of adjacent phrases.
@@ -599,6 +631,7 @@ const phraseMatches = buildPhraseMatches(
 const segments = buildWaveformAwareSegments(
   phraseMatches,
   silenceRegions,
+  audioWords,
   wordBoundaries,
 );
 
