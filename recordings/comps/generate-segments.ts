@@ -92,7 +92,6 @@ const MIN_SILENCE_MS = 30; // minimum silence duration to count as a gap
 const STRONG_PAUSE_MIN_SEC = 0.08;
 const CUT_MARGIN_SEC = 0.15;
 const START_PREROLL_SEC = 0.12;
-const END_POSTROLL_SEC = 0.10;
 const ZERO_CROSS_SEARCH_MS = 8;
 const CONNECTOR_TAIL_WORDS = new Set([
   "and",
@@ -648,7 +647,6 @@ function buildWaveformAwareSegments(
   wordBoundaries: number[],
   samples: Float32Array,
   sampleRate: number,
-  totalAudioDurationSec: number,
 ): WordSegment[] {
   const resolveCut = (minSec: number, maxSec: number, fallbackSec: number): number => {
     const silenceCut = findCutInRange(minSec, maxSec, fallbackSec, silenceRegions);
@@ -740,14 +738,6 @@ function buildWaveformAwareSegments(
     }
   }
 
-  // Add a small post-roll to preserve trailing consonants (e.g. "time"),
-  // while keeping segment order and no overlap.
-  for (let i = 0; i < segments.length; i++) {
-    const nextStart = i + 1 < segments.length ? segments[i + 1].audioStartSec : totalAudioDurationSec;
-    const maxEnd = Math.max(segments[i].audioStartSec + 0.04, nextStart);
-    segments[i].audioEndSec = Math.min(maxEnd, segments[i].audioEndSec + END_POSTROLL_SEC);
-  }
-
   // Timeline is audio-locked: each segment starts/ends exactly at its
   // audio checkpoints (relative to first segment audio start).
   if (segments.length > 0) {
@@ -820,7 +810,6 @@ const segments = buildWaveformAwareSegments(
   wordBoundaries,
   samples,
   sampleRate,
-  samples.length / sampleRate,
 );
 
 // Write output
