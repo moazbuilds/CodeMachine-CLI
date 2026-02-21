@@ -47,6 +47,8 @@ type WordSegment = {
   audioEndSec: number;
   sourceVideoStartSec?: number;
   sourceVideoEndSec?: number;
+  lineIndex?: number;
+  newLineStart?: boolean;
 };
 
 type SilenceRegion = {
@@ -811,6 +813,8 @@ function buildWaveformAwareSegments(
       audioEndSec,
       sourceVideoStartSec: m.videoStartSec,
       sourceVideoEndSec: m.videoEndSec,
+      lineIndex: m.lineIndex,
+      newLineStart: isNewScriptLine,
     });
   }
 
