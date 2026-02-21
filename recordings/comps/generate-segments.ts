@@ -553,6 +553,7 @@ function buildPhraseMatches(
 
   let audioIdx = 0;
   let videoIdx = 0;
+  let lastKnownVideoSec = sortedVideo.length > 0 ? sortedVideo[0].timestamp : 0;
 
   for (const phrase of phrases) {
     let phraseAudioStart = -1;
@@ -601,33 +602,34 @@ function buildPhraseMatches(
               .replace(/[^a-z0-9]/g, "")
           : "";
       if (fuzzyMatch(scriptWord, vw)) {
-        if (phraseVideoStart < 0)
+        if (phraseVideoStart < 0) {
           phraseVideoStart = sortedVideo[videoIdx].timestamp;
+        }
+        lastKnownVideoSec = sortedVideo[videoIdx].timestamp;
         videoIdx++;
       }
     }
 
     if (phraseAudioStart >= 0) {
+      const safeVideoStart =
+        phraseVideoStart >= 0 ? phraseVideoStart : lastKnownVideoSec;
+      lastKnownVideoSec = safeVideoStart;
       matches.push({
         words: phrase.words,
         audioStartSec: phraseAudioStart,
         audioEndSec: phraseAudioEnd,
-        videoStartSec:
-          phraseVideoStart >= 0
-            ? phraseVideoStart
-            : matches.length > 0
-              ? matches[matches.length - 1].videoEndSec
-              : 0,
+        videoStartSec: safeVideoStart,
         videoEndSec: 0,
       });
     }
   }
 
   for (let i = 0; i < matches.length; i++) {
-    matches[i].videoEndSec =
+    const nextStart =
       i + 1 < matches.length
         ? matches[i + 1].videoStartSec
         : totalVideoDurationSec;
+    matches[i].videoEndSec = Math.max(matches[i].videoStartSec + 0.04, nextStart);
   }
 
   return matches;
@@ -746,6 +748,28 @@ function buildWaveformAwareSegments(
       s.videoStartSec = Math.max(0, s.audioStartSec - baseAudio);
       s.videoEndSec = Math.max(s.videoStartSec + 0.04, s.audioEndSec - baseAudio);
     }
+  }
+
+  // Ensure each source video slice has a usable length.
+  // If matching produced a zero/near-zero slice, extend it from the current
+  // source start toward either the next source start or local audio duration.
+  for (let i = 0; i < segments.length; i++) {
+    const s = segments[i];
+    const sourceStart = s.sourceVideoStartSec ?? 0;
+    let sourceEnd = s.sourceVideoEndSec ?? sourceStart;
+    const sourceDur = sourceEnd - sourceStart;
+    if (sourceDur >= 0.08) continue;
+
+    const nextSourceStart =
+      i + 1 < segments.length
+        ? (segments[i + 1].sourceVideoStartSec ?? sourceStart)
+        : sourceStart + 10;
+    const audioDur = Math.max(0.08, s.audioEndSec - s.audioStartSec);
+    sourceEnd = Math.max(
+      sourceStart + 0.08,
+      Math.min(nextSourceStart, sourceStart + audioDur),
+    );
+    s.sourceVideoEndSec = sourceEnd;
   }
 
   return segments;
