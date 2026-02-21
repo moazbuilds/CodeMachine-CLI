@@ -863,7 +863,6 @@ function buildWaveformAwareSegments(
   // Enforce monotonic source progress to avoid visual "freeze" when
   // multiple segments collapse to the same anchor timestamp.
   if (segments.length > 0) {
-    const anchoredStarts = segments.map((s) => s.sourceVideoStartSec ?? 0);
     const sourceMaxSec = Math.max(
       phraseMatches[phraseMatches.length - 1]?.videoEndSec ?? 0,
       segments[segments.length - 1].sourceVideoEndSec ?? 0,
@@ -872,11 +871,6 @@ function buildWaveformAwareSegments(
 
     for (let i = 0; i < segments.length; i++) {
       const s = segments[i];
-      if (s.newLineStart) {
-        // Re-anchor at line boundaries so new lines don't drift by >1s
-        // due to monotonic smoothing from previous segments.
-        sourceCursor = Math.max(0, anchoredStarts[i]);
-      }
       const audioDur = Math.max(0.08, s.audioEndSec - s.audioStartSec);
       const remaining = segments.length - i - 1;
       const minTailReserve = remaining * 0.08;
