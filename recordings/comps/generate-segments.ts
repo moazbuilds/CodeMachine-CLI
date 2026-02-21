@@ -87,6 +87,28 @@ const scriptText = readFileSync(join(SCRIPTS_DIR, `${name}.txt`), "utf-8");
 const WINDOW_MS = 10;
 const SILENCE_THRESHOLD_DB = -35; // dB below peak — anything quieter = silence
 const MIN_SILENCE_MS = 30; // minimum silence duration to count as a gap
+const STRONG_PAUSE_MIN_SEC = 0.08;
+const CUT_MARGIN_SEC = 0.15;
+const ZERO_CROSS_SEARCH_MS = 8;
+const CONNECTOR_TAIL_WORDS = new Set([
+  "and",
+  "or",
+  "to",
+  "of",
+  "the",
+  "a",
+  "an",
+  "for",
+  "with",
+  "in",
+  "on",
+  "at",
+  "by",
+  "from",
+  "as",
+  "is",
+  "are",
+]);
 
 function readWavSamples(wavPath: string): { samples: Float32Array; sampleRate: number } {
   const buf = readFileSync(wavPath);
@@ -299,6 +321,121 @@ function snapCutOutOfWord(
   return findNearestBoundary(cutSec, boundaries, minSec, maxSec);
 }
 
+function strongestSilenceOverlap(
+  minSec: number,
+  maxSec: number,
+  silenceRegions: SilenceRegion[],
+): number {
+  let strongest = 0;
+  for (const r of silenceRegions) {
+    const overlapStart = Math.max(r.startSec, minSec);
+    const overlapEnd = Math.min(r.endSec, maxSec);
+    const overlap = overlapEnd - overlapStart;
+    if (overlap > strongest) strongest = overlap;
+  }
+  return strongest;
+}
+
+function mergePhrasesForNaturalCuts(
+  phraseMatches: PhraseMatch[],
+  silenceRegions: SilenceRegion[],
+): PhraseMatch[] {
+  if (phraseMatches.length <= 1) return phraseMatches;
+
+  const merged: PhraseMatch[] = [];
+  let cur: PhraseMatch = {
+    ...phraseMatches[0],
+    words: [...phraseMatches[0].words],
+  };
+
+  for (let i = 1; i < phraseMatches.length; i++) {
+    const nxt = phraseMatches[i];
+    const tail = cur.words[cur.words.length - 1] ?? "";
+    const connectorTail = CONNECTOR_TAIL_WORDS.has(tail);
+    const strongestPause = strongestSilenceOverlap(
+      cur.audioEndSec - CUT_MARGIN_SEC,
+      nxt.audioStartSec + CUT_MARGIN_SEC,
+      silenceRegions,
+    );
+    const weakPause = strongestPause < STRONG_PAUSE_MIN_SEC;
+
+    if (connectorTail || weakPause) {
+      cur = {
+        words: [...cur.words, ...nxt.words],
+        audioStartSec: cur.audioStartSec,
+        audioEndSec: nxt.audioEndSec,
+        videoStartSec: cur.videoStartSec,
+        videoEndSec: nxt.videoEndSec,
+      };
+      continue;
+    }
+
+    merged.push(cur);
+    cur = {
+      ...nxt,
+      words: [...nxt.words],
+    };
+  }
+
+  merged.push(cur);
+
+  for (let i = 0; i < merged.length - 1; i++) {
+    merged[i].videoEndSec = merged[i + 1].videoStartSec;
+  }
+
+  return merged;
+}
+
+function snapToNearestZeroCrossing(
+  cutSec: number,
+  minSec: number,
+  maxSec: number,
+  samples: Float32Array,
+  sampleRate: number,
+): number {
+  if (samples.length < 2 || sampleRate <= 0) return cutSec;
+
+  const loSec = Math.max(0, Math.min(minSec, maxSec));
+  const hiSec = Math.max(0, Math.max(minSec, maxSec));
+  const lo = Math.max(1, Math.floor(loSec * sampleRate));
+  const hi = Math.min(samples.length - 1, Math.ceil(hiSec * sampleRate));
+  if (lo >= hi) return cutSec;
+
+  const center = Math.max(lo, Math.min(hi, Math.round(cutSec * sampleRate)));
+  const radius = Math.max(1, Math.round((sampleRate * ZERO_CROSS_SEARCH_MS) / 1000));
+  const searchLo = Math.max(lo, center - radius);
+  const searchHi = Math.min(hi, center + radius);
+
+  let bestCross = -1;
+  let bestDist = Number.POSITIVE_INFINITY;
+
+  for (let i = searchLo; i <= searchHi; i++) {
+    const prev = samples[i - 1];
+    const cur = samples[i];
+    const crossed = (prev <= 0 && cur >= 0) || (prev >= 0 && cur <= 0);
+    if (!crossed) continue;
+    const dist = Math.abs(i - center);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestCross = i;
+    }
+  }
+
+  if (bestCross >= 0) return bestCross / sampleRate;
+
+  let best = center;
+  bestDist = Math.abs(samples[center]);
+  for (let i = searchLo; i <= searchHi; i++) {
+    const amp = Math.abs(samples[i]);
+    if (amp < bestDist) {
+      best = i;
+      bestDist = amp;
+    }
+  }
+
+  return best / sampleRate;
+}
+
 // ---------------------------------------------------------------------------
 // Step 2 – Reassemble Whisper caption tokens into complete words
 // ---------------------------------------------------------------------------
@@ -505,6 +642,8 @@ function buildWaveformAwareSegments(
   silenceRegions: SilenceRegion[],
   audioWords: AudioWord[],
   wordBoundaries: number[],
+  samples: Float32Array,
+  sampleRate: number,
 ): WordSegment[] {
   const resolveCut = (minSec: number, maxSec: number, fallbackSec: number): number => {
     const silenceCut = findCutInRange(minSec, maxSec, fallbackSec, silenceRegions);
@@ -512,21 +651,35 @@ function buildWaveformAwareSegments(
       silenceCut !== null
         ? silenceCut
         : findNearestBoundary(fallbackSec, wordBoundaries, minSec, maxSec);
-    return snapCutOutOfWord(baseCut, minSec, maxSec, audioWords, wordBoundaries);
+    const zeroCrossCut = snapToNearestZeroCrossing(
+      baseCut,
+      minSec,
+      maxSec,
+      samples,
+      sampleRate,
+    );
+    return snapCutOutOfWord(
+      zeroCrossCut,
+      minSec,
+      maxSec,
+      audioWords,
+      wordBoundaries,
+    );
   };
+
+  const naturalPhrases = mergePhrasesForNaturalCuts(phraseMatches, silenceRegions);
 
   // First compute a single cut point between each pair of adjacent phrases.
   // Each cut is shared: phrase N's audioEnd = phrase N+1's audioStart.
   // This guarantees no overlaps and no gaps.
   const cuts: number[] = [];
 
-  for (let i = 0; i < phraseMatches.length - 1; i++) {
-    const cur = phraseMatches[i];
-    const nxt = phraseMatches[i + 1];
+  for (let i = 0; i < naturalPhrases.length - 1; i++) {
+    const cur = naturalPhrases[i];
+    const nxt = naturalPhrases[i + 1];
 
-    const MARGIN = 0.15;
-    const rangeMin = cur.audioEndSec - MARGIN;
-    const rangeMax = nxt.audioStartSec + MARGIN;
+    const rangeMin = cur.audioEndSec - CUT_MARGIN_SEC;
+    const rangeMax = nxt.audioStartSec + CUT_MARGIN_SEC;
     const whisperMid =
       cur.audioEndSec + (nxt.audioStartSec - cur.audioEndSec) / 2;
 
@@ -536,8 +689,8 @@ function buildWaveformAwareSegments(
   // Build segments using the shared cut points
   const segments: WordSegment[] = [];
 
-  for (let i = 0; i < phraseMatches.length; i++) {
-    const m = phraseMatches[i];
+  for (let i = 0; i < naturalPhrases.length; i++) {
+    const m = naturalPhrases[i];
 
     const audioStartSec =
       i === 0
@@ -545,7 +698,7 @@ function buildWaveformAwareSegments(
         : cuts[i - 1];
 
     const audioEndSec =
-      i === phraseMatches.length - 1
+      i === naturalPhrases.length - 1
         ? resolveCut(m.audioEndSec, m.audioEndSec + 0.3, m.audioEndSec + 0.15)
         : cuts[i];
 
@@ -633,6 +786,8 @@ const segments = buildWaveformAwareSegments(
   silenceRegions,
   audioWords,
   wordBoundaries,
+  samples,
+  sampleRate,
 );
 
 // Write output

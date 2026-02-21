@@ -293,6 +293,7 @@ const AudioSync: React.FC<{ name: string; scriptText?: string }> = ({
 }) => {
   const { fps, durationInFrames: totalFrames } = useVideoConfig();
   const [segments, setSegments] = useState<WordSegment[] | null>(null);
+  const crossfadeFrames = Math.max(1, Math.round(fps * 0.03));
 
   const fetchData = useCallback(async () => {
     // Try pre-computed segments first (produced by generate-segments.ts)
@@ -344,40 +345,57 @@ const AudioSync: React.FC<{ name: string; scriptText?: string }> = ({
     <>
       {segments.map((s, i) => {
         const fromFrame = Math.round(s.videoStartSec * fps);
-        const audioFrames = Math.round((s.audioEndSec - s.audioStartSec) * fps);
-        // Cap 1: never overlap the next segment's audio range
+        const audioStartFrame = Math.round(s.audioStartSec * fps);
+        const audioFrames = Math.max(1, Math.round((s.audioEndSec - s.audioStartSec) * fps));
+        const fadeInFrames = i > 0 ? crossfadeFrames : 0;
+        const fadeOutFrames = i + 1 < segments.length ? crossfadeFrames : 0;
+        const leadInFrames = Math.min(fadeInFrames, audioStartFrame);
+        const trimBefore = Math.max(0, audioStartFrame - leadInFrames);
+        const sequenceFrom = Math.max(0, fromFrame - leadInFrames);
+        const durationInFrames = audioFrames + leadInFrames + fadeOutFrames;
+
+        // Keep overlap bounded to the crossfade window.
         const nextAudioStartFrame =
           i + 1 < segments.length
             ? Math.round(segments[i + 1].audioStartSec * fps)
             : Number.POSITIVE_INFINITY;
-        const thisAudioStartFrame = Math.round(s.audioStartSec * fps);
-        // Cap 2: never extend past the next Sequence's start in the
-        // video timeline — guarantees no two Audio components play at once
+        const thisAudioStartFrame = trimBefore;
         const nextFromFrame =
           i + 1 < segments.length
             ? Math.round(segments[i + 1].videoStartSec * fps)
             : Number.POSITIVE_INFINITY;
-        const durationInFrames = Math.max(
+        const cappedDurationInFrames = Math.max(
           0,
           Math.min(
-            audioFrames,
-            nextAudioStartFrame - thisAudioStartFrame,
-            nextFromFrame - fromFrame,
+            durationInFrames,
+            nextAudioStartFrame - thisAudioStartFrame + fadeOutFrames,
+            nextFromFrame - sequenceFrom + fadeOutFrames,
           )
         );
 
-        if (durationInFrames <= 0) return null;
+        if (cappedDurationInFrames <= 0) return null;
 
         return (
           <Sequence
             key={i}
-            from={fromFrame}
-            durationInFrames={durationInFrames}
+            from={sequenceFrom}
+            durationInFrames={cappedDurationInFrames}
             layout="none"
           >
             <Audio
               src={staticFile(`output/audio/${name}.mp3`)}
-              trimBefore={Math.round(s.audioStartSec * fps)}
+              trimBefore={trimBefore}
+              volume={(f) => {
+                let v = 1;
+                if (leadInFrames > 0 && f < leadInFrames) {
+                  v = Math.min(v, f / leadInFrames);
+                }
+                const fadeOutStart = cappedDurationInFrames - fadeOutFrames;
+                if (fadeOutFrames > 0 && f > fadeOutStart) {
+                  v = Math.min(v, (cappedDurationInFrames - f) / fadeOutFrames);
+                }
+                return Math.max(0, Math.min(1, v));
+              }}
             />
           </Sequence>
         );
