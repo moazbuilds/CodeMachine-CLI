@@ -472,7 +472,7 @@ function reassembleCaptions(caps: Caption[]): AudioWord[] {
 }
 
 // ---------------------------------------------------------------------------
-// Step 3 – Parse script into phrases (split on {N} pause markers)
+// Step 3 – Parse script into phrases (split on {N} markers + punctuation)
 // ---------------------------------------------------------------------------
 
 type ScriptPhrase = { words: string[] };
@@ -489,10 +489,10 @@ function parseScriptPhrases(script: string): ScriptPhrase[] {
   for (const line of lines) {
     const colonIdx = line.indexOf(":");
     const content = colonIdx >= 0 ? line.slice(colonIdx + 1).trim() : line;
-    const tokens = content.match(/\{\d+\}|[A-Za-z0-9']+/g) ?? [];
+    const tokens = content.match(/\{\d+\}|[A-Za-z0-9']+|[.,!?;:]/g) ?? [];
 
     for (const t of tokens) {
-      if (/^\{\d+\}$/.test(t)) {
+      if (/^\{\d+\}$/.test(t) || /^[.,!?;:]$/.test(t)) {
         if (current.length > 0) {
           phrases.push({ words: [...current] });
           current = [];
@@ -669,10 +669,11 @@ function buildWaveformAwareSegments(
 
   const naturalPhrases = mergePhrasesForNaturalCuts(phraseMatches, silenceRegions);
 
-  // First compute a single cut point between each pair of adjacent phrases.
-  // Each cut is shared: phrase N's audioEnd = phrase N+1's audioStart.
-  // This guarantees no overlaps and no gaps.
-  const cuts: number[] = [];
+  // For each boundary we compute two checkpoints:
+  // - stopCut: where phrase N should end
+  // - startCut: where phrase N+1 should start
+  // This preserves pause timing better than a single shared midpoint cut.
+  const boundaryCuts: Array<{ stopCut: number; startCut: number }> = [];
 
   for (let i = 0; i < naturalPhrases.length - 1; i++) {
     const cur = naturalPhrases[i];
@@ -680,13 +681,25 @@ function buildWaveformAwareSegments(
 
     const rangeMin = cur.audioEndSec - CUT_MARGIN_SEC;
     const rangeMax = nxt.audioStartSec + CUT_MARGIN_SEC;
-    const whisperMid =
-      cur.audioEndSec + (nxt.audioStartSec - cur.audioEndSec) / 2;
+    const stopTarget = cur.audioEndSec;
+    const startTarget = nxt.audioStartSec;
 
-    cuts.push(resolveCut(rangeMin, rangeMax, whisperMid));
+    const stopCut = resolveCut(
+      rangeMin,
+      Math.min(rangeMax, startTarget + CUT_MARGIN_SEC),
+      stopTarget,
+    );
+    const startCutRaw = resolveCut(
+      Math.max(rangeMin, stopCut),
+      rangeMax,
+      startTarget,
+    );
+    const startCut = Math.max(stopCut, startCutRaw);
+
+    boundaryCuts.push({ stopCut, startCut });
   }
 
-  // Build segments using the shared cut points
+  // Build segments from the boundary stop/start checkpoints
   const segments: WordSegment[] = [];
 
   for (let i = 0; i < naturalPhrases.length; i++) {
@@ -695,12 +708,12 @@ function buildWaveformAwareSegments(
     const audioStartSec =
       i === 0
         ? resolveCut(0, m.audioStartSec, Math.max(0, m.audioStartSec - 0.05))
-        : cuts[i - 1];
+        : boundaryCuts[i - 1].startCut;
 
     const audioEndSec =
       i === naturalPhrases.length - 1
         ? resolveCut(m.audioEndSec, m.audioEndSec + 0.3, m.audioEndSec + 0.15)
-        : cuts[i];
+        : boundaryCuts[i].stopCut;
 
     segments.push({
       videoStartSec: m.videoStartSec,
@@ -708,6 +721,13 @@ function buildWaveformAwareSegments(
       audioStartSec,
       audioEndSec,
     });
+  }
+
+  // Safety: keep each segment non-empty in audio.
+  for (const s of segments) {
+    if (s.audioEndSec <= s.audioStartSec + 0.04) {
+      s.audioEndSec = s.audioStartSec + 0.04;
+    }
   }
 
   // -----------------------------------------------------------------------
