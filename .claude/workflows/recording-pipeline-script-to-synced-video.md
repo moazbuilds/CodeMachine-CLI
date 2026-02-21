@@ -30,6 +30,11 @@ Use this as the final acceptance gate before shipping any video:
 - First anchor is near the first spoken phrase
 - Anchors are distinctive and short (avoid fragile long multi-word matches)
 - Screenshot numbering is zero-padded (`w01`, `w02`, ...), preventing sort-order mistakes
+- Prefer denser anchors (near word-level) for higher sync accuracy, especially:
+  - first words of each sentence
+  - transition words around pauses
+  - last words of each sentence/phrase
+- Practical rule: more `Wait+Screen` + `Screenshot` checkpoints gives better timing control than sparse sentence-only anchors
 
 3. Record step completed cleanly
 - `bun run record {name}` exits successfully
@@ -65,6 +70,25 @@ Use this as the final acceptance gate before shipping any video:
   - last 3 seconds
 
 If any gate fails: NO-GO. Fix pipeline inputs/logic and re-run.
+
+## Accuracy Rules: Script Delays + Capture Density
+
+1. Script timing must be intentional
+- Add proper `{N}` delays only at natural speech boundaries (comma/phrase/punchline), not randomly
+- Use short delays for flow (`{0.5}` to `{1}`) and longer delays only for emphasis (`{1.5}` to `{2}`)
+- Goal: preserve natural speech while exposing clear timing boundaries for sync
+
+2. Capture timing should be dense for precision
+- In VHS tape, use `Wait+Screen` + `Screenshot` checkpoints frequently (near word-level where practical)
+- Dense capture is more accurate than sparse sentence checkpoints because it constrains the mapper across the full sentence
+- At minimum, capture:
+  - phrase start
+  - one or more mid-phrase anchors
+  - phrase end
+
+3. Start/end coverage is mandatory
+- Always capture early words and ending words
+- Missing starts causes clipped sentence openings; missing endings increases tail drift/cut risk
 
 ## TTS System Prompt Guidance (Default, Non-Humorous)
 
