@@ -130,7 +130,7 @@ Requires [VHS](https://github.com/charmbracelet/vhs), [ImageMagick](https://imag
 
 | Command | Description |
 |---------|-------------|
-| `bun run audio <name>` | Generate TTS audio from `recordings/subtitles/{name}.txt` via ElevenLabs |
+| `bun run audio <name>` | Generate TTS audio from `recordings/subtitles/{name}.txt` via ElevenLabs, Google, or Gemini |
 | `bun run record <name>` | Run VHS tape, match frames, generate per-word timestamps |
 | `bun run match <name>` | Re-run frame matching only |
 | `bun run transcribe <name>` | Transcribe audio to word-level captions (Whisper.cpp) |
@@ -146,7 +146,10 @@ subtitles/{name}.txt → bun audio → output/audio/{name}.mp3
 ```
 
 1. Write clean narration text in `recordings/subtitles/{name}.txt`
-2. `bun audio {name}` — generates MP3 via ElevenLabs (model: `eleven_v3`, voice: Adam)
+2. `bun audio {name}` — generates MP3 using `TTS_PROVIDER`:
+   - `elevenlabs` (default)
+   - `google` (uses SSML input)
+   - `gemini` (uses Gemini TTS with SSML-directed pauses)
 3. `bun record {name}` — records terminal via VHS, matches per-word screenshots to frames
 4. `bun transcribe {name}` — runs Whisper.cpp on the audio, outputs Remotion `Caption[]` JSON
 5. Copy `recordings/output/` to `recordings/comps/public/output/`, then render with Remotion
