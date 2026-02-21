@@ -1,0 +1,17 @@
+{
+  "name": "codemachine-comps",
+  "private": true,
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render Sync"
+  },
+  "dependencies": {
+    "remotion": "^4",
+    "@remotion/cli": "^4",
+    "@remotion/media": "^4",
+    "@remotion/install-whisper-cpp": "^4",
+    "@remotion/tailwind-v4": "^4",
+    "react": "^19",
+    "react-dom": "^19"
+  }
+}
