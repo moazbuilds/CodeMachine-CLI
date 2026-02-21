@@ -51,6 +51,7 @@ function escapeXml(value: string): string {
 
 function normalizeNarrationText(source: string): string {
   return source
+    .replace(/\[(laugh|chuckle|giggle)\]/gi, " (laugh) ")
     .replace(/\[[^\]]+\]/g, " ")
     .replace(/\{\d+(\.\d+)?\}/g, " ")
     .replace(/\s+/g, " ")
@@ -67,6 +68,7 @@ function buildSsmlFromScript(source: string): string {
     .map((line) => extractLineContent(line))
     .filter(Boolean)
     .join(" ")
+    .replace(/\[(laugh|chuckle|giggle)\]/gi, " (laugh) ")
     .replace(/\[[^\]]+\]/g, " ")
     .trim();
 
@@ -209,9 +211,10 @@ if (provider === "google") {
 
   const prompt =
     `Voice style directions: ` +
-    `natural and conversational, clear diction, modern explainer tone. ` +
-    `Vary emotion by section and add subtle expressive prosody, but avoid overacting. ` +
-    `Keep timing stable and honor pauses from SSML <break> tags exactly.\n\n` +
+    `natural, conversational, clear diction, modern explainer tone. ` +
+    `Keep delivery smooth and slightly brisk (not slow, not dramatic). ` +
+    `Use minimal extra pauses; only pause where SSML <break> appears. ` +
+    `If you see '(laugh)', perform a very short natural chuckle and continue.\n\n` +
     `Style map by section:\n${styledSections}\n\n` +
     `Read this script exactly as written. Do not speak markup tags.\n\n` +
     `Spoken text:\n${spokenFromSsml}\n\n` +
