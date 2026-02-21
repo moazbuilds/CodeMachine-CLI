@@ -11,7 +11,8 @@
     "clean": "bun recordings/tools/clean.ts",
     "audio": "bun recordings/tools/audio.ts",
     "transcribe": "bun recordings/comps/transcribe.ts",
-    "blackguard": "bun recordings/tools/blackguard.ts"
+    "blackguard": "bun recordings/tools/blackguard.ts",
+    "render:sync": "bun recordings/tools/render.ts"
   },
   "dependencies": {
     "@opentui/core": "0.1.73",
