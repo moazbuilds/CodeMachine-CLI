@@ -217,8 +217,7 @@ if (provider === "google") {
     `Voice style directions: ` +
     `natural, conversational, clear diction, modern explainer tone. ` +
     `Keep delivery smooth and slightly brisk (not slow, not dramatic). ` +
-    `Use minimal extra pauses; only pause where SSML <break> appears. ` +
-    `If the text includes 'haha', 'heh', or 'hehe', perform it audibly and continue naturally.\n\n` +
+    `Use minimal extra pauses; only pause where SSML <break> appears.\n\n` +
     `Style map by section:\n${styledSections}\n\n` +
     `Read this script exactly as written. Do not speak markup tags.\n\n` +
     `Spoken text:\n${spokenFromSsml}\n\n` +
