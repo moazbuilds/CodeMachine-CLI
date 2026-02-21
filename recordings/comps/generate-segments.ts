@@ -859,6 +859,57 @@ if (!hasOverlap) {
   console.log("Overlap check: ALL CLEAR — audio fits within video for every segment\n");
 }
 
+// Sync quality warnings (non-fatal): surfaces likely drift/cut issues early.
+let warningCount = 0;
+const warn = (msg: string) => {
+  warningCount++;
+  console.log(`  ⚠ ${msg}`);
+};
+
+for (let i = 0; i < segments.length; i++) {
+  const s = segments[i];
+  const audioDur = s.audioEndSec - s.audioStartSec;
+  const videoDur = s.videoEndSec - s.videoStartSec;
+  if (audioDur <= 0 || videoDur <= 0) {
+    warn(
+      `seg ${i} has non-positive duration (audio ${audioDur.toFixed(3)}s, video ${videoDur.toFixed(3)}s)`,
+    );
+  }
+
+  if (s.sourceVideoStartSec !== undefined && s.sourceVideoEndSec !== undefined) {
+    const sourceDur = s.sourceVideoEndSec - s.sourceVideoStartSec;
+    if (sourceDur < 0.08) {
+      warn(
+        `seg ${i} has tiny source slice (${sourceDur.toFixed(3)}s) from ${s.sourceVideoStartSec.toFixed(3)}s to ${s.sourceVideoEndSec.toFixed(3)}s`,
+      );
+    }
+    const playbackRate = sourceDur / Math.max(0.001, videoDur);
+    if (playbackRate < 0.65 || playbackRate > 1.6) {
+      warn(
+        `seg ${i} playbackRate outlier (${playbackRate.toFixed(2)}x) source ${sourceDur.toFixed(3)}s -> target ${videoDur.toFixed(3)}s`,
+      );
+    }
+  }
+
+  if (i > 0) {
+    const prev = segments[i - 1];
+    const vGap = s.videoStartSec - prev.videoEndSec;
+    const aGap = s.audioStartSec - prev.audioEndSec;
+    if (Math.abs(vGap) > 0.06) {
+      warn(`video timeline jump between seg ${i - 1} and ${i}: ${vGap.toFixed(3)}s`);
+    }
+    if (Math.abs(aGap) > 0.06) {
+      warn(`audio timeline jump between seg ${i - 1} and ${i}: ${aGap.toFixed(3)}s`);
+    }
+  }
+}
+
+if (warningCount === 0) {
+  console.log("Sync quality check: ALL CLEAR — no structural timing warnings\n");
+} else {
+  console.log(`Sync quality check: ${warningCount} warning(s) detected\n`);
+}
+
 console.log("Segments (cuts snapped to real silence):");
 for (let i = 0; i < segments.length; i++) {
   const s = segments[i];
