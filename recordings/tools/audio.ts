@@ -204,6 +204,7 @@ if (provider === "google") {
       body: JSON.stringify({
         contents: [
           {
+            role: "user",
             parts: [{ text: prompt }],
           },
         ],
