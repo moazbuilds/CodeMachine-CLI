@@ -96,6 +96,10 @@ const text = normalizeNarrationText(
 );
 const ssml = buildSsmlFromScript(raw);
 const spokenFromSsml = stripSsmlTags(ssml);
+const scriptLines = raw
+  .split("\n")
+  .map((line) => extractLineContent(line))
+  .filter(Boolean);
 
 const provider = (process.env.TTS_PROVIDER || "elevenlabs").toLowerCase();
 
@@ -187,9 +191,29 @@ if (provider === "google") {
   console.log(`Model: ${model}`);
   console.log(`Voice: ${voiceName}`);
 
+  const styledSections = scriptLines
+    .map((line, idx) => {
+      const style =
+        idx === 0
+          ? "warm, confident introduction"
+          : idx === 1
+            ? "slight concern and empathy"
+            : idx === 2
+              ? "calm reassurance"
+              : idx === 3
+                ? "energetic excitement"
+                : "playful, friendly finish";
+      return `(${style}) ${line}`;
+    })
+    .join("\n");
+
   const prompt =
-    `Read this script exactly as written. ` +
-    `Apply SSML <break time=\"...\"/> pauses naturally and do not speak markup tags.\n\n` +
+    `Voice style directions: ` +
+    `natural and conversational, clear diction, modern explainer tone. ` +
+    `Vary emotion by section and add subtle expressive prosody, but avoid overacting. ` +
+    `Keep timing stable and honor pauses from SSML <break> tags exactly.\n\n` +
+    `Style map by section:\n${styledSections}\n\n` +
+    `Read this script exactly as written. Do not speak markup tags.\n\n` +
     `Spoken text:\n${spokenFromSsml}\n\n` +
     `SSML to follow:\n${ssml}`;
 
