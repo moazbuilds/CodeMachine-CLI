@@ -102,6 +102,8 @@ const scriptLines = raw
   .filter(Boolean);
 
 const provider = (process.env.TTS_PROVIDER || "elevenlabs").toLowerCase();
+const geminiStylePreset = (process.env.GEMINI_TTS_STYLE_PRESET || "default").toLowerCase();
+const geminiSystemPromptOverride = process.env.GEMINI_TTS_SYSTEM_PROMPT?.trim();
 
 console.log(`Script: ${name}`);
 console.log(`Provider: ${provider}`);
@@ -207,11 +209,15 @@ if (provider === "google") {
     })
     .join("\n");
 
+  const presetSystemPrompt =
+    geminiStylePreset === "humorous"
+      ? "Voice style directions: natural, conversational, clear diction, modern explainer tone. Keep delivery smooth and slightly brisk. Add a light playful smile to the voice, and include one brief, subtle laugh only when a humorous beat lands."
+      : "Voice style directions: natural, conversational, clear diction, modern explainer tone. Keep delivery smooth and slightly brisk (not slow, not dramatic). Use minimal extra pauses; only pause where SSML <break> appears.";
+
+  const systemPrompt = geminiSystemPromptOverride || presetSystemPrompt;
+
   const prompt =
-    `Voice style directions: ` +
-    `natural, conversational, clear diction, modern explainer tone. ` +
-    `Keep delivery smooth and slightly brisk (not slow, not dramatic). ` +
-    `Use minimal extra pauses; only pause where SSML <break> appears.\n\n` +
+    `${systemPrompt}\n\n` +
     `Style map by section:\n${styledSections}\n\n` +
     `Read this script exactly as written. Do not speak markup tags.\n\n` +
     `Spoken text:\n${spokenFromSsml}\n\n` +

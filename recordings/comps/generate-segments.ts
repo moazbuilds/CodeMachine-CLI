@@ -492,10 +492,10 @@ function parseScriptPhrases(script: string): ScriptPhrase[] {
   for (const line of lines) {
     const colonIdx = line.indexOf(":");
     const content = colonIdx >= 0 ? line.slice(colonIdx + 1).trim() : line;
-    const tokens = content.match(/\{\d+\}|[A-Za-z0-9']+|[.,!?;:]/g) ?? [];
+    const tokens = content.match(/\{\d+(?:\.\d+)?\}|[A-Za-z0-9']+|[.,!?;:]/g) ?? [];
 
     for (const t of tokens) {
-      if (/^\{\d+\}$/.test(t) || /^[.,!?;:]$/.test(t)) {
+      if (/^\{\d+(?:\.\d+)?\}$/.test(t) || /^[.,!?;:]$/.test(t)) {
         if (current.length > 0) {
           phrases.push({ words: [...current] });
           current = [];
