@@ -91,6 +91,7 @@ const SILENCE_THRESHOLD_DB = -35; // dB below peak — anything quieter = silenc
 const MIN_SILENCE_MS = 30; // minimum silence duration to count as a gap
 const STRONG_PAUSE_MIN_SEC = 0.08;
 const CUT_MARGIN_SEC = 0.15;
+const START_PREROLL_SEC = 0.05;
 const ZERO_CROSS_SEARCH_MS = 8;
 const CONNECTOR_TAIL_WORDS = new Set([
   "and",
@@ -709,8 +710,11 @@ function buildWaveformAwareSegments(
 
     const audioStartSec =
       i === 0
-        ? resolveCut(0, m.audioStartSec, Math.max(0, m.audioStartSec - 0.05))
-        : boundaryCuts[i - 1].startCut;
+        ? Math.max(
+            0,
+            resolveCut(0, m.audioStartSec, Math.max(0, m.audioStartSec - 0.05)) - START_PREROLL_SEC,
+          )
+        : Math.max(0, boundaryCuts[i - 1].startCut - START_PREROLL_SEC);
 
     const audioEndSec =
       i === naturalPhrases.length - 1
