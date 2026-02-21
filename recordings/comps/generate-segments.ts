@@ -860,6 +860,21 @@ function buildWaveformAwareSegments(
     s.sourceVideoEndSec = sourceEnd;
   }
 
+  // Hard rule for script new-line boundaries:
+  // the previous segment must end at/before the next line's first-word anchor.
+  for (let i = 1; i < segments.length; i++) {
+    const curr = segments[i];
+    if (!curr.newLineStart) continue;
+    const prev = segments[i - 1];
+    const anchorStart = curr.sourceVideoStartSec ?? curr.videoStartSec;
+    curr.sourceVideoStartSec = anchorStart;
+    prev.sourceVideoEndSec = Math.min(prev.sourceVideoEndSec ?? anchorStart, anchorStart);
+    const prevStart = prev.sourceVideoStartSec ?? 0;
+    if ((prev.sourceVideoEndSec ?? prevStart) < prevStart + 0.08) {
+      prev.sourceVideoStartSec = Math.max(0, (prev.sourceVideoEndSec ?? prevStart) - 0.08);
+    }
+  }
+
   // Enforce monotonic source progress to avoid visual "freeze" when
   // multiple segments collapse to the same anchor timestamp.
   if (segments.length > 0) {
@@ -874,9 +889,19 @@ function buildWaveformAwareSegments(
       const audioDur = Math.max(0.08, s.audioEndSec - s.audioStartSec);
       const remaining = segments.length - i - 1;
       const minTailReserve = remaining * 0.08;
-      const maxEndForThis = Math.max(sourceCursor + 0.08, sourceMaxSec - minTailReserve);
+      const nextLineAnchor =
+        i + 1 < segments.length && segments[i + 1].newLineStart
+          ? (segments[i + 1].sourceVideoStartSec ?? null)
+          : null;
+      let maxEndForThis = Math.max(sourceCursor + 0.08, sourceMaxSec - minTailReserve);
+      if (nextLineAnchor !== null) {
+        maxEndForThis = Math.min(maxEndForThis, nextLineAnchor);
+      }
 
-      let start = Math.max(sourceCursor, s.sourceVideoStartSec ?? sourceCursor);
+      let start =
+        s.newLineStart && i > 0
+          ? Math.max(0, s.sourceVideoStartSec ?? sourceCursor)
+          : Math.max(sourceCursor, s.sourceVideoStartSec ?? sourceCursor);
       let end = Math.max(start + 0.08, s.sourceVideoEndSec ?? start + audioDur);
 
       if (end - start < audioDur) {

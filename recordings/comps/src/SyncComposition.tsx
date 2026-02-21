@@ -412,7 +412,6 @@ const AudioSync: React.FC<{ name: string; scriptText?: string }> = ({
 const VideoSync: React.FC<{ name: string }> = ({ name }) => {
   const { fps } = useVideoConfig();
   const [segments, setSegments] = useState<WordSegment[] | null>(null);
-  const lineCutCrossfadeFrames = Math.max(1, Math.round(fps * 0.06));
 
   useEffect(() => {
     const load = async () => {
@@ -436,15 +435,13 @@ const VideoSync: React.FC<{ name: string }> = ({ name }) => {
     return <OffthreadVideo src={staticFile(`output/video/${name}.mp4`)} muted />;
   }
 
-  // Build a contiguous timeline with optional overlaps on script new-line cuts.
+  // Build a contiguous timeline with hard cuts.
   const placements: Array<{ from: number; duration: number }> = [];
   for (let i = 0; i < segments.length; i++) {
-    const overlapInFrames =
-      i > 0 && segments[i].newLineStart ? lineCutCrossfadeFrames : 0;
     const from =
       i === 0
         ? 0
-        : placements[i - 1].from + placements[i - 1].duration - overlapInFrames;
+        : placements[i - 1].from + placements[i - 1].duration;
     const nominalEnd =
       i + 1 < segments.length
         ? Math.round(segments[i + 1].videoStartSec * fps)
@@ -462,12 +459,8 @@ const VideoSync: React.FC<{ name: string }> = ({ name }) => {
         const targetDurSec = Math.max(1 / fps, placements[i].duration / fps);
         const playbackRate = sourceDurSec / targetDurSec;
 
-        const fadeInFrames =
-          i > 0 && segments[i].newLineStart ? lineCutCrossfadeFrames : 0;
-        const fadeOutFrames =
-          i + 1 < segments.length && segments[i + 1].newLineStart
-            ? lineCutCrossfadeFrames
-            : 0;
+        const fadeInFrames = 0;
+        const fadeOutFrames = 0;
 
         return (
           <Sequence
