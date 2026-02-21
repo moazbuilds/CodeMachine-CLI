@@ -788,13 +788,16 @@ function buildWaveformAwareSegments(
             0,
             resolveCut(0, m.audioStartSec, Math.max(0, m.audioStartSec - 0.05)) - START_PREROLL_SEC,
           )
-        : Math.max(0, boundaryCuts[i - 1].startCut - START_PREROLL_SEC);
+        : Math.max(
+            0,
+            boundaryCuts[i - 1].startCut - (isNewScriptLine ? 0 : START_PREROLL_SEC),
+          );
     let audioStartSec = baselineStartSec;
 
     if (isNewScriptLine) {
       const onsetSec = detectSpeechOnsetSec(samples, sampleRate, m.audioStartSec);
       if (onsetSec !== null) {
-        const onsetStart = Math.max(0, onsetSec - LINE_ONSET_LEADIN_SEC);
+        const onsetStart = Math.max(0, onsetSec);
         if (Math.abs(onsetStart - baselineStartSec) <= LINE_ONSET_MAX_SHIFT_SEC) {
           audioStartSec = onsetStart;
         }
