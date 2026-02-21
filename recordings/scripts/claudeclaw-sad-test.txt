@@ -1,5 +1,0 @@
-soft|4: Tonight felt heavier than usual. {0.6} I opened ClaudeClaw, hoping it could clear my mind. {0.7}
-low|4: It reminded me about unfinished tasks, {0.5} and somehow each one felt louder than my own thoughts. {0.8}
-fragile|4: I asked it to organize tomorrow, {0.5} but I kept staring at the screen, too tired to move. {0.9}
-sad|4: Then a quiet message appeared: {0.7} You have done enough for today. {0.6} Please rest. {1.0}
-gentle|4: I closed the laptop, sat in silence, {0.7} and let the room finally breathe again.
