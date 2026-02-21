@@ -149,7 +149,7 @@ subtitles/{name}.txt → bun audio → output/audio/{name}.mp3
 2. `bun audio {name}` — generates MP3 using `TTS_PROVIDER`:
    - `elevenlabs` (default)
    - `google` (uses SSML input)
-   - `gemini` (uses Gemini TTS with SSML-directed pauses)
+   - `gemini` (uses Gemini TTS on Vertex AI with SSML-directed pauses)
 3. `bun record {name}` — records terminal via VHS, matches per-word screenshots to frames
 4. `bun transcribe {name}` — runs Whisper.cpp on the audio, outputs Remotion `Caption[]` JSON
 5. Copy `recordings/output/` to `recordings/comps/public/output/`, then render with Remotion

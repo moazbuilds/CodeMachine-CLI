@@ -6,6 +6,7 @@ const ROOT = join(import.meta.dir, "../..");
 const RECORDINGS = join(ROOT, "recordings");
 const SUBTITLES = join(RECORDINGS, "subtitles");
 const OUTPUT = join(RECORDINGS, "output");
+const DEFAULT_VERTEX_LOCATION = "us-central1";
 
 const name = process.argv[2];
 
@@ -107,6 +108,29 @@ const audioDir = join(OUTPUT, "audio");
 await mkdir(audioDir, { recursive: true });
 const outputPath = join(audioDir, `${name}.mp3`);
 
+async function getGoogleAccessToken(): Promise<string> {
+  const fromEnv = process.env.GOOGLE_OAUTH_ACCESS_TOKEN?.trim();
+  if (fromEnv) return fromEnv;
+
+  const fromGcloud = await $`gcloud auth print-access-token`
+    .quiet()
+    .text()
+    .then((out) => out.trim())
+    .catch(() => "");
+  if (fromGcloud) return fromGcloud;
+
+  const fromAdc = await $`gcloud auth application-default print-access-token`
+    .quiet()
+    .text()
+    .then((out) => out.trim())
+    .catch(() => "");
+  if (fromAdc) return fromAdc;
+
+  throw new Error(
+    "Could not get Google OAuth token. Set GOOGLE_OAUTH_ACCESS_TOKEN or run `gcloud auth print-access-token`.",
+  );
+}
+
 if (provider === "google") {
   const apiKey = process.env.GOOGLE_CLOUD_API_KEY;
   if (!apiKey) {
@@ -140,14 +164,26 @@ if (provider === "google") {
   const buffer = Buffer.from(json.audioContent, "base64");
   await writeFile(outputPath, buffer);
 } else if (provider === "gemini") {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    console.error("GEMINI_API_KEY not found in .env");
+  const project = process.env.GOOGLE_CLOUD_PROJECT;
+  if (!project) {
+    console.error("GOOGLE_CLOUD_PROJECT not found in .env");
     process.exit(1);
   }
+  const location = process.env.GOOGLE_CLOUD_LOCATION || DEFAULT_VERTEX_LOCATION;
+  let accessToken = "";
+  await getGoogleAccessToken()
+    .then((token) => {
+      accessToken = token;
+    })
+    .catch((err: Error) => {
+      console.error(err.message);
+      process.exit(1);
+    });
 
   const model = process.env.GEMINI_TTS_MODEL || "gemini-2.5-pro-preview-tts";
   const voiceName = process.env.GEMINI_TTS_VOICE || "Kore";
+  console.log(`Project: ${project}`);
+  console.log(`Location: ${location}`);
   console.log(`Model: ${model}`);
   console.log(`Voice: ${voiceName}`);
 
@@ -158,11 +194,12 @@ if (provider === "google") {
     `SSML to follow:\n${ssml}`;
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    `https://${location}-aiplatform.googleapis.com/v1/projects/${project}/locations/${location}/publishers/google/models/${model}:generateContent`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
         contents: [
