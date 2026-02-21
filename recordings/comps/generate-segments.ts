@@ -92,6 +92,8 @@ const MIN_SILENCE_MS = 30; // minimum silence duration to count as a gap
 const STRONG_PAUSE_MIN_SEC = 0.08;
 const CUT_MARGIN_SEC = 0.15;
 const START_PREROLL_SEC = 0.12;
+const LINE_ONSET_LEADIN_SEC = 0.015;
+const LINE_ONSET_MAX_SHIFT_SEC = 0.18;
 const ZERO_CROSS_SEARCH_MS = 8;
 const CONNECTOR_TAIL_WORDS = new Set([
   "and",
@@ -441,6 +443,51 @@ function snapToNearestZeroCrossing(
   return best / sampleRate;
 }
 
+function detectSpeechOnsetSec(
+  samples: Float32Array,
+  sampleRate: number,
+  expectedSec: number,
+): number | null {
+  if (samples.length < 2 || sampleRate <= 0) return null;
+
+  const totalSec = samples.length / sampleRate;
+  const searchStartSec = Math.max(0, expectedSec - 0.30);
+  const searchEndSec = Math.min(totalSec, expectedSec + 0.25);
+  if (searchEndSec <= searchStartSec + 0.03) return null;
+
+  const winSec = 0.01; // 10ms
+  const winSamples = Math.max(1, Math.round(sampleRate * winSec));
+  const startIdx = Math.floor(searchStartSec * sampleRate);
+  const endIdx = Math.min(samples.length, Math.ceil(searchEndSec * sampleRate));
+  const nWins = Math.floor((endIdx - startIdx) / winSamples);
+  if (nWins < 4) return null;
+
+  const energy = new Float32Array(nWins);
+  for (let w = 0; w < nWins; w++) {
+    let sum = 0;
+    const from = startIdx + w * winSamples;
+    const to = from + winSamples;
+    for (let i = from; i < to; i++) sum += Math.abs(samples[i]);
+    energy[w] = sum / winSamples;
+  }
+
+  const baselineWins = Math.min(nWins, 8);
+  let baseline = 0;
+  for (let i = 0; i < baselineWins; i++) baseline += energy[i];
+  baseline /= baselineWins;
+
+  const threshold = Math.max(0.008, baseline * 2.2);
+  for (let i = 1; i < nWins - 1; i++) {
+    const rising = energy[i] > energy[i - 1] * 1.1;
+    const above = energy[i] >= threshold && energy[i + 1] >= threshold * 0.9;
+    if (rising && above) {
+      return searchStartSec + i * winSec;
+    }
+  }
+
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Step 2 – Reassemble Whisper caption tokens into complete words
 // ---------------------------------------------------------------------------
@@ -730,14 +777,27 @@ function buildWaveformAwareSegments(
 
   for (let i = 0; i < naturalPhrases.length; i++) {
     const m = naturalPhrases[i];
+    const prev = i > 0 ? naturalPhrases[i - 1] : null;
+    const isNewScriptLine = i > 0 && prev !== null && prev.lineIndex !== m.lineIndex;
 
-    const audioStartSec =
+    const baselineStartSec =
       i === 0
         ? Math.max(
             0,
             resolveCut(0, m.audioStartSec, Math.max(0, m.audioStartSec - 0.05)) - START_PREROLL_SEC,
           )
         : Math.max(0, boundaryCuts[i - 1].startCut - START_PREROLL_SEC);
+    let audioStartSec = baselineStartSec;
+
+    if (isNewScriptLine) {
+      const onsetSec = detectSpeechOnsetSec(samples, sampleRate, m.audioStartSec);
+      if (onsetSec !== null) {
+        const onsetStart = Math.max(0, onsetSec - LINE_ONSET_LEADIN_SEC);
+        if (Math.abs(onsetStart - baselineStartSec) <= LINE_ONSET_MAX_SHIFT_SEC) {
+          audioStartSec = onsetStart;
+        }
+      }
+    }
 
     const audioEndSec =
       i === naturalPhrases.length - 1
