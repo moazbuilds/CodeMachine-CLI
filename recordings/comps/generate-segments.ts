@@ -91,7 +91,7 @@ const SILENCE_THRESHOLD_DB = -35; // dB below peak — anything quieter = silenc
 const MIN_SILENCE_MS = 30; // minimum silence duration to count as a gap
 const STRONG_PAUSE_MIN_SEC = 0.08;
 const CUT_MARGIN_SEC = 0.15;
-const START_PREROLL_SEC = 0.05;
+const START_PREROLL_SEC = 0.12;
 const ZERO_CROSS_SEARCH_MS = 8;
 const CONNECTOR_TAIL_WORDS = new Set([
   "and",
