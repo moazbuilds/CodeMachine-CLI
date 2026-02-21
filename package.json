@@ -10,7 +10,8 @@
     "match": "bun recordings/tools/match.ts",
     "clean": "bun recordings/tools/clean.ts",
     "audio": "bun recordings/tools/audio.ts",
-    "transcribe": "bun recordings/comps/transcribe.ts"
+    "transcribe": "bun recordings/comps/transcribe.ts",
+    "blackguard": "bun recordings/tools/blackguard.ts"
   },
   "dependencies": {
     "@opentui/core": "0.1.73",
