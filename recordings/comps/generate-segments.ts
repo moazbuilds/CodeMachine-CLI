@@ -92,8 +92,8 @@ const MIN_SILENCE_MS = 30; // minimum silence duration to count as a gap
 const STRONG_PAUSE_MIN_SEC = 0.08;
 const CUT_MARGIN_SEC = 0.15;
 const START_PREROLL_SEC = 0.12;
-const LINE_START_PREROLL_SEC = 0.05;
-const LINE_START_MAX_EARLY_SEC = 0.05;
+const LINE_START_PREROLL_SEC = 0.02;
+const LINE_START_MAX_EARLY_SEC = 0.02;
 const ZERO_CROSS_SEARCH_MS = 8;
 const CONNECTOR_TAIL_WORDS = new Set([
   "and",
@@ -499,7 +499,7 @@ function parseScriptPhrases(script: string): ScriptPhrase[] {
     const content = colonIdx >= 0 ? line.slice(colonIdx + 1).trim() : line;
     const rawTokens =
       content.match(
-        /\{\d+(?:\.\d+)?\}|[0-9]{1,2}:[0-9]{2}|[A-Za-z0-9']+|[.,!?;:]/g,
+        /\{\d+(?:\.\d+)?\}|[0-9]{1,2}:[0-9]{2}|[A-Za-z0-9']+/g,
       ) ?? [];
     const tokens: string[] = [];
 
@@ -515,7 +515,7 @@ function parseScriptPhrases(script: string): ScriptPhrase[] {
     }
 
     for (const t of tokens) {
-      if (/^\{\d+(?:\.\d+)?\}$/.test(t) || /^[.,!?;:]$/.test(t)) {
+      if (/^\{\d+(?:\.\d+)?\}$/.test(t)) {
         if (current.length > 0) {
           phrases.push({ words: [...current], lineIndex });
           current = [];
@@ -541,7 +541,7 @@ function parseScriptPhrases(script: string): ScriptPhrase[] {
 function fuzzyMatch(a: string, b: string): boolean {
   if (!a || !b) return false;
   if (a === b) return true;
-  if (a.length >= 3 && b.length >= 3) {
+  if (a.length >= 4 && b.length >= 4) {
     if (a.startsWith(b) || b.startsWith(a)) return true;
   }
   return false;
@@ -569,12 +569,56 @@ function buildPhraseMatches(
   const sortedVideo = [...videoTs].sort((a, b) => a.timestamp - b.timestamp);
   const matches: PhraseMatch[] = [];
   const VIDEO_LOOKAHEAD = 48;
+  const LINE_AUDIO_RESYNC_LOOKAHEAD = 260;
+  const LINE_VIDEO_RESYNC_LOOKAHEAD = 160;
 
   let audioIdx = 0;
   let videoIdx = 0;
   let lastKnownVideoSec = sortedVideo.length > 0 ? sortedVideo[0].timestamp : 0;
+  let lastMatchedAudioEndSec = 0;
+  let lastMatchedVideoSec = lastKnownVideoSec;
 
-  for (const phrase of phrases) {
+  for (let p = 0; p < phrases.length; p++) {
+    const phrase = phrases[p];
+    const prevPhrase = p > 0 ? phrases[p - 1] : null;
+    const isLineStart = p === 0 || prevPhrase?.lineIndex !== phrase.lineIndex;
+
+    if (isLineStart && phrase.words.length > 0) {
+      const lineFirstWord = phrase.words[0];
+      const minAudioSec = Math.max(0, lastMatchedAudioEndSec - 0.25);
+      let audioSearchStart = 0;
+      while (
+        audioSearchStart < audioWords.length &&
+        audioWords[audioSearchStart].startSec < minAudioSec
+      ) {
+        audioSearchStart++;
+      }
+      const audioSearchEnd = Math.min(audioWords.length, audioSearchStart + LINE_AUDIO_RESYNC_LOOKAHEAD);
+      for (let a = audioSearchStart; a < audioSearchEnd; a++) {
+        if (fuzzyMatch(lineFirstWord, audioWords[a].text)) {
+          audioIdx = a;
+          break;
+        }
+      }
+
+      const minVideoSec = Math.max(0, lastMatchedVideoSec - 0.5);
+      let videoSearchStart = 0;
+      while (
+        videoSearchStart < sortedVideo.length &&
+        sortedVideo[videoSearchStart].timestamp < minVideoSec
+      ) {
+        videoSearchStart++;
+      }
+      const videoSearchEnd = Math.min(sortedVideo.length, videoSearchStart + LINE_VIDEO_RESYNC_LOOKAHEAD);
+      for (let v = videoSearchStart; v < videoSearchEnd; v++) {
+        const vw = sortedVideo[v].word.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (fuzzyMatch(lineFirstWord, vw)) {
+          videoIdx = v;
+          break;
+        }
+      }
+    }
+
     let phraseAudioStart = -1;
     let phraseAudioEnd = -1;
     let phraseVideoStart = -1;
@@ -636,6 +680,8 @@ function buildPhraseMatches(
       const safeVideoStart =
         phraseVideoStart >= 0 ? phraseVideoStart : lastKnownVideoSec;
       lastKnownVideoSec = safeVideoStart;
+      lastMatchedVideoSec = safeVideoStart;
+      lastMatchedAudioEndSec = phraseAudioEnd;
       matches.push({
         words: phrase.words,
         lineIndex: phrase.lineIndex,
