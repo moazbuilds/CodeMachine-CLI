@@ -51,9 +51,6 @@ function escapeXml(value: string): string {
 
 function normalizeNarrationText(source: string): string {
   return source
-    .replace(/\[laugh\]/gi, " haha ")
-    .replace(/\[chuckle\]/gi, " heh ")
-    .replace(/\[giggle\]/gi, " hehe ")
     .replace(/\[[^\]]+\]/g, " ")
     .replace(/\{\d+(\.\d+)?\}/g, " ")
     .replace(/\s+/g, " ")
@@ -70,9 +67,6 @@ function buildSsmlFromScript(source: string): string {
     .map((line) => extractLineContent(line))
     .filter(Boolean)
     .join(" ")
-    .replace(/\[laugh\]/gi, " haha ")
-    .replace(/\[chuckle\]/gi, " heh ")
-    .replace(/\[giggle\]/gi, " hehe ")
     .replace(/\[[^\]]+\]/g, " ")
     .trim();
 
