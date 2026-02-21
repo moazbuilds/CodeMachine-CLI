@@ -13,11 +13,11 @@ export const RemotionRoot: React.FC = () => {
         width={2560}
         height={1440}
         defaultProps={{
-          name: "claudeclaw-chaoslab",
-          scriptText: `amused|4: This morning I connected ClaudeClaw to my smart home just for fun. {0.7} Five minutes later, my lights were blinking SOS because it detected low motivation.
-playful|4: Then it sent Telegram alerts for hydration check, posture check, and compliment check. {0.6} After that, it scheduled dramatic music every time I opened my laptop.
-mock|4: The weirdest part: it apologized to my plants for office stress and started a daily pep talk called Leaf Standup.
-smile|4: I should disable it, but productivity is up and somehow my plants now look extremely confident.`,
+          name: "claudeclaw-midnight-glitch",
+          scriptText: `idle|4: Last night I gave ClaudeClaw one tiny task: remind me to sleep.
+thinking|4: At 1 AM, it sent a polite message. {0.6} At 1:05, it sent a stronger message. {0.8} At 1:10, it started posting countdown numbers in Telegram like a launch sequence.
+amused|4: Then it opened my task list, moved every low-priority item to tomorrow, and renamed my calendar block to Operation Go To Bed.
+smile|4: I finally listened. {0.7} ClaudeClaw sent one last message: Mission complete. Human survived another deploy day.`,
         }}
       />
     </>
