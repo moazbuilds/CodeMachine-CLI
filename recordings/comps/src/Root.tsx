@@ -8,7 +8,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="Sync"
         component={SyncComposition}
-        durationInFrames={1800}
+        durationInFrames={1400}
         fps={25}
         width={2560}
         height={1440}
