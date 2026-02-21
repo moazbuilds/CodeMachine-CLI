@@ -6,7 +6,7 @@ const RECORDINGS = join(ROOT, "recordings");
 const SUBTITLES = join(RECORDINGS, "subtitles");
 const OUTPUT = join(RECORDINGS, "output");
 
-const VOICE_ID = "pNInz6obpgDQGcFmaJgB"; // Adam
+const VOICE_ID = "pqHfZKP75CvOlQylNhV4"; // Bill
 const MODEL_ID = "eleven_v3";
 
 const name = process.argv[2];
@@ -56,6 +56,7 @@ const response = await fetch(
       voice_settings: {
         stability: 0.5,
         similarity_boost: 0.75,
+        speed: 1.2,
       },
     }),
   }
