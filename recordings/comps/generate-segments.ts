@@ -492,7 +492,22 @@ function parseScriptPhrases(script: string): ScriptPhrase[] {
   for (const line of lines) {
     const colonIdx = line.indexOf(":");
     const content = colonIdx >= 0 ? line.slice(colonIdx + 1).trim() : line;
-    const tokens = content.match(/\{\d+(?:\.\d+)?\}|[A-Za-z0-9']+|[.,!?;:]/g) ?? [];
+    const rawTokens =
+      content.match(
+        /\{\d+(?:\.\d+)?\}|[0-9]{1,2}:[0-9]{2}|[A-Za-z0-9']+|[.,!?;:]/g,
+      ) ?? [];
+    const tokens: string[] = [];
+
+    for (let i = 0; i < rawTokens.length; i++) {
+      const t = rawTokens[i];
+      const next = rawTokens[i + 1]?.toLowerCase();
+      if (/^[0-9]+$/.test(t) && (next === "am" || next === "pm")) {
+        tokens.push(`${t}${next}`);
+        i++;
+        continue;
+      }
+      tokens.push(t);
+    }
 
     for (const t of tokens) {
       if (/^\{\d+(?:\.\d+)?\}$/.test(t) || /^[.,!?;:]$/.test(t)) {
@@ -521,11 +536,8 @@ function parseScriptPhrases(script: string): ScriptPhrase[] {
 function fuzzyMatch(a: string, b: string): boolean {
   if (!a || !b) return false;
   if (a === b) return true;
-  if (a.length >= 2 && b.length >= 2) {
+  if (a.length >= 3 && b.length >= 3) {
     if (a.startsWith(b) || b.startsWith(a)) return true;
-  }
-  if (a.length >= 3 && b.length >= 3 && a.substring(0, 2) === b.substring(0, 2)) {
-    return true;
   }
   return false;
 }
@@ -550,6 +562,7 @@ function buildPhraseMatches(
 ): PhraseMatch[] {
   const sortedVideo = [...videoTs].sort((a, b) => a.timestamp - b.timestamp);
   const matches: PhraseMatch[] = [];
+  const VIDEO_LOOKAHEAD = 48;
 
   let audioIdx = 0;
   let videoIdx = 0;
@@ -595,18 +608,21 @@ function buildPhraseMatches(
         audioIdx++;
       }
 
-      const vw =
-        videoIdx < sortedVideo.length
-          ? sortedVideo[videoIdx].word
-              .toLowerCase()
-              .replace(/[^a-z0-9]/g, "")
-          : "";
-      if (fuzzyMatch(scriptWord, vw)) {
-        if (phraseVideoStart < 0) {
-          phraseVideoStart = sortedVideo[videoIdx].timestamp;
+      let matchedVideoIdx = -1;
+      const searchEnd = Math.min(sortedVideo.length, videoIdx + VIDEO_LOOKAHEAD);
+      for (let v = videoIdx; v < searchEnd; v++) {
+        const vw = sortedVideo[v].word.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (fuzzyMatch(scriptWord, vw)) {
+          matchedVideoIdx = v;
+          break;
         }
-        lastKnownVideoSec = sortedVideo[videoIdx].timestamp;
-        videoIdx++;
+      }
+      if (matchedVideoIdx >= 0) {
+        if (phraseVideoStart < 0) {
+          phraseVideoStart = sortedVideo[matchedVideoIdx].timestamp;
+        }
+        lastKnownVideoSec = sortedVideo[matchedVideoIdx].timestamp;
+        videoIdx = matchedVideoIdx + 1;
       }
     }
 
@@ -770,6 +786,41 @@ function buildWaveformAwareSegments(
       Math.min(nextSourceStart, sourceStart + audioDur),
     );
     s.sourceVideoEndSec = sourceEnd;
+  }
+
+  // Enforce monotonic source progress to avoid visual "freeze" when
+  // multiple segments collapse to the same anchor timestamp.
+  if (segments.length > 0) {
+    const sourceMaxSec = Math.max(
+      phraseMatches[phraseMatches.length - 1]?.videoEndSec ?? 0,
+      segments[segments.length - 1].sourceVideoEndSec ?? 0,
+    );
+    let sourceCursor = Math.max(0, segments[0].sourceVideoStartSec ?? 0);
+
+    for (let i = 0; i < segments.length; i++) {
+      const s = segments[i];
+      const audioDur = Math.max(0.08, s.audioEndSec - s.audioStartSec);
+      const remaining = segments.length - i - 1;
+      const minTailReserve = remaining * 0.08;
+      const maxEndForThis = Math.max(sourceCursor + 0.08, sourceMaxSec - minTailReserve);
+
+      let start = Math.max(sourceCursor, s.sourceVideoStartSec ?? sourceCursor);
+      let end = Math.max(start + 0.08, s.sourceVideoEndSec ?? start + audioDur);
+
+      if (end - start < audioDur) {
+        end = start + audioDur;
+      }
+      if (end > maxEndForThis) {
+        end = maxEndForThis;
+        start = Math.min(start, end - 0.08);
+      }
+      if (start < 0) start = 0;
+      if (end <= start) end = start + 0.08;
+
+      s.sourceVideoStartSec = start;
+      s.sourceVideoEndSec = end;
+      sourceCursor = end;
+    }
   }
 
   return segments;
