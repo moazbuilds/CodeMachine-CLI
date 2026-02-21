@@ -90,6 +90,12 @@ If any gate fails: NO-GO. Fix pipeline inputs/logic and re-run.
 - Always capture early words and ending words
 - Missing starts causes clipped sentence openings; missing endings increases tail drift/cut risk
 
+4. CRITICAL: capture all key text anchors, especially new lines
+- Treat newline starts as mandatory checkpoints in tape capture (`Wait+Screen` + `Screenshot`)
+- Do not skip first words of new lines (for example: `Then`, `I`, transition words)
+- If newline-first words are not captured, line start sync can drift by 1s+ even if audio cuts are correct
+- Rule: every script line must include at least one explicit start anchor near its first spoken word
+
 ## TTS System Prompt Guidance (Default, Non-Humorous)
 
 Use this baseline when you want clean, neutral explainer delivery:
