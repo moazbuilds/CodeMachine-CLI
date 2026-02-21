@@ -727,6 +727,17 @@ function buildWaveformAwareSegments(
     }
   }
 
+  // Last segment cannot steal from a following segment, so extend tail if needed.
+  if (segments.length > 0) {
+    const last = segments[segments.length - 1];
+    const audioDur = last.audioEndSec - last.audioStartSec;
+    const videoDur = last.videoEndSec - last.videoStartSec;
+    const deficit = audioDur - videoDur;
+    if (deficit > 0) {
+      last.videoEndSec += deficit;
+    }
+  }
+
   return segments;
 }
 
@@ -771,7 +782,8 @@ const phrases = parseScriptPhrases(scriptText);
 const lastVideoTs = [...videoTimestamps].sort(
   (a, b) => b.timestamp - a.timestamp,
 )[0];
-const totalVideoDurationSec = lastVideoTs.timestamp + 2;
+const lastAudioEndSec = audioWords.length > 0 ? audioWords[audioWords.length - 1].endSec : 0;
+const totalVideoDurationSec = Math.max(lastVideoTs.timestamp + 2, lastAudioEndSec + 2);
 
 const phraseMatches = buildPhraseMatches(
   phrases,
