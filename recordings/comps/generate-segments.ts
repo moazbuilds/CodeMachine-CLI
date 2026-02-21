@@ -92,6 +92,8 @@ const MIN_SILENCE_MS = 30; // minimum silence duration to count as a gap
 const STRONG_PAUSE_MIN_SEC = 0.08;
 const CUT_MARGIN_SEC = 0.15;
 const START_PREROLL_SEC = 0.12;
+const LINE_START_PREROLL_SEC = 0.05;
+const LINE_START_MAX_EARLY_SEC = 0.05;
 const ZERO_CROSS_SEARCH_MS = 8;
 const CONNECTOR_TAIL_WORDS = new Set([
   "and",
@@ -730,14 +732,23 @@ function buildWaveformAwareSegments(
 
   for (let i = 0; i < naturalPhrases.length; i++) {
     const m = naturalPhrases[i];
+    const prev = i > 0 ? naturalPhrases[i - 1] : null;
+    const isLineStart = i === 0 || (prev !== null && prev.lineIndex !== m.lineIndex);
+    const startPreroll = isLineStart ? LINE_START_PREROLL_SEC : START_PREROLL_SEC;
 
-    const audioStartSec =
+    let audioStartSec =
       i === 0
         ? Math.max(
             0,
-            resolveCut(0, m.audioStartSec, Math.max(0, m.audioStartSec - 0.05)) - START_PREROLL_SEC,
+            resolveCut(0, m.audioStartSec, Math.max(0, m.audioStartSec - 0.05)) - startPreroll,
           )
-        : Math.max(0, boundaryCuts[i - 1].startCut - START_PREROLL_SEC);
+        : Math.max(0, boundaryCuts[i - 1].startCut - startPreroll);
+
+    // For new script lines, never start too early before the first matched word.
+    if (isLineStart) {
+      const lineStartFloor = Math.max(0, m.audioStartSec - LINE_START_MAX_EARLY_SEC);
+      audioStartSec = Math.max(audioStartSec, lineStartFloor);
+    }
 
     const audioEndSec =
       i === naturalPhrases.length - 1
