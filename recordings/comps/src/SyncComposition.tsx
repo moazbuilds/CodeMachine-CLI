@@ -432,20 +432,36 @@ const VideoSync: React.FC<{ name: string }> = ({ name }) => {
     return <OffthreadVideo src={staticFile(`output/video/${name}.mp4`)} muted />;
   }
 
+  // Build a fully contiguous frame timeline to avoid black gaps caused by
+  // rounding differences at segment boundaries.
+  const placements: Array<{ from: number; duration: number }> = [];
+  for (let i = 0; i < segments.length; i++) {
+    const from =
+      i === 0
+        ? 0
+        : placements[i - 1].from + placements[i - 1].duration;
+    const nominalEnd =
+      i + 1 < segments.length
+        ? Math.round(segments[i + 1].videoStartSec * fps)
+        : Math.round(segments[i].videoEndSec * fps);
+    const duration = Math.max(1, nominalEnd - from);
+    placements.push({ from, duration });
+  }
+
   return (
     <>
       {segments.map((s, i) => {
         const sourceStartSec = s.sourceVideoStartSec ?? s.videoStartSec;
         const sourceEndSec = s.sourceVideoEndSec ?? s.videoEndSec;
         const sourceDurSec = Math.max(0.04, sourceEndSec - sourceStartSec);
-        const targetDurSec = Math.max(0.04, s.videoEndSec - s.videoStartSec);
+        const targetDurSec = Math.max(1 / fps, placements[i].duration / fps);
         const playbackRate = sourceDurSec / targetDurSec;
 
         return (
           <Sequence
             key={i}
-            from={Math.max(0, Math.round(s.videoStartSec * fps))}
-            durationInFrames={Math.max(1, Math.round(targetDurSec * fps))}
+            from={placements[i].from}
+            durationInFrames={placements[i].duration}
             layout="none"
           >
             <OffthreadVideo
