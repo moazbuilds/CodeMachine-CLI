@@ -45,6 +45,8 @@ type WordSegment = {
   videoEndSec: number;
   audioStartSec: number;
   audioEndSec: number;
+  sourceVideoStartSec?: number;
+  sourceVideoEndSec?: number;
 };
 
 type SilenceRegion = {
@@ -720,6 +722,8 @@ function buildWaveformAwareSegments(
       videoEndSec: m.videoEndSec,
       audioStartSec,
       audioEndSec,
+      sourceVideoStartSec: m.videoStartSec,
+      sourceVideoEndSec: m.videoEndSec,
     });
   }
 
@@ -730,31 +734,13 @@ function buildWaveformAwareSegments(
     }
   }
 
-  // -----------------------------------------------------------------------
-  // Redistribute video time so audio always fits within its video slot.
-  // If audioDuration > videoDuration, steal time from the next segment
-  // (which has surplus). This guarantees the rendering never needs to
-  // truncate audio to prevent overlap.
-  // -----------------------------------------------------------------------
-  for (let i = 0; i < segments.length - 1; i++) {
-    const audioDur = segments[i].audioEndSec - segments[i].audioStartSec;
-    const videoDur = segments[i].videoEndSec - segments[i].videoStartSec;
-    const deficit = audioDur - videoDur;
-
-    if (deficit > 0) {
-      segments[i].videoEndSec += deficit;
-      segments[i + 1].videoStartSec += deficit;
-    }
-  }
-
-  // Last segment cannot steal from a following segment, so extend tail if needed.
+  // Timeline is audio-locked: each segment starts/ends exactly at its
+  // audio checkpoints (relative to first segment audio start).
   if (segments.length > 0) {
-    const last = segments[segments.length - 1];
-    const audioDur = last.audioEndSec - last.audioStartSec;
-    const videoDur = last.videoEndSec - last.videoStartSec;
-    const deficit = audioDur - videoDur;
-    if (deficit > 0) {
-      last.videoEndSec += deficit;
+    const baseAudio = segments[0].audioStartSec;
+    for (const s of segments) {
+      s.videoStartSec = Math.max(0, s.audioStartSec - baseAudio);
+      s.videoEndSec = Math.max(s.videoStartSec + 0.04, s.audioEndSec - baseAudio);
     }
   }
 

@@ -36,6 +36,8 @@ type WordSegment = {
   videoEndSec: number;
   audioStartSec: number;
   audioEndSec: number;
+  sourceVideoStartSec?: number;
+  sourceVideoEndSec?: number;
 };
 
 export type SyncProps = {
@@ -404,10 +406,65 @@ const AudioSync: React.FC<{ name: string; scriptText?: string }> = ({
   );
 };
 
+const VideoSync: React.FC<{ name: string }> = ({ name }) => {
+  const { fps } = useVideoConfig();
+  const [segments, setSegments] = useState<WordSegment[] | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const segRes = await fetch(staticFile(`output/segments/${name}.json`));
+        if (!segRes.ok) {
+          setSegments([]);
+          return;
+        }
+        const precomputed: WordSegment[] = await segRes.json();
+        setSegments(precomputed);
+      } catch {
+        setSegments([]);
+      }
+    };
+    load();
+  }, [name]);
+
+  if (segments === null) return null;
+  if (segments.length === 0) {
+    return <OffthreadVideo src={staticFile(`output/video/${name}.mp4`)} muted />;
+  }
+
+  return (
+    <>
+      {segments.map((s, i) => {
+        const sourceStartSec = s.sourceVideoStartSec ?? s.videoStartSec;
+        const sourceEndSec = s.sourceVideoEndSec ?? s.videoEndSec;
+        const sourceDurSec = Math.max(0.04, sourceEndSec - sourceStartSec);
+        const targetDurSec = Math.max(0.04, s.videoEndSec - s.videoStartSec);
+        const playbackRate = sourceDurSec / targetDurSec;
+
+        return (
+          <Sequence
+            key={i}
+            from={Math.max(0, Math.round(s.videoStartSec * fps))}
+            durationInFrames={Math.max(1, Math.round(targetDurSec * fps))}
+            layout="none"
+          >
+            <OffthreadVideo
+              src={staticFile(`output/video/${name}.mp4`)}
+              muted
+              trimBefore={Math.max(0, Math.round(sourceStartSec * fps))}
+              playbackRate={playbackRate}
+            />
+          </Sequence>
+        );
+      })}
+    </>
+  );
+};
+
 export const SyncComposition: React.FC<SyncProps> = ({ name, scriptText }) => {
   return (
     <AbsoluteFill>
-      <OffthreadVideo src={staticFile(`output/video/${name}.mp4`)} muted />
+      <VideoSync name={name} />
       <AudioSync name={name} scriptText={scriptText} />
     </AbsoluteFill>
   );
