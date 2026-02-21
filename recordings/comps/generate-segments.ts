@@ -353,6 +353,7 @@ function mergePhrasesForNaturalCuts(
 
   for (let i = 1; i < phraseMatches.length; i++) {
     const nxt = phraseMatches[i];
+    const crossedScriptLine = cur.lineIndex !== nxt.lineIndex;
     const tail = cur.words[cur.words.length - 1] ?? "";
     const connectorTail = CONNECTOR_TAIL_WORDS.has(tail);
     const strongestPause = strongestSilenceOverlap(
@@ -362,9 +363,10 @@ function mergePhrasesForNaturalCuts(
     );
     const weakPause = strongestPause < STRONG_PAUSE_MIN_SEC;
 
-    if (connectorTail || weakPause) {
+    if (!crossedScriptLine && (connectorTail || weakPause)) {
       cur = {
         words: [...cur.words, ...nxt.words],
+        lineIndex: cur.lineIndex,
         audioStartSec: cur.audioStartSec,
         audioEndSec: nxt.audioEndSec,
         videoStartSec: cur.videoStartSec,
@@ -478,7 +480,7 @@ function reassembleCaptions(caps: Caption[]): AudioWord[] {
 // Step 3 – Parse script into phrases (split on {N} markers + punctuation)
 // ---------------------------------------------------------------------------
 
-type ScriptPhrase = { words: string[] };
+type ScriptPhrase = { words: string[]; lineIndex: number };
 
 function parseScriptPhrases(script: string): ScriptPhrase[] {
   const phrases: ScriptPhrase[] = [];
@@ -489,7 +491,8 @@ function parseScriptPhrases(script: string): ScriptPhrase[] {
     .map((l) => l.trim())
     .filter((l) => l && !l.startsWith("#"));
 
-  for (const line of lines) {
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const line = lines[lineIndex];
     const colonIdx = line.indexOf(":");
     const content = colonIdx >= 0 ? line.slice(colonIdx + 1).trim() : line;
     const rawTokens =
@@ -512,7 +515,7 @@ function parseScriptPhrases(script: string): ScriptPhrase[] {
     for (const t of tokens) {
       if (/^\{\d+(?:\.\d+)?\}$/.test(t) || /^[.,!?;:]$/.test(t)) {
         if (current.length > 0) {
-          phrases.push({ words: [...current] });
+          phrases.push({ words: [...current], lineIndex });
           current = [];
         }
       } else {
@@ -521,7 +524,7 @@ function parseScriptPhrases(script: string): ScriptPhrase[] {
     }
 
     if (current.length > 0) {
-      phrases.push({ words: [...current] });
+      phrases.push({ words: [...current], lineIndex });
       current = [];
     }
   }
@@ -548,6 +551,7 @@ function fuzzyMatch(a: string, b: string): boolean {
 
 type PhraseMatch = {
   words: string[];
+  lineIndex: number;
   audioStartSec: number;
   audioEndSec: number;
   videoStartSec: number;
@@ -632,6 +636,7 @@ function buildPhraseMatches(
       lastKnownVideoSec = safeVideoStart;
       matches.push({
         words: phrase.words,
+        lineIndex: phrase.lineIndex,
         audioStartSec: phraseAudioStart,
         audioEndSec: phraseAudioEnd,
         videoStartSec: safeVideoStart,
