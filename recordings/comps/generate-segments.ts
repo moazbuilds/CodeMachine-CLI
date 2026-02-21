@@ -213,7 +213,7 @@ function findCutInRange(
   maxSec: number,
   fallbackSec: number,
   silenceRegions: SilenceRegion[],
-): number {
+): number | null {
   let bestMid = -1;
   let bestDist = Infinity;
 
@@ -230,7 +230,45 @@ function findCutInRange(
     }
   }
 
-  return bestMid >= 0 ? bestMid : fallbackSec;
+  return bestMid >= 0 ? bestMid : null;
+}
+
+function buildWordBoundaries(audioWords: AudioWord[]): number[] {
+  const points = new Set<number>();
+  points.add(0);
+
+  for (const w of audioWords) {
+    points.add(w.startSec);
+    points.add(w.endSec);
+  }
+
+  return [...points].sort((a, b) => a - b);
+}
+
+function findNearestBoundary(
+  fallbackSec: number,
+  boundaries: number[],
+  minSec: number,
+  maxSec: number,
+): number {
+  if (boundaries.length === 0) return fallbackSec;
+
+  const lo = Math.min(minSec, maxSec);
+  const hi = Math.max(minSec, maxSec);
+  const inRange = boundaries.filter((b) => b >= lo && b <= hi);
+  const pool = inRange.length > 0 ? inRange : boundaries;
+
+  let best = pool[0];
+  let bestDist = Math.abs(pool[0] - fallbackSec);
+  for (let i = 1; i < pool.length; i++) {
+    const d = Math.abs(pool[i] - fallbackSec);
+    if (d < bestDist) {
+      best = pool[i];
+      bestDist = d;
+    }
+  }
+
+  return best;
 }
 
 // ---------------------------------------------------------------------------
@@ -437,7 +475,14 @@ function buildPhraseMatches(
 function buildWaveformAwareSegments(
   phraseMatches: PhraseMatch[],
   silenceRegions: SilenceRegion[],
+  wordBoundaries: number[],
 ): WordSegment[] {
+  const resolveCut = (minSec: number, maxSec: number, fallbackSec: number): number => {
+    const silenceCut = findCutInRange(minSec, maxSec, fallbackSec, silenceRegions);
+    if (silenceCut !== null) return silenceCut;
+    return findNearestBoundary(fallbackSec, wordBoundaries, minSec, maxSec);
+  };
+
   // First compute a single cut point between each pair of adjacent phrases.
   // Each cut is shared: phrase N's audioEnd = phrase N+1's audioStart.
   // This guarantees no overlaps and no gaps.
@@ -453,9 +498,7 @@ function buildWaveformAwareSegments(
     const whisperMid =
       cur.audioEndSec + (nxt.audioStartSec - cur.audioEndSec) / 2;
 
-    cuts.push(
-      findCutInRange(rangeMin, rangeMax, whisperMid, silenceRegions),
-    );
+    cuts.push(resolveCut(rangeMin, rangeMax, whisperMid));
   }
 
   // Build segments using the shared cut points
@@ -466,12 +509,12 @@ function buildWaveformAwareSegments(
 
     const audioStartSec =
       i === 0
-        ? findCutInRange(0, m.audioStartSec, Math.max(0, m.audioStartSec - 0.05), silenceRegions)
+        ? resolveCut(0, m.audioStartSec, Math.max(0, m.audioStartSec - 0.05))
         : cuts[i - 1];
 
     const audioEndSec =
       i === phraseMatches.length - 1
-        ? findCutInRange(m.audioEndSec, m.audioEndSec + 0.3, m.audioEndSec + 0.15, silenceRegions)
+        ? resolveCut(m.audioEndSec, m.audioEndSec + 0.3, m.audioEndSec + 0.15)
         : cuts[i];
 
     segments.push({
@@ -537,6 +580,7 @@ for (const r of silenceRegions) {
 
 // 2. Reassemble Whisper tokens + parse script + match phrases
 const audioWords = reassembleCaptions(captions);
+const wordBoundaries = buildWordBoundaries(audioWords);
 const phrases = parseScriptPhrases(scriptText);
 
 const lastVideoTs = [...videoTimestamps].sort(
@@ -552,7 +596,11 @@ const phraseMatches = buildPhraseMatches(
 );
 
 // 3. Build segments — snapped to real silence in the waveform
-const segments = buildWaveformAwareSegments(phraseMatches, silenceRegions);
+const segments = buildWaveformAwareSegments(
+  phraseMatches,
+  silenceRegions,
+  wordBoundaries,
+);
 
 // Write output
 const outDir = join(PUBLIC_DIR, "segments");
