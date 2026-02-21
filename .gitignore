@@ -12,10 +12,10 @@ package-lock.json
 .codemachine.bk*
 .codemachine/memory
 .env
-.env.example
 .npmrc
 .npmrc.publish
 .*
+!.env.example
 
 # Ignore folders starting with .tmp
 .tmp*
