@@ -32,6 +32,7 @@ Notes:
 - ASCII is centered by default.
 - Font size auto-fits to avoid clipping/cropping.
 - Rendering uses a fixed character grid, so spacing/alignment matches source columns.
+- PNG background is transparent by default (`--bg none`).
 
 Optional:
 

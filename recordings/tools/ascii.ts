@@ -48,7 +48,7 @@ function printUsage(): never {
   console.error("  --padding-y <number>   Vertical safe padding (default: 80)");
   console.error("  --char-width-factor <number>  Char cell width factor (default: 0.6)");
   console.error("  --line-height-factor <number>  Line height factor (default: 1.28)");
-  console.error("  --bg <color>           Background color (default: #0b0f14)");
+  console.error("  --bg <color>           Background color (default: none, transparent)");
   console.error("  --fg <color>           Foreground color (default: #e5e7eb)");
   console.error("  --font <name>          ImageMagick font name (default: DejaVu-Sans-Mono)");
   console.error("");
@@ -87,7 +87,7 @@ function parseArgs(argv: string[]): CliOptions {
     paddingY: 80,
     charWidthFactor: 0.6,
     lineHeightFactor: 1.28,
-    bg: "#0b0f14",
+    bg: "none",
     fg: "#e5e7eb",
     font: "DejaVu-Sans-Mono",
   };
