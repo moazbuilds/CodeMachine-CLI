@@ -4,7 +4,7 @@ import { $ } from "bun";
 
 const ROOT = join(import.meta.dir, "../..");
 const RECORDINGS = join(ROOT, "recordings");
-const SUBTITLES = join(RECORDINGS, "inputs/subtitles");
+const INPUTS = join(RECORDINGS, "inputs");
 const OUTPUT = join(RECORDINGS, "outputs");
 const DEFAULT_VERTEX_LOCATION = "us-central1";
 
@@ -16,7 +16,8 @@ if (!name) {
   process.exit(1);
 }
 
-const subtitlePath = join(SUBTITLES, `${name}.txt`);
+const runInputDir = join(INPUTS, name);
+const subtitlePath = join(runInputDir, "subtitles.txt");
 
 if (!(await access(subtitlePath).then(() => true, () => false))) {
   console.error(`Subtitle not found: ${subtitlePath}`);
@@ -110,7 +111,8 @@ console.log(`Provider: ${provider}`);
 console.log(`Text: ${text}`);
 console.log(`SSML: ${ssml}`);
 
-const audioDir = join(OUTPUT, "audio");
+const runOutputDir = join(OUTPUT, name);
+const audioDir = join(runOutputDir, "audio");
 await mkdir(audioDir, { recursive: true });
 const outputPath = join(audioDir, `${name}.mp3`);
 

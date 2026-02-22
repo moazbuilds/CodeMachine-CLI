@@ -4,12 +4,7 @@ import { join } from "node:path";
 const ROOT = join(import.meta.dir, "../..");
 const OUTPUT = join(ROOT, "recordings/outputs");
 
-for (const dir of ["frames", "screenshots", "video", "timestamps"]) {
-  await rm(join(OUTPUT, dir), { recursive: true, force: true });
-}
-// Recreate all except frames — VHS needs to create that itself
-await mkdir(join(OUTPUT, "screenshots"), { recursive: true });
-await mkdir(join(OUTPUT, "video"), { recursive: true });
-await mkdir(join(OUTPUT, "timestamps"), { recursive: true });
+await rm(OUTPUT, { recursive: true, force: true });
+await mkdir(OUTPUT, { recursive: true });
 
-console.log("Output cleaned.");
+console.log("All run outputs cleaned.");

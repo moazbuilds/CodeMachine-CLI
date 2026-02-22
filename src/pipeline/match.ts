@@ -5,9 +5,6 @@ import { join } from "node:path";
 
 const ROOT = join(import.meta.dir, "../..");
 const OUTPUT = join(ROOT, "recordings/outputs");
-const FRAMES_DIR = join(OUTPUT, "frames");
-const SCREENSHOTS_DIR = join(OUTPUT, "screenshots");
-const TIMESTAMPS_DIR = join(OUTPUT, "timestamps");
 const SIZE = "64x64!";
 const FRAMERATE = 60;
 const PARALLELISM = Math.max(2, Math.min(cpus().length, 6));
@@ -35,6 +32,10 @@ type RmseMetric = {
 };
 
 const tapeName = process.argv[2] || "test-ali";
+const runOutputDir = join(OUTPUT, tapeName);
+const FRAMES_DIR = join(runOutputDir, "frames");
+const SCREENSHOTS_DIR = join(runOutputDir, "screenshots");
+const TIMESTAMPS_DIR = join(runOutputDir, "timestamps");
 const TMP = join("/tmp", `vhs-match-${tapeName}-${process.pid}`);
 
 function extractFrameNumber(fileName: string): number {

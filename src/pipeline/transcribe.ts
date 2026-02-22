@@ -21,7 +21,8 @@ if (!name) {
   process.exit(1);
 }
 
-const mp3Path = join(OUTPUT, "audio", `${name}.mp3`);
+const runOutputDir = join(OUTPUT, name);
+const mp3Path = join(runOutputDir, "audio", `${name}.mp3`);
 
 const remotionWhisper = (await import(REMOTION_INSTALL_PKG)) as {
   installWhisperCpp: (args: { to: string; version: string }) => Promise<void>;
@@ -42,7 +43,7 @@ if (!(await access(mp3Path).then(() => true, () => false))) {
 }
 
 // Convert mp3 to 16KHz wav for whisper
-const wavPath = join(OUTPUT, "audio", `${name}.wav`);
+const wavPath = join(runOutputDir, "audio", `${name}.wav`);
 console.log("=== Converting to 16KHz WAV ===");
 await $`ffmpeg -i ${mp3Path} -ar 16000 ${wavPath} -y`.quiet();
 
@@ -64,8 +65,8 @@ const whisperOutput = await remotionWhisper.transcribe({
 const { captions } = remotionWhisper.toCaptions({ whisperCppOutput: whisperOutput });
 
 // Write captions JSON
-await mkdir(join(OUTPUT, "captions"), { recursive: true });
-const captionsPath = join(OUTPUT, "captions", `${name}.json`);
+await mkdir(join(runOutputDir, "captions"), { recursive: true });
+const captionsPath = join(runOutputDir, "captions", `${name}.json`);
 await Bun.write(captionsPath, JSON.stringify(captions, null, 2));
 
 console.log(`\nCaptions (${captions.length} words):`);

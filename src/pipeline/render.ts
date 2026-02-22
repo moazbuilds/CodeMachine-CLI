@@ -1,9 +1,10 @@
 import { $ } from "bun";
 import { join, resolve } from "node:path";
+import { mkdir } from "node:fs/promises";
 
 const ROOT = join(import.meta.dir, "../..");
 const COMPS_DIR = join(ROOT, "recordings/apps/remotion");
-const VIDEO_DIR = join(ROOT, "recordings/outputs/video");
+const OUTPUTS_DIR = join(ROOT, "recordings/outputs");
 
 const name = process.argv[2];
 if (!name) {
@@ -12,7 +13,7 @@ if (!name) {
 }
 
 let argIndex = 3;
-let outputPath = join(VIDEO_DIR, `${name}-final.mp4`);
+let outputPath = join(OUTPUTS_DIR, name, "video", `${name}-final.mp4`);
 if (process.argv[3] && !process.argv[3]!.startsWith("-")) {
   outputPath = resolve(process.argv[3]!);
   argIndex = 4;
@@ -23,6 +24,7 @@ const propsArg = `--props=${JSON.stringify({ name })}`;
 
 console.log(`Rendering Sync for: ${name}`);
 console.log(`Output: ${outputPath}`);
+await mkdir(join(OUTPUTS_DIR, name, "video"), { recursive: true });
 
 await $`npx remotion render Sync ${outputPath} ${propsArg} ${extraArgs}`.cwd(COMPS_DIR);
 

@@ -1,9 +1,0 @@
-┌──────────────────────────────────────────────────────────────┐
-│                                                              │
-│                    Automate with ClaudeClaw                  │
-│                                                              │
-│        Schedule tasks, respond in chat, and ship faster.     │
-│                                                              │
-│                     claudeclaw.dev/demo                      │
-│                                                              │
-└──────────────────────────────────────────────────────────────┘

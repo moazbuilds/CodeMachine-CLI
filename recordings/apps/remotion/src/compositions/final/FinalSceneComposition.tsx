@@ -40,7 +40,7 @@ const SegmentAsciiTrack: React.FC<{ name: string }> = ({ name }) => {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(staticFile(`outputs/segments/${name}.json`));
+        const res = await fetch(staticFile(`outputs/${name}/segments/${name}.json`));
         if (!res.ok) {
           setSegments([]);
           return;
@@ -202,7 +202,7 @@ export const FinalSceneComposition: React.FC<FinalSceneProps> = ({
           }}
         >
           <OffthreadVideo
-            src={staticFile(`outputs/video/${baseVideoName}.mp4`)}
+            src={staticFile(`outputs/${name}/video/${baseVideoName}.mp4`)}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
         </div>

@@ -8,7 +8,9 @@ const OUTPUT = join(RECORDINGS, "outputs");
 
 // Get tape name from args (default: test-ali)
 const name = process.argv[2] || "test-ali";
-const tapePath = join(RECORDINGS, "inputs/tapes", `${name}.tape`);
+const runInputDir = join(RECORDINGS, "inputs", name);
+const tapePath = join(runInputDir, "tape.tape");
+const runOutputDir = join(OUTPUT, name);
 
 if (!(await access(tapePath).then(() => true, () => false))) {
   console.error(`Tape not found: ${tapePath}`);
@@ -23,12 +25,12 @@ async function probeDuration(filePath: string): Promise<number> {
 // ── Step 1: Clean output ──
 console.log("=== Cleaning output ===");
 for (const dir of ["frames", "screenshots", "video", "timestamps"]) {
-  await rm(join(OUTPUT, dir), { recursive: true, force: true });
+  await rm(join(runOutputDir, dir), { recursive: true, force: true });
 }
 // Let VHS create frames/ itself — it won't write to an existing dir
-await mkdir(join(OUTPUT, "screenshots"), { recursive: true });
-await mkdir(join(OUTPUT, "video"), { recursive: true });
-await mkdir(join(OUTPUT, "timestamps"), { recursive: true });
+await mkdir(join(runOutputDir, "screenshots"), { recursive: true });
+await mkdir(join(runOutputDir, "video"), { recursive: true });
+await mkdir(join(runOutputDir, "timestamps"), { recursive: true });
 
 // ── Step 2: Run VHS from project root ──
 console.log(`\n=== Recording: ${name}.tape ===`);
@@ -39,9 +41,9 @@ await $`/home/linuxbrew/.linuxbrew/bin/vhs ${tapePath}`
 await $`bun ${join(import.meta.dir, "match.ts")} ${name}`;
 
 // ── Step 4: Stretch video to match audio duration ──
-const videoPath = join(OUTPUT, "video", `${name}.mp4`);
-const audioPath = join(OUTPUT, "audio", `${name}.mp3`);
-const timestampsPath = join(OUTPUT, "timestamps", `${name}.json`);
+const videoPath = join(runOutputDir, "video", `${name}.mp4`);
+const audioPath = join(runOutputDir, "audio", `${name}.mp3`);
+const timestampsPath = join(runOutputDir, "timestamps", `${name}.json`);
 
 const audioExists = await access(audioPath).then(() => true, () => false);
 
@@ -85,8 +87,8 @@ if (audioExists) {
   console.log(`\n=== No audio file found — skipping duration matching ===`);
 }
 
-const framesDir = join(OUTPUT, "frames");
-const screenshotsDir = join(OUTPUT, "screenshots");
+const framesDir = join(runOutputDir, "frames");
+const screenshotsDir = join(runOutputDir, "screenshots");
 
 const allFrames = (await readdir(framesDir)).filter((f) => f.startsWith("frame-text-"));
 const shots = (await readdir(screenshotsDir)).filter((f) => f.endsWith(".png"));

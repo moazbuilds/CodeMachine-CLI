@@ -69,16 +69,16 @@ if (!name) {
 
 const ROOT = join(import.meta.dir, "../..");
 const REMOTION_DIR = join(ROOT, "recordings/apps/remotion");
-const PUBLIC_DIR = join(REMOTION_DIR, "public/outputs");
-const SCRIPTS_DIR = join(ROOT, "recordings/inputs/scripts");
+const RUN_PUBLIC_DIR = join(REMOTION_DIR, "public/outputs", name);
+const RUN_INPUT_DIR = join(ROOT, "recordings/inputs", name);
 
 const captions: Caption[] = JSON.parse(
-  readFileSync(join(PUBLIC_DIR, `captions/${name}.json`), "utf-8"),
+  readFileSync(join(RUN_PUBLIC_DIR, `captions/${name}.json`), "utf-8"),
 );
 const videoTimestamps: VideoTimestamp[] = JSON.parse(
-  readFileSync(join(PUBLIC_DIR, `timestamps/${name}.json`), "utf-8"),
+  readFileSync(join(RUN_PUBLIC_DIR, `timestamps/${name}.json`), "utf-8"),
 );
-const scriptText = readFileSync(join(SCRIPTS_DIR, `${name}.txt`), "utf-8");
+const scriptText = readFileSync(join(RUN_INPUT_DIR, "script.txt"), "utf-8");
 
 // ---------------------------------------------------------------------------
 // Step 1 – Read WAV file and compute RMS energy per window
@@ -929,7 +929,7 @@ function buildWaveformAwareSegments(
 // ---------------------------------------------------------------------------
 
 // 1. Read WAV and analyze waveform
-const wavPath = join(PUBLIC_DIR, `audio/${name}.wav`);
+const wavPath = join(RUN_PUBLIC_DIR, `audio/${name}.wav`);
 console.log(`Reading WAV: ${wavPath}`);
 const { samples, sampleRate } = readWavSamples(wavPath);
 console.log(
@@ -986,7 +986,7 @@ const segments = buildWaveformAwareSegments(
 );
 
 // Write output
-const outDir = join(PUBLIC_DIR, "segments");
+const outDir = join(RUN_PUBLIC_DIR, "segments");
 if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
 const outPath = join(outDir, `${name}.json`);
 writeFileSync(outPath, JSON.stringify(segments, null, 2));
