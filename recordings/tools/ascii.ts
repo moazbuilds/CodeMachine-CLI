@@ -334,7 +334,13 @@ async function renderAsciiFile(inputPath: string, outRoot: string, opt: CliOptio
   const gifOut = join(outRoot, `${name}.gif`);
   const args: string[] = [];
   for (let i = 0; i < framePaths.length; i++) {
-    args.push("-delay", String(frameDelayCs(frames[i], opt.fps)), framePaths[i]);
+    args.push(
+      "-dispose",
+      "background",
+      "-delay",
+      String(frameDelayCs(frames[i], opt.fps)),
+      framePaths[i],
+    );
   }
   args.push("-loop", "0", gifOut);
   await runCommand("convert", args);
