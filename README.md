@@ -143,8 +143,8 @@ Requires [VHS](https://github.com/charmbracelet/vhs), [ImageMagick](https://imag
 recordings/inputs/{name}/subtitles.txt → bun audio → recordings/outputs/{name}/audio/{name}.mp3
                                            bun record → recordings/outputs/{name}/video/{name}.mp4 + recordings/outputs/{name}/timestamps/{name}.json
                                            bun transcribe → recordings/outputs/{name}/captions/{name}.json
-                                           bun segments → recordings/apps/remotion/public/outputs/{name}/segments/{name}.json
-                                           cd recordings/apps/remotion && npx remotion render Sync → recordings/outputs/{name}/video/{name}-final.mp4
+                                           bun segments → apps/remotion/public/outputs/{name}/segments/{name}.json
+                                           cd apps/remotion && npx remotion render Sync → recordings/outputs/{name}/video/{name}-final.mp4
 ```
 
 1. Write clean narration text in `recordings/inputs/{name}/subtitles.txt`
@@ -154,8 +154,8 @@ recordings/inputs/{name}/subtitles.txt → bun audio → recordings/outputs/{nam
    - `gemini` (uses Gemini TTS on Vertex AI with SSML-directed pauses)
 3. `bun record {name}` — records terminal via VHS, matches per-word screenshots to frames
 4. `bun transcribe {name}` — runs Whisper.cpp on the audio, outputs Remotion `Caption[]` JSON
-5. Copy `recordings/outputs/{name}/` to `recordings/apps/remotion/public/outputs/{name}/`
-6. `bun segments {name}` — generates `recordings/apps/remotion/public/outputs/{name}/segments/{name}.json`
+5. Copy `recordings/outputs/{name}/` to `apps/remotion/public/outputs/{name}/`
+6. `bun segments {name}` — generates `apps/remotion/public/outputs/{name}/segments/{name}.json`
 7. Render with Remotion
 
 The Remotion composition cuts the audio into sentence segments and places each at the video timestamp where that sentence appears on screen.
@@ -163,7 +163,7 @@ The Remotion composition cuts the audio into sentence segments and places each a
 ### Remotion export
 
 ```bash
-cd recordings/apps/remotion
+cd apps/remotion
 npx remotion render Sync --output ../outputs/{name}/video/{name}-final.mp4
 ```
 

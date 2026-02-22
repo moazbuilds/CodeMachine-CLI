@@ -5,12 +5,12 @@ import { $ } from "bun";
 const ROOT = join(import.meta.dir, "../..");
 const RECORDINGS = join(ROOT, "recordings");
 const OUTPUT = join(RECORDINGS, "outputs");
-const WHISPER_PATH = join(RECORDINGS, "vendors/whisper.cpp");
+const WHISPER_PATH = join(ROOT, "vendors/whisper.cpp");
 const WHISPER_VERSION = "1.5.5";
 const MODEL = "medium.en";
 const REMOTION_INSTALL_PKG = join(
   ROOT,
-  "recordings/apps/remotion/node_modules/@remotion/install-whisper-cpp",
+  "apps/remotion/node_modules/@remotion/install-whisper-cpp",
 );
 
 const name = process.argv[2];

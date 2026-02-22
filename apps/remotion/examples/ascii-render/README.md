@@ -5,9 +5,9 @@ This example renders ASCII art into video frames directly, then encodes them to 
 Run:
 
 ```bash
-recordings/apps/remotion/examples/ascii-render/render_ascii_demo.sh
+apps/remotion/examples/ascii-render/render_ascii_demo.sh
 ```
 
 Output:
 
-`recordings/apps/remotion/examples/ascii-render/out/ascii_scene.mp4`
+`apps/remotion/examples/ascii-render/out/ascii_scene.mp4`

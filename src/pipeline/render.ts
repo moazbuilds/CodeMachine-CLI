@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
 
 const ROOT = join(import.meta.dir, "../..");
-const COMPS_DIR = join(ROOT, "recordings/apps/remotion");
+const COMPS_DIR = join(ROOT, "apps/remotion");
 const OUTPUTS_DIR = join(ROOT, "recordings/outputs");
 
 const name = process.argv[2];

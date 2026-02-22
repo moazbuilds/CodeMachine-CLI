@@ -37,9 +37,9 @@ _bmad-*
 *_try
 recordings/inputs
 recordings/outputs
-recordings/vendors/whisper.cpp
-recordings/apps/remotion/public/outputs
-recordings/apps/remotion/public/ascii
-recordings/apps/remotion/out
-recordings/apps/remotion/node_modules
-recordings/apps/remotion/bun.lock
+vendors/whisper.cpp
+apps/remotion/public/outputs
+apps/remotion/public/ascii
+apps/remotion/out
+apps/remotion/node_modules
+apps/remotion/bun.lock

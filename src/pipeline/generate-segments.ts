@@ -68,7 +68,7 @@ if (!name) {
 }
 
 const ROOT = join(import.meta.dir, "../..");
-const REMOTION_DIR = join(ROOT, "recordings/apps/remotion");
+const REMOTION_DIR = join(ROOT, "apps/remotion");
 const RUN_PUBLIC_DIR = join(REMOTION_DIR, "public/outputs", name);
 const RUN_INPUT_DIR = join(ROOT, "recordings/inputs", name);
 
