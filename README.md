@@ -130,10 +130,11 @@ Requires [VHS](https://github.com/charmbracelet/vhs), [ImageMagick](https://imag
 
 | Command | Description |
 |---------|-------------|
-| `bun run audio <name>` | Generate TTS audio from `recordings/subtitles/{name}.txt` via ElevenLabs, Google, or Gemini |
+| `bun run audio <name>` | Generate TTS audio from `recordings/assets/subtitles/{name}.txt` via ElevenLabs, Google, or Gemini |
 | `bun run record <name>` | Run VHS tape, match frames, generate per-word timestamps |
 | `bun run match <name>` | Re-run frame matching only |
 | `bun run transcribe <name>` | Transcribe audio to word-level captions (Whisper.cpp) |
+| `bun run segments <name>` | Generate silence-aware sync segments for Remotion |
 | `bun run clean` | Empty all output folders |
 
 ### Workflow
@@ -142,24 +143,27 @@ Requires [VHS](https://github.com/charmbracelet/vhs), [ImageMagick](https://imag
 subtitles/{name}.txt → bun audio → output/audio/{name}.mp3
                         bun record → output/video/{name}.mp4 + output/timestamps/{name}.json
                         bun transcribe → output/captions/{name}.json
-                        cd recordings/comps && npx remotion render Sync → output/video/{name}-final.mp4
+                        bun segments → remotion/public/output/segments/{name}.json
+                        cd recordings/remotion && npx remotion render Sync → output/video/{name}-final.mp4
 ```
 
-1. Write clean narration text in `recordings/subtitles/{name}.txt`
+1. Write clean narration text in `recordings/assets/subtitles/{name}.txt`
 2. `bun audio {name}` — generates MP3 using `TTS_PROVIDER`:
    - `elevenlabs` (default)
    - `google` (uses SSML input)
    - `gemini` (uses Gemini TTS on Vertex AI with SSML-directed pauses)
 3. `bun record {name}` — records terminal via VHS, matches per-word screenshots to frames
 4. `bun transcribe {name}` — runs Whisper.cpp on the audio, outputs Remotion `Caption[]` JSON
-5. Copy `recordings/output/` to `recordings/comps/public/output/`, then render with Remotion
+5. Copy `recordings/output/` to `recordings/remotion/public/output/`
+6. `bun segments {name}` — generates `recordings/remotion/public/output/segments/{name}.json`
+7. Render with Remotion
 
 The Remotion composition cuts the audio into sentence segments and places each at the video timestamp where that sentence appears on screen.
 
 ### Remotion export
 
 ```bash
-cd recordings/comps
+cd recordings/remotion
 npx remotion render Sync --output ../output/video/{name}-final.mp4
 ```
 

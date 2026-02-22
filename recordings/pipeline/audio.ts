@@ -4,7 +4,7 @@ import { $ } from "bun";
 
 const ROOT = join(import.meta.dir, "../..");
 const RECORDINGS = join(ROOT, "recordings");
-const SUBTITLES = join(RECORDINGS, "subtitles");
+const SUBTITLES = join(RECORDINGS, "assets/subtitles");
 const OUTPUT = join(RECORDINGS, "output");
 const DEFAULT_VERTEX_LOCATION = "us-central1";
 

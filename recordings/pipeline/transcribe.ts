@@ -11,7 +11,7 @@ import {
 const ROOT = join(import.meta.dir, "../..");
 const RECORDINGS = join(ROOT, "recordings");
 const OUTPUT = join(RECORDINGS, "output");
-const WHISPER_PATH = join(RECORDINGS, "whisper.cpp");
+const WHISPER_PATH = join(RECORDINGS, "vendor/whisper.cpp");
 const WHISPER_VERSION = "1.5.5";
 const MODEL = "medium.en";
 

@@ -8,7 +8,7 @@ type Interval = {
 };
 
 function usage(): never {
-  console.error("Usage: bun recordings/tools/blackguard.ts <input.mp4> [output.mp4]");
+  console.error("Usage: bun recordings/pipeline/blackguard.ts <input.mp4> [output.mp4]");
   process.exit(1);
 }
 

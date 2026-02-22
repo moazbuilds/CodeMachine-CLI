@@ -8,7 +8,7 @@ const OUTPUT = join(RECORDINGS, "output");
 
 // Get tape name from args (default: test-ali)
 const name = process.argv[2] || "test-ali";
-const tapePath = join(RECORDINGS, "tapes", `${name}.tape`);
+const tapePath = join(RECORDINGS, "assets/tapes", `${name}.tape`);
 
 if (!(await access(tapePath).then(() => true, () => false))) {
   console.error(`Tape not found: ${tapePath}`);

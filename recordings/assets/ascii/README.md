@@ -2,7 +2,7 @@
 
 Store ASCII animation projects under:
 
-`recordings/asciis/<project-name>/*.txt`
+`recordings/assets/ascii/<project-name>/*.txt`
 
 Each `.txt` can be:
 

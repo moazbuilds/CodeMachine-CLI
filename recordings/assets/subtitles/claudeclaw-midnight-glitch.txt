@@ -1,0 +1,7 @@
+Last night I gave ClaudeClaw one tiny task: remind me to sleep.
+
+At 1 AM, it sent a polite message. At 1:05, it sent a stronger message. At 1:10, it started posting countdown numbers in Telegram like a launch sequence.
+
+Then it opened my task list, moved every low-priority item to tomorrow, and renamed my calendar block to Operation Go To Bed.
+
+I finally listened. ClaudeClaw sent one last message: Mission complete. Human survived another deploy day.

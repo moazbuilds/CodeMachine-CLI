@@ -70,7 +70,7 @@ const ASCII_SEQUENCE: string[] = [
 
 // No more manual segments – generate-segments.ts produces silence-aware
 // segments from Whisper captions + video timestamps + script pause markers.
-// Run: bun generate-segments.ts <name>
+// Run: bun recordings/pipeline/generate-segments.ts <name>
 
 function normalizeWord(word: string): string {
   return word.toLowerCase().replace(/[^a-z0-9]/g, "");

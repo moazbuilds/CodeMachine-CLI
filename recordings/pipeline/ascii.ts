@@ -30,10 +30,10 @@ type CliOptions = {
 };
 
 const ROOT = join(import.meta.dir, "../..");
-const ASCIIS_ROOT = join(ROOT, "recordings/asciis");
+const ASCIIS_ROOT = join(ROOT, "recordings/assets/ascii");
 
 function printUsage(): never {
-  console.error("Usage: bun recordings/tools/ascii.ts <project> [options]");
+  console.error("Usage: bun recordings/pipeline/ascii.ts <project> [options]");
   console.error("");
   console.error("Options:");
   console.error("  --name <file-base>     Render only one file in project");
@@ -57,8 +57,8 @@ function printUsage(): never {
   console.error("  Multi frame: use blocks like `frame 1|0.25:` then frame body");
   console.error("");
   console.error("Examples:");
-  console.error("  bun recordings/tools/ascii.ts claudeclaw-chaoslab");
-  console.error("  bun recordings/tools/ascii.ts claudeclaw-chaoslab --name face --format gif --fps 8");
+  console.error("  bun recordings/pipeline/ascii.ts claudeclaw-chaoslab");
+  console.error("  bun recordings/pipeline/ascii.ts claudeclaw-chaoslab --name face --format gif --fps 8");
   process.exit(1);
 }
 

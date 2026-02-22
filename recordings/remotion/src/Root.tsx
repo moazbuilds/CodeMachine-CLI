@@ -1,7 +1,7 @@
 import "./index.css";
 import { Composition } from "remotion";
-import { SyncComposition } from "./SyncComposition";
-import { FinalSceneComposition } from "./FinalSceneComposition";
+import { SyncComposition } from "./compositions/sync/SyncComposition";
+import { FinalSceneComposition } from "./compositions/final/FinalSceneComposition";
 
 export const RemotionRoot: React.FC = () => {
   return (

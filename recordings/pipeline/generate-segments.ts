@@ -7,12 +7,12 @@
  * WHICH silence to cut at. Cuts only happen where the audio volume is
  * actually silent — never mid-word, regardless of Whisper timestamp accuracy.
  *
- * Usage: bun generate-segments.ts <name>
- *   e.g. bun generate-segments.ts what-is-this
+ * Usage: bun recordings/pipeline/generate-segments.ts <name>
+ *   e.g. bun recordings/pipeline/generate-segments.ts what-is-this
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
-import { join, dirname } from "path";
+import { join } from "path";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -63,13 +63,14 @@ type SilenceRegion = {
 
 const name = process.argv[2];
 if (!name) {
-  console.error("Usage: bun generate-segments.ts <name>");
+  console.error("Usage: bun recordings/pipeline/generate-segments.ts <name>");
   process.exit(1);
 }
 
-const COMPS_DIR = dirname(Bun.main);
-const PUBLIC_DIR = join(COMPS_DIR, "public/output");
-const SCRIPTS_DIR = join(COMPS_DIR, "../scripts");
+const ROOT = join(import.meta.dir, "../..");
+const REMOTION_DIR = join(ROOT, "recordings/remotion");
+const PUBLIC_DIR = join(REMOTION_DIR, "public/output");
+const SCRIPTS_DIR = join(ROOT, "recordings/assets/scripts");
 
 const captions: Caption[] = JSON.parse(
   readFileSync(join(PUBLIC_DIR, `captions/${name}.json`), "utf-8"),
