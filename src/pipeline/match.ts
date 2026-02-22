@@ -3,10 +3,11 @@ import { cpus } from "node:os";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-const BASE = join(import.meta.dir, "..");
-const FRAMES_DIR = join(BASE, "output/frames");
-const SCREENSHOTS_DIR = join(BASE, "output/screenshots");
-const TIMESTAMPS_DIR = join(BASE, "output/timestamps");
+const ROOT = join(import.meta.dir, "../..");
+const OUTPUT = join(ROOT, "recordings/outputs");
+const FRAMES_DIR = join(OUTPUT, "frames");
+const SCREENSHOTS_DIR = join(OUTPUT, "screenshots");
+const TIMESTAMPS_DIR = join(OUTPUT, "timestamps");
 const SIZE = "64x64!";
 const FRAMERATE = 60;
 const PARALLELISM = Math.max(2, Math.min(cpus().length, 6));

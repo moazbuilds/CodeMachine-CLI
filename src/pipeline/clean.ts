@@ -1,7 +1,8 @@
 import { rm, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 
-const OUTPUT = join(import.meta.dir, "../output");
+const ROOT = join(import.meta.dir, "../..");
+const OUTPUT = join(ROOT, "recordings/outputs");
 
 for (const dir of ["frames", "screenshots", "video", "timestamps"]) {
   await rm(join(OUTPUT, dir), { recursive: true, force: true });

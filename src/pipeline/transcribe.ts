@@ -1,19 +1,17 @@
 import { join } from "node:path";
 import { access, mkdir } from "node:fs/promises";
 import { $ } from "bun";
-import {
-  installWhisperCpp,
-  downloadWhisperModel,
-  transcribe,
-  toCaptions,
-} from "@remotion/install-whisper-cpp";
 
 const ROOT = join(import.meta.dir, "../..");
 const RECORDINGS = join(ROOT, "recordings");
-const OUTPUT = join(RECORDINGS, "output");
-const WHISPER_PATH = join(RECORDINGS, "vendor/whisper.cpp");
+const OUTPUT = join(RECORDINGS, "outputs");
+const WHISPER_PATH = join(RECORDINGS, "vendors/whisper.cpp");
 const WHISPER_VERSION = "1.5.5";
 const MODEL = "medium.en";
+const REMOTION_INSTALL_PKG = join(
+  ROOT,
+  "recordings/apps/remotion/node_modules/@remotion/install-whisper-cpp",
+);
 
 const name = process.argv[2];
 
@@ -24,6 +22,19 @@ if (!name) {
 }
 
 const mp3Path = join(OUTPUT, "audio", `${name}.mp3`);
+
+const remotionWhisper = (await import(REMOTION_INSTALL_PKG)) as {
+  installWhisperCpp: (args: { to: string; version: string }) => Promise<void>;
+  downloadWhisperModel: (args: { model: string; folder: string }) => Promise<void>;
+  transcribe: (args: {
+    model: string;
+    whisperPath: string;
+    whisperCppVersion: string;
+    inputPath: string;
+    tokenLevelTimestamps: boolean;
+  }) => Promise<unknown>;
+  toCaptions: (args: { whisperCppOutput: unknown }) => { captions: Array<{ text: string; startMs: number }> };
+};
 
 if (!(await access(mp3Path).then(() => true, () => false))) {
   console.error(`Audio not found: ${mp3Path}`);
@@ -37,12 +48,12 @@ await $`ffmpeg -i ${mp3Path} -ar 16000 ${wavPath} -y`.quiet();
 
 // Install whisper.cpp if needed
 console.log("\n=== Setting up Whisper.cpp ===");
-await installWhisperCpp({ to: WHISPER_PATH, version: WHISPER_VERSION });
-await downloadWhisperModel({ model: MODEL, folder: WHISPER_PATH });
+await remotionWhisper.installWhisperCpp({ to: WHISPER_PATH, version: WHISPER_VERSION });
+await remotionWhisper.downloadWhisperModel({ model: MODEL, folder: WHISPER_PATH });
 
 // Transcribe
 console.log(`\n=== Transcribing ${name} ===`);
-const whisperOutput = await transcribe({
+const whisperOutput = await remotionWhisper.transcribe({
   model: MODEL,
   whisperPath: WHISPER_PATH,
   whisperCppVersion: WHISPER_VERSION,
@@ -50,7 +61,7 @@ const whisperOutput = await transcribe({
   tokenLevelTimestamps: true,
 });
 
-const { captions } = toCaptions({ whisperCppOutput: whisperOutput });
+const { captions } = remotionWhisper.toCaptions({ whisperCppOutput: whisperOutput });
 
 // Write captions JSON
 await mkdir(join(OUTPUT, "captions"), { recursive: true });

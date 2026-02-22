@@ -35,11 +35,11 @@ _bmad-*
 
 .idea
 *_try
-recordings/output
-recordings/vendor/whisper.cpp
-recordings/remotion/public/output
-recordings/remotion/public/ascii
-recordings/remotion/out
-recordings/remotion/node_modules
-recordings/remotion/bun.lock
-recordings/assets/ascii/**/out
+recordings/outputs
+recordings/vendors/whisper.cpp
+recordings/apps/remotion/public/outputs
+recordings/apps/remotion/public/ascii
+recordings/apps/remotion/out
+recordings/apps/remotion/node_modules
+recordings/apps/remotion/bun.lock
+recordings/inputs/ascii/**/out

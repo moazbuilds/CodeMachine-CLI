@@ -2,7 +2,7 @@
 
 Store ASCII animation projects under:
 
-`recordings/assets/ascii/<project-name>/*.txt`
+`recordings/inputs/ascii/<project-name>/*.txt`
 
 Each `.txt` can be:
 
@@ -29,7 +29,7 @@ bun ascii <project-name>
 
 Output path:
 
-`recordings/output/ascii/<project-name>/`
+`recordings/outputs/ascii/<project-name>/`
 
 Notes:
 

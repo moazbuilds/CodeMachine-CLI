@@ -4,8 +4,8 @@ import { $ } from "bun";
 
 const ROOT = join(import.meta.dir, "../..");
 const RECORDINGS = join(ROOT, "recordings");
-const SUBTITLES = join(RECORDINGS, "assets/subtitles");
-const OUTPUT = join(RECORDINGS, "output");
+const SUBTITLES = join(RECORDINGS, "inputs/subtitles");
+const OUTPUT = join(RECORDINGS, "outputs");
 const DEFAULT_VERTEX_LOCATION = "us-central1";
 
 const name = process.argv[2];

@@ -70,7 +70,7 @@ const ASCII_SEQUENCE: string[] = [
 
 // No more manual segments – generate-segments.ts produces silence-aware
 // segments from Whisper captions + video timestamps + script pause markers.
-// Run: bun recordings/pipeline/generate-segments.ts <name>
+// Run: bun src/pipeline/generate-segments.ts <name>
 
 function normalizeWord(word: string): string {
   return word.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -318,7 +318,7 @@ const AudioSync: React.FC<{ name: string; scriptText?: string }> = ({
   const fetchData = useCallback(async () => {
     // Try pre-computed segments first (produced by generate-segments.ts)
     try {
-      const segRes = await fetch(staticFile(`output/segments/${name}.json`));
+      const segRes = await fetch(staticFile(`outputs/segments/${name}.json`));
       if (segRes.ok) {
         const precomputed: WordSegment[] = await segRes.json();
         setSegments(precomputed);
@@ -331,8 +331,8 @@ const AudioSync: React.FC<{ name: string; scriptText?: string }> = ({
     // Fallback: runtime matching from timestamps + captions
     try {
       const [tsRes, capRes] = await Promise.all([
-        fetch(staticFile(`output/timestamps/${name}.json`)),
-        fetch(staticFile(`output/captions/${name}.json`)),
+        fetch(staticFile(`outputs/timestamps/${name}.json`)),
+        fetch(staticFile(`outputs/captions/${name}.json`)),
       ]);
 
       const videoTimestamps: VideoTimestamp[] = await tsRes.json();
@@ -403,7 +403,7 @@ const AudioSync: React.FC<{ name: string; scriptText?: string }> = ({
             layout="none"
           >
             <Audio
-              src={staticFile(`output/audio/${name}.mp3`)}
+              src={staticFile(`outputs/audio/${name}.mp3`)}
               trimBefore={trimBefore}
               volume={(f) => {
                 let v = 1;
@@ -430,12 +430,12 @@ const VideoSync: React.FC<{ name: string; baseVideoName?: string }> = ({
 }) => {
   const { fps } = useVideoConfig();
   const [segments, setSegments] = useState<WordSegment[] | null>(null);
-  const videoSrc = staticFile(`output/video/${baseVideoName ?? name}.mp4`);
+  const videoSrc = staticFile(`outputs/video/${baseVideoName ?? name}.mp4`);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const segRes = await fetch(staticFile(`output/segments/${name}.json`));
+        const segRes = await fetch(staticFile(`outputs/segments/${name}.json`));
         if (!segRes.ok) {
           setSegments([]);
           return;
@@ -565,7 +565,7 @@ const AsciiShowcase: React.FC<{ name: string }> = ({ name }) => {
   useEffect(() => {
     const load = async () => {
       try {
-        const segRes = await fetch(staticFile(`output/segments/${name}.json`));
+        const segRes = await fetch(staticFile(`outputs/segments/${name}.json`));
         if (!segRes.ok) {
           setSegments([]);
           return;

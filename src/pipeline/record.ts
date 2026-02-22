@@ -4,11 +4,11 @@ import { join } from "node:path";
 
 const ROOT = join(import.meta.dir, "../..");
 const RECORDINGS = join(ROOT, "recordings");
-const OUTPUT = join(RECORDINGS, "output");
+const OUTPUT = join(RECORDINGS, "outputs");
 
 // Get tape name from args (default: test-ali)
 const name = process.argv[2] || "test-ali";
-const tapePath = join(RECORDINGS, "assets/tapes", `${name}.tape`);
+const tapePath = join(RECORDINGS, "inputs/tapes", `${name}.tape`);
 
 if (!(await access(tapePath).then(() => true, () => false))) {
   console.error(`Tape not found: ${tapePath}`);
