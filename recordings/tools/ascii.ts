@@ -226,7 +226,11 @@ function frameDelayCs(frame: Frame, fps: number): number {
 function escapeForAnnotate(text: string): string {
   // ImageMagick annotate interprets backslashes and percent placeholders.
   // Escape them so ASCII art is rendered literally.
-  return text.replace(/\\/g, "\\\\").replace(/%/g, "%%");
+  const safeLineEnds = text
+    .split("\n")
+    .map((line) => (line.endsWith("\\") ? `${line} ` : line))
+    .join("\n");
+  return safeLineEnds.replace(/\\/g, "\\\\").replace(/%/g, "%%");
 }
 
 function computePointSizeToFit(text: string, opt: CliOptions): number {
