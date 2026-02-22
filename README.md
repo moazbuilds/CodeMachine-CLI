@@ -135,7 +135,7 @@ Requires [VHS](https://github.com/charmbracelet/vhs), [ImageMagick](https://imag
 | `bun run match <name>` | Re-run frame matching only |
 | `bun run transcribe <name>` | Transcribe audio to word-level captions (Whisper.cpp) |
 | `bun run segments <name>` | Generate silence-aware sync segments for Remotion |
-| `bun run clean` | Empty all output folders |
+| `bun run clean` | Archive project inputs/outputs into `recordings/.archive` and clean active run folders |
 
 ### Workflow
 
