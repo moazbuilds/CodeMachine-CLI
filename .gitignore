@@ -41,5 +41,6 @@ vendors/whisper.cpp
 apps/remotion/public/outputs
 apps/remotion/public/ascii
 apps/remotion/out
+apps/remotion/examples/ascii-render/out
 apps/remotion/node_modules
 apps/remotion/bun.lock
