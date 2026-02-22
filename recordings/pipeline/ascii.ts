@@ -31,6 +31,7 @@ type CliOptions = {
 
 const ROOT = join(import.meta.dir, "../..");
 const ASCIIS_ROOT = join(ROOT, "recordings/assets/ascii");
+const ASCII_OUTPUT_ROOT = join(ROOT, "recordings/output/ascii");
 
 function printUsage(): never {
   console.error("Usage: bun recordings/pipeline/ascii.ts <project> [options]");
@@ -358,7 +359,7 @@ async function main(): Promise<void> {
     throw new Error(`Project folder not found: ${projectDir}`);
   }
 
-  const outDir = join(projectDir, "out");
+  const outDir = join(ASCII_OUTPUT_ROOT, opt.project);
   await mkdir(outDir, { recursive: true });
 
   const files = await readdir(projectDir, { withFileTypes: true });

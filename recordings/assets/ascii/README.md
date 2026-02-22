@@ -27,6 +27,10 @@ Render:
 bun ascii <project-name>
 ```
 
+Output path:
+
+`recordings/output/ascii/<project-name>/`
+
 Notes:
 
 - ASCII is centered by default.
