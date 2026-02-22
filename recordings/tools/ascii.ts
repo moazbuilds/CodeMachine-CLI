@@ -230,7 +230,8 @@ function escapeForAnnotate(text: string): string {
     .split("\n")
     .map((line) => (line.endsWith("\\") ? `${line} ` : line))
     .join("\n");
-  return safeLineEnds.replace(/\\/g, "\\\\").replace(/%/g, "%%");
+  const keepColumnSpaces = safeLineEnds.replace(/ /g, "\u00A0");
+  return keepColumnSpaces.replace(/\\/g, "\\\\").replace(/%/g, "%%");
 }
 
 function computePointSizeToFit(text: string, opt: CliOptions): number {
@@ -242,8 +243,8 @@ function computePointSizeToFit(text: string, opt: CliOptions): number {
   const usableHeight = Math.max(50, opt.height - 2 * opt.paddingY);
 
   // Conservative monospace estimates so output fits without clipping.
-  const byWidth = usableWidth / (maxChars * 0.62);
-  const byHeight = usableHeight / (lineCount * 1.25);
+  const byWidth = usableWidth / (maxChars * 0.74);
+  const byHeight = usableHeight / (lineCount * 1.5);
   const fitted = Math.floor(Math.min(opt.pointSize, byWidth, byHeight));
   return Math.max(10, fitted);
 }
