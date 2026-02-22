@@ -27,7 +27,7 @@ type CliOptions = {
 };
 
 const ROOT = join(import.meta.dir, "../..");
-const ASCIIS_ROOT = join(ROOT, "asciis");
+const ASCIIS_ROOT = join(ROOT, "recordings/asciis");
 
 function printUsage(): never {
   console.error("Usage: bun recordings/tools/ascii.ts <project> [options]");
