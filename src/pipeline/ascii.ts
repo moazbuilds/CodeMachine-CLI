@@ -11,7 +11,7 @@ type Frame = {
 };
 
 type CliOptions = {
-  project: string;
+  run: string;
   name?: string;
   format: OutputFormat;
   fps: number;
@@ -30,11 +30,11 @@ type CliOptions = {
 };
 
 const ROOT = join(import.meta.dir, "../..");
-const ASCIIS_ROOT = join(ROOT, "recordings/inputs/ascii");
-const ASCII_OUTPUT_ROOT = join(ROOT, "recordings/outputs/ascii");
+const INPUTS_ROOT = join(ROOT, "recordings/inputs");
+const OUTPUTS_ROOT = join(ROOT, "recordings/outputs");
 
 function printUsage(): never {
-  console.error("Usage: bun src/pipeline/ascii.ts <project> [options]");
+  console.error("Usage: bun src/pipeline/ascii.ts <name> [options]");
   console.error("");
   console.error("Options:");
   console.error("  --name <file-base>     Render only one file in project");
@@ -60,6 +60,11 @@ function printUsage(): never {
   console.error("Examples:");
   console.error("  bun src/pipeline/ascii.ts claudeclaw-chaoslab");
   console.error("  bun src/pipeline/ascii.ts claudeclaw-chaoslab --name face --format gif --fps 8");
+  console.error("");
+  console.error("Input schema:");
+  console.error("  recordings/inputs/{name}/ascii/*.txt");
+  console.error("Output schema:");
+  console.error("  recordings/outputs/{name}/ascii/*");
   process.exit(1);
 }
 
@@ -72,11 +77,11 @@ function parseNumber(value: string, flag: string): number {
 }
 
 function parseArgs(argv: string[]): CliOptions {
-  const project = argv[2];
-  if (!project || project.startsWith("-")) printUsage();
+  const run = argv[2];
+  if (!run || run.startsWith("-")) printUsage();
 
   const options: CliOptions = {
-    project,
+    run,
     format: "auto",
     fps: 6,
     width: 1280,
@@ -354,15 +359,33 @@ async function main(): Promise<void> {
     throw new Error("ImageMagick `convert` is required but was not found.");
   }
 
-  const projectDir = join(ASCIIS_ROOT, opt.project);
-  if (!(await access(projectDir).then(() => true, () => false))) {
-    throw new Error(`Project folder not found: ${projectDir}`);
+  const runAsciiDir = join(INPUTS_ROOT, opt.run, "ascii");
+  const legacyAsciiDir = join(INPUTS_ROOT, "ascii", opt.run);
+  const hasRunAsciiDir = await access(runAsciiDir).then(() => true, () => false);
+  const hasLegacyAsciiDir = await access(legacyAsciiDir).then(() => true, () => false);
+  const inputDir = hasRunAsciiDir ? runAsciiDir : legacyAsciiDir;
+
+  if (!hasRunAsciiDir && !hasLegacyAsciiDir) {
+    throw new Error(
+      [
+        `ASCII input folder not found for run "${opt.run}".`,
+        `Expected: ${runAsciiDir}`,
+        `Legacy fallback: ${legacyAsciiDir}`,
+      ].join("\n"),
+    );
   }
 
-  const outDir = join(ASCII_OUTPUT_ROOT, opt.project);
+  if (!hasRunAsciiDir && hasLegacyAsciiDir) {
+    console.warn(
+      `Using legacy ascii input path: ${legacyAsciiDir}\n` +
+        `Please move files to: ${runAsciiDir}`,
+    );
+  }
+
+  const outDir = join(OUTPUTS_ROOT, opt.run, "ascii");
   await mkdir(outDir, { recursive: true });
 
-  const files = await readdir(projectDir, { withFileTypes: true });
+  const files = await readdir(inputDir, { withFileTypes: true });
   const txtFiles = files
     .filter((entry) => entry.isFile() && entry.name.endsWith(".txt"))
     .map((entry) => entry.name)
@@ -376,13 +399,13 @@ async function main(): Promise<void> {
   if (targets.length === 0) {
     throw new Error(
       opt.name
-        ? `No file named ${opt.name}.txt in ${projectDir}`
-        : `No .txt files found in ${projectDir}`,
+        ? `No file named ${opt.name}.txt in ${inputDir}`
+        : `No .txt files found in ${inputDir}`,
     );
   }
 
   for (const file of targets) {
-    await renderAsciiFile(join(projectDir, file), outDir, opt);
+    await renderAsciiFile(join(inputDir, file), outDir, opt);
   }
 }
 
