@@ -39,17 +39,27 @@
 
 **Purpose:** Convert narration script into an approved asset sheet.
 
-#### Step 1.1: Parse script into visual beats
+#### Step 1.1: List projects and confirm target script
 
-- **How:** Read `recordings/scripts/{name}.txt` (or equivalent narrative source), split by lines/sentences, and extract what visuals are needed per beat.
+- **How:** List available script files from `recordings/scripts/*.txt`, present project names to the user, and ask: "Which script should I use to start assets planning?"
+- **Why:** Prevents generating assets from the wrong script/project.
+- **Decision:** Mandatory confirmation gate before reading content.
+  - *Alternative:* Auto-pick the latest or infer from context.
+  - *Chosen because:* Explicit confirmation avoids cross-project mistakes.
+- **Output:** Confirmed `{name}` script selection.
+- **Depends on:** Script directory exists.
+
+#### Step 1.2: Parse confirmed script into visual beats
+
+- **How:** Read only the confirmed `recordings/scripts/{name}.txt`, split by lines/sentences, and extract what visuals are needed per beat.
 - **Why:** Assets should be driven by narration intent, not generic templates.
 - **Decision:** Script-first planning.
   - *Alternative:* Brainstorm assets without script mapping.
   - *Chosen because:* Script mapping reduces missing shots and overproduction.
 - **Output:** Beat map with required visuals.
-- **Depends on:** Existing script.
+- **Depends on:** Step 1.1.
 
-#### Step 1.2: Auto-draft the asset sheet
+#### Step 1.3: Auto-draft the asset sheet
 
 - **How:** Produce a draft including:
   - total number of assets
@@ -61,9 +71,9 @@
   - *Alternative:* Immediate generation.
   - *Chosen because:* Prevents wasted render cycles.
 - **Output:** Draft asset sheet.
-- **Depends on:** Step 1.1.
+- **Depends on:** Step 1.2.
 
-#### Step 1.3: Brainstorm + approval loop
+#### Step 1.4: Brainstorm + approval loop
 
 - **How:** Ask user for additions/removals/style changes, apply edits, and get explicit approval.
 - **Why:** Creative fit requires user input before committing files.
@@ -71,7 +81,7 @@
   - *Alternative:* Assume draft is final.
   - *Chosen because:* Keeps scope aligned with user intent.
 - **Output:** Approved asset sheet.
-- **Depends on:** Step 1.2.
+- **Depends on:** Step 1.3.
 
 ### Phase 2: Agent B - Asset Generator
 
@@ -87,7 +97,7 @@
   - *Alternative:* Hardcoded text inside scripts.
   - *Chosen because:* Easier iteration and collaboration.
 - **Output:** Asset source files in project folder.
-- **Depends on:** Approved plan from Step 1.3.
+- **Depends on:** Approved plan from Step 1.4.
 
 #### Step 2.2: Render approved assets
 
@@ -115,7 +125,7 @@
 
 ### Branching Logic
 
-- **If** user rejects asset draft: → revise Step 1.2 and repeat Step 1.3.
+- **If** user rejects asset draft: → revise Step 1.3 and repeat Step 1.4.
 - **Else** (approved): → proceed to Agent B generation.
 - **If** asset is single-frame: → default PNG.
 - **Else** (multi-frame): → default GIF (or PNG sequence if requested).
