@@ -1,0 +1,11 @@
+┌──────────────────────────────────────────────────────────────┐
+│ ● ● ●   ClaudeClaw Studio                         _ □ ✕      │
+├──────────────────────────────────────────────────────────────┤
+│  CLAUDECLAW                                                  │
+│  Personal assistant that never sleeps                        │
+│                                                              │
+│  Runs in Claude Code with native context.                   │
+│  Background daemon. Zero babysitting.                        │
+│                                                              │
+│  [ Start Automation ]     [ View Tasks ]                     │
+└──────────────────────────────────────────────────────────────┘

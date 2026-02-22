@@ -1,0 +1,10 @@
+┌──────────────────────────────────────────────────────────────┐
+│ Claude Code Native Runtime                                   │
+├──────────────────────────────────────────────────────────────┤
+│  Subscription: active                                        │
+│  Context manager: smart-window routing                       │
+│                                                              │
+│  Incoming tasks --> prioritize --> execute --> summarize     │
+│                                                              │
+│  Result: stable long-running assistant behavior              │
+└──────────────────────────────────────────────────────────────┘

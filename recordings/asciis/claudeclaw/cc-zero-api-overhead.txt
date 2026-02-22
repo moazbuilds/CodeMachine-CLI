@@ -1,0 +1,9 @@
+┌──────────────────────────────────────────────────────────────┐
+│ Zero API Overhead                                            │
+├──────────────────────────────────────────────────────────────┤
+│  ✓ No separate API keys                                      │
+│  ✓ No token accounting                                       │
+│  ✓ No billing surprises                                      │
+│                                                              │
+│  Operates entirely within your Claude Code subscription.     │
+└──────────────────────────────────────────────────────────────┘

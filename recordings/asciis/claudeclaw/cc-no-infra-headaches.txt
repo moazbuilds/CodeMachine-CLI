@@ -1,0 +1,9 @@
+┌──────────────────────────────────────────────────────────────┐
+│ No Infrastructure Headaches                                  │
+├──────────────────────────────────────────────────────────────┤
+│  X Containers to maintain                                    │
+│  X Cloud infra babysitting                                   │
+│  X Dependency maze                                           │
+│                                                              │
+│  Local-first daemon with simple operational surface.         │
+└──────────────────────────────────────────────────────────────┘
