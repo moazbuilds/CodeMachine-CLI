@@ -27,9 +27,15 @@ Render:
 bun ascii <project-name>
 ```
 
+Notes:
+
+- ASCII is centered by default.
+- Font size auto-fits to avoid clipping/cropping.
+
 Optional:
 
 ```bash
 bun ascii <project-name> --name face --format png
 bun ascii <project-name> --name face --format gif --fps 8
+bun ascii <project-name> --name logo --point-size 72 --x 0 --y -40
 ```

@@ -20,6 +20,8 @@ type CliOptions = {
   x: number;
   y: number;
   pointSize: number;
+  paddingX: number;
+  paddingY: number;
   interlineSpacing: number;
   bg: string;
   fg: string;
@@ -38,9 +40,11 @@ function printUsage(): never {
   console.error("  --fps <number>         GIF fps for frame timing (default: 6)");
   console.error("  --width <number>       Canvas width (default: 1280)");
   console.error("  --height <number>      Canvas height (default: 720)");
-  console.error("  --x <number>           Text X offset (default: 100)");
-  console.error("  --y <number>           Text Y offset (default: 260)");
+  console.error("  --x <number>           Text X offset (default: 0)");
+  console.error("  --y <number>           Text Y offset (default: 0)");
   console.error("  --point-size <number>  Font size (default: 56)");
+  console.error("  --padding-x <number>   Horizontal safe padding (default: 80)");
+  console.error("  --padding-y <number>   Vertical safe padding (default: 80)");
   console.error("  --line-spacing <number>  Line spacing (default: 12)");
   console.error("  --bg <color>           Background color (default: #0b0f14)");
   console.error("  --fg <color>           Foreground color (default: #e5e7eb)");
@@ -74,9 +78,11 @@ function parseArgs(argv: string[]): CliOptions {
     fps: 6,
     width: 1280,
     height: 720,
-    x: 100,
-    y: 260,
+    x: 0,
+    y: 0,
     pointSize: 56,
+    paddingX: 80,
+    paddingY: 80,
     interlineSpacing: 12,
     bg: "#0b0f14",
     fg: "#e5e7eb",
@@ -124,6 +130,14 @@ function parseArgs(argv: string[]): CliOptions {
         break;
       case "--point-size":
         options.pointSize = parseNumber(next, "--point-size");
+        i++;
+        break;
+      case "--padding-x":
+        options.paddingX = parseNumber(next, "--padding-x");
+        i++;
+        break;
+      case "--padding-y":
+        options.paddingY = parseNumber(next, "--padding-y");
         i++;
         break;
       case "--line-spacing":
@@ -209,15 +223,33 @@ function frameDelayCs(frame: Frame, fps: number): number {
   return Math.max(1, Math.round(hold * 100));
 }
 
+function computePointSizeToFit(text: string, opt: CliOptions): number {
+  const lines = text.replace(/\r/g, "").split("\n");
+  const maxChars = Math.max(1, ...lines.map((line) => line.length));
+  const lineCount = Math.max(1, lines.length);
+
+  const usableWidth = Math.max(50, opt.width - 2 * opt.paddingX);
+  const usableHeight = Math.max(50, opt.height - 2 * opt.paddingY);
+
+  // Conservative monospace estimates so output fits without clipping.
+  const byWidth = usableWidth / (maxChars * 0.62);
+  const byHeight = usableHeight / (lineCount * 1.25);
+  const fitted = Math.floor(Math.min(opt.pointSize, byWidth, byHeight));
+  return Math.max(10, fitted);
+}
+
 async function renderFramePng(frame: Frame, filePath: string, opt: CliOptions): Promise<void> {
+  const pointSize = computePointSizeToFit(frame.text, opt);
   await runCommand("convert", [
     "-size",
     `${opt.width}x${opt.height}`,
     `xc:${opt.bg}`,
+    "-gravity",
+    "center",
     "-font",
     opt.font,
     "-pointsize",
-    String(opt.pointSize),
+    String(pointSize),
     "-fill",
     opt.fg,
     "-interline-spacing",
