@@ -42,3 +42,4 @@ recordings/remotion/public/ascii
 recordings/remotion/out
 recordings/remotion/node_modules
 recordings/remotion/bun.lock
+recordings/assets/ascii/**/out
