@@ -223,6 +223,12 @@ function frameDelayCs(frame: Frame, fps: number): number {
   return Math.max(1, Math.round(hold * 100));
 }
 
+function escapeForAnnotate(text: string): string {
+  // ImageMagick annotate interprets backslashes and percent placeholders.
+  // Escape them so ASCII art is rendered literally.
+  return text.replace(/\\/g, "\\\\").replace(/%/g, "%%");
+}
+
 function computePointSizeToFit(text: string, opt: CliOptions): number {
   const lines = text.replace(/\r/g, "").split("\n");
   const maxChars = Math.max(1, ...lines.map((line) => line.length));
@@ -240,6 +246,7 @@ function computePointSizeToFit(text: string, opt: CliOptions): number {
 
 async function renderFramePng(frame: Frame, filePath: string, opt: CliOptions): Promise<void> {
   const pointSize = computePointSizeToFit(frame.text, opt);
+  const safeText = escapeForAnnotate(frame.text);
   await runCommand("convert", [
     "-size",
     `${opt.width}x${opt.height}`,
@@ -256,7 +263,7 @@ async function renderFramePng(frame: Frame, filePath: string, opt: CliOptions): 
     String(opt.interlineSpacing),
     "-annotate",
     `+${opt.x}+${opt.y}`,
-    frame.text,
+    safeText,
     filePath,
   ]);
 }
