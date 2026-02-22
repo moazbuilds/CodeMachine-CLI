@@ -41,6 +41,7 @@ recordings/scripts
 recordings/subtitles
 recordings/whisper.cpp
 recordings/comps/public/output
+recordings/comps/public/ascii
 recordings/comps/out
 recordings/comps/node_modules
 recordings/comps/bun.lock
