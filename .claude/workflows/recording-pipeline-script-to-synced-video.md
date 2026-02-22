@@ -8,14 +8,15 @@
 ## Pipeline Overview
 
 ```
-Brainstorm → scripts/{name}.txt → subtitles/{name}.txt
+Brainstorm → recordings/inputs/{name}/script.txt → recordings/inputs/{name}/subtitles.txt
   → bun run clean            → clear previous output
-  → bun audio {name}         → output/audio/{name}.mp3  (generate voice FIRST)
+  → bun audio {name}         → recordings/outputs/{name}/audio/{name}.mp3  (generate voice FIRST)
   → check audio duration     → tune script {N} pauses + --speed to match
-  → create tapes/{name}.tape
-  → bun record {name}        → output/video/{name}.mp4 + output/timestamps/{name}.json
-  → bun transcribe {name}    → output/captions/{name}.json
-  → copy to comps/public/    → npx remotion render Sync → output/video/{name}-final.mp4
+  → create recordings/inputs/{name}/tape.tape
+  → bun record {name}        → recordings/outputs/{name}/video/{name}.mp4 + recordings/outputs/{name}/timestamps/{name}.json
+  → bun transcribe {name}    → recordings/outputs/{name}/captions/{name}.json
+  → copy to recordings/apps/remotion/public/outputs/{name}/
+  → npx remotion render Sync → recordings/outputs/{name}/video/{name}-final.mp4
 ```
 
 ## One-Shot Execution Points (Go / No-Go)
@@ -23,7 +24,7 @@ Brainstorm → scripts/{name}.txt → subtitles/{name}.txt
 Use this as the final acceptance gate before shipping any video:
 
 1. Audio generated
-- `recordings/output/audio/{name}.mp3` exists
+- `recordings/outputs/{name}/audio/{name}.mp3` exists
 - Audio duration measured (`ffprobe`) and noted
 
 2. Tape anchors are safe
@@ -38,11 +39,11 @@ Use this as the final acceptance gate before shipping any video:
 
 3. Record step completed cleanly
 - `bun run record {name}` exits successfully
-- `recordings/output/timestamps/{name}.json` exists
+- `recordings/outputs/{name}/timestamps/{name}.json` exists
 - Timestamps are monotonic (no backward jumps)
 
 4. Transcription completed
-- `recordings/output/captions/{name}.json` exists
+- `recordings/outputs/{name}/captions/{name}.json` exists
 - No obvious missing major phrases in transcript output
 
 5. Segment generation quality checks
@@ -62,7 +63,7 @@ Use this as the final acceptance gate before shipping any video:
 - Mid-script spot check confirms sync stays stable
 
 8. Final artifact
-- `recordings/output/video/{name}-final.mp4` exists
+- `recordings/outputs/{name}/video/{name}-final.mp4` exists
 - Manual spot check at:
   - first 3 seconds
   - first transition
@@ -123,7 +124,7 @@ Keep sentence endings complete and clean, without swallowing final consonants.
 
 #### Step 0.2: Create narrator script
 
-- **How:** Write `recordings/scripts/{name}.txt` — one line per sentence, format: `face|delay: text`
+- **How:** Write `recordings/inputs/{name}/script.txt` — one line per sentence, format: `face|delay: text`
   - `face` = starting expression for the line (`idle`, `thinking`, `excited`, `cool`, `error`, `tool`)
   - `delay` = seconds to wait after the line finishes typing
   - `text` = narration content, supports `{N}` mid-sentence pauses and `[face]` inline expression changes
@@ -132,18 +133,18 @@ Keep sentence endings complete and clean, without swallowing final consonants.
 - **Decision:** No `**bold**` markdown in script text
   - *Alternative:* Use `**word**` for emphasis
   - *Chosen because:* The narrator TUI parser (`src/cli/tui/routes/narrator/parser/script-parser.ts`) only supports `{N}` pauses and `[face]` expression changes — `**` renders as literal `*` on screen. The entire narrator text is already rendered bold via the JSX `bold` prop
-- **Output:** `recordings/scripts/{name}.txt`
+- **Output:** `recordings/inputs/{name}/script.txt`
 
 #### Step 0.3: Create subtitle file
 
-- **How:** Write `recordings/subtitles/{name}.txt` — clean text, one sentence per line, proper punctuation, no metadata (no face, no delay, no inline markup)
+- **How:** Write `recordings/inputs/{name}/subtitles.txt` — clean text, one sentence per line, proper punctuation, no metadata (no face, no delay, no inline markup)
 - **Why:** The TTS engine (ElevenLabs) needs clean text without mood/timing metadata. Sending `idle|3:` to TTS produces garbled voice output
 - **Natural pauses in subtitles:** Use punctuation to hint pauses to `eleven_v3` (which does NOT support SSML `<break>` tags):
   - `—` (em dash) at dramatic/emphasis beats: `"I am Ali — your CodeMachine explainer."`
   - Blank lines between sentences for breathing room
   - Don't overuse `...` or `—` — only at natural speech boundaries where you'd actually pause when talking
   - Don't add pauses between words that flow naturally together (e.g. "editing videos in After Effects" needs no stops)
-- **Output:** `recordings/subtitles/{name}.txt`
+- **Output:** `recordings/inputs/{name}/subtitles.txt`
 - **Depends on:** Step 0.2 (extract clean text from the script)
 
 ### Phase 1: Clean and Generate Audio
@@ -154,23 +155,23 @@ Keep sentence endings complete and clean, without swallowing final consonants.
 
 - **How:** `bun run clean` — removes all previous output files (frames, screenshots, video, audio, timestamps, captions)
 - **Why:** Stale files from previous runs can cause wrong frame matches or outdated audio being used. Always start clean
-- **Output:** Empty `recordings/output/` subdirectories
+- **Output:** Empty `recordings/outputs/` subdirectories
 - **Depends on:** Nothing
 
 #### Step 1.1: Run audio generation
 
-- **How:** `bun audio {name}` — reads `recordings/subtitles/{name}.txt`, concatenates all lines into a single text block, calls ElevenLabs TTS API
+- **How:** `bun audio {name}` — reads `recordings/inputs/{name}/subtitles.txt`, concatenates all lines into a single text block, calls ElevenLabs TTS API
 - **Why:** The audio duration determines how long the video needs to be. Generating audio first avoids duration mismatches
 - **Decision:** ElevenLabs with model `eleven_v3`, Bill voice (`pqHfZKP75CvOlQylNhV4`)
   - *Alternative:* Other TTS services, other voices/models
   - *Chosen because:* eleven_v3 is the latest and most expressive model; Bill is a wise, mature, balanced voice
 - **Audio speed:** Set `speed: 1.2` in `voice_settings` — makes audio faster/shorter, giving more headroom for video to be longer than audio. ElevenLabs range is 0.7–1.2
-- **Output:** `recordings/output/audio/{name}.mp3`
+- **Output:** `recordings/outputs/{name}/audio/{name}.mp3`
 - **Depends on:** Step 0.3 (subtitle file), `ELEVENLABS_API_KEY` in `.env`
 
 #### Step 1.2: Check audio duration
 
-- **How:** `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 recordings/output/audio/{name}.mp3`
+- **How:** `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 recordings/outputs/{name}/audio/{name}.mp3`
 - **Why:** This is the target duration the video must match or exceed
 - **Output:** Audio duration in seconds (e.g. `28.16`)
 
@@ -180,7 +181,7 @@ Keep sentence endings complete and clean, without swallowing final consonants.
 
 #### Step 2.1: Add mid-sentence pauses
 
-- **How:** Add `{N}` pauses between phrases/clauses in `recordings/scripts/{name}.txt`. Place them at natural breathing points — after commas, between clauses
+- **How:** Add `{N}` pauses between phrases/clauses in `recordings/inputs/{name}/script.txt`. Place them at natural breathing points — after commas, between clauses
 - **Why:** Stretches the typing animation to match the natural speaking pace of the generated audio
 - **Timing guidelines:**
   - `{2}` for emphasis/dramatic moments — key reveals, important names, punchlines
@@ -223,14 +224,14 @@ Keep sentence endings complete and clean, without swallowing final consonants.
 
 #### Step 3.1: Create VHS tape
 
-- **How:** Write `recordings/tapes/{name}.tape` — VHS commands that record the terminal running the narrator and capture per-word screenshots for frame matching
+- **How:** Write `recordings/inputs/{name}/tape.tape` — VHS commands that record the terminal running the narrator and capture per-word screenshots for frame matching
 - **Why:** VHS records the terminal session as video frames and takes targeted screenshots when specific words appear, enabling precise word-to-frame timestamp mapping later
 
 - **Exact tape template** (copy this and replace `{name}` and the per-word sections):
 
   ```tape
-  Output recordings/output/frames/
-  Output recordings/output/video/{name}.mp4
+  Output recordings/outputs/{name}/frames/
+  Output recordings/outputs/{name}/video/{name}.mp4
   Set Width 2560
   Set Height 1440
   Set FontSize 80
@@ -240,20 +241,20 @@ Keep sentence endings complete and clean, without swallowing final consonants.
 
   # Hide command typing, show when Ali frame appears
   Hide
-  Type "bun run dev -- narrate recordings/scripts/{name}.txt --speed 180"
+  Type "bun run dev -- narrate recordings/inputs/{name}/script.txt --speed 180"
   Enter
   Wait+Screen /The CM Guy/
   Show
 
   # ── S1: "First sentence here." ──
   Wait+Screen /distinctiveword1/
-  Screenshot recordings/output/screenshots/s1-w1-label.png
+  Screenshot recordings/outputs/{name}/screenshots/s1-w1-label.png
   Wait+Screen /distinctiveword2/
-  Screenshot recordings/output/screenshots/s1-w2-label.png
+  Screenshot recordings/outputs/{name}/screenshots/s1-w2-label.png
 
   # ── S2: "Second sentence here." ──
   Wait+Screen /distinctiveword3/
-  Screenshot recordings/output/screenshots/s2-w1-label.png
+  Screenshot recordings/outputs/{name}/screenshots/s2-w1-label.png
 
   Sleep 2
   ```
@@ -261,8 +262,8 @@ Keep sentence endings complete and clean, without swallowing final consonants.
 - **Working example** — the `what-is-this` tape that successfully recorded:
 
   ```tape
-  Output recordings/output/frames/
-  Output recordings/output/video/what-is-this.mp4
+  Output recordings/outputs/what-is-this/frames/
+  Output recordings/outputs/what-is-this/video/what-is-this.mp4
   Set Width 2560
   Set Height 1440
   Set FontSize 80
@@ -272,50 +273,50 @@ Keep sentence endings complete and clean, without swallowing final consonants.
 
   # Hide command typing, show when Ali frame appears
   Hide
-  Type "bun run dev -- narrate recordings/scripts/what-is-this.txt --speed 150"
+  Type "bun run dev -- narrate recordings/inputs/what-is-this/script.txt --speed 150"
   Enter
   Wait+Screen /The CM Guy/
   Show
 
   # ── S1: "Hi, I am Ali, your CodeMachine explainer." ──
   Wait+Screen /Hi,/
-  Screenshot recordings/output/screenshots/s1-w1-hi.png
+  Screenshot recordings/outputs/what-is-this/screenshots/s1-w1-hi.png
   Wait+Screen /am/
-  Screenshot recordings/output/screenshots/s1-w2-am.png
+  Screenshot recordings/outputs/what-is-this/screenshots/s1-w2-am.png
   Wait+Screen /CodeMachine/
-  Screenshot recordings/output/screenshots/s1-w3-codemachine.png
+  Screenshot recordings/outputs/what-is-this/screenshots/s1-w3-codemachine.png
   Wait+Screen /explainer/
-  Screenshot recordings/output/screenshots/s1-w4-explainer.png
+  Screenshot recordings/outputs/what-is-this/screenshots/s1-w4-explainer.png
 
   # ── S2: "So, you spend hours editing videos in After Effects or DaVinci Resolve?" ──
   Wait+Screen /So,/
-  Screenshot recordings/output/screenshots/s2-w1-so.png
+  Screenshot recordings/outputs/what-is-this/screenshots/s2-w1-so.png
   Wait+Screen /spend/
-  Screenshot recordings/output/screenshots/s2-w2-spend.png
+  Screenshot recordings/outputs/what-is-this/screenshots/s2-w2-spend.png
   Wait+Screen /hours/
-  Screenshot recordings/output/screenshots/s2-w3-hours.png
+  Screenshot recordings/outputs/what-is-this/screenshots/s2-w3-hours.png
   Wait+Screen /editing/
-  Screenshot recordings/output/screenshots/s2-w4-editing.png
+  Screenshot recordings/outputs/what-is-this/screenshots/s2-w4-editing.png
   Wait+Screen /videos/
-  Screenshot recordings/output/screenshots/s2-w5-videos.png
+  Screenshot recordings/outputs/what-is-this/screenshots/s2-w5-videos.png
   Wait+Screen /After/
-  Screenshot recordings/output/screenshots/s2-w6-after.png
+  Screenshot recordings/outputs/what-is-this/screenshots/s2-w6-after.png
   Wait+Screen /Effects/
-  Screenshot recordings/output/screenshots/s2-w7-effects.png
+  Screenshot recordings/outputs/what-is-this/screenshots/s2-w7-effects.png
   Wait+Screen /DaVinci/
-  Screenshot recordings/output/screenshots/s2-w8-davinci.png
+  Screenshot recordings/outputs/what-is-this/screenshots/s2-w8-davinci.png
   Wait+Screen /Resolve/
-  Screenshot recordings/output/screenshots/s2-w9-resolve.png
+  Screenshot recordings/outputs/what-is-this/screenshots/s2-w9-resolve.png
 
   # ── S3: "Well, you don't need to anymore." ──
   Wait+Screen /Well,/
-  Screenshot recordings/output/screenshots/s3-w1-well.png
+  Screenshot recordings/outputs/what-is-this/screenshots/s3-w1-well.png
   Wait+Screen /don't/
-  Screenshot recordings/output/screenshots/s3-w2-dont.png
+  Screenshot recordings/outputs/what-is-this/screenshots/s3-w2-dont.png
   Wait+Screen /need/
-  Screenshot recordings/output/screenshots/s3-w3-need.png
+  Screenshot recordings/outputs/what-is-this/screenshots/s3-w3-need.png
   Wait+Screen /anymore/
-  Screenshot recordings/output/screenshots/s3-w4-anymore.png
+  Screenshot recordings/outputs/what-is-this/screenshots/s3-w4-anymore.png
 
   Sleep 2
   ```
@@ -342,20 +343,20 @@ Keep sentence endings complete and clean, without swallowing final consonants.
   - Example: `s2-w7-effects.png` = sentence 2, word 7, the word "effects"
   - The `sN-` prefix is used by the Remotion sync composition to group words into sentences
 
-- **Output:** `recordings/tapes/{name}.tape`
+- **Output:** `recordings/inputs/{name}/tape.tape`
 - **Depends on:** Step 0.2 (script text determines which words to match and screenshot)
 
 #### Step 3.2: Run VHS recording pipeline
 
 - **How:** `bun record {name}` — this runs the pipeline script which:
   1. Cleans previous output
-  2. Executes VHS with the tape file (`recordings/tapes/{name}.tape`)
+  2. Executes VHS with the tape file (`recordings/inputs/{name}/tape.tape`)
   3. VHS captures every frame as PNG + records MP4 video
   4. VHS takes screenshots at each `Wait+Screen` match point
   5. Frame matcher downscales all frames and screenshots to 64x64, compares each screenshot against all frames using RMSE (ImageMagick `compare`), finds the best-matching frame
   6. Writes timestamp JSON mapping each word to its frame number and time offset
 - **Why:** Creates the terminal video and a JSON mapping of when each word appears visually on screen. This mapping is essential for syncing audio to video later
-- **Output:** `recordings/output/video/{name}.mp4`, `recordings/output/timestamps/{name}.json`, `recordings/output/frames/` (all PNG frames), `recordings/output/screenshots/` (per-word PNGs)
+- **Output:** `recordings/outputs/{name}/video/{name}.mp4`, `recordings/outputs/{name}/timestamps/{name}.json`, `recordings/outputs/{name}/frames/` (all PNG frames), `recordings/outputs/{name}/screenshots/` (per-word PNGs)
 - **Depends on:** Step 0.4 (VHS tape), Step 0.2 (narrator script)
 
 ### Phase 4: Transcribe Audio
@@ -370,7 +371,7 @@ Keep sentence endings complete and clean, without swallowing final consonants.
   - *Alternative:* `base.en` (faster, less accurate), cloud transcription APIs
   - *Chosen because:* Runs locally, good accuracy, integrates directly with Remotion's `Caption` type
 - **Note:** Whisper may split proper nouns oddly (e.g. "Claude" → "Cl" + "awed", "DaVinci" → "Da" + "V" + "in" + "ci"). The Remotion sync composition handles reassembly at the sentence level
-- **Output:** `recordings/output/captions/{name}.json`
+- **Output:** `recordings/outputs/{name}/captions/{name}.json`
 - **Depends on:** Step 1.1 (audio file must exist)
 
 ### Phase 5: Sync in Remotion
@@ -379,32 +380,32 @@ Keep sentence endings complete and clean, without swallowing final consonants.
 
 #### Step 5.1: Copy assets to Remotion public folder
 
-- **How:** Copy `recordings/output/` contents into `recordings/comps/public/output/`
+- **How:** Copy `recordings/outputs/{name}/` contents into `recordings/apps/remotion/public/outputs/{name}/`
 - **Why:** Remotion serves assets from its `public/` folder via `staticFile()`. It cannot access files outside this directory
 - **Output:** Assets accessible in Remotion Studio
 - **Depends on:** Steps 2.1 and 3.1
 
 #### Step 5.2: Sync composition
 
-- **How:** The `Sync` composition in `recordings/comps/` loads both JSONs, groups words into sentences (video: by `sN-` prefix in screenshot names; audio: by `.`/`?` punctuation), pairs them, and places trimmed `<Audio>` segments at the video sentence timestamps using `<Sequence>`
+- **How:** The `Sync` composition in `recordings/apps/remotion/` loads both JSONs, groups words into sentences (video: by `sN-` prefix in screenshot names; audio: by `.`/`?` punctuation), pairs them, and places trimmed `<Audio>` segments at the video sentence timestamps using `<Sequence>`
 - **Why:** The video and audio have different internal timing — the video shows words appearing at certain times, the audio speaks them at different times. Sentence-level cutting aligns them
 - **Output:** Synced preview in Remotion Studio at `http://localhost:3200`
 - **Depends on:** Step 4.1
 
 #### Step 5.3: Export final video
 
-- **How:** `npx remotion render Sync --output recordings/output/video/{name}-final.mp4`
+- **How:** `npx remotion render Sync --output recordings/outputs/{name}/video/{name}-final.mp4`
 - **Why:** Produces the final composited video file with synced audio
 - **Decision:** Export settings: PNG image format (not JPEG), CRF 18, H.264 codec
   - *Alternative:* JPEG frames with default CRF
   - *Chosen because:* JPEG causes quality loss, dark/washed-out colors. PNG frames are lossless, CRF 18 gives high quality output
-- **Config:** `recordings/comps/remotion.config.ts` must have:
+- **Config:** `recordings/apps/remotion/remotion.config.ts` must have:
   ```ts
   Config.setVideoImageFormat("png");
   Config.setOverwriteOutput(true);
   Config.setCrf(18);
   ```
-- **Output:** `recordings/output/video/{name}-final.mp4`
+- **Output:** `recordings/outputs/{name}/video/{name}-final.mp4`
 - **Depends on:** Step 4.2
 
 ### Branching Logic
@@ -447,13 +448,13 @@ Keep sentence endings complete and clean, without swallowing final consonants.
 - **Why it failed:** `@remotion/media` uses WebCodecs API (`VideoDecoderWrapper`) which couldn't decode the VHS-generated H.264 video — threw `EncodingError: Decoding error`
 - **Lesson:** Use `<OffthreadVideo>` from `remotion` instead — it extracts frames server-side and handles more codecs
 
-### Reading subtitle text from `recordings/scripts/{name}.txt`
+### Reading subtitle text from `recordings/inputs/{name}/script.txt`
 - **What happened:** Initial audio script read from the narrator script format (`idle|3: Hello I am Ali...`)
 - **Why it failed:** Mood/timing metadata (`idle|3:`) was sent to TTS, producing garbled voice output
-- **Lesson:** Keep separate clean subtitle files in `recordings/subtitles/` for TTS input
+- **Lesson:** Keep separate clean subtitle files in `recordings/inputs/{name}/subtitles.txt` for TTS input
 
 ### Symlinked public folder
-- **What happened:** Symlinked `recordings/output` into `recordings/comps/public/output`
+- **What happened:** Symlinked `recordings/outputs` into `recordings/apps/remotion/public/outputs`
 - **Why it failed:** Remotion's dev server had issues serving files through symlinks
 - **Lesson:** Copy actual files into `public/` instead of symlinking
 
@@ -467,10 +468,10 @@ Keep sentence endings complete and clean, without swallowing final consonants.
 - **Why it failed:** The sync composition starts audio from the first matched word. Since "coding" was the first match, audio for "Every time you use an AI" (0.07s–1.89s) was never placed — the first ~2 seconds of voice were silent
 - **Lesson:** Always screenshot the FIRST distinctive word of each sentence. The sync composition needs it as the anchor to place the full sentence audio. If the first word is too common (e.g. "The"), use the second or third word — but never skip deep into the sentence
 
-### Stale files in `comps/public/output/` causing wrong render
+### Stale files in `recordings/apps/remotion/public/outputs/` causing wrong render
 - **What happened:** Rendered final video showed the old "what-is-this" content instead of the new "workflow-model" recording
 - **Why it failed:** Copied new assets on top of old ones without cleaning first. Old files (video, timestamps, captions) from the previous recording were still present. Also `Root.tsx` still had `defaultProps.name: "what-is-this"` and the old `durationInFrames`
-- **Lesson:** Always `rm -rf recordings/comps/public/output/` before copying new assets. Always update `Root.tsx` `defaultProps.name` and `durationInFrames` when switching recordings
+- **Lesson:** Always `rm -rf recordings/apps/remotion/public/outputs/` before copying new assets. Always update `Root.tsx` `defaultProps.name` and `durationInFrames` when switching recordings
 
 ### Excessive pauses to match audio duration
 - **What happened:** Video was 11.56s but audio was 17s. Cranked up `{N}` pauses to `{3}` and delays to `|5` to stretch the video
@@ -486,17 +487,17 @@ Keep sentence endings complete and clean, without swallowing final consonants.
 
 | Artifact | Location | Purpose |
 |----------|----------|---------|
-| Narrator scripts | `recordings/scripts/{name}.txt` | Script with mood/timing for the narrator TUI |
-| Subtitles | `recordings/subtitles/{name}.txt` | Clean narration text for TTS |
-| VHS tapes | `recordings/tapes/{name}.tape` | VHS recording commands with per-word screenshots |
-| Audio generator | `recordings/tools/audio.ts` | ElevenLabs TTS from subtitle files |
-| Pipeline script | `recordings/tools/pipeline.ts` | VHS recording + frame matching pipeline |
-| Match tool | `recordings/tools/match.ts` | Frame matching with dynamic `{name}` argument |
-| Transcriber | `recordings/comps/transcribe.ts` | Whisper.cpp transcription to Remotion Caption format |
-| Sync composition | `recordings/comps/src/SyncComposition.tsx` | Remotion composition that syncs video + audio |
-| Root composition | `recordings/comps/src/Root.tsx` | Registers Sync composition |
-| Video timestamps | `recordings/output/timestamps/{name}.json` | Per-word frame mapping from VHS recording |
-| Audio captions | `recordings/output/captions/{name}.json` | Word-level audio timestamps from Whisper |
+| Narrator scripts | `recordings/inputs/{name}/script.txt` | Script with mood/timing for the narrator TUI |
+| Subtitles | `recordings/inputs/{name}/subtitles.txt` | Clean narration text for TTS |
+| VHS tapes | `recordings/inputs/{name}/tape.tape` | VHS recording commands with per-word screenshots |
+| Audio generator | `src/pipeline/audio.ts` | ElevenLabs TTS from subtitle files |
+| Pipeline script | `src/pipeline/record.ts` | VHS recording + frame matching pipeline |
+| Match tool | `src/pipeline/match.ts` | Frame matching with dynamic `{name}` argument |
+| Transcriber | `src/pipeline/transcribe.ts` | Whisper.cpp transcription to Remotion Caption format |
+| Sync composition | `recordings/apps/remotion/src/compositions/sync/SyncComposition.tsx` | Remotion composition that syncs video + audio |
+| Root composition | `recordings/apps/remotion/src/Root.tsx` | Registers Sync composition |
+| Video timestamps | `recordings/outputs/{name}/timestamps/{name}.json` | Per-word frame mapping from VHS recording |
+| Audio captions | `recordings/outputs/{name}/captions/{name}.json` | Word-level audio timestamps from Whisper |
 | .env | `.env` | `ELEVENLABS_API_KEY` |
 | npm scripts | `package.json` | `bun audio`, `bun transcribe`, `bun record`, `bun match` |
 
@@ -506,11 +507,11 @@ Keep sentence endings complete and clean, without swallowing final consonants.
 - `Wait+Screen` works fine while `Hide` is active — VHS can still read the virtual terminal buffer
 - VHS `Wait+Screen` cannot match unicode box-drawing characters (`╭`, `╰`, etc.) — use ASCII patterns like `/The CM Guy/`
 - The narrator TUI does NOT support `**bold**` markdown — all text is already bold via JSX prop. `**` renders as literal `*`
-- Composition FPS must match video FPS (25fps for VHS output) — mismatched FPS causes stuttering in Studio
-- `@remotion/install-whisper-cpp` must be installed in `recordings/comps/` (not root) since that's where Remotion dependencies live — the transcribe script lives there too
-- The Whisper medium.en model is ~1.5GB — first run downloads it to `recordings/whisper.cpp/`
+- Composition FPS must match video FPS (60fps for VHS output) — mismatched FPS causes stuttering in Studio
+- `@remotion/install-whisper-cpp` must be installed in `recordings/apps/remotion/` (not root) since that's where Remotion dependencies live — the transcribe script lives there too
+- The Whisper medium.en model is ~1.5GB — first run downloads it to `recordings/vendors/whisper.cpp/`
 - VHS video uses H.264 High profile which WebCodecs can't decode — always use `OffthreadVideo`
-- Audio `.mp3` and captions `.json` must be copied to `recordings/comps/public/output/` before Remotion can access them
+- Audio `.mp3` and captions `.json` must be copied to `recordings/apps/remotion/public/outputs/` before Remotion can access them
 - Whisper splits proper nouns oddly ("Claude" → "Cl"+"awed") — the sync composition handles this at sentence level
 - ALWAYS generate audio before recording video — the audio duration is unpredictable and determines how long the video needs to be
 - **Pause variation matters:** Use `{2}` for dramatic/emphasis moments, `{1}` for light transitions. Don't pause between words that flow naturally together. Over-pausing sounds robotic
@@ -519,7 +520,7 @@ Keep sentence endings complete and clean, without swallowing final consonants.
 - **Video must be ≥5% longer than audio.** If not, increase `--speed`, use `Set PlaybackSpeed`, or add more `{N}` pauses (in that order of preference). Never ship a video shorter than audio — the audio will get cut off
 - `eleven_v3` does NOT support SSML `<break>` tags — use `—` (em dash) and blank lines in subtitles for natural pauses instead
 - **Always screenshot the first distinctive word of each sentence** — the sync starts audio from the first matched word. Skipping early words causes the beginning of the sentence audio to be silent
-- **Always clean `comps/public/output/` before copying** — `rm -rf` then `cp -r`. Stale files from previous recordings cause wrong renders
-- **Always update Root.tsx** when switching recordings — change both `defaultProps.name` and `durationInFrames` (= video duration in seconds × 25fps)
+- **Always clean `recordings/apps/remotion/public/outputs/` before copying** — `rm -rf` then `cp -r`. Stale files from previous recordings cause wrong renders
+- **Always update Root.tsx** when switching recordings — change both `defaultProps.name` and `durationInFrames` (= video duration in seconds × 60fps)
 - **VHS `PlaybackSpeed` affects both recording AND output** — it's not just a post-processing speed change. Values need iterative tuning, not simple ratio math
 - **Short scripts (3-4 sentences) need `PlaybackSpeed`** — don't try to fill 17s of audio with 4 short sentences by cranking up pauses. Use `PlaybackSpeed` to slow the output uniformly instead

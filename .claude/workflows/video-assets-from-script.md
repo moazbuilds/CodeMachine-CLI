@@ -19,7 +19,7 @@
   - *Alternative:* Mix with audio/record/transcribe/sync commands.
   - *Chosen because:* This workflow is scoped to asset production only.
 - **Output:** Clear assets-only execution boundary.
-- **Depends on:** `recordings/tools/ascii.ts` and `package.json` script `ascii`.
+- **Depends on:** `src/pipeline/ascii.ts` and `package.json` script `ascii`.
 
 #### Step 0.2: Command set
 
@@ -41,7 +41,7 @@
 
 #### Step 1.1: List projects and confirm target script
 
-- **How:** List available script files from `recordings/scripts/*.txt`, present project names to the user, and ask: "Which script should I use to start assets planning?"
+- **How:** List available run folders from `recordings/inputs/*/script.txt`, present project names to the user, and ask: "Which script should I use to start assets planning?"
 - **Why:** Prevents generating assets from the wrong script/project.
 - **Decision:** Mandatory confirmation gate before reading content.
   - *Alternative:* Auto-pick the latest or infer from context.
@@ -51,7 +51,7 @@
 
 #### Step 1.2: Parse confirmed script into visual beats
 
-- **How:** Read only the confirmed `recordings/scripts/{name}.txt`, split by lines/sentences, and extract what visuals are needed per beat.
+- **How:** Read only the confirmed `recordings/inputs/{name}/script.txt`, split by lines/sentences, and extract what visuals are needed per beat.
 - **Why:** Assets should be driven by narration intent, not generic templates.
 - **Decision:** Script-first planning.
   - *Alternative:* Brainstorm assets without script mapping.
@@ -89,7 +89,7 @@
 
 #### Step 2.1: Create asset source structure
 
-- **How:** Build sources under `recordings/asciis/{project}/` with one `.txt` per asset.
+- **How:** Build sources under `recordings/inputs/ascii/{project}/` with one `.txt` per asset.
   - Single-frame asset: plain ASCII text
   - Multi-frame asset: `frame N|duration:` blocks
 - **Why:** File-driven sources are editable, versioned, and reproducible.
@@ -110,7 +110,7 @@
 - **Decision:** Format based on frame count and usage.
   - *Alternative:* Always GIF or always PNG.
   - *Chosen because:* Single-frame and multi-frame assets have different needs.
-- **Output:** Rendered media in `recordings/asciis/{project}/out/`.
+- **Output:** Rendered media in `recordings/outputs/ascii/{project}/`.
 - **Depends on:** Step 2.1.
 
 #### Step 2.3: Asset QA pass
@@ -149,14 +149,14 @@
 | Artifact | Location | Purpose |
 |----------|----------|---------|
 | Assets workflow | `.claude/workflows/video-assets-from-script.md` | Captured process for script-to-assets generation |
-| ASCII renderer | `recordings/tools/ascii.ts` | Render ASCII source files to PNG/GIF |
-| Assets source root | `recordings/asciis/` | Project folders for ASCII assets |
-| Rendered outputs | `recordings/asciis/{project}/out/` | Final asset media for compositing |
+| ASCII renderer | `src/pipeline/ascii.ts` | Render ASCII source files to PNG/GIF |
+| Assets source root | `recordings/inputs/ascii/` | Project folders for ASCII assets |
+| Rendered outputs | `recordings/outputs/ascii/{project}/` | Final asset media for compositing |
 
 ## Gotchas
 
 - Keep this workflow assets-only; do not include sync/audio pipeline commands.
 - Always require approval on the draft asset sheet before generating files.
-- Use folder-driven sources (`recordings/asciis/{project}`), not hardcoded strings.
+- Use folder-driven sources (`recordings/inputs/ascii/{project}`), not hardcoded strings.
 - PNG outputs are transparent by default; confirm this is desired per asset.
 - GIF outputs must use proper disposal to avoid visual trails.
