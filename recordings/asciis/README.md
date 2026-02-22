@@ -31,6 +31,7 @@ Notes:
 
 - ASCII is centered by default.
 - Font size auto-fits to avoid clipping/cropping.
+- Rendering uses a fixed character grid, so spacing/alignment matches source columns.
 
 Optional:
 
@@ -38,4 +39,5 @@ Optional:
 bun ascii <project-name> --name face --format png
 bun ascii <project-name> --name face --format gif --fps 8
 bun ascii <project-name> --name logo --point-size 72 --x 0 --y -40
+bun ascii <project-name> --name logo --char-width-factor 0.6 --line-height-factor 1.28
 ```

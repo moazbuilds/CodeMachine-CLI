@@ -22,7 +22,8 @@ type CliOptions = {
   pointSize: number;
   paddingX: number;
   paddingY: number;
-  interlineSpacing: number;
+  charWidthFactor: number;
+  lineHeightFactor: number;
   bg: string;
   fg: string;
   font: string;
@@ -45,7 +46,8 @@ function printUsage(): never {
   console.error("  --point-size <number>  Font size (default: 56)");
   console.error("  --padding-x <number>   Horizontal safe padding (default: 80)");
   console.error("  --padding-y <number>   Vertical safe padding (default: 80)");
-  console.error("  --line-spacing <number>  Line spacing (default: 12)");
+  console.error("  --char-width-factor <number>  Char cell width factor (default: 0.6)");
+  console.error("  --line-height-factor <number>  Line height factor (default: 1.28)");
   console.error("  --bg <color>           Background color (default: #0b0f14)");
   console.error("  --fg <color>           Foreground color (default: #e5e7eb)");
   console.error("  --font <name>          ImageMagick font name (default: DejaVu-Sans-Mono)");
@@ -83,7 +85,8 @@ function parseArgs(argv: string[]): CliOptions {
     pointSize: 56,
     paddingX: 80,
     paddingY: 80,
-    interlineSpacing: 12,
+    charWidthFactor: 0.6,
+    lineHeightFactor: 1.28,
     bg: "#0b0f14",
     fg: "#e5e7eb",
     font: "DejaVu-Sans-Mono",
@@ -140,8 +143,12 @@ function parseArgs(argv: string[]): CliOptions {
         options.paddingY = parseNumber(next, "--padding-y");
         i++;
         break;
-      case "--line-spacing":
-        options.interlineSpacing = parseNumber(next, "--line-spacing");
+      case "--char-width-factor":
+        options.charWidthFactor = parseNumber(next, "--char-width-factor");
+        i++;
+        break;
+      case "--line-height-factor":
+        options.lineHeightFactor = parseNumber(next, "--line-height-factor");
         i++;
         break;
       case "--bg":
@@ -223,54 +230,69 @@ function frameDelayCs(frame: Frame, fps: number): number {
   return Math.max(1, Math.round(hold * 100));
 }
 
-function escapeForAnnotate(text: string): string {
-  // ImageMagick annotate interprets backslashes and percent placeholders.
-  // Escape them so ASCII art is rendered literally.
-  const safeLineEnds = text
-    .split("\n")
-    .map((line) => (line.endsWith("\\") ? `${line} ` : line))
-    .join("\n");
-  const keepColumnSpaces = safeLineEnds.replace(/ /g, "\u00A0");
-  return keepColumnSpaces.replace(/\\/g, "\\\\").replace(/%/g, "%%");
+function splitLines(text: string): string[] {
+  return text.replace(/\r/g, "").split("\n");
 }
 
-function computePointSizeToFit(text: string, opt: CliOptions): number {
-  const lines = text.replace(/\r/g, "").split("\n");
+function computePointSizeToFit(lines: string[], opt: CliOptions): number {
   const maxChars = Math.max(1, ...lines.map((line) => line.length));
   const lineCount = Math.max(1, lines.length);
 
   const usableWidth = Math.max(50, opt.width - 2 * opt.paddingX);
   const usableHeight = Math.max(50, opt.height - 2 * opt.paddingY);
 
-  // Conservative monospace estimates so output fits without clipping.
-  const byWidth = usableWidth / (maxChars * 0.74);
-  const byHeight = usableHeight / (lineCount * 1.5);
+  // Monospace cell estimates used by the explicit char-grid renderer.
+  const byWidth = usableWidth / (maxChars * opt.charWidthFactor);
+  const byHeight = usableHeight / (lineCount * opt.lineHeightFactor);
   const fitted = Math.floor(Math.min(opt.pointSize, byWidth, byHeight));
   return Math.max(10, fitted);
 }
 
+function escapeDrawChar(char: string): string {
+  if (char === "\\") return "\\\\";
+  if (char === "'") return "\\'";
+  if (char === "%") return "%%";
+  return char;
+}
+
 async function renderFramePng(frame: Frame, filePath: string, opt: CliOptions): Promise<void> {
-  const pointSize = computePointSizeToFit(frame.text, opt);
-  const safeText = escapeForAnnotate(frame.text);
-  await runCommand("convert", [
+  const lines = splitLines(frame.text);
+  const pointSize = computePointSizeToFit(lines, opt);
+  const maxChars = Math.max(1, ...lines.map((line) => line.length));
+  const lineCount = Math.max(1, lines.length);
+  const charWidth = pointSize * opt.charWidthFactor;
+  const lineHeight = pointSize * opt.lineHeightFactor;
+
+  const blockWidth = maxChars * charWidth;
+  const blockHeight = lineCount * lineHeight;
+  const blockLeft = (opt.width - blockWidth) / 2 + opt.x;
+  const blockTop = (opt.height - blockHeight) / 2 + opt.y;
+
+  const args: string[] = [
     "-size",
     `${opt.width}x${opt.height}`,
     `xc:${opt.bg}`,
-    "-gravity",
-    "center",
     "-font",
     opt.font,
     "-pointsize",
     String(pointSize),
     "-fill",
     opt.fg,
-    "-interline-spacing",
-    String(opt.interlineSpacing),
-    "-annotate",
-    `+${opt.x}+${opt.y}`,
-    safeText,
-    filePath,
-  ]);
+  ];
+
+  for (let row = 0; row < lines.length; row++) {
+    const line = lines[row] ?? "";
+    for (let col = 0; col < line.length; col++) {
+      const ch = line[col] ?? "";
+      if (ch === " ") continue;
+      const x = blockLeft + col * charWidth;
+      const y = blockTop + row * lineHeight + pointSize;
+      args.push("-draw", `text ${x},${y} '${escapeDrawChar(ch)}'`);
+    }
+  }
+
+  args.push(filePath);
+  await runCommand("convert", args);
 }
 
 async function renderAsciiFile(inputPath: string, outRoot: string, opt: CliOptions): Promise<void> {
