@@ -1,116 +1,153 @@
 # Video Assets Orchestration from Script
 
 > **Goal:** Create the video's assets by reading the script, planning asset needs with the user, and auto-generating approved assets.
-> **Key Insight:** A two-agent flow works best: one agent owns synced video baseline timing, and one agent owns visual asset planning/generation with user-in-the-loop draft approval.
+> **Key Insight:** A two-agent assets flow works best: one agent plans the asset sheet with the user, and one agent generates media from that approved sheet.
 > **Captured:** 2026-02-22
 > **Status:** in-progress
 
 ## Phases
 
-### Phase 1: Intake and Asset Discovery
+### Phase 0: Assets CLI Contract
 
-**Purpose:** Convert the narration script into a concrete asset plan before generating media.
+**Purpose:** Lock a minimal, assets-only command surface.
+
+#### Step 0.1: Use asset wrappers only
+
+- **How:** Use only asset-generation commands through Bun wrappers.
+- **Why:** Prevents unrelated pipeline steps from leaking into this workflow.
+- **Decision:** Assets-only command policy.
+  - *Alternative:* Mix with audio/record/transcribe/sync commands.
+  - *Chosen because:* This workflow is scoped to asset production only.
+- **Output:** Clear assets-only execution boundary.
+- **Depends on:** `recordings/tools/ascii.ts` and `package.json` script `ascii`.
+
+#### Step 0.2: Command set
+
+- **How:** Use only these commands:
+  - `bun ascii {project}`
+  - `bun ascii {project} --name {asset}`
+  - `bun ascii {project} --name {asset} --format png`
+  - `bun ascii {project} --name {asset} --format gif`
+- **Why:** These are sufficient to render approved ASCII media assets.
+- **Decision:** No non-assets commands in this workflow.
+  - *Alternative:* Include `audio/record/transcribe/render:sync`.
+  - *Chosen because:* Those belong to the recording/sync workflow, not assets workflow.
+- **Output:** Repeatable asset render command matrix.
+- **Depends on:** Step 0.1.
+
+### Phase 1: Agent A - Asset Planner
+
+**Purpose:** Convert narration script into an approved asset sheet.
 
 #### Step 1.1: Parse script into visual beats
 
-- **How:** Read `recordings/scripts/{name}.txt` (or subtitle source), split by sentence/line, and extract visual cues (entities, actions, mood shifts, transitions).
-- **Why:** Asset generation must map to actual narration beats, not generic visuals.
-- **Decision:** Use script/subtitle lines as the source of truth.
-  - *Alternative:* Start from ad-hoc visual ideas only.
-  - *Chosen because:* Direct script mapping prevents missing scenes and timing mismatches.
-- **Output:** Beat list with scene intents.
-- **Depends on:** Existing script files.
+- **How:** Read `recordings/scripts/{name}.txt` (or equivalent narrative source), split by lines/sentences, and extract what visuals are needed per beat.
+- **Why:** Assets should be driven by narration intent, not generic templates.
+- **Decision:** Script-first planning.
+  - *Alternative:* Brainstorm assets without script mapping.
+  - *Chosen because:* Script mapping reduces missing shots and overproduction.
+- **Output:** Beat map with required visuals.
+- **Depends on:** Existing script.
 
-#### Step 1.2: Build a draft asset sheet
+#### Step 1.2: Auto-draft the asset sheet
 
-- **How:** Auto-generate a draft that includes: total asset count, asset categories (overall/summary cards, ASCII media, overlays, transition cards), style direction, and per-scene examples.
-- **Why:** The user should review one structured plan instead of approving assets one-by-one blindly.
-- **Decision:** Draft first, generate second.
-  - *Alternative:* Generate all assets immediately.
-  - *Chosen because:* Early review avoids wasted renders and style rework.
-- **Output:** Asset sheet draft.
+- **How:** Produce a draft including:
+  - total number of assets
+  - categories (overall-summary cards, ASCII scenes, overlays, transitions)
+  - style direction (modern tab-window, typography tone, spacing)
+  - concrete examples per scene
+- **Why:** Gives the user a full plan to critique before generation.
+- **Decision:** Draft-first review gate.
+  - *Alternative:* Immediate generation.
+  - *Chosen because:* Prevents wasted render cycles.
+- **Output:** Draft asset sheet.
 - **Depends on:** Step 1.1.
 
-#### Step 1.3: User brainstorming and approval gate
+#### Step 1.3: Brainstorm + approval loop
 
-- **How:** Ask for additions/removals, style edits, and missing assets; update the draft once; finalize approved scope.
-- **Why:** Human direction is required for narrative intent and brand tone.
-- **Decision:** One explicit approval gate before generation.
-  - *Alternative:* Iterative generation without a gate.
-  - *Chosen because:* Approval gate keeps production deterministic and faster.
-- **Output:** Approved asset plan.
+- **How:** Ask user for additions/removals/style changes, apply edits, and get explicit approval.
+- **Why:** Creative fit requires user input before committing files.
+- **Decision:** Explicit approval required.
+  - *Alternative:* Assume draft is final.
+  - *Chosen because:* Keeps scope aligned with user intent.
+- **Output:** Approved asset sheet.
 - **Depends on:** Step 1.2.
 
-### Phase 2: Two-Agent Production
+### Phase 2: Agent B - Asset Generator
 
-**Purpose:** Produce synchronized base video and approved assets in parallel-safe roles.
+**Purpose:** Materialize approved assets into project folders and outputs.
 
-#### Step 2.1: Agent 1 - Synced baseline video
+#### Step 2.1: Create asset source structure
 
-- **How:** Generate audio, record terminal video, match timestamps, and sync final baseline video through the existing recording pipeline workflow.
-- **Why:** Baseline timing is required so assets can be aligned to real beats.
-- **Decision:** Reuse existing sync pipeline as an independent agent task.
-  - *Alternative:* Rebuild sync logic inside asset workflow.
-  - *Chosen because:* Existing pipeline is already validated and avoids duplicated logic.
-- **Output:** Synced baseline (`recordings/output/video/{name}-final.mp4`) and timing data.
-- **Depends on:** Approved script/subtitles and existing pipeline tooling.
+- **How:** Build sources under `recordings/asciis/{project}/` with one `.txt` per asset.
+  - Single-frame asset: plain ASCII text
+  - Multi-frame asset: `frame N|duration:` blocks
+- **Why:** File-driven sources are editable, versioned, and reproducible.
+- **Decision:** Folder-per-project convention.
+  - *Alternative:* Hardcoded text inside scripts.
+  - *Chosen because:* Easier iteration and collaboration.
+- **Output:** Asset source files in project folder.
+- **Depends on:** Approved plan from Step 1.3.
 
-#### Step 2.2: Agent 2 - Asset and ASCII media generation
+#### Step 2.2: Render approved assets
 
-- **How:** Generate assets from approved plan, including ASCII projects under `recordings/asciis/{project}/` and render via `bun ascii {project}` to PNG (single-frame) or GIF (multi-frame).
-- **Why:** Separating visual asset generation from sync logic improves iteration speed and keeps concerns clean.
-- **Decision:** Use script-driven folders and text-based frame sources.
-  - *Alternative:* Hardcoded assets in code or terminal capture-only approach.
-  - *Chosen because:* File-driven assets are editable, versioned, and reproducible.
-- **Output:** Rendered assets in `recordings/asciis/{project}/out/` and other approved media outputs.
-- **Depends on:** Step 1.3 and renderer/tool availability.
+- **How:** Render by need:
+  - Full project: `bun ascii {project}`
+  - One asset only: `bun ascii {project} --name {asset}`
+  - PNG required: `bun ascii {project} --name {asset} --format png`
+  - GIF required: `bun ascii {project} --name {asset} --format gif`
+- **Why:** Produces concrete media for compositing.
+- **Decision:** Format based on frame count and usage.
+  - *Alternative:* Always GIF or always PNG.
+  - *Chosen because:* Single-frame and multi-frame assets have different needs.
+- **Output:** Rendered media in `recordings/asciis/{project}/out/`.
+- **Depends on:** Step 2.1.
 
-#### Step 2.3: Integration pass
+#### Step 2.3: Asset QA pass
 
-- **How:** Map generated assets to script beats, validate visual timing against baseline video, and mark missing assets for next pass.
-- **Why:** Assets are only useful when placed at the intended narrative moments.
-- **Decision:** Validate placement before final expansion.
-  - *Alternative:* Defer validation until full final edit.
-  - *Chosen because:* Early integration catches count/style mismatches quickly.
-- **Output:** Integrated asset map and pass/fail checklist.
-- **Depends on:** Step 2.1 and Step 2.2.
+- **How:** Validate each output against the approved sheet (count, naming, style, readability, alignment, transparency expectations).
+- **Why:** Prevents drift between approved draft and generated media.
+- **Decision:** QA before handoff.
+  - *Alternative:* Defer checks to final edit stage.
+  - *Chosen because:* Earlier QA is cheaper to fix.
+- **Output:** Pass/fail checklist and rerender list.
+- **Depends on:** Step 2.2.
 
 ### Branching Logic
 
-- **If** user rejects draft asset sheet: → revise Step 1.2 and return to Step 1.3.
-- **Else** (user approves draft): → continue to Phase 2 generation.
-- **If** asset is single-frame: → render PNG by default.
-- **Else** (multi-frame): → render GIF by default, or PNG sequence when explicitly requested.
-- **If** GIF frames appear to append/trail: → enforce disposal mode (`background`) and rerender.
-- **If** alignment looks wrong in ASCII renders: → use fixed character-grid rendering and tune `--char-width-factor` / `--line-height-factor`.
+- **If** user rejects asset draft: → revise Step 1.2 and repeat Step 1.3.
+- **Else** (approved): → proceed to Agent B generation.
+- **If** asset is single-frame: → default PNG.
+- **Else** (multi-frame): → default GIF (or PNG sequence if requested).
+- **If** GIF shows trailing/appending frames: → enforce disposal mode `background` and rerender.
+- **If** ASCII alignment is off: → tune `--char-width-factor` and `--line-height-factor`, then rerender.
 
 ## Dead Ends
 
-### Multiline text rendering for ASCII alignment
-- **What happened:** Face/body/legs and logo columns drifted when rendered through multiline annotate behavior.
-- **Why it failed:** Text engine layout was not strict enough for character-cell ASCII.
-- **Lesson:** Render with an explicit char-grid (row/column positions), not multiline text flow.
+### Using multiline text flow for ASCII layout
+- **What happened:** Character columns drifted in face/logo assets.
+- **Why it failed:** Multiline text layout was not strict enough for cell-based ASCII.
+- **Lesson:** Use fixed character-grid rendering.
 
-### Transparent GIF frames visually stacking
-- **What happened:** New frames looked appended over older ones.
-- **Why it failed:** GIF disposal mode did not clear prior frame state for transparent frames.
-- **Lesson:** Set per-frame disposal to `background` for replacement behavior.
+### Transparent GIF frame stacking
+- **What happened:** Frames appeared appended instead of replaced.
+- **Why it failed:** Disposal mode did not clear prior frame state.
+- **Lesson:** Use frame disposal `background` for replacement behavior.
 
 ## Artifacts
 
 | Artifact | Location | Purpose |
 |----------|----------|---------|
-| Asset workflow | `.claude/workflows/video-assets-orchestration-from-script.md` | Captured process for script-to-assets orchestration |
-| ASCII tool | `recordings/tools/ascii.ts` | Render ASCII sources to PNG/GIF |
-| ASCII projects root | `recordings/asciis/` | File-driven asset source folders by project |
-| Example project | `recordings/asciis/multi-agent-orchestration/` | Modern tab-window multi-frame ASCII sheets |
-| Render outputs | `recordings/asciis/{project}/out/` | Generated PNG/GIF deliverables |
-| Baseline sync workflow | `.claude/workflows/recording-pipeline-script-to-synced-video.md` | Agent 1 reference pipeline |
+| Assets workflow | `.claude/workflows/video-assets-orchestration-from-script.md` | Captured process for script-to-assets generation |
+| ASCII renderer | `recordings/tools/ascii.ts` | Render ASCII source files to PNG/GIF |
+| Assets source root | `recordings/asciis/` | Project folders for ASCII assets |
+| Rendered outputs | `recordings/asciis/{project}/out/` | Final asset media for compositing |
+| Example asset project | `recordings/asciis/multi-agent-orchestration/` | Modern tab-window animation sheets |
 
 ## Gotchas
 
-- Always run a draft/approval step before generation; skipping it creates rework.
-- Keep agent responsibilities separated: sync pipeline vs asset generation.
-- For ASCII, folder-driven sources (`recordings/asciis/{project}`) are more maintainable than hardcoded strings.
-- Default transparent PNG is ideal for compositing, but GIF needs proper disposal settings.
-- Treat this as in-progress: additional agents/phases can be appended later.
+- Keep this workflow assets-only; do not include sync/audio pipeline commands.
+- Always require approval on the draft asset sheet before generating files.
+- Use folder-driven sources (`recordings/asciis/{project}`), not hardcoded strings.
+- PNG outputs are transparent by default; confirm this is desired per asset.
+- GIF outputs must use proper disposal to avoid visual trails.
