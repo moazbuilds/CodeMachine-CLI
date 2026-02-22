@@ -44,3 +44,4 @@ recordings/comps/public/output
 recordings/comps/out
 recordings/comps/node_modules
 recordings/comps/bun.lock
+asciis/**/out
