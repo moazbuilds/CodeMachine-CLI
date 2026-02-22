@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "studio": "remotion studio",
-    "render": "remotion render Sync"
+    "render": "remotion render ClaudeclawSadFinalScene"
   },
   "dependencies": {
     "remotion": "^4",

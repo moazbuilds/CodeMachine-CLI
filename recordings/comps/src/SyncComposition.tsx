@@ -7,6 +7,7 @@ import {
   OffthreadVideo,
   useCurrentFrame,
   interpolate,
+  Img,
 } from "remotion";
 import { Audio } from "@remotion/media";
 
@@ -41,17 +42,31 @@ type WordSegment = {
   sourceVideoStartSec?: number;
   sourceVideoEndSec?: number;
   newLineStart?: boolean;
+  lineIndex?: number;
 };
 
 export type SyncProps = {
   name: string;
   scriptText?: string;
+  baseVideoName?: string;
 };
 
 type ScriptWord = {
   word: string;
   pauseAfterUnits: number;
 };
+
+const ASCII_SEQUENCE: string[] = [
+  "ascii/claudeclaw/cc-title-never-sleeps.png",
+  "ascii/claudeclaw/cc-why-divider.png",
+  "ascii/claudeclaw/cc-zero-api-overhead.png",
+  "ascii/claudeclaw/cc-subscription-native.png",
+  "ascii/claudeclaw/cc-deploy-minutes-frames/frame_0001.png",
+  "ascii/claudeclaw/cc-no-infra-headaches.png",
+  "ascii/claudeclaw/cc-observability-dashboard-frames/frame_0001.png",
+  "ascii/claudeclaw/cc-daemon-capabilities-frames/frame_0001.png",
+  "ascii/claudeclaw/cc-endcap-brand.png",
+];
 
 // No more manual segments – generate-segments.ts produces silence-aware
 // segments from Whisper captions + video timestamps + script pause markers.
@@ -409,9 +424,13 @@ const AudioSync: React.FC<{ name: string; scriptText?: string }> = ({
   );
 };
 
-const VideoSync: React.FC<{ name: string }> = ({ name }) => {
+const VideoSync: React.FC<{ name: string; baseVideoName?: string }> = ({
+  name,
+  baseVideoName,
+}) => {
   const { fps } = useVideoConfig();
   const [segments, setSegments] = useState<WordSegment[] | null>(null);
+  const videoSrc = staticFile(`output/video/${baseVideoName ?? name}.mp4`);
 
   useEffect(() => {
     const load = async () => {
@@ -432,7 +451,7 @@ const VideoSync: React.FC<{ name: string }> = ({ name }) => {
 
   if (segments === null) return null;
   if (segments.length === 0) {
-    return <OffthreadVideo src={staticFile(`output/video/${name}.mp4`)} muted />;
+    return <OffthreadVideo src={videoSrc} muted style={{ width: "100%", height: "100%" }} />;
   }
 
   // Build a contiguous timeline with hard cuts.
@@ -468,9 +487,10 @@ const VideoSync: React.FC<{ name: string }> = ({ name }) => {
             from={placements[i].from}
             durationInFrames={placements[i].duration}
             layout="none"
+            premountFor={Math.round(fps * 0.4)}
           >
             <VideoClip
-              src={staticFile(`output/video/${name}.mp4`)}
+              src={videoSrc}
               trimBefore={Math.max(0, Math.round(sourceStartSec * fps))}
               playbackRate={playbackRate}
               fadeInFrames={fadeInFrames}
@@ -528,15 +548,223 @@ const VideoClip: React.FC<{
       muted
       trimBefore={trimBefore}
       playbackRate={playbackRate}
-      style={{ opacity }}
+      style={{
+        opacity,
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+      }}
     />
   );
 };
 
-export const SyncComposition: React.FC<SyncProps> = ({ name, scriptText }) => {
+const AsciiShowcase: React.FC<{ name: string }> = ({ name }) => {
+  const { fps } = useVideoConfig();
+  const [segments, setSegments] = useState<WordSegment[] | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const segRes = await fetch(staticFile(`output/segments/${name}.json`));
+        if (!segRes.ok) {
+          setSegments([]);
+          return;
+        }
+        const precomputed: WordSegment[] = await segRes.json();
+        setSegments(precomputed);
+      } catch {
+        setSegments([]);
+      }
+    };
+    load();
+  }, [name]);
+
+  if (segments === null || segments.length === 0) return null;
+
+  return (
+    <>
+      {segments.map((segment, i) => {
+        const from = Math.round(segment.videoStartSec * fps);
+        const to =
+          i + 1 < segments.length
+            ? Math.round(segments[i + 1].videoStartSec * fps)
+            : Math.round(segment.videoEndSec * fps);
+        const duration = Math.max(1, to - from);
+        const imgPath = ASCII_SEQUENCE[i % ASCII_SEQUENCE.length];
+
+        return (
+          <Sequence
+            key={`${i}-${imgPath}`}
+            from={from}
+            durationInFrames={duration}
+            layout="none"
+            premountFor={Math.round(fps * 0.4)}
+          >
+            <AsciiCard src={imgPath} durationInFrames={duration} />
+          </Sequence>
+        );
+      })}
+    </>
+  );
+};
+
+const AsciiCard: React.FC<{ src: string; durationInFrames: number }> = ({
+  src,
+  durationInFrames,
+}) => {
+  const frame = useCurrentFrame();
+  const enterFrames = 14;
+  const exitFrames = 10;
+  const opacity = interpolate(
+    frame,
+    [0, enterFrames, durationInFrames - exitFrames, durationInFrames],
+    [0, 1, 1, 0],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    },
+  );
+  const translateY = interpolate(
+    frame,
+    [0, enterFrames, durationInFrames - exitFrames, durationInFrames],
+    [32, 0, 0, -20],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    },
+  );
+
+  return (
+    <AbsoluteFill style={{ alignItems: "center", justifyContent: "flex-end", pointerEvents: "none" }}>
+      <div
+        style={{
+          width: "76%",
+          height: "40%",
+          marginBottom: 42,
+          borderRadius: 24,
+          border: "1px solid rgba(255,255,255,0.14)",
+          background:
+            "linear-gradient(150deg, rgba(11,15,24,0.95), rgba(18,26,41,0.90))",
+          boxShadow: "0 22px 50px rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(255,255,255,0.04) inset",
+          opacity,
+          transform: `translateY(${translateY}px)`,
+          overflow: "hidden",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 22,
+        }}
+      >
+        <Img
+          src={staticFile(src)}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            filter: "drop-shadow(0 10px 28px rgba(0,0,0,0.5))",
+          }}
+        />
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+const SceneLayout: React.FC<{ name: string; baseVideoName?: string }> = ({
+  name,
+  baseVideoName,
+}) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const shrinkStart = Math.round(fps * 1.1);
+  const shrinkEnd = Math.round(fps * 3.8);
+
+  const scale = interpolate(
+    frame,
+    [0, shrinkStart, shrinkEnd],
+    [1, 1, 0.66],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    },
+  );
+  const translateY = interpolate(
+    frame,
+    [0, shrinkStart, shrinkEnd],
+    [0, 0, -246],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    },
+  );
+  const radius = interpolate(
+    frame,
+    [0, shrinkStart, shrinkEnd],
+    [0, 0, 28],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    },
+  );
+
+  return (
+    <AbsoluteFill
+      style={{
+        background:
+          "radial-gradient(circle at 50% -10%, #2b3c56 0%, #0a0f18 58%, #05070c 100%)",
+      }}
+    >
+      <AbsoluteFill
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 28%, rgba(0,0,0,0.32) 100%)",
+          mixBlendMode: "screen",
+        }}
+      />
+      <AbsoluteFill
+        style={{
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "0 5%",
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            aspectRatio: "16 / 9",
+            overflow: "hidden",
+            borderRadius: radius,
+            border: radius > 0 ? "1px solid rgba(255,255,255,0.18)" : "none",
+            boxShadow:
+              radius > 0
+                ? "0 34px 90px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.03) inset"
+                : "none",
+            transform: `translateY(${translateY}px) scale(${scale})`,
+            transformOrigin: "center center",
+            backgroundColor: "#0d121c",
+          }}
+        >
+          <VideoSync name={name} baseVideoName={baseVideoName} />
+        </div>
+      </AbsoluteFill>
+      <AsciiShowcase name={name} />
+      <AbsoluteFill
+        style={{
+          boxShadow: "inset 0 0 220px rgba(0, 0, 0, 0.46)",
+          pointerEvents: "none",
+        }}
+      />
+    </AbsoluteFill>
+  );
+};
+
+export const SyncComposition: React.FC<SyncProps> = ({
+  name,
+  scriptText,
+  baseVideoName,
+}) => {
   return (
     <AbsoluteFill>
-      <VideoSync name={name} />
+      <SceneLayout name={name} baseVideoName={baseVideoName} />
       <AudioSync name={name} scriptText={scriptText} />
     </AbsoluteFill>
   );
