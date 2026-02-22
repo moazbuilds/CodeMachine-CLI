@@ -1,4 +1,4 @@
-# Video Assets Orchestration from Script
+# Video Assets from Script
 
 > **Goal:** Create the video's assets by reading the script, planning asset needs with the user, and auto-generating approved assets.
 > **Key Insight:** A two-agent assets flow works best: one agent plans the asset sheet with the user, and one agent generates media from that approved sheet.
@@ -138,11 +138,10 @@
 
 | Artifact | Location | Purpose |
 |----------|----------|---------|
-| Assets workflow | `.claude/workflows/video-assets-orchestration-from-script.md` | Captured process for script-to-assets generation |
+| Assets workflow | `.claude/workflows/video-assets-from-script.md` | Captured process for script-to-assets generation |
 | ASCII renderer | `recordings/tools/ascii.ts` | Render ASCII source files to PNG/GIF |
 | Assets source root | `recordings/asciis/` | Project folders for ASCII assets |
 | Rendered outputs | `recordings/asciis/{project}/out/` | Final asset media for compositing |
-| Example asset project | `recordings/asciis/multi-agent-orchestration/` | Modern tab-window animation sheets |
 
 ## Gotchas
 
