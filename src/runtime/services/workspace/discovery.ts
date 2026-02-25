@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { collectAgentsFromWorkflows } from '../../../shared/agents/index.js';
 import { getDevRoot } from '../../../shared/runtime/dev.js';
 import { getImportRoots } from '../../../shared/imports/index.js';
-import { appDebug } from '../../../shared/logging/logger.js';
+import { otel_debug } from '../../../shared/logging/logger.js';
+import { LOGGER_NAMES } from '../../../shared/logging/otel-logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,14 +41,14 @@ export async function loadAgents(
   candidateRoots: string[],
   filterIds?: string[]
 ): Promise<{ allAgents: AgentDefinition[]; subAgents: AgentDefinition[] }> {
-  appDebug('[loadAgents] Called with candidateRoots=%O, filterIds=%O', candidateRoots, filterIds);
+  otel_debug(LOGGER_NAMES.BOOT, '[loadAgents] Called with candidateRoots=%O, filterIds=%O', [candidateRoots, filterIds]);
 
   const candidateModules = new Map<string, 'main' | 'sub' | 'legacy'>();
 
   for (const root of candidateRoots) {
     if (!root) continue;
     const resolvedRoot = path.resolve(root);
-    appDebug('[loadAgents] Scanning root=%s', resolvedRoot);
+    otel_debug(LOGGER_NAMES.BOOT, '[loadAgents] Scanning root=%s', [resolvedRoot]);
 
     for (const filename of AGENT_MODULE_FILENAMES) {
       const moduleCandidate = path.join(resolvedRoot, 'config', filename);
@@ -56,17 +57,17 @@ export async function loadAgents(
       const tag = filename === 'main.agents.js' ? 'main' : filename === 'sub.agents.js' ? 'sub' : 'legacy';
 
       if (existsSync(moduleCandidate)) {
-        appDebug('[loadAgents] Found module: %s (source=%s)', moduleCandidate, tag);
+        otel_debug(LOGGER_NAMES.BOOT, '[loadAgents] Found module: %s (source=%s)', [moduleCandidate, tag]);
         candidateModules.set(moduleCandidate, tag);
       }
       if (existsSync(distCandidate)) {
-        appDebug('[loadAgents] Found module: %s (source=%s)', distCandidate, tag);
+        otel_debug(LOGGER_NAMES.BOOT, '[loadAgents] Found module: %s (source=%s)', [distCandidate, tag]);
         candidateModules.set(distCandidate, tag);
       }
     }
   }
 
-  appDebug('[loadAgents] Total candidate modules found: %d', candidateModules.size);
+  otel_debug(LOGGER_NAMES.BOOT, '[loadAgents] Total candidate modules found: %d', [candidateModules.size]);
 
   const byId = new Map<string, LoadedAgent>();
 
@@ -79,7 +80,7 @@ export async function loadAgents(
 
     const loadedAgents = require(modulePath);
     const agents = Array.isArray(loadedAgents) ? (loadedAgents as AgentDefinition[]) : [];
-    appDebug('[loadAgents] Loaded %d agents from %s', agents.length, modulePath);
+    otel_debug(LOGGER_NAMES.BOOT, '[loadAgents] Loaded %d agents from %s', [agents.length, modulePath]);
 
     for (const agent of agents) {
       if (!agent || typeof agent.id !== 'string') {
@@ -90,7 +91,7 @@ export async function loadAgents(
         continue;
       }
 
-      appDebug('[loadAgents] Processing agent id=%s, source=%s, mirrorPath=%s', id, source, agent.mirrorPath);
+      otel_debug(LOGGER_NAMES.BOOT, '[loadAgents] Processing agent id=%s, source=%s, mirrorPath=%s', [id, source, agent.mirrorPath]);
 
       const existing = byId.get(id);
       const sourceTag = existing?.source ?? source;
@@ -104,16 +105,16 @@ export async function loadAgents(
     }
   }
 
-  appDebug('[loadAgents] Collecting agents from workflows...');
+  otel_debug(LOGGER_NAMES.BOOT, '[loadAgents] Collecting agents from workflows...', []);
   const workflowAgents = await collectAgentsFromWorkflows(candidateRoots);
-  appDebug('[loadAgents] Got %d workflow agents', workflowAgents.length);
+  otel_debug(LOGGER_NAMES.BOOT, '[loadAgents] Got %d workflow agents', [workflowAgents.length]);
 
   for (const agent of workflowAgents) {
     if (!agent || typeof agent.id !== 'string') continue;
     const id = agent.id.trim();
     if (!id) continue;
 
-    appDebug('[loadAgents] Processing workflow agent id=%s', id);
+    otel_debug(LOGGER_NAMES.BOOT, '[loadAgents] Processing workflow agent id=%s', [id]);
 
     const existing = byId.get(id);
     const merged: LoadedAgent = {
@@ -125,8 +126,8 @@ export async function loadAgents(
     byId.set(id, merged);
   }
 
-  appDebug('[loadAgents] Total agents in byId map: %d', byId.size);
-  appDebug('[loadAgents] All agent IDs: %O', Array.from(byId.keys()));
+  otel_debug(LOGGER_NAMES.BOOT, '[loadAgents] Total agents in byId map: %d', [byId.size]);
+  otel_debug(LOGGER_NAMES.BOOT, '[loadAgents] All agent IDs: %O', [Array.from(byId.keys())]);
 
   const allAgents = Array.from(byId.values()).map(({ source: _source, ...agent }) => ({ ...agent }));
 
@@ -134,19 +135,19 @@ export async function loadAgents(
   const subAgents = Array.from(byId.values())
     .filter((agent) => {
       if (agent.source !== 'sub') {
-        appDebug('[loadAgents] Filtering out agent %s: source=%s (not sub)', agent.id, agent.source);
+        otel_debug(LOGGER_NAMES.BOOT, '[loadAgents] Filtering out agent %s: source=%s (not sub)', [agent.id, agent.source]);
         return false;
       }
       if (!filterIds) return true;
       if (filterIds.includes(agent.id)) {
-        appDebug('[loadAgents] Agent %s: source=sub, included in filterIds', agent.id);
+        otel_debug(LOGGER_NAMES.BOOT, '[loadAgents] Agent %s: source=sub, included in filterIds', [agent.id]);
         return true;
       }
-      appDebug('[loadAgents] Agent %s: source=sub, not included in filterIds', agent.id);
+      otel_debug(LOGGER_NAMES.BOOT, '[loadAgents] Agent %s: source=sub, not included in filterIds', [agent.id]);
       return false;
     })
     .map(({ source: _source, ...agent }) => ({ ...agent }));
 
-  appDebug('[loadAgents] Returning %d allAgents, %d subAgents', allAgents.length, subAgents.length);
+  otel_debug(LOGGER_NAMES.BOOT, '[loadAgents] Returning %d allAgents, %d subAgents', [allAgents.length, subAgents.length]);
   return { allAgents, subAgents };
 }
