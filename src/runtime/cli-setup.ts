@@ -3,6 +3,8 @@ import '../shared/runtime/suppress-baseline-warning.js';
 // Boot timing - capture start time immediately
 const bootStartTime = performance.now();
 
+// TODO: Legacy - appDebug file bootstrap is superseded by OTel telemetry. Remove after confirming no side effects.
+/*
 // EARLY LOGGING SETUP - Initialize before anything else
 import * as path from 'node:path';
 import { setAppLogFile, otel_info, otel_warn, otel_error } from '../shared/logging/logger.js';
@@ -16,6 +18,11 @@ if (earlyDebugEnabled) {
   const appDebugLogPath = path.join(earlyCwd, '.codemachine', 'logs', 'app-debug.log');
   setAppLogFile(appDebugLogPath);
 }
+*/
+
+import { otel_info, otel_warn, otel_error } from '../shared/logging/logger.js';
+import { LOGGER_NAMES } from '../shared/logging/otel-logger.js';
+const earlyCwd = process.env.CODEMACHINE_CWD || process.cwd();
 
 // TELEMETRY INITIALIZATION — skip entirely when CODEMACHINE_TRACE is not set
 const traceEnv = (process.env.CODEMACHINE_TRACE || '').trim();
@@ -37,7 +44,7 @@ if (telemetryRequested) {
   shutdownOTelLogging = otelMod.shutdownOTelLogging;
 
   otelInitTime = performance.now();
-  otel_info(LOGGER_NAMES.BOOT, 'CLI boot started', []);
+  otel_info(LOGGER_NAMES.BOOT, 'CLI boot continuing after OTel logging init', []);
 
   otel_info(LOGGER_NAMES.BOOT, 'Initializing tracing...', []);
   const tracingMod = await import('../shared/tracing/index.js');
@@ -127,6 +134,7 @@ const { defaultPkgsTime, cliDepsEndTime, bootHistogram, splashShown, Command, re
       process.stdout.write('\x1b[38;2;224;230;240mCode\x1b[1mMachine\x1b[0m');
       process.stdout.write(`\x1b[${centerY + 1};${centerX - 6}H`);
       process.stdout.write('\x1b[38;2;0;217;255m━━━━━━━━━━━━\x1b[0m');
+      otel_info(LOGGER_NAMES.BOOT, 'Splash screen rendered (rows=%d, cols=%d)', [rows, columns]);
     } else {
       otel_info(LOGGER_NAMES.BOOT, 'Splash screen skipped (subcommand=%s, help/version=%s, tty=%s)',
         [hasSubcommand, hasHelpOrVersion, process.stdout.isTTY]);
@@ -141,6 +149,8 @@ const { defaultPkgsTime, cliDepsEndTime, bootHistogram, splashShown, Command, re
       return { defaultPkgsTime: time, allDefaultsPresent };
     });
 
+    // TODO: Misplaced concern - boot phase metric wiring should be in a dedicated boot metrics module. Move during refactoring.
+    /*
     // Create boot timing histogram after metrics are initialized
     let bootHistogram: import('@opentelemetry/api').Histogram | null = null;
     if (metricsEnabled) {
@@ -157,7 +167,11 @@ const { defaultPkgsTime, cliDepsEndTime, bootHistogram, splashShown, Command, re
       bootHistogram.record(metricsInitTime - tracingInitTime, { 'boot.phase': 'cli.preBoot.metrics' });
       bootHistogram.record(defaultPkgsTime - metricsInitTime, { 'boot.phase': 'cli.preBoot.default_packages' });
     }
+    */
+    let bootHistogram: import('@opentelemetry/api').Histogram | null = null;
 
+    // TODO: Misplaced concern - telemetry process lifecycle handlers should be owned by telemetry runtime initialization. Move during refactoring.
+    /*
     if (tracingConfig) {
       process.on('beforeExit', async () => {
         await shutdownOTelLogging();
@@ -177,6 +191,7 @@ const { defaultPkgsTime, cliDepsEndTime, bootHistogram, splashShown, Command, re
       process.on('SIGINT', () => handleSignal('SIGINT'));
       process.on('SIGTERM', () => handleSignal('SIGTERM'));
     }
+    */
 
     // BLOCKING INSTALL — if sync check found missing packages, install them now
     if (!allDefaultsPresent) {
@@ -237,13 +252,13 @@ const { defaultPkgsTime, cliDepsEndTime, bootHistogram, splashShown, Command, re
 
         const duration = Math.round(performance.now() - defaultPkgsTime);
         span.setAttribute('cli.preBoot.cli_deps.duration_ms', duration);
-        otel_info(LOGGER_NAMES.BOOT, 'CLI dependencies loaded in %dms (commander, node:fs, node:url)', [duration]);
+        otel_info(LOGGER_NAMES.BOOT, 'CLI dependencies import completed in %dms (commander, node:fs, node:url)', [duration]);
 
         return { Command: Cmd, realpathSync: rps, existsSync: es, fileURLToPath: fup };
       }
     );
     const cliDepsEndTime = performance.now();
-    bootHistogram?.record(cliDepsEndTime - defaultPkgsTime, { 'boot.phase': 'cli.preBoot.cli_deps_import' });
+    bootHistogram?.record(cliDepsEndTime - defaultPkgsTime, { 'boot.phase': 'cli.preBoot.cli_deps' });
 
     preBootSpan.setAttribute('cli.preBoot.duration_ms', Math.round(cliDepsEndTime - metricsInitTime));
 
@@ -270,19 +285,26 @@ async function initializeLazy(cwd: string): Promise<void> {
 
     // 0. Check default packages for updates (install already happened in pre-boot)
     const { checkDefaultPackageUpdates } = await import('../shared/imports/auto-import.js');
-    checkDefaultPackageUpdates().catch(err => {
-      otel_warn(LOGGER_NAMES.CLI, 'Default package update check error: %s', [err]);
-    });
+    checkDefaultPackageUpdates()
+      .then(() => otel_info(LOGGER_NAMES.CLI, 'Default package update check completed', []))
+      .catch(err => {
+        otel_warn(LOGGER_NAMES.CLI, 'Default package update check error: %s', [err]);
+      });
 
     // 1. Check for updates
-    await withSpan(cliTracer, 'cli.lazy.updates', async (updateSpan) => {
-      otel_info(LOGGER_NAMES.CLI, 'Checking for updates...', []);
-      const { check } = await import('../shared/updates/index.js');
-      check().catch(err => {
+    otel_info(LOGGER_NAMES.CLI, 'Checking for updates...', []);
+    const updateStart = performance.now();
+    const { check } = await import('../shared/updates/index.js');
+    check()
+      .then(() => {
+        const ms = Math.round(performance.now() - updateStart);
+        otel_info(LOGGER_NAMES.CLI, 'Update check completed successfully', []);
+        otel_info(LOGGER_NAMES.CLI, 'Update check finished in %dms', [ms]);
+      })
+      .catch(err => {
         otel_warn(LOGGER_NAMES.CLI, 'Update check error: %s', [err]);
-        updateSpan.setAttribute('cli.lazy.updates.error', String(err));
+        otel_warn(LOGGER_NAMES.CLI, 'Update check failed after %dms', [Math.round(performance.now() - updateStart)]);
       });
-    });
 
     // LEGACY: Workspace bootstrap - now handled by workflows (preflight.ts, run.ts)
     // TODO: Remove this block once confirmed unused
@@ -373,7 +395,6 @@ export async function runCodemachineCli(argv: string[] = process.argv): Promise<
           // Start lazy loading (fire-and-forget)
           initializeLazy(cwd).catch(err => {
             otel_error(LOGGER_NAMES.CLI, 'Lazy loading error: %s', [err]);
-            console.error('[cli.lazy error]', err);
           });
 
           // Launch TUI - use startManualSpanAsync for proper nesting under cli.boot
@@ -386,11 +407,11 @@ export async function runCodemachineCli(argv: string[] = process.argv): Promise<
             const launcherDuration = Math.round(tuiLauncherLoadTime - tuiStartTime);
             bootHistogram?.record(launcherDuration, { 'boot.phase': 'cli.boot.tui_launcher_import' });
             tuiSpan.setAttribute('cli.boot.tui_launcher.duration_ms', launcherDuration);
-            otel_info(LOGGER_NAMES.TUI, 'TUI launcher loaded in %dms, starting...', [launcherDuration]);
+            otel_info(LOGGER_NAMES.TUI, 'TUI launcher loaded, starting...', []);
 
             // Record boot duration before TUI starts
             const bootDurationPreTui = performance.now() - bootStartTime;
-            bootHistogram?.record(bootDurationPreTui, { 'boot.phase': 'cli.boot.total' });
+            bootHistogram?.record(bootDurationPreTui, { 'boot.phase': 'cli.boot.pre_tui' });
             tuiSpan.setAttribute('cli.boot.total_duration_ms', bootDurationPreTui);
             bootSpan.setAttribute('cli.boot.duration_ms', bootDurationPreTui);
             otel_info(LOGGER_NAMES.BOOT, 'Boot duration (pre-TUI): %dms', [Math.round(bootDurationPreTui)]);
@@ -441,6 +462,7 @@ export async function runCodemachineCli(argv: string[] = process.argv): Promise<
       // Don't wrap parseAsync in a span - for TUI it blocks for the entire session,
       // and for subcommands the individual command handlers provide their own spans
       await program.parseAsync(argv);
+      otel_info(LOGGER_NAMES.CLI, 'Commander argument processing completed', []);
     } catch (error) {
       bootSpan.recordException(error as Error);
       endBootSpan();
@@ -483,7 +505,6 @@ if (shouldRunCli) {
     await runCodemachineCli();
   } catch (error) {
     otel_error(LOGGER_NAMES.BOOT, 'CLI error: %s', [error]);
-    console.error(error);
     exitCode = 1;
   } finally {
     await shutdownOTelLogging();
