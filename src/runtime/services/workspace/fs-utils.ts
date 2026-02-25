@@ -98,7 +98,7 @@ export async function mirrorAgentsToJson(
           await copyPromptFile(foundSource, promptFile);
         } else {
           otel_debug(LOGGER_NAMES.BOOT, '[mirrorAgentsToJson] Template file not found in any search root: %s', [agent.mirrorPath]);
-          console.warn(`[workspace] Template file not found in any search root: ${agent.mirrorPath}`);
+          warn(`[workspace] Template file not found in any search root: ${agent.mirrorPath}`);
           await ensurePromptFile(promptFile);
         }
       } else {

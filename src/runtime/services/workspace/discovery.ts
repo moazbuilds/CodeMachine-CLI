@@ -29,9 +29,12 @@ export const AGENT_MODULE_FILENAMES = ['main.agents.js', 'sub.agents.js', 'agent
 export const SHOULD_DEBUG_BOOTSTRAP = process.env.CODEMACHINE_DEBUG_BOOTSTRAP === '1';
 
 export function debugLog(...args: unknown[]): void {
-  if (SHOULD_DEBUG_BOOTSTRAP) {
-    console.debug('[workspace-bootstrap] debugLog event: %O', args.length === 1 ? args[0] : args);
+  if (!SHOULD_DEBUG_BOOTSTRAP) return;
+  if (typeof args[0] === 'string') {
+    otel_debug(LOGGER_NAMES.BOOT, args[0], args.slice(1));
+    return;
   }
+  otel_debug(LOGGER_NAMES.BOOT, '[workspace-bootstrap] debugLog event: %O', [args.length === 1 ? args[0] : args]);
 }
 
 export type AgentDefinition = Record<string, unknown> & { mirrorPath?: string };
