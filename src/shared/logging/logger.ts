@@ -60,7 +60,7 @@ function shouldLog(level: LogLevel): boolean {
 
 function writeDebugLog(message: string, ...args: unknown[]): void {
   if (!debugLogStream) {
-    console.error(message, ...args);
+    // Intentionally no console fallback: debug logs are file-only to avoid telemetry/UX noise.
     return;
   }
 

@@ -20,7 +20,8 @@ export interface TelemetryData {
 export function logTelemetry(_data: TelemetryData): void {
   // Telemetry data is captured and stored in .codemachine/logs/registry.json
   // No need for a separate telemetry.log file
-  if (process.env.LOG_LEVEL === 'debug') {
-    console.error('[DEBUG] logTelemetry called (no-op - telemetry stored in registry.json)');
-  }
+  // TODO: Legacy - debug no-op notice is retired telemetry noise. Remove this function after legacy callers are deleted.
+  // if (process.env.LOG_LEVEL === 'debug') {
+  //   console.error('[DEBUG] logTelemetry called (no-op - telemetry stored in registry.json)');
+  // }
 }

@@ -19,7 +19,7 @@ import {
   ATTR_SERVICE_NAME,
   ATTR_SERVICE_VERSION,
 } from '@opentelemetry/semantic-conventions';
-import { diag, DiagConsoleLogger, DiagLogLevel, trace } from '@opentelemetry/api';
+import { trace } from '@opentelemetry/api';
 import type { BasicTracerProvider } from '@opentelemetry/sdk-trace-base';
 
 import { getConfig, type TracingConfig } from './config.js';
@@ -134,11 +134,6 @@ export async function initTracing(): Promise<TracingConfig | null> {
   if (!config.enabled) {
     initialized = true;
     return null;
-  }
-
-  // Enable diagnostic logging in debug mode
-  if (process.env.CODEMACHINE_TRACE_DEBUG === '1') {
-    diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
   }
 
   try {
