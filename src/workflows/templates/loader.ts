@@ -6,10 +6,11 @@ import { validateWorkflowTemplate } from './validator.js';
 import { ensureTemplateGlobals } from './globals.js';
 import { getDevRoot } from '../../shared/runtime/dev.js';
 import { resolveWorkflowTemplate } from '../../shared/imports/index.js';
-import { appDebug } from '../../shared/logging/logger.js';
+import { otel_debug } from '../../shared/logging/logger.js';
+import { LOGGER_NAMES } from '../../shared/logging/otel-logger.js';
 
 const localRoot = getDevRoot() || '';
-appDebug('[TemplateLoader] localRoot resolved to: %s', localRoot || '(none — compiled binary)');
+otel_debug(LOGGER_NAMES.CLI, '[TemplateLoader] localRoot resolved to: %s', [localRoot || '(none — compiled binary)']);
 
 // Module loading
 export async function loadWorkflowModule(modPath: string): Promise<unknown> {
@@ -34,10 +35,10 @@ export async function loadWorkflowModule(modPath: string): Promise<unknown> {
 
 // Template loading
 export async function loadTemplate(cwd: string, templatePath: string): Promise<WorkflowTemplate> {
-  appDebug('[TemplateLoader] loadTemplate called');
-  appDebug('[TemplateLoader] templatePath input: %s', templatePath);
-  appDebug('[TemplateLoader] localRoot: %s', localRoot);
-  appDebug('[TemplateLoader] isAbsolute: %s', path.isAbsolute(templatePath));
+  otel_debug(LOGGER_NAMES.CLI, '[TemplateLoader] loadTemplate called', []);
+  otel_debug(LOGGER_NAMES.CLI, '[TemplateLoader] templatePath input: %s', [templatePath]);
+  otel_debug(LOGGER_NAMES.CLI, '[TemplateLoader] localRoot: %s', [localRoot]);
+  otel_debug(LOGGER_NAMES.CLI, '[TemplateLoader] isAbsolute: %s', [path.isAbsolute(templatePath)]);
 
   let resolvedPath: string;
   if (path.isAbsolute(templatePath)) {
@@ -47,20 +48,20 @@ export async function loadTemplate(cwd: string, templatePath: string): Promise<W
     resolvedPath = importResolved ?? (localRoot ? path.resolve(localRoot, templatePath) : templatePath);
   }
 
-  appDebug('[TemplateLoader] resolvedPath: %s', resolvedPath);
+  otel_debug(LOGGER_NAMES.CLI, '[TemplateLoader] resolvedPath: %s', [resolvedPath]);
 
   try {
-    appDebug('[TemplateLoader] Loading module from: %s', resolvedPath);
+    otel_debug(LOGGER_NAMES.CLI, '[TemplateLoader] Loading module from: %s', [resolvedPath]);
     const tpl = (await loadWorkflowModule(resolvedPath)) as unknown;
     const result = validateWorkflowTemplate(tpl);
     if (result.valid) {
-      appDebug('[TemplateLoader] Template loaded successfully from: %s', resolvedPath);
+      otel_debug(LOGGER_NAMES.CLI, '[TemplateLoader] Template loaded successfully from: %s', [resolvedPath]);
       return tpl as WorkflowTemplate;
     }
     const rel = path.relative(cwd, resolvedPath);
     throw new Error(`Template validation failed for ${rel}: ${result.errors.join('; ')}`);
   } catch (e) {
-    appDebug('[TemplateLoader] Failed to load template: %s', e instanceof Error ? e.message : String(e));
+    otel_debug(LOGGER_NAMES.CLI, '[TemplateLoader] Failed to load template: %s', [e instanceof Error ? e.message : String(e)]);
     if (e instanceof Error && e.message.includes('Template validation failed')) {
       throw e;
     }
@@ -70,9 +71,9 @@ export async function loadTemplate(cwd: string, templatePath: string): Promise<W
 }
 
 export async function loadTemplateWithPath(cwd: string, templatePath: string): Promise<{ template: WorkflowTemplate; resolvedPath: string }> {
-  appDebug('[TemplateLoader] loadTemplateWithPath called');
-  appDebug('[TemplateLoader] templatePath input: %s', templatePath);
-  appDebug('[TemplateLoader] localRoot: %s', localRoot);
+  otel_debug(LOGGER_NAMES.CLI, '[TemplateLoader] loadTemplateWithPath called', []);
+  otel_debug(LOGGER_NAMES.CLI, '[TemplateLoader] templatePath input: %s', [templatePath]);
+  otel_debug(LOGGER_NAMES.CLI, '[TemplateLoader] localRoot: %s', [localRoot]);
 
   let resolvedPath: string;
   if (path.isAbsolute(templatePath)) {
@@ -82,19 +83,19 @@ export async function loadTemplateWithPath(cwd: string, templatePath: string): P
     resolvedPath = importResolved ?? (localRoot ? path.resolve(localRoot, templatePath) : templatePath);
   }
 
-  appDebug('[TemplateLoader] resolvedPath: %s', resolvedPath);
+  otel_debug(LOGGER_NAMES.CLI, '[TemplateLoader] resolvedPath: %s', [resolvedPath]);
 
   try {
     const tpl = (await loadWorkflowModule(resolvedPath)) as unknown;
     const result = validateWorkflowTemplate(tpl);
     if (result.valid) {
-      appDebug('[TemplateLoader] Template loaded successfully from: %s', resolvedPath);
+      otel_debug(LOGGER_NAMES.CLI, '[TemplateLoader] Template loaded successfully from: %s', [resolvedPath]);
       return { template: tpl as WorkflowTemplate, resolvedPath };
     }
     const rel = path.relative(cwd, resolvedPath);
     throw new Error(`Template validation failed for ${rel}: ${result.errors.join('; ')}`);
   } catch (e) {
-    appDebug('[TemplateLoader] Failed to load template: %s', e instanceof Error ? e.message : String(e));
+    otel_debug(LOGGER_NAMES.CLI, '[TemplateLoader] Failed to load template: %s', [e instanceof Error ? e.message : String(e)]);
     if (e instanceof Error && e.message.includes('Template validation failed')) {
       throw e;
     }

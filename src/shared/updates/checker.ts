@@ -2,11 +2,12 @@ import { homedir } from "os"
 import { join } from "path"
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "fs"
 import { VERSION } from "../../runtime/version.js"
-import { appDebug } from "../logging/logger.js"
+import { otel_debug } from "../logging/logger.js"
+import { LOGGER_NAMES } from "../logging/otel-logger.js"
 import type { UpdateCache } from "./types.js"
 
 function debug(message: string, ...args: unknown[]) {
-  appDebug(`[UpdateChecker] ${message}`, ...args)
+  otel_debug(LOGGER_NAMES.CLI, `[UpdateChecker] ${message}`, args)
 }
 
 const CACHE_DIR = join(homedir(), ".codemachine", "cache")
