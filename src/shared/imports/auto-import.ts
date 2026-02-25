@@ -10,7 +10,7 @@ import { metrics } from '@opentelemetry/api';
 import { DEFAULT_PACKAGES } from './defaults.js';
 import { getInstalledImport } from './registry.js';
 import { installPackage, updatePackage } from './installer.js';
-import { otel_info, otel_warn } from '../logging/logger.js';
+import { otel_info, otel_warn, warn } from '../logging/logger.js';
 import { LOGGER_NAMES } from '../logging/otel-logger.js';
 
 const cliMeter = metrics.getMeter('codemachine.cli');
@@ -69,7 +69,7 @@ export async function ensureDefaultPackages(onInstalling?: (name: string) => voi
         const message = result.error || 'unknown error';
         if (pkg.required) {
           otel_warn(LOGGER_NAMES.CLI, '[AutoImport] WARN: Failed to install required package %s: %s', [pkg.name, message]);
-          console.warn(`Warning: "${pkg.name}" package could not be installed.`);
+          warn(`Warning: "${pkg.name}" package could not be installed.`);
         } else {
           otel_info(LOGGER_NAMES.CLI, '[AutoImport] Skipped optional package %s: %s', [pkg.name, message]);
         }
@@ -78,7 +78,7 @@ export async function ensureDefaultPackages(onInstalling?: (name: string) => voi
       const message = err instanceof Error ? err.message : String(err);
       if (pkg.required) {
         otel_warn(LOGGER_NAMES.CLI, '[AutoImport] WARN: Exception installing required package %s: %s', [pkg.name, message]);
-        console.warn(`Warning: "${pkg.name}" package could not be installed.`);
+        warn(`Warning: "${pkg.name}" package could not be installed.`);
       } else {
         otel_info(LOGGER_NAMES.CLI, '[AutoImport] Skipped optional package %s (exception): %s', [pkg.name, message]);
       }
