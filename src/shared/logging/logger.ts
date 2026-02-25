@@ -113,31 +113,12 @@ export function initDebugLogging(): boolean {
   return false;
 }
 
-export function setAppLogFile(filePath: string | null): void {
-  // TODO: Legacy - appDebug file logging is retired in favor of OTel telemetry.
-  // Kept as a no-op for backward compatibility while old call sites are removed.
-  void filePath;
-}
-
-
 export function otel_log(logger_name: (typeof LOGGER_NAMES)[keyof typeof LOGGER_NAMES],
                          level: SeverityNumber, message: string, args: unknown[]): void {
   if (isOTelLoggingEnabled()) {
     const formatted = formatMessage(message, ...args);
     emitOTelLog(logger_name, level, formatted);
   }
-}
-
-export function appDebug(message: string, ...args: unknown[]): void {
-  // TODO: Legacy compatibility shim - migrate callers to otel_debug with explicit LOGGER_NAMES ownership.
-  if (shouldLog('debug')) {
-    otel_log(LOGGER_NAMES.CLI, SeverityNumber.DEBUG, message, args);
-  }
-}
-
-export function otel_appDebug(logger_name: (typeof LOGGER_NAMES)[keyof typeof LOGGER_NAMES],
-                              message: string, args: unknown[]): void {
-  otel_log(logger_name, SeverityNumber.DEBUG, message, args);
 }
 
 
