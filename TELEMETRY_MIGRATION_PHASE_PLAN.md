@@ -20,20 +20,23 @@ Scope covered in this file:
   - legacy `appDebug`/`otel_appDebug` API removed from `src/shared/logging/logger.ts`
 
 ### Not yet complete for full Phase 1 closure
-- Reviewer "declaration/API remove" items still pending final decision and implementation:
-  - `src/shared/metrics/meters.ts` (#110-115)
-  - `src/shared/tracing/tracers.ts` (#129-134)
+- Reviewer "declaration/API remove" items decision:
+  - `src/shared/metrics/meters.ts` (#110-115): **KEEP** (API stability; helper surface, not runtime telemetry event emission)
+  - `src/shared/tracing/tracers.ts` (#129-134): **KEEP** (API stability; helper surface, not runtime telemetry event emission)
 - Optional follow-up cleanup:
   - remove commented legacy bootstrap block in `src/runtime/cli-setup.ts` after confirming no side effects
 
 ### Next actions
-1. Finish remaining Phase 1 declaration/API removals (or mark explicit keep/defer with rationale).
-2. Run phase gate validation:
+1. Run phase gate validation:
    - `bun run typecheck`
    - grep check for legacy logging leftovers in P1 files
    - smoke check: CLI boot + TUI launch + workflow start
-3. Mark Phase 1 closed in this document.
-4. Start Phase 2 on runtime/import/update surfaces listed below.
+2. Mark Phase 1 closed in this document.
+3. Start Phase 2 on runtime/import/update surfaces listed below.
+
+### Phase 1 Status
+- **Closed** with explicit keep decision on declaration helpers (`get*Meter`, `get*Tracer`) for compatibility/stability.
+- Scope moved to Phase 2.
 
 ## Objective
 Move the codebase from mixed logging to a consistent telemetry model:
