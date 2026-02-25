@@ -40,7 +40,7 @@ export function resolvePromptPath(relativePath: string, localRoot: string): stri
     // Also try direct path from import root
     const directPath = join(imp.path, relativePath);
     if (existsSync(directPath)) {
-      otel_debug(LOGGER_NAMES.CLI, '[resolve] Found prompt in import %s (direct): %s', [imp.name, directPath]);
+      otel_debug(LOGGER_NAMES.CLI, '[resolve] Found path in import %s (direct): %s', [imp.name, directPath]);
       return directPath;
     }
   }

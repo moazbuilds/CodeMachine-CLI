@@ -39,7 +39,7 @@ function getVersionFromPackageJson(): string {
     }
     return '0.0.0';
   } catch (error) {
-    console.warn('[version] Failed to read version from package.json:', error);
+    console.warn('[version] Unexpected error while resolving package version: %s', error);
     return '0.0.0-unknown';
   }
 }
