@@ -16,31 +16,32 @@
  * to ensure the plugin is registered before any JSX files are parsed.
  */
 
-import { appDebug } from '../../shared/logging/logger.js';
+import { otel_debug } from '../../shared/logging/logger.js';
+import { LOGGER_NAMES } from '../../shared/logging/otel-logger.js';
 
 // Only load preload in dev mode (when running from source)
 // In production binaries, JSX is pre-transformed during build
 const isDev = import.meta.url.includes('/src/')
-appDebug('[Launcher] isDev=%s', isDev);
+otel_debug(LOGGER_NAMES.TUI, '[Launcher] isDev=%s', [isDev]);
 if (isDev) {
-  appDebug('[Launcher] Loading OpenTUI preload');
+  otel_debug(LOGGER_NAMES.TUI, '[Launcher] Loading OpenTUI preload', []);
   await import("@opentui/solid/preload")
-  appDebug('[Launcher] OpenTUI preload loaded');
+  otel_debug(LOGGER_NAMES.TUI, '[Launcher] OpenTUI preload loaded', []);
 }
 
 // Dynamic import ensures app.js is loaded AFTER preload is registered (in dev)
 export async function startTUI() {
-  appDebug('[Launcher] startTUI() called');
-  appDebug('[Launcher] Importing TUI app module');
+  otel_debug(LOGGER_NAMES.TUI, '[Launcher] startTUI() called', []);
+  otel_debug(LOGGER_NAMES.TUI, '[Launcher] Importing TUI app module', []);
   try {
     const app = await import("./app.js");
-    appDebug('[Launcher] app.js imported successfully');
-    appDebug('[Launcher] Calling app.startTUI()');
+    otel_debug(LOGGER_NAMES.TUI, '[Launcher] app.js imported successfully', []);
+    otel_debug(LOGGER_NAMES.TUI, '[Launcher] Calling app.startTUI()', []);
     const result = await app.startTUI();
-    appDebug('[Launcher] app.startTUI() returned');
+    otel_debug(LOGGER_NAMES.TUI, '[Launcher] app.startTUI() returned', []);
     return result;
   } catch (err) {
-    appDebug('[Launcher] Error: %s', err);
+    otel_debug(LOGGER_NAMES.TUI, '[Launcher] Error: %s', [err]);
     throw err;
   }
 }

@@ -5,7 +5,8 @@
  * before the process terminates.
  */
 
-import { appDebug } from '../../shared/logging/logger.js';
+import { otel_debug } from '../../shared/logging/logger.js';
+import { LOGGER_NAMES } from '../../shared/logging/otel-logger.js';
 
 let exitResolver: (() => void) | null = null;
 
@@ -23,13 +24,13 @@ export function registerExitResolver(resolver: () => void): void {
  * Otherwise, falls back to process.exit() (which may not flush tracing).
  */
 export function exitTUI(code: number = 0): void {
-  appDebug('[TUI Exit] exitTUI called with code=%d', code);
+  otel_debug(LOGGER_NAMES.TUI, '[TUI Exit] exitTUI called with code=%d', [code]);
 
   if (exitResolver) {
-    appDebug('[TUI Exit] Using registered exit resolver');
+    otel_debug(LOGGER_NAMES.TUI, '[TUI Exit] Using registered exit resolver', []);
     exitResolver();
   } else {
-    appDebug('[TUI Exit] No exit resolver, falling back to process.exit()');
+    otel_debug(LOGGER_NAMES.TUI, '[TUI Exit] No exit resolver, falling back to process.exit()', []);
     process.exit(code);
   }
 }

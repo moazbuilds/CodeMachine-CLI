@@ -18,7 +18,8 @@ import { initTUILogger, closeTUILogger } from "@tui/shared/utils/tui-logger"
 import { getSavedTheme, getTerminalBackgroundColor } from "./utils"
 import { App, currentView } from "./app-shell"
 import { ErrorComponent } from "./components/error-boundary"
-import { appDebug } from "../../shared/logging/logger.js"
+import { otel_debug } from "../../shared/logging/logger.js"
+import { LOGGER_NAMES } from "../../shared/logging/otel-logger.js"
 import { registerExitResolver } from "./exit"
 import { getCliTracer, withSpan, withSpanSync } from "../../shared/tracing/index.js"
 
@@ -61,21 +62,21 @@ export async function startTUI(
   initialToast?: InitialToast
 ): Promise<void> {
   const cliTracer = getCliTracer()
-  appDebug('[TUI] startTUI function entered')
-  appDebug('[TUI] skipBackgroundDetection=%s, knownMode=%s', skipBackgroundDetection, knownMode)
+  otel_debug(LOGGER_NAMES.TUI, '[TUI] startTUI function entered', [])
+  otel_debug(LOGGER_NAMES.TUI, '[TUI] skipBackgroundDetection=%s, knownMode=%s', [skipBackgroundDetection, knownMode])
 
   // Priority: 1. Saved theme from KV, 2. Known mode, 3. Auto-detect
   const mode = await withSpan(cliTracer, 'cli.tui.theme_detect', async (themeSpan) => {
-    appDebug('[TUI] Getting saved theme')
+    otel_debug(LOGGER_NAMES.TUI, '[TUI] Getting saved theme', [])
     const savedTheme = await getSavedTheme()
-    appDebug('[TUI] savedTheme=%s', savedTheme)
+    otel_debug(LOGGER_NAMES.TUI, '[TUI] savedTheme=%s', [savedTheme])
     themeSpan.setAttribute('cli.tui.theme.saved', savedTheme ?? 'none')
 
-    appDebug('[TUI] Resolving mode')
+    otel_debug(LOGGER_NAMES.TUI, '[TUI] Resolving mode', [])
     const resolvedMode = savedTheme
       ?? (skipBackgroundDetection && knownMode ? knownMode : null)
       ?? await getTerminalBackgroundColor()
-    appDebug('[TUI] Resolved mode=%s', resolvedMode)
+    otel_debug(LOGGER_NAMES.TUI, '[TUI] Resolved mode=%s', [resolvedMode])
     themeSpan.setAttribute('cli.tui.theme.resolved', resolvedMode)
     themeSpan.setAttribute('cli.tui.theme.skip_detection', skipBackgroundDetection)
     return resolvedMode
@@ -83,35 +84,35 @@ export async function startTUI(
 
   // Wait for stdin to settle after background detection
   if (!skipBackgroundDetection) {
-    appDebug('[TUI] Waiting for stdin to settle (100ms)')
+    otel_debug(LOGGER_NAMES.TUI, '[TUI] Waiting for stdin to settle (100ms)', [])
     await new Promise((r) => setTimeout(r, 100))
-    appDebug('[TUI] stdin settled')
+    otel_debug(LOGGER_NAMES.TUI, '[TUI] stdin settled', [])
   }
 
   // Clear terminal before OpenTUI takes over
   if (process.stdout.isTTY) {
-    appDebug('[TUI] Clearing terminal')
+    otel_debug(LOGGER_NAMES.TUI, '[TUI] Clearing terminal', [])
     process.stdout.write('\x1b[2J\x1b[H\x1b[?25h')
   }
 
-  appDebug('[TUI] About to create render Promise')
+  otel_debug(LOGGER_NAMES.TUI, '[TUI] About to create render Promise', [])
   return new Promise<void>((resolve) => {
-    appDebug('[TUI] Inside Promise, registering exit resolver')
+    otel_debug(LOGGER_NAMES.TUI, '[TUI] Inside Promise, registering exit resolver', [])
     registerExitResolver(resolve)
 
     withSpanSync(cliTracer, 'cli.tui.render_init', (renderSpan) => {
-      appDebug('[TUI] Inside Promise, creating VignetteEffect')
+      otel_debug(LOGGER_NAMES.TUI, '[TUI] Inside Promise, creating VignetteEffect', [])
       const vignetteEffect = new VignetteEffect(0.35)
-      appDebug('[TUI] VignetteEffect created, calling render()')
+      otel_debug(LOGGER_NAMES.TUI, '[TUI] VignetteEffect created, calling render()', [])
       renderSpan.setAttribute('cli.tui.render.target_fps', 60)
       renderSpan.setAttribute('cli.tui.render.mode', mode)
 
       try {
         render(
           () => {
-            appDebug('[TUI] Root component render function called')
+            otel_debug(LOGGER_NAMES.TUI, '[TUI] Root component render function called', [])
             return <Root mode={mode} initialToast={initialToast} onExit={() => {
-              appDebug('[TUI] onExit called, closing TUI')
+              otel_debug(LOGGER_NAMES.TUI, '[TUI] onExit called, closing TUI', [])
               closeTUILogger()
               if (process.stdout.isTTY) {
                 process.stdout.write('\x1b[2J\x1b[H\x1b[?25h')
@@ -137,16 +138,16 @@ export async function startTUI(
             ],
           }
         )
-        appDebug('[TUI] render() call completed')
+        otel_debug(LOGGER_NAMES.TUI, '[TUI] render() call completed', [])
       } catch (renderErr) {
-        appDebug('[TUI] render() error: %s', renderErr)
+        otel_debug(LOGGER_NAMES.TUI, '[TUI] render() error: %s', [renderErr])
         throw renderErr
       }
     })
 
-    appDebug('[TUI] Setting up TUI logger timeout (200ms)')
+    otel_debug(LOGGER_NAMES.TUI, '[TUI] Setting up TUI logger timeout (200ms)', [])
     setTimeout(() => {
-      appDebug('[TUI] Initializing TUI logger')
+      otel_debug(LOGGER_NAMES.TUI, '[TUI] Initializing TUI logger', [])
       initTUILogger()
     }, 200)
   })
