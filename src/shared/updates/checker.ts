@@ -2,7 +2,7 @@ import { homedir } from "os"
 import { join } from "path"
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "fs"
 import { VERSION } from "../../runtime/version.js"
-import { otel_debug } from "../logging/logger.js"
+import { otel_debug, otel_info } from "../logging/logger.js"
 import { LOGGER_NAMES } from "../logging/otel-logger.js"
 import type { UpdateCache } from "./types.js"
 
@@ -47,10 +47,15 @@ function writeCache(cache: UpdateCache): void {
 async function fetchLatestVersion(packageName: string): Promise<string | null> {
   try {
     debug("Fetching latest version for:", packageName)
+    const fetchStart = performance.now()
     const response = await fetch(`https://registry.npmjs.org/${packageName}/latest`, {
       headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(10000),
     })
+    otel_info(LOGGER_NAMES.CLI, '[UpdateChecker] Latest-version fetch duration: %dms (status=%s)', [
+      Math.round(performance.now() - fetchStart),
+      response.status,
+    ])
     if (!response.ok) {
       debug("Registry response not ok:", response.status)
       return null

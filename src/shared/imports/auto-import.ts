@@ -6,11 +6,26 @@
  * - `checkDefaultPackageUpdates()` — fetch remote manifests and re-import on version change
  */
 
+import { metrics } from '@opentelemetry/api';
 import { DEFAULT_PACKAGES } from './defaults.js';
 import { getInstalledImport } from './registry.js';
 import { installPackage, updatePackage } from './installer.js';
 import { otel_info, otel_warn } from '../logging/logger.js';
 import { LOGGER_NAMES } from '../logging/otel-logger.js';
+
+const cliMeter = metrics.getMeter('codemachine.cli');
+const defaultPackageInstallDurationMs = cliMeter.createHistogram('default_package_install_duration_ms', {
+  description: 'Duration of default package install attempts in milliseconds',
+  unit: 'ms',
+});
+const defaultPackageManifestFetchDurationMs = cliMeter.createHistogram('default_package_manifest_fetch_duration_ms', {
+  description: 'Duration of default package manifest fetch requests in milliseconds',
+  unit: 'ms',
+});
+const defaultPackageUpdateDurationMs = cliMeter.createHistogram('default_package_update_duration_ms', {
+  description: 'Duration of default package update attempts in milliseconds',
+  unit: 'ms',
+});
 
 /**
  * Fast synchronous check — are all *required* default packages present in the registry?
@@ -44,11 +59,10 @@ export async function ensureDefaultPackages(onInstalling?: (name: string) => voi
     try {
       const installStart = performance.now();
       const result = await installPackage(pkg.source);
-      otel_info(
-        LOGGER_NAMES.CLI,
-        '[AutoImport] Install attempt duration for %s: %dms (success=%s)',
-        [pkg.name, Math.round(performance.now() - installStart), result.success]
-      );
+      defaultPackageInstallDurationMs.record(Math.round(performance.now() - installStart), {
+        'package.name': pkg.name,
+        'operation.success': result.success,
+      });
       if (result.success) {
         otel_info(LOGGER_NAMES.CLI, '[AutoImport] Installed default package %s@%s', [result.name, result.version]);
       } else {
@@ -77,22 +91,27 @@ export async function ensureDefaultPackages(onInstalling?: (name: string) => voi
  * Fetches the remote manifest for each and re-imports if the version differs.
  */
 export async function checkDefaultPackageUpdates(): Promise<void> {
+  let checked = 0;
+  let updated = 0;
+  let failed = 0;
+
   for (const pkg of DEFAULT_PACKAGES) {
     const installed = getInstalledImport(pkg.name);
     if (!installed) continue; // Not installed yet — ensureDefaultPackages handles that
+    checked += 1;
 
     try {
       const fetchStart = performance.now();
       const response = await fetch(pkg.manifestUrl, {
         signal: AbortSignal.timeout(10000),
       });
-      otel_info(
-        LOGGER_NAMES.CLI,
-        '[AutoImport] Manifest fetch duration for %s: %dms (status=%s)',
-        [pkg.name, Math.round(performance.now() - fetchStart), response.status]
-      );
+      defaultPackageManifestFetchDurationMs.record(Math.round(performance.now() - fetchStart), {
+        'package.name': pkg.name,
+        'http.status_code': response.status,
+      });
       if (!response.ok) {
         otel_warn(LOGGER_NAMES.CLI, '[AutoImport] Failed to fetch manifest for %s: HTTP %s', [pkg.name, response.status]);
+        failed += 1;
         continue;
       }
 
@@ -101,12 +120,14 @@ export async function checkDefaultPackageUpdates(): Promise<void> {
         remoteManifest = (await response.json()) as { version?: string };
       } catch {
         otel_warn(LOGGER_NAMES.CLI, '[AutoImport] Invalid JSON in manifest for %s', [pkg.name]);
+        failed += 1;
         continue;
       }
       const remoteVersion = remoteManifest?.version;
 
       if (!remoteVersion) {
         otel_warn(LOGGER_NAMES.CLI, '[AutoImport] Remote manifest for %s has no version field', [pkg.name]);
+        failed += 1;
         continue;
       }
 
@@ -118,17 +139,19 @@ export async function checkDefaultPackageUpdates(): Promise<void> {
       otel_info(LOGGER_NAMES.CLI, '[AutoImport] Updating %s: %s -> %s', [pkg.name, installed.version, remoteVersion]);
       const updateStart = performance.now();
       const result = await updatePackage(pkg.name, pkg.source);
-      otel_info(
-        LOGGER_NAMES.CLI,
-        '[AutoImport] Update attempt duration for %s: %dms (success=%s)',
-        [pkg.name, Math.round(performance.now() - updateStart), result.success]
-      );
+      defaultPackageUpdateDurationMs.record(Math.round(performance.now() - updateStart), {
+        'package.name': pkg.name,
+        'operation.success': result.success,
+      });
       if (result.success) {
+        updated += 1;
         otel_info(LOGGER_NAMES.CLI, '[AutoImport] Updated %s to %s', [pkg.name, result.version]);
       } else {
+        failed += 1;
         otel_warn(LOGGER_NAMES.CLI, '[AutoImport] Failed to update %s: %s', [pkg.name, result.error]);
       }
     } catch (err) {
+      failed += 1;
       otel_warn(
         LOGGER_NAMES.CLI,
         '[AutoImport] Error checking updates for %s: %s',
@@ -136,4 +159,10 @@ export async function checkDefaultPackageUpdates(): Promise<void> {
       );
     }
   }
+
+  otel_info(LOGGER_NAMES.CLI, '[AutoImport] Update scan summary: checked=%d updated=%d failed=%d', [
+    checked,
+    updated,
+    failed,
+  ]);
 }

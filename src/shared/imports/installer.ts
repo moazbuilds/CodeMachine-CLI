@@ -8,6 +8,7 @@
 import { existsSync, rmSync, cpSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
+import { metrics } from '@opentelemetry/api';
 import { otel_debug, otel_info, otel_warn } from '../logging/logger.js';
 import { LOGGER_NAMES } from '../logging/otel-logger.js';
 import {
@@ -28,6 +29,12 @@ export interface InstallResult {
   error?: string;
   errorDetails?: string;
 }
+
+const cliMeter = metrics.getMeter('codemachine.cli');
+const importInstallDurationMs = cliMeter.createHistogram('import_install_duration_ms', {
+  description: 'Duration of package import installs in milliseconds',
+  unit: 'ms',
+});
 
 /**
  * Clone a git repository (shallow, depth 1).
@@ -154,11 +161,12 @@ export async function installPackage(source: string): Promise<InstallResult> {
     }
 
     registerImport(resolved.repoName, manifest, source);
-    otel_info(
-      LOGGER_NAMES.CLI,
-      '[installer] Installed %s@%s in %dms',
-      [manifest.name, manifest.version, Math.round(performance.now() - installStart)]
-    );
+    importInstallDurationMs.record(Math.round(performance.now() - installStart), {
+      'import.name': manifest.name,
+      'import.version': manifest.version,
+      'source.type': resolved.type,
+    });
+    otel_info(LOGGER_NAMES.CLI, '[installer] Installed %s@%s', [manifest.name, manifest.version]);
 
     return {
       success: true,
