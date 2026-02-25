@@ -129,9 +129,10 @@ export function otel_log(logger_name: (typeof LOGGER_NAMES)[keyof typeof LOGGER_
 }
 
 export function appDebug(message: string, ...args: unknown[]): void {
-  // TODO: Legacy - appDebug is deprecated. Use otel_debug/otel_info with explicit logger name.
-  void message;
-  void args;
+  // TODO: Legacy compatibility shim - migrate callers to otel_debug with explicit LOGGER_NAMES ownership.
+  if (shouldLog('debug')) {
+    otel_log(LOGGER_NAMES.CLI, SeverityNumber.DEBUG, message, args);
+  }
 }
 
 export function otel_appDebug(logger_name: (typeof LOGGER_NAMES)[keyof typeof LOGGER_NAMES],
