@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { collectAgentsFromWorkflows } from '../../../shared/agents/index.js';
 import { getDevRoot } from '../../../shared/runtime/dev.js';
 import { getImportRoots } from '../../../shared/imports/index.js';
-import { otel_debug } from '../../../shared/logging/logger.js';
+import { otel_debug, otel_warn } from '../../../shared/logging/logger.js';
 import { LOGGER_NAMES } from '../../../shared/logging/otel-logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -30,7 +30,7 @@ export const SHOULD_DEBUG_BOOTSTRAP = process.env.CODEMACHINE_DEBUG_BOOTSTRAP ==
 
 export function debugLog(...args: unknown[]): void {
   if (SHOULD_DEBUG_BOOTSTRAP) {
-    console.debug('[workspace-bootstrap]', ...args);
+    console.debug('[workspace-bootstrap] debugLog event: %O', args.length === 1 ? args[0] : args);
   }
 }
 
@@ -78,7 +78,17 @@ export async function loadAgents(
       // ignore cache miss
     }
 
-    const loadedAgents = require(modulePath);
+    let loadedAgents: unknown;
+    try {
+      loadedAgents = require(modulePath);
+    } catch (err) {
+      otel_warn(LOGGER_NAMES.BOOT, '[loadAgents] Failed loading module %s (source=%s): %s', [
+        modulePath,
+        source,
+        err instanceof Error ? err.message : String(err),
+      ]);
+      continue;
+    }
     const agents = Array.isArray(loadedAgents) ? (loadedAgents as AgentDefinition[]) : [];
     otel_debug(LOGGER_NAMES.BOOT, '[loadAgents] Loaded %d agents from %s', [agents.length, modulePath]);
 
@@ -106,8 +116,15 @@ export async function loadAgents(
   }
 
   otel_debug(LOGGER_NAMES.BOOT, '[loadAgents] Collecting agents from workflows...', []);
-  const workflowAgents = await collectAgentsFromWorkflows(candidateRoots);
-  otel_debug(LOGGER_NAMES.BOOT, '[loadAgents] Got %d workflow agents', [workflowAgents.length]);
+  let workflowAgents: AgentDefinition[] = [];
+  try {
+    workflowAgents = await collectAgentsFromWorkflows(candidateRoots);
+    otel_debug(LOGGER_NAMES.BOOT, '[loadAgents] Got %d workflow agents', [workflowAgents.length]);
+  } catch (err) {
+    otel_warn(LOGGER_NAMES.BOOT, '[loadAgents] Workflow collection failed: %s', [
+      err instanceof Error ? err.message : String(err),
+    ]);
+  }
 
   for (const agent of workflowAgents) {
     if (!agent || typeof agent.id !== 'string') continue;

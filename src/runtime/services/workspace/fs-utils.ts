@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 
 import type { AgentDefinition } from './discovery.js';
-import { debug, warn, error, otel_debug } from '../../../shared/logging/logger.js';
+import { debug, warn, error, otel_debug, otel_warn } from '../../../shared/logging/logger.js';
 import { LOGGER_NAMES } from '../../../shared/logging/otel-logger.js';
 
 export async function ensureDir(dirPath: string): Promise<void> {
@@ -83,9 +83,13 @@ export async function mirrorAgentsToJson(
             foundSource = candidatePath;
             otel_debug(LOGGER_NAMES.BOOT, '[mirrorAgentsToJson] Found source at %s', [foundSource]);
             break;
-          } catch {
-            otel_debug(LOGGER_NAMES.BOOT, '[mirrorAgentsToJson] Not found at %s', [candidatePath]);
-            // File not found in this root, try next
+          } catch (err) {
+            const code = (err as NodeJS.ErrnoException).code;
+            if (code === 'ENOENT') {
+              otel_debug(LOGGER_NAMES.BOOT, '[mirrorAgentsToJson] Candidate missing at %s', [candidatePath]);
+            } else {
+              otel_warn(LOGGER_NAMES.BOOT, '[mirrorAgentsToJson] Failed to read candidatePath=%s; trying next root', [candidatePath]);
+            }
           }
         }
 

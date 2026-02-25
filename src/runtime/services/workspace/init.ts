@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { CLI_ROOT_CANDIDATES, debugLog, loadAgents } from './discovery.js';
 import { ensureDir, mirrorAgentsToJson } from './fs-utils.js';
 import { getImportRoots } from '../../../shared/imports/index.js';
-import { otel_debug } from '../../../shared/logging/logger.js';
+import { otel_debug, otel_info } from '../../../shared/logging/logger.js';
 import { LOGGER_NAMES } from '../../../shared/logging/otel-logger.js';
 
 export type WorkspaceStructureOptions = {
@@ -26,6 +26,7 @@ function resolveDesiredCwd(explicitCwd?: string): string {
  */
 export async function ensureWorkspaceStructure(options?: WorkspaceStructureOptions): Promise<void> {
   const desiredCwd = resolveDesiredCwd(options?.cwd);
+  otel_info(LOGGER_NAMES.BOOT, '[ensureWorkspaceStructure] Creating workspace tree at %s', [desiredCwd]);
 
   // Ensure the working directory exists
   await ensureDir(desiredCwd);
@@ -52,6 +53,7 @@ export async function ensureWorkspaceStructure(options?: WorkspaceStructureOptio
 
   // Note: specifications.md is only created when template.specification === true
   // See validateSpecification() in validation.ts
+  otel_info(LOGGER_NAMES.BOOT, '[ensureWorkspaceStructure] Workspace tree ready at %s', [desiredCwd]);
 }
 
 /**
@@ -65,7 +67,6 @@ export async function mirrorSubAgents(options: MirrorSubAgentsOptions): Promise<
 
   if (!subAgentIds || subAgentIds.length === 0) {
     otel_debug(LOGGER_NAMES.BOOT, '[mirrorSubAgents] No subAgentIds to mirror, skipping', []);
-    debugLog('No subAgentIds to mirror, skipping');
     return;
   }
 
@@ -94,7 +95,7 @@ export async function mirrorSubAgents(options: MirrorSubAgentsOptions): Promise<
   const { subAgents } = await loadAgents(agentRoots, subAgentIds);
   otel_debug(LOGGER_NAMES.BOOT, '[mirrorSubAgents] loadAgents returned %d sub-agents: %O', [subAgents.length, subAgents.map(a => a.id ?? a.name)]);
 
-  debugLog('Mirroring agents', { agentRoots, agentCount: subAgents.length, subAgentIds });
+  debugLog('[workspace-bootstrap] mirrorSubAgents debug: roots=%O, agentCount=%d, subAgentIds=%O', agentRoots, subAgents.length, subAgentIds);
 
   otel_debug(LOGGER_NAMES.BOOT, '[mirrorSubAgents] Calling mirrorAgentsToJson', []);
   await mirrorAgentsToJson(agentsDir, subAgents, agentRoots);
