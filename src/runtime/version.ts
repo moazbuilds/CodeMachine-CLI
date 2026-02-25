@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { otel_warn } from '../shared/logging/logger.js';
+import { LOGGER_NAMES } from '../shared/logging/otel-logger.js';
 
 /**
  * Gets the version of CodeMachine.
@@ -39,7 +41,9 @@ function getVersionFromPackageJson(): string {
     }
     return '0.0.0';
   } catch (error) {
-    console.warn('[version] Unexpected error while resolving package version: %s', error);
+    otel_warn(LOGGER_NAMES.CLI, '[version] Unexpected error while resolving package version: %s', [
+      error instanceof Error ? error.message : String(error),
+    ]);
     return '0.0.0-unknown';
   }
 }
