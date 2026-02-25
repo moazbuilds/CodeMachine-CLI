@@ -10,7 +10,8 @@ import { createSignal, createMemo, Show, For } from "solid-js"
 import { useKeyboard } from "@opentui/solid"
 import { useTheme } from "@tui/shared/context/theme"
 import { ProgressStep, type StepStatus } from "@tui/shared/ui/progress-step"
-import { appDebug } from "../../../../../shared/logging/logger.js"
+import { otel_debug } from "../../../../../shared/logging/logger.js"
+import { LOGGER_NAMES } from "../../../../../shared/logging/otel-logger.js"
 
 type ImportStep = {
   label: string
@@ -107,7 +108,7 @@ function parseGitHubInput(input: string): { owner?: string; repo: string; url?: 
 }
 
 export function ImportDialog(props: ImportDialogProps) {
-  appDebug("[ImportDialog] Component mounting")
+  otel_debug(LOGGER_NAMES.TUI, "[ImportDialog] Component mounting", [])
   const theme = useTheme()
   const [inputValue, setInputValue] = createSignal("")
   const [state, setState] = createSignal<ImportState>({ phase: "input" })
@@ -130,10 +131,10 @@ export function ImportDialog(props: ImportDialogProps) {
 
   const handleSubmit = async () => {
     const source = inputValue().trim()
-    appDebug("[ImportDialog] handleSubmit called, source=%s", source)
+    otel_debug(LOGGER_NAMES.TUI, "[ImportDialog] handleSubmit called, source=%s", [source])
     if (!source) return
 
-    appDebug("[ImportDialog] Starting install process")
+    otel_debug(LOGGER_NAMES.TUI, "[ImportDialog] Starting install process", [])
     const isLocalPath = parsed()?.isLocal ?? false
     setState({
       phase: "installing",
@@ -164,9 +165,9 @@ export function ImportDialog(props: ImportDialogProps) {
 
       await new Promise((r) => setTimeout(r, 150))
 
-      appDebug("[ImportDialog] Calling onInstall")
+      otel_debug(LOGGER_NAMES.TUI, "[ImportDialog] Calling onInstall", [])
       const result = await props.onInstall(source)
-      appDebug("[ImportDialog] onInstall result: success=%s", result.success)
+      otel_debug(LOGGER_NAMES.TUI, "[ImportDialog] onInstall result: success=%s", [result.success])
 
       if (result.success) {
         updateStep(1, "done")
@@ -196,7 +197,7 @@ export function ImportDialog(props: ImportDialogProps) {
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Unknown error"
-      appDebug("[ImportDialog] Exception: %s", errorMsg)
+      otel_debug(LOGGER_NAMES.TUI, "[ImportDialog] Exception: %s", [errorMsg])
       setState({ phase: "error", reason: errorMsg })
     }
   }
