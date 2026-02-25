@@ -18,7 +18,6 @@ const LOG_LEVELS = {
 type LogLevel = keyof typeof LOG_LEVELS;
 
 let debugLogStream: fs.WriteStream | null = null;
-let appLogStream: fs.WriteStream | null = null;
 
 /**
  * Global shutdown flag - when true, error/warn logs are suppressed
@@ -115,27 +114,9 @@ export function initDebugLogging(): boolean {
 }
 
 export function setAppLogFile(filePath: string | null): void {
-  if (appLogStream) {
-    appLogStream.end();
-    appLogStream = null;
-  }
-
-  if (!filePath) {
-    return;
-  }
-
-  fs.mkdirSync(path.dirname(filePath), {recursive: true});
-  appLogStream = fs.createWriteStream(filePath, {flags: 'a'});
-}
-
-function writeAppLog(message: string, ...args: unknown[]): void {
-  if (!appLogStream) {
-    return;
-  }
-
-  const timestamp = new Date().toISOString();
-  const formatted = formatMessage(message, ...args);
-  appLogStream.write(`${timestamp} ${formatted}\n`);
+  // TODO: Legacy - appDebug file logging is retired in favor of OTel telemetry.
+  // Kept as a no-op for backward compatibility while old call sites are removed.
+  void filePath;
 }
 
 
@@ -148,9 +129,9 @@ export function otel_log(logger_name: (typeof LOGGER_NAMES)[keyof typeof LOGGER_
 }
 
 export function appDebug(message: string, ...args: unknown[]): void {
-  if (shouldLog('debug')) {
-    writeAppLog(`[DEBUG] ${message}`, ...args);
-  }
+  // TODO: Legacy - appDebug is deprecated. Use otel_debug/otel_info with explicit logger name.
+  void message;
+  void args;
 }
 
 export function otel_appDebug(logger_name: (typeof LOGGER_NAMES)[keyof typeof LOGGER_NAMES],
