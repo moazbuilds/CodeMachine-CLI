@@ -8,7 +8,8 @@
 import { existsSync } from 'node:fs';
 import { join, isAbsolute, resolve } from 'node:path';
 import { getAllInstalledImports } from './registry.js';
-import { debug } from '../logging/logger.js';
+import { otel_debug } from '../logging/logger.js';
+import { LOGGER_NAMES } from '../logging/otel-logger.js';
 
 /**
  * Resolve a prompt path by checking imported packages first, then local
@@ -31,7 +32,7 @@ export function resolvePromptPath(relativePath: string, localRoot: string): stri
       const subPath = relativePath.replace(/^prompts\//, '');
       const importPath = join(imp.resolvedPaths.prompts, subPath.replace(/^templates\//, ''));
       if (existsSync(importPath)) {
-        debug('[resolve] Found prompt in import %s: %s', imp.name, importPath);
+        otel_debug(LOGGER_NAMES.CLI, '[resolve] Found prompt in import %s: %s', [imp.name, importPath]);
         return importPath;
       }
     }
@@ -39,7 +40,7 @@ export function resolvePromptPath(relativePath: string, localRoot: string): stri
     // Also try direct path from import root
     const directPath = join(imp.path, relativePath);
     if (existsSync(directPath)) {
-      debug('[resolve] Found prompt in import %s (direct): %s', imp.name, directPath);
+      otel_debug(LOGGER_NAMES.CLI, '[resolve] Found prompt in import %s (direct): %s', [imp.name, directPath]);
       return directPath;
     }
   }
@@ -66,7 +67,7 @@ export function resolvePromptFolder(folderName: string, localRoot: string): stri
     // Look for folder in import's prompts/templates directory
     const importPath = join(imp.resolvedPaths.prompts, folderName);
     if (existsSync(importPath)) {
-      debug('[resolve] Found prompt folder in import %s: %s', imp.name, importPath);
+      otel_debug(LOGGER_NAMES.CLI, '[resolve] Found prompt folder in import %s: %s', [imp.name, importPath]);
       return importPath;
     }
   }
@@ -97,7 +98,7 @@ export function resolveWorkflowTemplate(templateName: string, localRoot: string)
   for (const imp of imports) {
     const importPath = join(imp.resolvedPaths.workflows, templateName);
     if (existsSync(importPath)) {
-      debug('[resolve] Found workflow template in import %s: %s', imp.name, importPath);
+      otel_debug(LOGGER_NAMES.CLI, '[resolve] Found workflow template in import %s: %s', [imp.name, importPath]);
       return importPath;
     }
   }
@@ -134,7 +135,7 @@ export function resolvePathWithImports(
   for (const imp of imports) {
     const importPath = join(imp.path, relativePath);
     if (existsSync(importPath)) {
-      debug('[resolve] Found path in import %s: %s', imp.name, importPath);
+      otel_debug(LOGGER_NAMES.CLI, '[resolve] Found path in import %s: %s', [imp.name, importPath]);
       return importPath;
     }
   }
